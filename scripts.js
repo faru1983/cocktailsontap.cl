@@ -364,7 +364,7 @@ document.addEventListener('DOMContentLoaded', function () {
             id: '14',
             category: 'Mocktails',
             name: 'Mojito Tradicional Sin Alcohol',
-            image: 'img/barril_mojito_sin_alcohol.webp',
+            image: 'img/barril_mojito_tradicional_si_alcohol.webp',
             description: 'Agua Mineral, Limón, Menta, Azúcar.',
             quantity: 0,
             sizes: [
@@ -377,7 +377,7 @@ document.addEventListener('DOMContentLoaded', function () {
             id: '15',
             category: 'Mocktails',
             name: 'Mojito Mango Sin Alcohol',
-            image: 'img/producto_sin_imagen.webp',
+            image: 'img/barril_mojito_mango_si_alcohol.webp',
             description: 'Agua Mineral Gasificada, Mango, Limón, Azúcar.',
             quantity: 0,
             sizes: [
@@ -390,7 +390,7 @@ document.addEventListener('DOMContentLoaded', function () {
             id: '16',
             category: 'Mocktails',
             name: 'Mojito Frambuesa Sin Alcohol',
-            image: 'img/producto_sin_imagen.webp',
+            image: 'img/barril_mojito_frambuesa_si_alcohol.webp',
             description: 'Agua Mineral Gasificada, Frambuesa, Limón, Azúcar.',
             quantity: 0,
             sizes: [
@@ -403,7 +403,7 @@ document.addEventListener('DOMContentLoaded', function () {
             id: '17',
             category: 'Mocktails',
             name: 'Mojito Maracuyá Sin Alcohol',
-            image: 'img/producto_sin_imagen.webp',
+            image: 'img/barril_mojito_maracuya_si_alcohol.webp',
             description: 'Agua Mineral Gasificada, Maracuyá, Limón, Azúcar.',
             quantity: 0,
             sizes: [
@@ -416,7 +416,7 @@ document.addEventListener('DOMContentLoaded', function () {
             id: '18',
             category: 'Mocktails',
             name: 'Gin and Tonic Sin Alcohol',
-            image: 'img/producto_sin_imagen.webp',
+            image: 'img/barril_gin_and_tonic_sin_alcohol.webp',
             description: 'Gin Sin Alcohol, Agua Tónica.',
             quantity: 0,
             sizes: [
@@ -429,7 +429,7 @@ document.addEventListener('DOMContentLoaded', function () {
             id: '19',
             category: 'Mocktails',
             name: 'Tinto de Verano Sin Alcohol',
-            image: 'img/producto_sin_imagen.webp',
+            image: 'img/barril_tinto_de_verano_sin_alcohol.webp',
             description: 'Vino Tinto CS Sin Alcohol, Bebida de limón. Limón.',
             quantity: 0,
             sizes: [
@@ -442,7 +442,7 @@ document.addEventListener('DOMContentLoaded', function () {
             id: '20',
             category: 'Mocktails',
             name: 'Sangría Sin Alcohol',
-            image: 'img/producto_sin_imagen.webp',
+            image: 'img/barril_sangria_sin_alcohol.webp',
             description: 'Vino Tinto CS Sin Alcohol, Syrup Mix Cítricos, Naranja, Limón, Agua Mineral Gasificada.',
             quantity: 0,
             sizes: [
@@ -455,7 +455,7 @@ document.addEventListener('DOMContentLoaded', function () {
             id: '21',
             category: 'Mocktails',
             name: 'Maracuya Spritz Sin Alcohol',
-            image: 'img/producto_sin_imagen.webp',
+            image: 'img/barril_maracuya_spritz_sin_alcohol.webp',
             description: 'Maracuyá, Pomelo, Syrup de Naranja, Espumante Sin Alcohol, Agua Mineral Gasificada.',
             quantity: 0,
             sizes: [
@@ -468,7 +468,7 @@ document.addEventListener('DOMContentLoaded', function () {
             id: '22',
             category: 'Mocktails',
             name: 'Tropical Gin Sin Alcohol',
-            image: 'img/producto_sin_imagen.webp',
+            image: 'img/barril_tropical_gin_sin_alcohol.webp',
             description: 'Gin Sin Alcohol, Red Bull Tropical.',
             quantity: 0,
             sizes: [
