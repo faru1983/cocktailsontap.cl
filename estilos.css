@@ -907,6 +907,17 @@ p {
     min-height: 100px;
 }
 
+.contact-form .form-row {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 12px;
+}
+
+.contact-form .form-row input {
+    flex: 1 1 0;
+    min-width: 0;
+}
+
 /* Estilos Placeholder */
 .datetime-group {
     display: flex;
