@@ -11,7 +11,7 @@
 
 ## 🚀 Características Principales
 
-- **Cotizador Inteligente (Wizard):** Un proceso paso a paso para que los clientes configuren su evento (invitados, duración, tipos de cócteles).
+- **Cotizador Inteligente (Wizard):** Un proceso paso a paso para que los clientes configuren su evento (invitados, duración, tipos de cócteles)...
 - **Cálculo en Tiempo Real:** Algoritmos que calculan automáticamente la cantidad de insumos y el presupuesto según los parámetros del evento.
 - **Integración con Supabase:** Almacenamiento seguro de cotizaciones y gestión de datos.
 - **Diseño Premium & Responsive:** Interfaz moderna optimizada para dispositivos móviles y escritorio, con micro-animaciones y estética de alta gama.
