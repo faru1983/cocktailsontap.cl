@@ -1,0 +1,48 @@
+{
+  "redirects": [
+    {
+      "source": "/agendar",
+      "destination": "https://form.jotform.com/250058106115647",
+      "permanent": true,
+      "has": [
+        {
+          "type": "host",
+          "value": "(www\\.)?cocktailsontap\\.cl$"
+        }
+      ]
+    },
+    {
+      "source": "/contratar",
+      "destination": "https://form.jotform.com/251919401791056",
+      "permanent": true,
+      "has": [
+        {
+          "type": "host",
+          "value": "(www\\.)?cocktailsontap\\.cl$"
+        }
+      ]
+    },
+    {
+      "source": "/qr",
+      "destination": "https://www.instagram.com/cocktailsontap.chile",
+      "permanent": true,
+      "has": [
+        {
+          "type": "host",
+          "value": "(www\\.)?cocktailsontap\\.cl$"
+        }
+      ]
+    },
+    {
+      "source": "/google",
+      "destination": "https://g.page/r/CZMhTQCrKMcrEBI/review",
+      "permanent": true,
+      "has": [
+        {
+          "type": "host",
+          "value": "(www\\.)?cocktailsontap\\.cl$"
+        }
+      ]
+    }
+  ]
+}
