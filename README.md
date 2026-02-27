@@ -69,7 +69,7 @@ El proyecto está configurado para desplegarse automáticamente en Vercel al hac
 
 ---
 
-## �️ Estructura de la Base de Datos (Supabase)
+## ️ Estructura de la Base de Datos (Supabase)
 
 Para que el proyecto funcione correctamente, tu instancia de Supabase debe tener las siguientes tablas y estructura:
 
@@ -105,11 +105,10 @@ VALUES ((SELECT id FROM products WHERE name = 'Mojito Premium'), '5L', 45000, 39
 
 ---
 
-## �📄 Licencia
+## 📄 Licencia
 
 Este proyecto es privado para Cocktails on Tap Chile. Todos los derechos reservados.
 
 ---
 
-Desarrollado con ❤️ para elevar la experiencia de coctelería en Chile. 🇨🇱
-
+Desarrollado con ❤️ para elevar la experiencia de coctelería en Chile. 🇨🇱 
