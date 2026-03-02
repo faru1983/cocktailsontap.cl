@@ -22,10 +22,15 @@ export default function WizardStep4({ wizard, cocktails, categories }: Props) {
     const currentCategory = state.expandedCategoryId || categories[0] || '';
     const catalogRef = useRef<HTMLDivElement>(null);
 
-    // Scroll al inicio de la categoría cuando cambia
-    useEffect(() => {
+    // Función para cambiar de categoría y hacer scroll manual al catálogo
+    const handleCategoryChange = (cat: string) => {
+        if (cat === currentCategory) return;
+
+        toggleCategory(cat);
+
+        // Hacemos el scroll manual solo cuando el usuario selecciona una categoría
         if (catalogRef.current) {
-            const navbarHeight = 85; // Ajuste para el header fijo
+            const navbarHeight = 85;
             const elementPosition = catalogRef.current.getBoundingClientRect().top + window.pageYOffset;
             const offsetPosition = elementPosition - navbarHeight;
 
@@ -34,7 +39,7 @@ export default function WizardStep4({ wizard, cocktails, categories }: Props) {
                 behavior: 'smooth'
             });
         }
-    }, [currentCategory]);
+    };
 
     // 1. Mapeamos CocktailForWizard a Product con useMemo para rendimiento
     const mappedProducts: Product[] = useMemo(() => cocktails.map(c => ({
@@ -97,7 +102,7 @@ export default function WizardStep4({ wizard, cocktails, categories }: Props) {
                                         ? 'bg-gradient-to-r from-primary to-primary-dark border-primary text-white shadow-[0_4px_15px_rgba(226,160,73,0.3)] shadow-primary/30'
                                         : 'bg-white border-brand-border text-brand-text hover:border-primary/50 hover:bg-[#fffbf0]'
                                     }`}
-                                onClick={() => cat !== currentCategory && toggleCategory(cat)}
+                                onClick={() => handleCategoryChange(cat)}
                             >
                                 {cat}
                             </button>
