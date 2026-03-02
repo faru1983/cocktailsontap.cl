@@ -22,7 +22,7 @@ export default function WizardStep6({ wizard, cocktails, comunas }: Props) {
     return (
         <div className="flex flex-col">
             <h3 className="text-2xl font-extrabold text-brand-text mb-2">6. Resumen de Cotización</h3>
-            <p className="text-brand-text-muted text-[0.95rem] mb-8 leading-relaxed">Revisa los detalles de tu barra antes de solicitar el contacto comercial.</p>
+            <p className="text-brand-text-muted text-[0.95rem] mb-8 leading-relaxed">Revisa los detalles de tu solicitud.</p>
 
             <div className="bg-white rounded-[20px] p-8 shadow-[0_4px_20px_rgba(0,0,0,0.07)] border border-brand-border">
                 {/* Event Info */}
@@ -149,22 +149,22 @@ export default function WizardStep6({ wizard, cocktails, comunas }: Props) {
 
                 {/* Totals */}
                 <div className="flex flex-col">
-                    <div className="flex justify-between py-2 border-b border-[#e2e8f0] text-[0.95rem] font-medium text-brand-text-muted">
+                    <div className="flex justify-between py-1 text-[0.95rem] font-medium text-brand-text-muted">
                         <span>Subtotal</span>
                         <span className="font-bold text-brand-text">{formatCurrency(data.totalNormalPrice)}</span>
                     </div>
                     {data.totalDiscount > 0 && (
-                        <div className="flex justify-between py-2 border-b border-[#e2e8f0] text-[0.95rem] font-bold text-[#16a34a]">
+                        <div className="flex justify-between py-1 text-[0.95rem] font-bold text-[#16a34a]">
                             <span>Descuento</span>
                             <span>-{formatCurrency(data.totalDiscount)}</span>
                         </div>
                     )}
-                    <div className="flex justify-between py-2.5 border-b border-[#e2e8f0] text-[0.95rem] font-medium text-brand-text-muted">
+                    <div className="flex justify-between py-1 text-[0.95rem] font-medium text-brand-text-muted">
                         <span>Transporte</span>
                         <span className={`font-bold ${data.shippingCost === 0 ? 'text-primary' : 'text-brand-text'}`}>{data.shippingLabel}</span>
                     </div>
                     <div className="flex justify-between pt-4 mt-2 border-t-2 border-primary items-center">
-                        <span className="font-black text-brand-text text-[1rem]">TOTAL ESTIMADO</span>
+                        <span className="font-black text-brand-text text-[1rem]">TOTAL</span>
                         <span className="text-2xl font-black text-primary">{formatCurrency(data.totalPrice)}</span>
                     </div>
                 </div>
