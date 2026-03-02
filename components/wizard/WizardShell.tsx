@@ -105,7 +105,7 @@ export default function WizardShell() {
                                 className="inline-flex items-center gap-2 px-8 py-3 rounded-2xl bg-primary text-white font-bold text-[1rem] transition-all hover:bg-primary-dark active:scale-95 shadow-[0_4px_15px_rgba(226,160,73,0.35)] hover:shadow-[0_8px_25px_rgba(226,160,73,0.45)]"
                                 onClick={handleNext}
                             >
-                                {state.step === 5 ? 'Ver Resumen' : 'Siguiente'} <ArrowRight className="w-4 h-4" />
+                                {state.step === 5 ? 'Resumen' : 'Siguiente'} <ArrowRight className="w-4 h-4" />
                             </button>
                         ) : (
                             <button
