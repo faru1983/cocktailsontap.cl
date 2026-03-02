@@ -42,17 +42,29 @@ export function useCart() {
 
     const shareViaWhatsApp = useCallback(() => {
         if (items.length === 0) return;
-        let text = '*COTIZACIÓN DESDE CATÁLOGO*\n\n*PRODUCTOS SELECCIONADOS:*\n';
+        const subtotal = items.reduce((s, i) => s + i.price * i.quantity, 0);
+        const total = getTotalPrice();
+        const discount = subtotal - total;
+        const N = new Intl.NumberFormat('es-CL');
+
+        let text = '*COTIZACIÓN*\n\n*PRODUCTOS:*\n';
         items.forEach((item) => {
             const hasOffer = item.price !== item.offerPrice;
+            const itemTotal = item.offerPrice * item.quantity;
+            const itemNormal = item.price * item.quantity;
+
             const priceText = hasOffer
-                ? `~$${new Intl.NumberFormat('es-CL').format(item.price)}~ *$${new Intl.NumberFormat('es-CL').format(item.offerPrice)}*`
-                : `*$${new Intl.NumberFormat('es-CL').format(item.offerPrice)}*`;
+                ? `~$${N.format(itemNormal)}~ *$${N.format(itemTotal)}*`
+                : `*$${N.format(itemTotal)}*`;
             text += `- x${item.quantity} ${item.productName} (${item.size}): ${priceText}\n`;
         });
-        text += `\n*TOTAL ESTIMADO: $${new Intl.NumberFormat('es-CL').format(getTotalPrice())}*`;
-        window.open(`https://wa.me/56929672978?text=${encodeURIComponent(text)}`, '_blank');
-    }, [items]);
+
+        text += `\nSubtotal: $${N.format(subtotal)}`;
+        if (discount > 0) text += `\nDescuento: -$${N.format(discount)}`;
+        text += `\n*TOTAL: $${N.format(total)}*`;
+
+        window.open(`https://wa.me?text=${encodeURIComponent(text)}`, '_blank');
+    }, [items, getTotalPrice]);
 
     const cartQuantityByKey = new Map(items.map((i) => [key(i.productId, i.size), i.quantity]));
     const getQuantity = (productId: string, size: string) => cartQuantityByKey.get(key(productId, size)) ?? 0;
