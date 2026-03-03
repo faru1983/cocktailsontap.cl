@@ -20,7 +20,7 @@ export const metadata: Metadata = {
     description: 'Barra móvil autoservicio de cócteles premium para tus eventos.',
     url: 'https://cocktailsontap.cl/',
     type: 'website',
-    images: [{ url: 'https://cocktailsontap.cl/public/assets/logo2.webp' }],
+    images: [{ url: 'https://cocktailsontap.cl/assets/logo2.webp' }],
   },
 };
 
