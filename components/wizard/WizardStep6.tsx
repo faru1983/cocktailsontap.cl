@@ -17,7 +17,12 @@ interface Props {
 
 export default function WizardStep6({ wizard, cocktails, comunas }: Props) {
     const { state, goToStep } = wizard;
-    const data = useMemo(() => wizard.calculateSummaryData(), [wizard, state.selections, state.eventData, state.contact, state.dispenser]);
+    const data = useMemo(
+        () => wizard.calculateSummaryData(),
+        // wizard.calculateSummaryData es estable; dependemos de los slices reales que usa la función
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [state.selections, state.eventData, state.contact, state.dispenser]
+    );
 
     return (
         <div className="flex flex-col">

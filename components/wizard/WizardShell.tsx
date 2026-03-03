@@ -1,10 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useProducts } from '@/hooks/useProducts';
 import { useWizard } from '@/hooks/useWizard';
 import { AlertCircle, ArrowLeft, ArrowRight } from 'lucide-react';
 import { WhatsappIcon } from '@/components/icons';
+import type { CocktailForWizard, EventType, Comuna } from '@/lib/types';
 import WizardStep1 from './WizardStep1';
 import WizardStep2 from './WizardStep2';
 import WizardStep3 from './WizardStep3';
@@ -12,8 +12,14 @@ import WizardStep4 from './WizardStep4';
 import WizardStep5 from './WizardStep5';
 import WizardStep6 from './WizardStep6';
 
-export default function WizardShell() {
-    const { cocktails, eventTypes, comunas, categories, isLoading } = useProducts();
+interface Props {
+    cocktails: CocktailForWizard[];
+    eventTypes: EventType[];
+    comunas: Comuna[];
+    categories: string[];
+}
+
+export default function WizardShell({ cocktails, eventTypes, comunas, categories }: Props) {
     const wizard = useWizard(cocktails, comunas, categories);
     const { state } = wizard;
 
@@ -21,6 +27,8 @@ export default function WizardShell() {
 
     useEffect(() => {
         wizard.initCategory(categories);
+        // wizard.initCategory es un callback estable (useCallback sin deps), categories es la dependencia real
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [categories]);
 
     const progress = ((state.step - 1) / 5) * 100;
@@ -37,12 +45,6 @@ export default function WizardShell() {
     };
 
     const renderStep = () => {
-        if (isLoading) return (
-            <div className="flex flex-col justify-center items-center min-h-[400px] gap-6 animate-pulse">
-                <div className="w-16 h-16 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
-                <p className="text-brand-text-muted font-bold tracking-tight text-lg">Preparando tu experiencia...</p>
-            </div>
-        );
         switch (state.step) {
             case 1: return <WizardStep1 wizard={wizard} eventTypes={eventTypes} comunas={comunas} />;
             case 2: return <WizardStep2 wizard={wizard} comunas={comunas} />;

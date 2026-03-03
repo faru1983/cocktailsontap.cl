@@ -79,7 +79,7 @@ export interface WizardState {
         comments: string;
     };
     selections: WizardSelection[];
-    dispenser: string;
+    dispenser: 'portatil' | 'muro';
     expandedCocktailId: string | null;
     expandedCategoryId: string;
 }

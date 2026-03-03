@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useEffect } from 'react';
+import React from 'react';
 import type { CocktailForWizard, Comuna } from '@/lib/types';
 import { useWizard } from '@/hooks/useWizard';
 import { Check, Info, Box, Layout, Wine, Droplets, Snowflake, Leaf, GlassWater, Martini, Infinity } from 'lucide-react';
@@ -25,7 +26,9 @@ const INCLUYE_ITEMS = [
 
 export default function WizardStep5({ wizard }: Props) {
     const { state, updateDispenser } = wizard;
-    const data = useMemo(() => wizard.calculateSummaryData(), [wizard, state.selections]);
+    const data = useMemo(() => wizard.calculateSummaryData(),
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [state.selections]);
 
     function getLitersFromSize(size: string): number {
         if (size.includes('30L')) return 30;
@@ -51,7 +54,7 @@ export default function WizardStep5({ wizard }: Props) {
         }
     }, [canHaveMuro, state.dispenser, updateDispenser]);
 
-    const dispensers = [
+    const dispensers: { id: 'portatil' | 'muro'; title: string; description: string; image: string; price: number; icon: React.ElementType }[] = [
         {
             id: 'portatil',
             title: 'Dispensador Portátil',
@@ -61,10 +64,10 @@ export default function WizardStep5({ wizard }: Props) {
             icon: Box
         },
         ...(canHaveMuro ? [{
-            id: 'muro',
+            id: 'muro' as const,
             title: 'Muro de Coctelería',
             description: 'Opción decorativa y elegante para matrimonios y eventos corporativos de gran escala.',
-            image: '/assets/dispensador2.webp',
+            image: '/assets/dispensador4.webp',
             price: 50000,
             icon: Layout
         }] : [])

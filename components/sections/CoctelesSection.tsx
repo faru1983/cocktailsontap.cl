@@ -1,10 +1,9 @@
 'use client';
 
 import { useState, useRef, useCallback } from 'react';
-import { ShoppingCart, Loader2 } from 'lucide-react';
-import { useProducts } from '@/hooks/useProducts';
-
+import { ShoppingCart } from 'lucide-react';
 import { useCart } from '@/hooks/useCart';
+import type { Product } from '@/lib/types';
 import ProductCatalog from '@/components/catalog/ProductCatalog';
 import CartModal from '../catalog/CartModal';
 
@@ -15,8 +14,12 @@ const YIELDS = [
     { liters: '30L', count: 150 },
 ];
 
-export default function CoctelesSection() {
-    const { products, categories, isLoading } = useProducts();
+interface Props {
+    products: Product[];
+    categories: string[];
+}
+
+export default function CoctelesSection({ products, categories }: Props) {
     const cart = useCart();
     const [cartOpen, setCartOpen] = useState(false);
     const [activeCategory, setActiveCategory] = useState('');
@@ -99,18 +102,11 @@ export default function CoctelesSection() {
 
             {/* Grid de productos */}
             <div className="max-w-[1200px] mx-auto px-6 pb-14" ref={gridRef}>
-                {isLoading ? (
-                    <div className="text-center py-16 text-brand-text-muted">
-                        <Loader2 className="w-10 h-10 animate-spin" />
-
-                    </div>
-                ) : (
-                    <ProductCatalog
-                        products={products}
-                        activeCategory={currentCategory}
-                        cart={cart}
-                    />
-                )}
+                <ProductCatalog
+                    products={products}
+                    activeCategory={currentCategory}
+                    cart={cart}
+                />
             </div>
 
             <CartModal

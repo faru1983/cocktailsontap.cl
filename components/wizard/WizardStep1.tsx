@@ -2,9 +2,10 @@
 
 import type { useWizard } from '@/hooks/useWizard';
 import type { EventType, Comuna } from '@/lib/types';
-import { Cake, Baby, Heart, Briefcase, Plus } from 'lucide-react';
+import { Cake, Baby, Heart, Briefcase, Plus, type LucideIcon } from 'lucide-react';
+import SelectField from '@/components/ui/SelectField';
 
-const ICON_MAP: Record<string, any> = {
+const ICON_MAP: Record<string, LucideIcon> = {
     'fa-solid fa-cake-candles': Cake,
     'fa-solid fa-baby': Baby,
     'fa-solid fa-ring': Heart,
@@ -161,25 +162,16 @@ export default function WizardStep1({ wizard, eventTypes }: Props) {
                 {state.eventData.pickupDate && state.eventData.pickupDate !== state.eventData.date && (
                     <div className="animate-fade-in">
                         <label htmlFor="wizard-pickup-time" className="block font-bold mb-2 text-brand-text text-[0.95rem]">Horario de Retiro</label>
-                        <select
+                        <SelectField
                             id="wizard-pickup-time"
-                            className={`w-full p-4 border-2 border-brand-border rounded-2xl text-[1rem] font-sans transition-all focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 appearance-none bg-no-repeat bg-[position:right_1rem_center]
-                                ${!state.eventData.pickupTime ? 'text-brand-text-muted bg-white' : 'text-brand-text bg-white bg-[url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20width%3D%2220%22%20height%3D%2220%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cpath%20d%3D%22M5%207l5%205%205-5%22%20stroke%3D%22%2364748b%22%20stroke-width%3D%222%22%20fill%3D%22none%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%2F%3E%3C%2Fsvg%3E")]'}
-                            `}
                             value={state.eventData.pickupTime}
-                            onChange={(e) => updateEventData('pickupTime', e.target.value)}
-                            onFocus={(e) => e.target.classList.add('bg-[url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20width%3D%2220%22%20height%3D%2220%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cpath%20d%3D%22M5%207l5%205%205-5%22%20stroke%3D%22%2364748b%22%20stroke-width%3D%222%22%20fill%3D%22none%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%2F%3E%3C%2Fsvg%3E")]')}
-                            onBlur={(e) => {
-                                if (!state.eventData.pickupTime) {
-                                    e.target.classList.remove('bg-[url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20width%3D%2220%22%20height%3D%2220%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cpath%20d%3D%22M5%207l5%205%205-5%22%20stroke%3D%22%2364748b%22%20stroke-width%3D%222%22%20fill%3D%22none%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%2F%3E%3C%2Fsvg%3E")]');
-                                }
-                            }}
+                            onChange={(v) => updateEventData('pickupTime', v)}
+                            placeholder="Dato opcional"
                         >
-                            <option value="">Dato opcional</option>
                             <option value="12:00 a 14:00">12:00 a 14:00</option>
                             <option value="14:00 a 16:00">14:00 a 16:00</option>
                             <option value="16:00 a 18:00">16:00 a 18:00</option>
-                        </select>
+                        </SelectField>
                     </div>
                 )}
             </div>

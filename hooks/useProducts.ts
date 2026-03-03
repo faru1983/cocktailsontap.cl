@@ -4,10 +4,9 @@ import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import type { Product, CocktailForWizard, EventType, Comuna, SupabaseProduct } from '@/lib/types';
 
-const DEFAULT_IMAGE =
-    'https://prhauxtawacvwuxjngjx.supabase.co/storage/v1/object/public/product-images/barril_sin_imagen.webp';
 const STORAGE_BASE_URL =
-    'https://prhauxtawacvwuxjngjx.supabase.co/storage/v1/object/public/product-images/';
+    (process.env.NEXT_PUBLIC_SUPABASE_URL ?? '') + '/storage/v1/object/public/product-images/';
+const DEFAULT_IMAGE = STORAGE_BASE_URL + 'barril_sin_imagen.webp';
 
 function resolveImage(imageUrl: string | null): string {
     if (!imageUrl || imageUrl.trim() === '') return DEFAULT_IMAGE;
@@ -25,6 +24,7 @@ export function useProducts() {
     const [eventTypes, setEventTypes] = useState<EventType[]>([]);
     const [comunas, setComunas] = useState<Comuna[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
     const fetched = useRef(false);
 
     useEffect(() => {
@@ -103,6 +103,7 @@ export function useProducts() {
                 setCocktails(allCocktails);
             } catch (err) {
                 console.error('Error fetching products:', err);
+                setError('No pudimos cargar los productos. Por favor, intenta recargar la página.');
             } finally {
                 setIsLoading(false);
             }
@@ -111,5 +112,5 @@ export function useProducts() {
         fetch();
     }, []);
 
-    return { products, cocktails, categories, eventTypes, comunas, isLoading };
+    return { products, cocktails, categories, eventTypes, comunas, isLoading, error };
 }

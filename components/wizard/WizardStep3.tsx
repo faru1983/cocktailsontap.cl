@@ -68,7 +68,7 @@ export default function WizardStep3({ wizard }: { wizard: WizardHook }) {
 
                 <div className="mb-6">
                     <p className="text-[1.1rem] text-brand-text-muted leading-relaxed">
-                        Para asegurar una barra continua durante todo el evento de <strong>{guests} invitados</strong>, sugerimos contratar:
+                        Para asegurar una barra continua durante todo el evento a <strong>{guests} invitados</strong>, sugerimos solicitar:
                     </p>
                     <span className="block mt-4 text-[1.8rem] text-brand-text font-black leading-[1.1] text-balance">
                         {config}
