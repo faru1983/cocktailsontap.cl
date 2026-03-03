@@ -42,18 +42,24 @@ export default function WizardStep4({ wizard, cocktails, categories }: Props) {
     };
 
     // 1. Mapeamos CocktailForWizard a Product con useMemo para rendimiento
-    const mappedProducts: Product[] = useMemo(() => cocktails.map(c => ({
-        id: c.id,
-        name: c.name,
-        description: c.desc,
-        image: c.image,
-        category: c.category,
-        sizes: Object.entries(c.prices).map(([size, p]) => ({
-            size,
-            price: p.price,
-            offerPrice: p.offerPrice
-        }))
-    })), [cocktails]);
+    const mappedProducts: Product[] = useMemo(() => cocktails.map(c => {
+        // Encontramos si ya hay una selección de este cóctel para marcar el tamaño por defecto
+        const existingSelection = state.selections.find(s => s.id === c.id);
+
+        return {
+            id: c.id,
+            name: c.name,
+            description: c.desc,
+            image: c.image,
+            category: c.category,
+            selectedSize: existingSelection?.size, // Esto recordará el último tamaño del carrito
+            sizes: Object.entries(c.prices).map(([size, p]) => ({
+                size,
+                price: p.price,
+                offerPrice: p.offerPrice
+            }))
+        };
+    }), [cocktails, state.selections]);
 
     // 2. Objeto de "carrito" adaptado al Wizard
     const wizardCart: ICart = {

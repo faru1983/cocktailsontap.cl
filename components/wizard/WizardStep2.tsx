@@ -119,7 +119,7 @@ export default function WizardStep2({ wizard, comunas }: Props) {
                 <label className="block font-bold mb-2 text-brand-text text-[0.9rem]">Comentarios Adicionales</label>
                 <textarea
                     rows={3}
-                    placeholder="Ej: Algún detalle sobre el acceso, alergias, etc."
+                    placeholder="Ej: Algún detalle sobre el acceso, contacto encargado, etc."
                     className="w-full p-3.5 border-2 border-brand-border rounded-xl text-[1rem] font-sans text-brand-text bg-white transition-all focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 resize-none pl-4"
                     value={state.contact.comments}
                     onChange={(e) => updateContact('comments', e.target.value)}

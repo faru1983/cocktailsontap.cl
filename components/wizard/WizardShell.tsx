@@ -10,6 +10,7 @@ import WizardStep2 from './WizardStep2';
 import WizardStep3 from './WizardStep3';
 import WizardStep4 from './WizardStep4';
 import WizardStep5 from './WizardStep5';
+import WizardStep6 from './WizardStep6';
 
 export default function WizardShell() {
     const { cocktails, eventTypes, comunas, categories, isLoading } = useProducts();
@@ -22,7 +23,7 @@ export default function WizardShell() {
         wizard.initCategory(categories);
     }, [categories]);
 
-    const progress = ((state.step - 1) / 4) * 100;
+    const progress = ((state.step - 1) / 5) * 100;
 
     const handleNext = () => {
         const result = wizard.validateStep(state.step);
@@ -48,6 +49,7 @@ export default function WizardShell() {
             case 3: return <WizardStep3 wizard={wizard} />;
             case 4: return <WizardStep4 wizard={wizard} cocktails={cocktails} categories={categories} />;
             case 5: return <WizardStep5 wizard={wizard} cocktails={cocktails} comunas={comunas} />;
+            case 6: return <WizardStep6 wizard={wizard} cocktails={cocktails} comunas={comunas} />;
             default: return null;
         }
     };
@@ -95,13 +97,13 @@ export default function WizardShell() {
                     </div>
 
                     <div className="flex-1 flex justify-end">
-                        {state.step < 5 ? (
+                        {state.step < 6 ? (
                             <button
                                 type="button"
                                 className="inline-flex items-center gap-2 px-8 py-3 rounded-2xl bg-primary text-white font-bold text-[1rem] transition-all hover:bg-primary-dark active:scale-95 shadow-[0_4px_15px_rgba(226,160,73,0.35)] hover:shadow-[0_8px_25px_rgba(226,160,73,0.45)]"
                                 onClick={handleNext}
                             >
-                                {state.step === 5 ? 'Finalizar' : 'Siguiente'} <ArrowRight className="w-4 h-4" />
+                                Siguiente <ArrowRight className="w-4 h-4" />
                             </button>
                         ) : (
                             <button

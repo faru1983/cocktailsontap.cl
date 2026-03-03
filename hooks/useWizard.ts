@@ -29,6 +29,7 @@ const INITIAL_STATE: WizardState = {
         comments: '',
     },
     selections: [],
+    dispenser: 'portatil',
     expandedCocktailId: null,
     expandedCategoryId: '',
 };
@@ -51,9 +52,11 @@ export function calculateSmartConfig(totalDrinks: number) {
 }
 
 function getSizeLiters(size: string): number {
+    if (size.includes('30L')) return 30;
+    if (size.includes('20L')) return 20;
     if (size.includes('10L')) return 10;
     if (size.includes('5L')) return 5;
-    return 2.5;
+    return 10; // Default
 }
 
 function formatEventDate(dateStr: string) {
@@ -112,6 +115,10 @@ export function useWizard(cocktails: CocktailForWizard[], comunas: Comuna[], cat
         setState((prev) => ({ ...prev, expandedCategoryId: prev.expandedCategoryId === id ? '' : id }));
     }, []);
 
+    const updateDispenser = useCallback((id: string) => {
+        setState((prev) => ({ ...prev, dispenser: id }));
+    }, []);
+
     const goToStep = useCallback((step: number) => {
         setState((prev) => ({ ...prev, step }));
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -135,6 +142,9 @@ export function useWizard(cocktails: CocktailForWizard[], comunas: Comuna[], cat
         }
         if (step === 4) {
             if (state.selections.length === 0) return { valid: false, message: 'Selecciona al menos un cóctel para continuar.' };
+        }
+        if (step === 5) {
+            if (!state.dispenser) return { valid: false, message: 'Selecciona un sistema de dispensación.' };
         }
         return { valid: true };
     }
@@ -171,12 +181,23 @@ export function useWizard(cocktails: CocktailForWizard[], comunas: Comuna[], cat
         const eventTypeDisplay = state.eventData.type === 'Otro' ? state.eventData.otherType : state.eventData.type;
         const comunaDisplay = state.contact.comuna === 'Otra' ? state.contact.otherComuna : (state.contact.comuna || 'No especificada');
 
+        // Muro condition: Compatible with 10L, 20L, 30L and needs >= 30L total
+        const hasIncompatibleSize = state.selections.some(s => {
+            const liters = getSizeLiters(s.size);
+            return liters !== 10 && liters !== 20 && liters !== 30;
+        });
+        const canHaveMuro = !hasIncompatibleSize && totalLiters >= 30;
+        const dispenserLabel = (state.dispenser === 'muro' && canHaveMuro) ? 'Muro de Coctelería' : 'Dispensador Portátil';
+        const installationCost = (state.dispenser === 'muro' && canHaveMuro) ? 50000 : 0;
+
         return {
             items, totalNormalPrice, totalOfferPrice,
             totalDiscount: totalNormalPrice - totalOfferPrice,
             totalLiters, shippingCost, shippingLabel,
-            totalPrice: totalOfferPrice + (shippingCost || 0),
+            installationCost,
+            totalPrice: totalOfferPrice + (shippingCost || 0) + installationCost,
             eventTypeDisplay, comunaDisplay,
+            dispenserLabel,
             formattedDate: formatEventDate(state.eventData.date),
             formattedPickupDate: formatEventDate(state.eventData.pickupDate),
         };
@@ -196,7 +217,14 @@ export function useWizard(cocktails: CocktailForWizard[], comunas: Comuna[], cat
 
         let msg = `*SOLICITUD DE COTIZACIÓN*\n\n`;
 
-        msg += `*DATOS DEL EVENTO*\n`;
+        msg += `*INFORMACIÓN*\n`;
+        msg += `Cliente: ${state.contact.firstName} ${state.contact.lastName}\n`;
+        if (state.contact.email) msg += `Email: ${state.contact.email}\n`;
+        if (state.contact.phone) msg += `Celular: ${state.contact.phone}\n`;
+        if (state.contact.address || data.comunaDisplay !== 'No especificada') {
+            msg += `Dirección: ${[state.contact.address, data.comunaDisplay].filter(Boolean).join(', ')}\n`;
+        }
+
         msg += `Fecha: ${data.formattedDate}\n`;
         if (state.eventData.startTime) msg += `Hora Inicio: ${state.eventData.startTime}\n`;
 
@@ -207,23 +235,12 @@ export function useWizard(cocktails: CocktailForWizard[], comunas: Comuna[], cat
 
         msg += `Temática: ${data.eventTypeDisplay}\n`;
         msg += `Invitados: ${guests} pers.\n`;
-        if (state.contact.comments) msg += `Comentarios: ${state.contact.comments}\n\n`;
-        else msg += `\n`;
-
-        msg += `*DATOS DE CONTACTO*\n`;
-        msg += `Cliente: ${state.contact.firstName} ${state.contact.lastName}\n`;
-        if (state.contact.email) msg += `Email: ${state.contact.email}\n`;
-        if (state.contact.phone) msg += `Celular: ${state.contact.phone}\n`;
-        if (state.contact.address || data.comunaDisplay !== 'No especificada') {
-            msg += `Dirección: ${[state.contact.address, data.comunaDisplay].filter(Boolean).join(', ')}\n`;
-        }
-
-
-
+        if (state.contact.comments) msg += `Comentarios: ${state.contact.comments}\n`;
         msg += `\n*PRODUCTOS*:\n${itemsText}\n\n`;
         msg += `Subtotal: ${formatCurrency(data.totalNormalPrice)}\n`;
         if (data.totalDiscount > 0) msg += `Descuento: -${formatCurrency(data.totalDiscount)}\n`;
         msg += `Traslados: ${data.shippingLabel}\n`;
+        msg += `${data.dispenserLabel}: ${data.installationCost === 0 ? '¡Gratis!' : formatCurrency(data.installationCost)}\n`;
         msg += `*TOTAL: ${formatCurrency(data.totalPrice)}*\n\n`;
         msg += `*Notas:*\n`;
         msg += `Estas cotizando ${data.totalLiters}L con rendimiento total aprox. de ${totalDrinks} cócteles.\n`;
@@ -236,6 +253,6 @@ export function useWizard(cocktails: CocktailForWizard[], comunas: Comuna[], cat
         state, updateEventData, updateConsumption, updateContact,
         updateQuantity, toggleCocktail, toggleCategory, goToStep, reset,
         validateStep, calculateSummaryData, calculateSmartConfig, sendWhatsAppQuote,
-        initCategory,
+        initCategory, updateDispenser,
     };
 }

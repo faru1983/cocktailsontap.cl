@@ -79,6 +79,7 @@ export interface WizardState {
         comments: string;
     };
     selections: WizardSelection[];
+    dispenser: string;
     expandedCocktailId: string | null;
     expandedCategoryId: string;
 }
