@@ -1,94 +1,129 @@
 'use client';
 
 import type { useWizard } from '@/hooks/useWizard';
-import { Info } from 'lucide-react';
-
+import type { Comuna } from '@/lib/types';
 
 type WizardHook = ReturnType<typeof useWizard>;
 
-export default function WizardStep2({ wizard }: { wizard: WizardHook }) {
-    const { state, updateConsumption } = wizard;
+interface Props {
+    wizard: WizardHook;
+    comunas: Comuna[];
+}
+
+export default function WizardStep2({ wizard, comunas }: Props) {
+    const { state, updateContact } = wizard;
 
     return (
         <div className="flex flex-col">
-            <h3 className="text-2xl font-extrabold text-brand-text mb-2">2. Preferencias de Consumo</h3>
-            <p className="text-brand-text-muted text-[0.95rem] mb-8 leading-relaxed">Ajusta la intensidad de la barra según el perfil de tus invitados para evitar que falten cócteles.</p>
+            <h3 className="text-2xl font-extrabold text-brand-text mb-2">2. Datos de Contacto</h3>
+            <p className="text-brand-text-muted text-[0.95rem] mb-8 leading-relaxed">Completa tus datos para enviarte la cotización formal.</p>
 
-            <div className="mb-10">
-                <label htmlFor="wizard-guests" className="block font-bold mb-1 text-brand-text text-[0.95rem]">Cantidad de Invitados</label>
-                <p className="text-brand-text-muted text-[0.85rem] mb-6">Mueve la barra para seleccionar el número de personas.</p>
-                <div className="flex items-center gap-6 mt-4">
-                    <div className="flex-1 flex flex-col gap-2">
-                        <input
-                            id="wizard-guests"
-                            type="range"
-                            min={10}
-                            max={500}
-                            step={5}
-                            className="w-full cursor-pointer h-2 bg-brand-border rounded-lg appearance-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-6 [&::-webkit-slider-thumb]:h-6 [&::-webkit-slider-thumb]:bg-primary [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-md [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white transition-all hover:[&::-webkit-slider-thumb]:scale-110 active:[&::-webkit-slider-thumb]:scale-95"
-                            value={state.consumption.guests}
-                            onChange={(e) => updateConsumption('guests', parseInt(e.target.value) || 10)}
-                        />
-                        <div className="flex justify-between text-[0.75rem] font-bold text-brand-text-muted px-1 mt-1">
-                            <span>10</span>
-                            <span>250</span>
-                            <span>500+</span>
-                        </div>
-                    </div>
-                    <div className="flex items-center justify-center bg-primary/5 border border-primary/20 rounded-2xl p-2 min-w-[100px] shadow-sm focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary/50 transition-all">
-                        <input
-                            type="number"
-                            min={10}
-                            max={5000}
-                            className="w-full bg-transparent text-center font-extrabold text-2xl text-primary outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                            value={state.consumption.guests}
-                            onChange={(e) => updateConsumption('guests', Math.max(0, parseInt(e.target.value) || 0))}
-                        />
-                    </div>
+            {/* Nombre y Apellidos en la misma fila */}
+            <div className="grid grid-cols-2 gap-6 mb-6">
+                <div>
+                    <label htmlFor="wizard-firstname" className="block font-bold mb-2 text-brand-text text-[0.9rem]">Nombre <span className="text-primary">*</span></label>
+                    <input
+                        id="wizard-firstname"
+                        type="text"
+                        required
+                        placeholder="Ej: Juan"
+                        className="w-full p-3.5 border-2 border-brand-border rounded-xl text-[1rem] font-sans text-brand-text bg-white transition-all focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 pl-4"
+                        value={state.contact.firstName}
+                        onChange={(e) => updateContact('firstName', e.target.value)}
+                    />
+                </div>
+                <div>
+                    <label htmlFor="wizard-lastname" className="block font-bold mb-2 text-brand-text text-[0.9rem]">Apellido <span className="text-primary">*</span></label>
+                    <input
+                        id="wizard-lastname"
+                        type="text"
+                        required
+                        placeholder="Ej: Pérez"
+                        className="w-full p-3.5 border-2 border-brand-border rounded-xl text-[1rem] font-sans text-brand-text bg-white transition-all focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 pl-4"
+                        value={state.contact.lastName}
+                        onChange={(e) => updateContact('lastName', e.target.value)}
+                    />
                 </div>
             </div>
 
-            <div className="mb-10">
-                <label className="block font-bold mb-1 text-brand-text text-[0.95rem]">Cócteles promedio por persona</label>
-                <p className="text-brand-text-muted text-[0.85rem] mb-6">¿Cuántos cócteles estimas que consumirá cada invitado?</p>
-                <div className="flex items-center gap-6 mt-4">
-                    <div className="flex-1 flex flex-col gap-2">
-                        <input
-                            type="range"
-                            min={1}
-                            max={10}
-                            step={1}
-                            className="w-full cursor-pointer h-2 bg-brand-border rounded-lg appearance-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-6 [&::-webkit-slider-thumb]:h-6 [&::-webkit-slider-thumb]:bg-primary [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-md [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white transition-all hover:[&::-webkit-slider-thumb]:scale-110 active:[&::-webkit-slider-thumb]:scale-95"
-                            value={state.consumption.drinksPerPerson}
-                            onChange={(e) => updateConsumption('drinksPerPerson', parseInt(e.target.value))}
-                        />
-                        <div className="flex justify-between text-[0.75rem] font-bold text-brand-text-muted px-1 mt-1">
-                            <span>1</span>
-                            <span>5</span>
-                            <span>10</span>
-                        </div>
-                    </div>
-                    <div className="flex items-center justify-center bg-primary/5 border border-primary/20 rounded-2xl p-2 min-w-[100px] shadow-sm focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary/50 transition-all">
-                        <input
-                            type="number"
-                            min={1}
-                            max={20}
-                            className="w-full bg-transparent text-center font-extrabold text-2xl text-primary outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                            value={state.consumption.drinksPerPerson}
-                            onChange={(e) => updateConsumption('drinksPerPerson', Math.max(0, parseInt(e.target.value) || 0))}
-                        />
-                    </div>
+            {/* Email y Celular - OPCIONALES */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <div>
+                    <label htmlFor="wizard-email" className="block font-bold mb-2 text-brand-text text-[0.9rem]">Email</label>
+                    <input
+                        id="wizard-email"
+                        type="email"
+                        placeholder="Dato opcional"
+                        className="w-full p-3.5 border-2 border-brand-border rounded-xl text-[1rem] font-sans text-brand-text bg-white transition-all focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 pl-4"
+                        value={state.contact.email}
+                        onChange={(e) => updateContact('email', e.target.value)}
+                    />
+                </div>
+                <div>
+                    <label htmlFor="wizard-phone" className="block font-bold mb-2 text-brand-text text-[0.9rem]">Celular</label>
+                    <input
+                        id="wizard-phone"
+                        type="tel"
+                        placeholder="Dato opcional"
+                        className="w-full p-3.5 border-2 border-brand-border rounded-xl text-[1rem] font-sans text-brand-text bg-white transition-all focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 pl-4"
+                        value={state.contact.phone}
+                        onChange={(e) => updateContact('phone', e.target.value)}
+                    />
                 </div>
             </div>
 
-            <div className="bg-[#fff7ed] border border-[#fed7aa] rounded-xl p-5 mt-4">
-                <p className="font-bold text-primary mb-2 flex items-center gap-2">
-                    <Info className="w-4 h-4" /> Tip de Experto
-                </p>
+            {/* Dirección y Comuna - DIRECCIÓN OPCIONAL */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <div>
+                    <label htmlFor="wizard-address" className="block font-bold mb-2 text-brand-text text-[0.9rem]">Dirección del Evento</label>
+                    <input
+                        id="wizard-address"
+                        type="text"
+                        placeholder="Dato opcional"
+                        className="w-full p-3.5 border-2 border-brand-border rounded-xl text-[1rem] font-sans text-brand-text bg-white transition-all focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 pl-4"
+                        value={state.contact.address}
+                        onChange={(e) => updateContact('address', e.target.value)}
+                    />
+                </div>
+                <div>
+                    <label htmlFor="wizard-comuna" className="block font-bold mb-2 text-brand-text text-[0.9rem]">Comuna <span className="text-primary">*</span></label>
+                    <select
+                        id="wizard-comuna"
+                        required
+                        className="w-full p-3.5 border-2 border-brand-border rounded-xl text-[1rem] font-sans text-brand-text bg-white transition-all focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 appearance-none bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20width%3D%2220%22%20height%3D%2220%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cpath%20d%3D%22M5%207l5%205%205-5%22%20stroke%3D%22%2364748b%22%20stroke-width%3D%222%22%20fill%3D%22none%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%2F%3E%3C%2Fsvg%3E')] bg-no-repeat bg-[position:right_1rem_center]"
+                        value={state.contact.comuna}
+                        onChange={(e) => updateContact('comuna', e.target.value)}
+                    >
+                        <option value="">Selecciona comuna...</option>
+                        {comunas.map((c) => (
+                            <option key={c.name} value={c.name}>{c.name}</option>
+                        ))}
+                    </select>
+                </div>
+            </div>
 
-                <p className="text-[0.95rem] leading-[1.6]">
-                    Recomendamos <strong>3 a 4 cócteles</strong> para celebraciones de día y <strong>+5</strong> para fiestas que duren toda la noche.
-                </p>
+            {state.contact.comuna === 'Otra' && (
+                <div className="mb-6 animate-slide-up">
+                    <label className="block font-bold mb-2 text-brand-text text-[0.9rem]">Especificar Comuna</label>
+                    <input
+                        type="text"
+                        placeholder="Indica tu comuna"
+                        className="w-full p-3.5 border-2 border-brand-border rounded-xl text-[1rem] font-sans text-brand-text bg-white transition-all focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 pl-4"
+                        value={state.contact.otherComuna}
+                        onChange={(e) => updateContact('otherComuna', e.target.value)}
+                    />
+                </div>
+            )}
+
+            <div className="mb-6">
+                <label className="block font-bold mb-2 text-brand-text text-[0.9rem]">Comentarios Adicionales</label>
+                <textarea
+                    rows={3}
+                    placeholder="Ej: Algún detalle sobre el acceso, alergias, etc."
+                    className="w-full p-3.5 border-2 border-brand-border rounded-xl text-[1rem] font-sans text-brand-text bg-white transition-all focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 resize-none pl-4"
+                    value={state.contact.comments}
+                    onChange={(e) => updateContact('comments', e.target.value)}
+                />
             </div>
         </div>
     );

@@ -60,15 +60,22 @@ export interface WizardState {
         type: string;
         otherType: string;
         date: string;
-        comuna: string;
-        otherComuna: string;
+        startTime: string;
+        pickupDate: string;
+        pickupTime: string;
     };
     consumption: {
         guests: number;
         drinksPerPerson: number;
     };
     contact: {
-        fullName: string;
+        firstName: string;
+        lastName: string;
+        email: string;
+        phone: string;
+        address: string;
+        comuna: string;
+        otherComuna: string;
         comments: string;
     };
     selections: WizardSelection[];
