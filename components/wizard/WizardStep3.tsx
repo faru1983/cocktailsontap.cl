@@ -9,8 +9,7 @@ type WizardHook = ReturnType<typeof useWizard>;
 export default function WizardStep3({ wizard }: { wizard: WizardHook }) {
     const { state, updateConsumption } = wizard;
     const guests = Math.max(state.consumption.guests, 1);
-    const totalDrinksWanted = guests * state.consumption.drinksPerPerson;
-    const { config, liters, totalDrinks } = calculateSmartConfig(totalDrinksWanted);
+    const { config, liters, totalDrinks } = calculateSmartConfig(guests, state.consumption.drinksPerPerson);
     const avgDrinks = (totalDrinks / guests).toFixed(1);
 
     return (
@@ -66,7 +65,7 @@ export default function WizardStep3({ wizard }: { wizard: WizardHook }) {
                     Recomendación de Expertos
                 </div>
 
-                <div className="mb-6">
+                <div className="mb-6 text-center">
                     <p className="text-[1.1rem] text-brand-text-muted leading-relaxed">
                         Para asegurar una barra continua durante todo el evento a <strong>{guests} invitados</strong>, sugerimos solicitar:
                     </p>

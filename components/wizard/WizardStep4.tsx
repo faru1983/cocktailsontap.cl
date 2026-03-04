@@ -16,7 +16,7 @@ interface Props {
 
 export default function WizardStep4({ wizard, cocktails, categories }: Props) {
     const { state, updateQuantity, toggleCategory } = wizard;
-    const { liters: suggestedLiters } = calculateSmartConfig(state.consumption.guests * state.consumption.drinksPerPerson);
+    const { liters: suggestedLiters } = calculateSmartConfig(state.consumption.guests, state.consumption.drinksPerPerson);
 
     // Mantenemos la categoría activa del wizard o la primera disponible
     const currentCategory = state.expandedCategoryId || categories[0] || '';

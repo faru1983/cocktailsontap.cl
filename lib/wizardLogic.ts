@@ -25,21 +25,34 @@ export function formatEventDate(dateStr: string): string {
 
 // ─── Lógica de configuración de barriles ─────────────────────────────────────
 
-export function calculateSmartConfig(totalDrinks: number) {
-    const liters = totalDrinks / 5;
-    if (liters <= 10) return { config: '1 Barril de 10L', liters: 10, totalDrinks: 50 };
-    if (liters <= 15) return { config: '3 Barriles de 5L', liters: 15, totalDrinks: 75 };
-    if (liters <= 20) return { config: '2 Barriles de 10L', liters: 20, totalDrinks: 100 };
-    if (liters <= 25) return { config: '2 Barriles de 10L + 1 Barril de 5L', liters: 25, totalDrinks: 125 };
-    if (liters <= 30) return { config: '3 Barriles de 10L', liters: 30, totalDrinks: 150 };
+export function calculateSmartConfig(guests: number, avgDrinks: number) {
+    const totalLitersRequired = (guests * avgDrinks) / 5;
+    const numVarieties = Math.max(1, avgDrinks); // Variedad = Promedio de tragos
 
-    const count10L = Math.floor(liters / 10);
-    const remainder = liters % 10;
-    const label10L = count10L === 1 ? '1 Barril' : `${count10L} Barriles`;
+    // Tamaño ideal por barril
+    const idealLitersPerBarrel = totalLitersRequired / numVarieties;
 
-    if (remainder === 0) return { config: `${label10L} de 10L`, liters: count10L * 10, totalDrinks: count10L * 50 };
-    if (remainder <= 5) return { config: `${label10L} de 10L + 1 Barril de 5L`, liters: count10L * 10 + 5, totalDrinks: (count10L * 10 + 5) * 5 };
-    return { config: `${count10L + 1} Barriles de 10L`, liters: (count10L + 1) * 10, totalDrinks: (count10L + 1) * 50 };
+    // Buscamos el barril comercial más cercano (5, 10, 20, 30)
+    let selectedBarrelSize = 10;
+    if (idealLitersPerBarrel <= 7.5) {
+        selectedBarrelSize = 5;
+    } else if (idealLitersPerBarrel <= 15) {
+        selectedBarrelSize = 10;
+    } else if (idealLitersPerBarrel <= 25) {
+        selectedBarrelSize = 20;
+    } else {
+        selectedBarrelSize = 30;
+    }
+
+    const totalLiters = selectedBarrelSize * numVarieties;
+    const totalDrinks = totalLiters * 5;
+    const labelVariety = numVarieties === 1 ? '1 Variedad' : `${numVarieties} Variedades`;
+
+    return {
+        config: `${labelVariety} de ${selectedBarrelSize}L`,
+        liters: totalLiters,
+        totalDrinks: totalDrinks
+    };
 }
 
 // ─── Cálculo del resumen de cotización ───────────────────────────────────────
