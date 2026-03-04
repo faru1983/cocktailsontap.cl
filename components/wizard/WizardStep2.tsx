@@ -2,6 +2,7 @@
 
 import type { useWizard } from '@/hooks/useWizard';
 import type { Comuna } from '@/lib/types';
+import { formatPhoneNumber } from '@/lib/utils';
 
 type WizardHook = ReturnType<typeof useWizard>;
 
@@ -24,6 +25,8 @@ export default function WizardStep2({ wizard, comunas }: Props) {
                     <label htmlFor="wizard-firstname" className="block font-bold mb-2 text-brand-text text-[0.9rem]">Nombre <span className="text-primary">*</span></label>
                     <input
                         id="wizard-firstname"
+                        name="given-name"
+                        autoComplete="given-name"
                         type="text"
                         required
                         placeholder="Ej: Juan"
@@ -36,6 +39,8 @@ export default function WizardStep2({ wizard, comunas }: Props) {
                     <label htmlFor="wizard-lastname" className="block font-bold mb-2 text-brand-text text-[0.9rem]">Apellido <span className="text-primary">*</span></label>
                     <input
                         id="wizard-lastname"
+                        name="family-name"
+                        autoComplete="family-name"
                         type="text"
                         required
                         placeholder="Ej: Pérez"
@@ -52,6 +57,8 @@ export default function WizardStep2({ wizard, comunas }: Props) {
                     <label htmlFor="wizard-email" className="block font-bold mb-2 text-brand-text text-[0.9rem]">Email</label>
                     <input
                         id="wizard-email"
+                        name="email"
+                        autoComplete="email"
                         type="email"
                         placeholder="Dato opcional"
                         className="w-full p-3.5 border-2 border-brand-border rounded-xl text-[1rem] font-sans text-brand-text bg-white transition-all focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 pl-4"
@@ -63,11 +70,19 @@ export default function WizardStep2({ wizard, comunas }: Props) {
                     <label htmlFor="wizard-phone" className="block font-bold mb-2 text-brand-text text-[0.9rem]">Celular</label>
                     <input
                         id="wizard-phone"
+                        name="tel"
+                        autoComplete="tel"
                         type="tel"
                         placeholder="Dato opcional"
                         className="w-full p-3.5 border-2 border-brand-border rounded-xl text-[1rem] font-sans text-brand-text bg-white transition-all focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 pl-4"
                         value={state.contact.phone}
-                        onChange={(e) => updateContact('phone', e.target.value)}
+                        onFocus={(e) => {
+                            if (!e.target.value) updateContact('phone', '+569');
+                        }}
+                        onChange={(e) => {
+                            const formatted = formatPhoneNumber(e.target.value);
+                            updateContact('phone', formatted);
+                        }}
                     />
                 </div>
             </div>
@@ -78,6 +93,8 @@ export default function WizardStep2({ wizard, comunas }: Props) {
                     <label htmlFor="wizard-address" className="block font-bold mb-2 text-brand-text text-[0.9rem]">Dirección del Evento</label>
                     <input
                         id="wizard-address"
+                        name="street-address"
+                        autoComplete="street-address"
                         type="text"
                         placeholder="Dato opcional"
                         className="w-full p-3.5 border-2 border-brand-border rounded-xl text-[1rem] font-sans text-brand-text bg-white transition-all focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 pl-4"

@@ -16,7 +16,7 @@ interface Props {
 
 export default function WizardStep4({ wizard, cocktails, categories }: Props) {
     const { state, updateQuantity, toggleCategory } = wizard;
-    const { liters: suggestedLiters } = calculateSmartConfig(state.consumption.guests, state.consumption.drinksPerPerson);
+    const { config: suggestedConfig, liters: suggestedLiters } = calculateSmartConfig(state.consumption.guests, state.consumption.drinksPerPerson);
 
     // Mantenemos la categoría activa del wizard o la primera disponible
     const currentCategory = state.expandedCategoryId || categories[0] || '';
@@ -83,7 +83,7 @@ export default function WizardStep4({ wizard, cocktails, categories }: Props) {
             <div className="mb-8">
                 <div className="text-center mb-6">
                     <span className="text-[0.85rem] uppercase text-primary font-extrabold tracking-[1px]">Sugerencia de Volumen</span>
-                    <div className="text-[1.5rem] font-black text-brand-text mt-1">{suggestedLiters} Litros Totales</div>
+                    <div className="text-[1.5rem] font-black text-brand-text mt-1">{suggestedConfig} ({suggestedLiters}L)</div>
                 </div>
                 <div className="flex flex-col gap-3">
                     <div className="text-center">
