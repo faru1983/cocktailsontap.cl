@@ -146,7 +146,7 @@ export function buildWhatsAppMessage(state: WizardState, data: SummaryData): str
 
     let msg = `*SOLICITUD DE COTIZACIÓN*\n\n`;
     msg += `*INFORMACIÓN*\n`;
-    msg += `Cliente: ${state.contact.firstName} ${state.contact.lastName}\n`;
+    msg += `Cliente: ${state.contact.firstName}\n`;
     if (state.contact.email) msg += `Email: ${state.contact.email}\n`;
     if (state.contact.phone) msg += `Celular: ${state.contact.phone}\n`;
     if (state.contact.address || data.comunaDisplay !== 'No especificada') {

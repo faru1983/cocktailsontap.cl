@@ -112,7 +112,7 @@ export default function WizardStep1({ wizard, eventTypes }: Props) {
             {/* Fecha y Hora de Inicio */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
                 <div>
-                    <label htmlFor="wizard-date" className="block font-bold mb-2 text-brand-text text-[0.95rem]">Fecha del Evento</label>
+                    <label htmlFor="wizard-date" className="block font-bold mb-2 text-brand-text text-[0.95rem]">Fecha del Evento <span className="text-primary">*</span></label>
                     <input
                         id="wizard-date"
                         type="date"

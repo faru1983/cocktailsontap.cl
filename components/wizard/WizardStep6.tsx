@@ -60,7 +60,7 @@ export default function WizardStep6({ wizard, cocktails, comunas }: Props) {
                         <div className="text-[0.7rem] text-primary uppercase font-black tracking-widest mb-4">Datos de Contacto</div>
                         <div className="space-y-3">
                             {[
-                                ['Nombre', `${state.contact.firstName} ${state.contact.lastName}`.trim()],
+                                ['Nombre', state.contact.firstName.trim()],
                                 ['Celular', state.contact.phone],
                                 ['Email', state.contact.email],
                                 ['Dirección', state.contact.address],

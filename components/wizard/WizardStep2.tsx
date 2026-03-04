@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import type { useWizard } from '@/hooks/useWizard';
 import type { Comuna } from '@/lib/types';
 import { formatPhoneNumber } from '@/lib/utils';
@@ -14,92 +15,35 @@ interface Props {
 export default function WizardStep2({ wizard, comunas }: Props) {
     const { state, updateContact } = wizard;
 
-    return (
-        <div className="flex flex-col">
-            <h3 className="text-2xl font-extrabold text-brand-text mb-2">2. Datos de Contacto</h3>
-            <p className="text-brand-text-muted text-[0.95rem] mb-8 leading-relaxed">Completa tus datos para enviarte la cotización formal.</p>
+    // Estado local para recordar si debemos mostrar todos los campos
+    const [showExtraFields, setShowExtraFields] = useState(
+        state.contact.address.length > 2 ||
+        state.contact.email.length > 0 ||
+        state.contact.phone.length > 0 ||
+        state.contact.comments.length > 0
+    );
 
-            {/* Nombre y Apellidos en la misma fila */}
-            <div className="grid grid-cols-2 gap-6 mb-6">
+    return (
+        <div className="flex flex-col space-y-6">
+            <div className="mb-4">
+                <h3 className="text-2xl font-extrabold text-brand-text mb-2">2. Datos de Contacto</h3>
+                <p className="text-brand-text-muted text-[0.95rem] leading-relaxed">Solo unos pocos datos para enviarte la cotización formal.</p>
+            </div>
+
+            {/* Fila 1: Nombre Completo y Comuna (Obligatorios) */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                    <label htmlFor="wizard-firstname" className="block font-bold mb-2 text-brand-text text-[0.9rem]">Nombre <span className="text-primary">*</span></label>
+                    <label htmlFor="wizard-firstname" className="block font-bold mb-2 text-brand-text text-[0.9rem]">Nombre Completo <span className="text-primary">*</span></label>
                     <input
                         id="wizard-firstname"
-                        name="given-name"
-                        autoComplete="given-name"
+                        name="name"
+                        autoComplete="name"
                         type="text"
                         required
-                        placeholder="Ej: Juan"
+                        placeholder="Ej: Juan Pérez"
                         className="w-full p-3.5 border-2 border-brand-border rounded-xl text-[1rem] font-sans text-brand-text bg-white transition-all focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 pl-4"
                         value={state.contact.firstName}
                         onChange={(e) => updateContact('firstName', e.target.value)}
-                    />
-                </div>
-                <div>
-                    <label htmlFor="wizard-lastname" className="block font-bold mb-2 text-brand-text text-[0.9rem]">Apellido <span className="text-primary">*</span></label>
-                    <input
-                        id="wizard-lastname"
-                        name="family-name"
-                        autoComplete="family-name"
-                        type="text"
-                        required
-                        placeholder="Ej: Pérez"
-                        className="w-full p-3.5 border-2 border-brand-border rounded-xl text-[1rem] font-sans text-brand-text bg-white transition-all focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 pl-4"
-                        value={state.contact.lastName}
-                        onChange={(e) => updateContact('lastName', e.target.value)}
-                    />
-                </div>
-            </div>
-
-            {/* Email y Celular - OPCIONALES */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                <div>
-                    <label htmlFor="wizard-email" className="block font-bold mb-2 text-brand-text text-[0.9rem]">Email</label>
-                    <input
-                        id="wizard-email"
-                        name="email"
-                        autoComplete="email"
-                        type="email"
-                        placeholder="Dato opcional"
-                        className="w-full p-3.5 border-2 border-brand-border rounded-xl text-[1rem] font-sans text-brand-text bg-white transition-all focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 pl-4"
-                        value={state.contact.email}
-                        onChange={(e) => updateContact('email', e.target.value)}
-                    />
-                </div>
-                <div>
-                    <label htmlFor="wizard-phone" className="block font-bold mb-2 text-brand-text text-[0.9rem]">Celular</label>
-                    <input
-                        id="wizard-phone"
-                        name="tel"
-                        autoComplete="tel"
-                        type="tel"
-                        placeholder="Dato opcional"
-                        className="w-full p-3.5 border-2 border-brand-border rounded-xl text-[1rem] font-sans text-brand-text bg-white transition-all focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 pl-4"
-                        value={state.contact.phone}
-                        onFocus={(e) => {
-                            if (!e.target.value) updateContact('phone', '+569');
-                        }}
-                        onChange={(e) => {
-                            const formatted = formatPhoneNumber(e.target.value);
-                            updateContact('phone', formatted);
-                        }}
-                    />
-                </div>
-            </div>
-
-            {/* Dirección y Comuna - DIRECCIÓN OPCIONAL */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                <div>
-                    <label htmlFor="wizard-address" className="block font-bold mb-2 text-brand-text text-[0.9rem]">Dirección del Evento</label>
-                    <input
-                        id="wizard-address"
-                        name="street-address"
-                        autoComplete="street-address"
-                        type="text"
-                        placeholder="Dato opcional"
-                        className="w-full p-3.5 border-2 border-brand-border rounded-xl text-[1rem] font-sans text-brand-text bg-white transition-all focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 pl-4"
-                        value={state.contact.address}
-                        onChange={(e) => updateContact('address', e.target.value)}
                     />
                 </div>
                 <div>
@@ -120,7 +64,7 @@ export default function WizardStep2({ wizard, comunas }: Props) {
             </div>
 
             {state.contact.comuna === 'Otra' && (
-                <div className="mb-6 animate-slide-up">
+                <div className="animate-slide-up">
                     <label className="block font-bold mb-2 text-brand-text text-[0.9rem]">Especificar Comuna</label>
                     <input
                         type="text"
@@ -132,16 +76,74 @@ export default function WizardStep2({ wizard, comunas }: Props) {
                 </div>
             )}
 
-            <div className="mb-6">
-                <label className="block font-bold mb-2 text-brand-text text-[0.9rem]">Comentarios</label>
-                <textarea
-                    rows={3}
+            {/* Dirección (Aparece siempre después de los obligatorios) */}
+            <div className="animate-slide-up">
+                <label htmlFor="wizard-address" className="block font-bold mb-2 text-brand-text text-[0.9rem]">Dirección del Evento</label>
+                <input
+                    id="wizard-address"
+                    name="street-address"
+                    autoComplete="street-address"
+                    type="text"
                     placeholder="Dato opcional"
-                    className="w-full p-3.5 border-2 border-brand-border rounded-xl text-[1rem] font-sans text-brand-text bg-white transition-all focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 resize-none pl-4"
-                    value={state.contact.comments}
-                    onChange={(e) => updateContact('comments', e.target.value)}
+                    className="w-full p-3.5 border-2 border-brand-border rounded-xl text-[1rem] font-sans text-brand-text bg-white transition-all focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 pl-4"
+                    value={state.contact.address}
+                    onChange={(e) => {
+                        const val = e.target.value;
+                        updateContact('address', val);
+                        if (val.length > 2) setShowExtraFields(true);
+                    }}
                 />
             </div>
+
+            {/* Email, Celular y Comentarios (Aparecen todos si completó dirección una vez) */}
+            {showExtraFields && (
+                <>
+                    <div className="animate-slide-up">
+                        <label htmlFor="wizard-email" className="block font-bold mb-2 text-brand-text text-[0.9rem]">Email</label>
+                        <input
+                            id="wizard-email"
+                            name="email"
+                            autoComplete="email"
+                            type="email"
+                            placeholder="Dato opcional"
+                            className="w-full p-3.5 border-2 border-brand-border rounded-xl text-[1rem] font-sans text-brand-text bg-white transition-all focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 pl-4"
+                            value={state.contact.email}
+                            onChange={(e) => updateContact('email', e.target.value)}
+                        />
+                    </div>
+
+                    <div className="animate-slide-up">
+                        <label htmlFor="wizard-phone" className="block font-bold mb-2 text-brand-text text-[0.9rem]">Celular</label>
+                        <input
+                            id="wizard-phone"
+                            name="tel"
+                            autoComplete="tel"
+                            type="tel"
+                            placeholder="Dato opcional"
+                            className="w-full p-3.5 border-2 border-brand-border rounded-xl text-[1rem] font-sans text-brand-text bg-white transition-all focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 pl-4"
+                            value={state.contact.phone}
+                            onFocus={(e) => {
+                                if (!e.target.value) updateContact('phone', '+569');
+                            }}
+                            onChange={(e) => {
+                                const formatted = formatPhoneNumber(e.target.value);
+                                updateContact('phone', formatted);
+                            }}
+                        />
+                    </div>
+
+                    <div className="animate-slide-up">
+                        <label className="block font-bold mb-2 text-brand-text text-[0.9rem]">Comentarios</label>
+                        <textarea
+                            rows={3}
+                            placeholder="Dato opcional"
+                            className="w-full p-3.5 border-2 border-brand-border rounded-xl text-[1rem] font-sans text-brand-text bg-white transition-all focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 resize-none pl-4"
+                            value={state.contact.comments}
+                            onChange={(e) => updateContact('comments', e.target.value)}
+                        />
+                    </div>
+                </>
+            )}
         </div>
     );
 }
