@@ -11,32 +11,30 @@
 
 ## 🚀 Características Principales
 
-- **Cotizador Inteligente (Wizard):** Un proceso paso a paso para que los clientes configuren su evento (invitados, duración, tipos de cócteles)...
-- **Cálculo en Tiempo Real:** Algoritmos que calculan automáticamente la cantidad de insumos y el presupuesto según los parámetros del evento.
-- **Integración con Supabase:** Almacenamiento seguro de cotizaciones y gestión de datos.
-- **Diseño Premium & Responsive:** Interfaz moderna optimizada para dispositivos móviles y escritorio, con micro-animaciones y estética de alta gama.
-- **Redirecciones Inteligentes:** Manejo dinámico de enlaces para agendamiento, contacto y redes sociales.
-- **Compartir por WhatsApp:** Generación automática de mensajes detallados con el resumen de la cotización.
+- **Cotizador Inteligente (Wizard):** Proceso paso a paso refactorizado con lógica desacoplada y robusta.
+- **Arquitectura de Alto Rendimiento:** Implementación de **Server Components** y **Caché de Servidor** (5 min) para minimizar latencia y carga en base de datos.
+- **Cálculo de Insumos:** Algoritmos automáticos para configuración de barriles (5L/10L) según invitados y duración.
+- **SEO & Web Vitals:** Generación automática de `sitemap.xml` y `robots.txt`, optimización de metadatos y seguridad avanzada.
+- **Integración con Supabase:** Gestión centralizada de productos, precios, categorías y comunas.
+- **WhatsApp Bridge:** Generador de cotizaciones detalladas con formato profesional para envío directo.
 
 ---
 
 ## 🛠️ Stack Tecnológico
 
 - **Frontend:** [Next.js](https://nextjs.org/) (App Router) + React 19.
-- **Estilos:** [Tailwind CSS](https://tailwindcss.com/) (Diseño personalizado sin CSS externo).
-- **Iconografía:** [Lucide React](https://lucide.dev/) para iconos vectoriales limpios.
-- **Backend/Base de Datos:** [Supabase](https://supabase.com/) para persistencia de datos.
-- **Despliegue:** [Vercel](https://vercel.com/) con CI/CD automático desde GitHub.
+- **Estilos:** [Tailwind CSS](https://tailwindcss.com/) v4.
+- **Iconografía:** [Lucide React](https://lucide.dev/).
+- **Backend:** [Supabase](https://supabase.com/) (PostgreSQL + Auth + Storage).
+- **Pruebas:** [Vitest](https://vitest.dev/) para validación de lógica de negocio pura.
 
 ---
 
 ## 🛠️ Instalación y Desarrollo Local
 
-Sigue estos pasos para ejecutar el proyecto en tu máquina local:
-
 1. **Clonar el repositorio:**
    ```bash
-   git clone https://github.com/TuUsuario/cocktailsontap.cl.git
+   git clone https://github.com/faru1983/cocktailsontap.cl.git
    cd cocktailsontap.cl
    ```
 
@@ -46,62 +44,27 @@ Sigue estos pasos para ejecutar el proyecto en tu máquina local:
    ```
 
 3. **Configurar variables de entorno:**
-   Crea un archivo `.env.local` en la raíz y añade tus credenciales de Supabase:
+   Crea un archivo `.env.local`:
    ```env
-   NEXT_PUBLIC_SUPABASE_URL=tu_url_de_supabase
-   NEXT_PUBLIC_SUPABASE_ANON_KEY=tu_clave_anon_de_supabase
+   NEXT_PUBLIC_SUPABASE_URL=tu_url
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=tu_clave
+   NEXT_PUBLIC_WHATSAPP_NUMBER=56929672978
    ```
 
-4. **Iniciar el servidor de desarrollo:**
-   ```bash
-   npm run dev
-   ```
-   Abre [http://localhost:3000](http://localhost:3000) en tu navegador.
+4. **Scripts disponibles:**
+   - `npm run dev`: Inicia el servidor de desarrollo.
+   - `npm run build`: Genera el build de producción (valida tipos y rutas).
+   - `npm test`: Ejecuta la suite de pruebas unitarias con Vitest.
 
 ---
 
-## 📦 Despliegue
+## 🏗️ Arquitectura y Mejores Prácticas
 
-El proyecto está configurado para desplegarse automáticamente en Vercel al hacer push a la rama `master` o `main`. 
-
-> [!IMPORTANT]
-> Asegúrate de configurar las **Environment Variables** en el panel de Vercel antes del primer despliegue.
-
----
-
-## ️ Estructura de la Base de Datos (Supabase)
-
-Para que el proyecto funcione correctamente, tu instancia de Supabase debe tener las siguientes tablas y estructura:
-
-### 1. Tablas Requeridas
-
-| Tabla | Descripción | Columnas Clave |
-| :--- | :--- | :--- |
-| `categories` | Categorías de los cócteles | `name`, `display_order` |
-| `event_types` | Tipos de eventos para el Wizard | `name`, `icon`, `display_order` |
-| `comunas` | Comunas y costos de envío | `name`, `cost`, `free_from`, `display_order` |
-| `products` | Información base de productos | `name`, `description`, `image_url`, `category_id` |
-| `product_prices`| Precios por tamaño | `product_id`, `size` (5L, 10L, etc), `price`, `offer_price` |
-
-### 2. Relaciones Sugeridas
-- `products.category_id` -> `categories.id`
-- `product_prices.product_id` -> `products.id`
-
-### 3. Ejemplo de Datos (SQL sugerido)
-Puedes usar este ejemplo para poblar las tablas iniciales:
-
-```sql
--- Insertar una categoría
-INSERT INTO categories (name, display_order) VALUES ('Clásicos', 1);
-
--- Insertar un producto
-INSERT INTO products (name, description, category_id) 
-VALUES ('Mojito Premium', 'Refrescante menta y limón', (SELECT id FROM categories WHERE name = 'Clásicos'));
-
--- Insertar precios
-INSERT INTO product_prices (product_id, size, price, offer_price)
-VALUES ((SELECT id FROM products WHERE name = 'Mojito Premium'), '5L', 45000, 39990);
-```
+El proyecto sigue principios de **Clean Architecture**:
+- **`lib/wizardLogic.ts`**: Lógica de negocio pura, independiente de React y fácil de testear.
+- **`lib/serverData.ts`**: Capa de datos en servidor con `unstable_cache`.
+- **`components/ui`**: Componentes atómicos reutilizables (ej: `SelectField`).
+- **`hooks/`**: Gestión de estado de UI y efectos secundarios.
 
 ---
 
@@ -111,4 +74,4 @@ Este proyecto es privado para Cocktails on Tap Chile. Todos los derechos reserva
 
 ---
 
-Desarrollado con ❤️ para elevar la experiencia de coctelería en Chile. 🇨🇱 
+Desarrollado con ❤️ para elevar la experiencia de coctelería en Chile. 🇨🇱
