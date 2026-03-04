@@ -1,15 +1,6 @@
-import { createClient } from '@supabase/supabase-js';
 import { unstable_cache } from 'next/cache';
+import { supabase } from './supabase';
 import type { Product, CocktailForWizard, EventType, Comuna, SupabaseProduct } from './types';
-
-// ─── Cliente server-side (sin exponer en el browser) ─────────────────────────
-
-function getServerSupabase() {
-    return createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    );
-}
 
 // ─── Helpers de transformación ───────────────────────────────────────────────
 
@@ -36,8 +27,6 @@ export const fetchAllProductData = unstable_cache(
         eventTypes: EventType[];
         comunas: Comuna[];
     }> => {
-        const supabase = getServerSupabase();
-
         const [
             { data: catData, error: catError },
             { data: eventData, error: eventError },
