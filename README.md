@@ -26,7 +26,6 @@
 - **Estilos:** [Tailwind CSS](https://tailwindcss.com/) v4.
 - **Iconografía:** [Lucide React](https://lucide.dev/).
 - **Backend:** [Supabase](https://supabase.com/) (PostgreSQL + Auth + Storage).
-- **Pruebas:** [Vitest](https://vitest.dev/) para validación de lógica de negocio pura.
 
 ---
 
@@ -54,7 +53,6 @@
 4. **Scripts disponibles:**
    - `npm run dev`: Inicia el servidor de desarrollo.
    - `npm run build`: Genera el build de producción (valida tipos y rutas).
-   - `npm test`: Ejecuta la suite de pruebas unitarias con Vitest.
 
 ---
 
