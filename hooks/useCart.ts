@@ -45,7 +45,6 @@ export function useCart() {
         const subtotal = items.reduce((s, i) => s + i.price * i.quantity, 0);
         const total = getTotalPrice();
         const discount = subtotal - total;
-        const N = new Intl.NumberFormat('es-CL');
 
         let text = '*COTIZACIÓN*\n\n*PRODUCTOS:*\n';
         items.forEach((item) => {
@@ -54,14 +53,14 @@ export function useCart() {
             const itemNormal = item.price * item.quantity;
 
             const priceText = hasOffer
-                ? `~$${N.format(itemNormal)}~ *$${N.format(itemTotal)}*`
-                : `*$${N.format(itemTotal)}*`;
+                ? `~${formatCurrency(itemNormal)}~ *${formatCurrency(itemTotal)}*`
+                : `*${formatCurrency(itemTotal)}*`;
             text += `- x${item.quantity} ${item.productName} (${item.size}): ${priceText}\n`;
         });
 
-        text += `\nSubtotal: $${N.format(subtotal)}`;
-        if (discount > 0) text += `\nDescuento: -$${N.format(discount)}`;
-        text += `\n*TOTAL: $${N.format(total)}*`;
+        text += `\nSubtotal: ${formatCurrency(subtotal)}`;
+        if (discount > 0) text += `\nDescuento: -${formatCurrency(discount)}`;
+        text += `\n*TOTAL: ${formatCurrency(total)}*`;
 
         window.open(`https://wa.me?text=${encodeURIComponent(text)}`, '_blank');
     }, [items, getTotalPrice]);

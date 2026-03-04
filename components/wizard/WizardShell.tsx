@@ -1,21 +1,25 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Link from 'next/link';
-import { useProducts } from '@/hooks/useProducts';
 import { useWizard } from '@/hooks/useWizard';
 import { AlertCircle, ArrowLeft, ArrowRight } from 'lucide-react';
 import { WhatsappIcon } from '@/components/icons';
+import type { CocktailForWizard, EventType, Comuna } from '@/lib/types';
 import WizardStep1 from './WizardStep1';
-
 import WizardStep2 from './WizardStep2';
 import WizardStep3 from './WizardStep3';
 import WizardStep4 from './WizardStep4';
 import WizardStep5 from './WizardStep5';
 import WizardStep6 from './WizardStep6';
 
-export default function WizardShell() {
-    const { cocktails, eventTypes, comunas, categories, isLoading } = useProducts();
+interface Props {
+    cocktails: CocktailForWizard[];
+    eventTypes: EventType[];
+    comunas: Comuna[];
+    categories: string[];
+}
+
+export default function WizardShell({ cocktails, eventTypes, comunas, categories }: Props) {
     const wizard = useWizard(cocktails, comunas, categories);
     const { state } = wizard;
 
@@ -23,6 +27,8 @@ export default function WizardShell() {
 
     useEffect(() => {
         wizard.initCategory(categories);
+        // wizard.initCategory es un callback estable (useCallback sin deps), categories es la dependencia real
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [categories]);
 
     const progress = ((state.step - 1) / 5) * 100;
@@ -39,18 +45,12 @@ export default function WizardShell() {
     };
 
     const renderStep = () => {
-        if (isLoading) return (
-            <div className="flex flex-col justify-center items-center min-h-[400px] gap-6 animate-pulse">
-                <div className="w-16 h-16 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
-                <p className="text-brand-text-muted font-bold tracking-tight text-lg">Preparando tu experiencia...</p>
-            </div>
-        );
         switch (state.step) {
             case 1: return <WizardStep1 wizard={wizard} eventTypes={eventTypes} comunas={comunas} />;
-            case 2: return <WizardStep2 wizard={wizard} />;
+            case 2: return <WizardStep2 wizard={wizard} comunas={comunas} />;
             case 3: return <WizardStep3 wizard={wizard} />;
             case 4: return <WizardStep4 wizard={wizard} cocktails={cocktails} categories={categories} />;
-            case 5: return <WizardStep5 wizard={wizard} />;
+            case 5: return <WizardStep5 wizard={wizard} cocktails={cocktails} comunas={comunas} />;
             case 6: return <WizardStep6 wizard={wizard} cocktails={cocktails} comunas={comunas} />;
             default: return null;
         }
@@ -105,7 +105,7 @@ export default function WizardShell() {
                                 className="inline-flex items-center gap-2 px-8 py-3 rounded-2xl bg-primary text-white font-bold text-[1rem] transition-all hover:bg-primary-dark active:scale-95 shadow-[0_4px_15px_rgba(226,160,73,0.35)] hover:shadow-[0_8px_25px_rgba(226,160,73,0.45)]"
                                 onClick={handleNext}
                             >
-                                {state.step === 5 ? 'Resumen' : 'Siguiente'} <ArrowRight className="w-4 h-4" />
+                                Siguiente <ArrowRight className="w-4 h-4" />
                             </button>
                         ) : (
                             <button

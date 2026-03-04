@@ -2,13 +2,18 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import WizardShell from '@/components/wizard/WizardShell';
+import { fetchAllProductData } from '@/lib/serverData';
 
 export const metadata: Metadata = {
     title: 'Cotiza tu Evento - Cocktails on Tap Chile',
     description: 'Utiliza nuestra herramienta de auto-cotización para calcular el servicio ideal para tu boda, fiesta o evento corporativo en segundos.',
 };
 
-export default function CotizarPage() {
+// Server Component: precarga datos en el servidor con caché de 5 minutos.
+// Supabase no recibe ninguna llamada desde el browser del cliente.
+export default async function CotizarPage() {
+    const { cocktails, eventTypes, comunas, categories } = await fetchAllProductData();
+
     return (
         <main data-page="cotizar" className="min-h-screen bg-brand-bg relative flex flex-col pt-8 md:pt-12">
             <div className="w-full max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 mb-6">
@@ -24,7 +29,12 @@ export default function CotizarPage() {
             </div>
 
             <div className="flex-1">
-                <WizardShell />
+                <WizardShell
+                    cocktails={cocktails}
+                    eventTypes={eventTypes}
+                    comunas={comunas}
+                    categories={categories}
+                />
             </div>
         </main>
     );

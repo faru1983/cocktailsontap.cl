@@ -42,18 +42,24 @@ export default function WizardStep4({ wizard, cocktails, categories }: Props) {
     };
 
     // 1. Mapeamos CocktailForWizard a Product con useMemo para rendimiento
-    const mappedProducts: Product[] = useMemo(() => cocktails.map(c => ({
-        id: c.id,
-        name: c.name,
-        description: c.desc,
-        image: c.image,
-        category: c.category,
-        sizes: Object.entries(c.prices).map(([size, p]) => ({
-            size,
-            price: p.price,
-            offerPrice: p.offerPrice
-        }))
-    })), [cocktails]);
+    const mappedProducts: Product[] = useMemo(() => cocktails.map(c => {
+        // Encontramos si ya hay una selección de este cóctel para marcar el tamaño por defecto
+        const existingSelection = state.selections.find(s => s.id === c.id);
+
+        return {
+            id: c.id,
+            name: c.name,
+            description: c.desc,
+            image: c.image,
+            category: c.category,
+            selectedSize: existingSelection?.size, // Esto recordará el último tamaño del carrito
+            sizes: Object.entries(c.prices).map(([size, p]) => ({
+                size,
+                price: p.price,
+                offerPrice: p.offerPrice
+            }))
+        };
+    }), [cocktails, state.selections]);
 
     // 2. Objeto de "carrito" adaptado al Wizard
     const wizardCart: ICart = {
@@ -79,13 +85,18 @@ export default function WizardStep4({ wizard, cocktails, categories }: Props) {
                     <span className="text-[0.85rem] uppercase text-primary font-extrabold tracking-[1px]">Sugerencia de Volumen</span>
                     <div className="text-[1.5rem] font-black text-brand-text mt-1">{suggestedLiters} Litros Totales</div>
                 </div>
-                <div className="grid grid-cols-2 gap-4 bg-[#f8fafc] p-5 rounded-2xl border border-[#edf2f7]">
-                    {[{ l: '5L', t: '25 cócteles' }, { l: '10L', t: '50 cócteles' }, { l: '20L', t: '100 cócteles' }, { l: '30L', t: '150 cócteles' }].map((r, i) => (
-                        <div key={r.l} className={`text-center ${i % 2 === 1 ? 'border-l border-[#e2e8f0]' : ''} ${i >= 2 ? 'border-t border-[#e2e8f0] pt-3' : ''}`}>
-                            <div className="font-extrabold text-primary text-[1.1rem]">{r.l}</div>
-                            <div className="text-[0.75rem] text-brand-text-muted uppercase font-bold tracking-wider">{r.t}</div>
-                        </div>
-                    ))}
+                <div className="flex flex-col gap-3">
+                    <div className="text-center">
+                        <span className="text-[0.7rem] uppercase font-bold text-slate-400 tracking-widest">Rendimientos Apróximados:</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4 bg-[#f8fafc] p-5 rounded-2xl border border-[#edf2f7]">
+                        {[{ l: '5L', t: '25 cócteles' }, { l: '10L', t: '50 cócteles' }, { l: '20L', t: '100 cócteles' }, { l: '30L', t: '150 cócteles' }].map((r, i) => (
+                            <div key={r.l} className={`text-center ${i % 2 === 1 ? 'border-l border-[#e2e8f0]' : ''} ${i >= 2 ? 'border-t border-[#e2e8f0] pt-3' : ''}`}>
+                                <div className="font-extrabold text-primary text-[1.1rem]">{r.l}</div>
+                                <div className="text-[0.75rem] text-brand-text-muted uppercase font-bold tracking-wider">{r.t}</div>
+                            </div>
+                        ))}
+                    </div>
                 </div>
             </div>
 

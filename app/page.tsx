@@ -5,8 +5,13 @@ import DispensadoresSection from '@/components/sections/DispensadoresSection';
 import QueIncluyeSection from '@/components/sections/QueIncluyeSection';
 import CoctelesSection from '@/components/sections/CoctelesSection';
 import FloatingCta from '@/components/FloatingCta';
+import { fetchAllProductData } from '@/lib/serverData';
 
-export default function HomePage() {
+// Server Component: precarga productos y categorías con caché de 5 minutos.
+// Ambas llamadas a Supabase (home + /cotizar) comparten la misma caché.
+export default async function HomePage() {
+  const { products, categories } = await fetchAllProductData();
+
   return (
     <main data-page="home">
       <HeroSection />
@@ -14,7 +19,7 @@ export default function HomePage() {
       <StepsSection />
       <DispensadoresSection />
       <QueIncluyeSection />
-      <CoctelesSection />
+      <CoctelesSection products={products} categories={categories} />
       <FloatingCta />
     </main>
   );

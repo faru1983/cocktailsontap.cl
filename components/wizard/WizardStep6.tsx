@@ -17,40 +17,70 @@ interface Props {
 
 export default function WizardStep6({ wizard, cocktails, comunas }: Props) {
     const { state, goToStep } = wizard;
-    const data = useMemo(() => wizard.calculateSummaryData(), [wizard, state.selections, state.eventData]);
+    const data = useMemo(
+        () => wizard.calculateSummaryData(),
+        // wizard.calculateSummaryData es estable; dependemos de los slices reales que usa la función
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [state.selections, state.eventData, state.contact, state.dispenser]
+    );
 
     return (
         <div className="flex flex-col">
             <h3 className="text-2xl font-extrabold text-brand-text mb-2">6. Resumen de Cotización</h3>
-            <p className="text-brand-text-muted text-[0.95rem] mb-8 leading-relaxed">Revisa los detalles de tu solicitud.</p>
+            <p className="text-brand-text-muted text-[0.95rem] mb-8 leading-relaxed">Revisa los detalles de tu solicitud antes de enviar.</p>
 
             <div className="bg-white rounded-[20px] p-8 shadow-[0_4px_20px_rgba(0,0,0,0.07)] border border-brand-border">
-                {/* Event Info */}
-                <div className="mb-8 pb-6 border-b border-[#e2e8f0]">
-                    <div className="text-[0.75rem] text-brand-text-muted uppercase font-bold mb-4">Datos del Evento</div>
-                    <div className="grid grid-cols-1 gap-2">
-                        {[
-                            ['Nombre', state.contact.fullName],
-                            ['Fecha', data.formattedDate],
-                            ['Temática', data.eventTypeDisplay],
-                            ['Invitados', `${state.consumption.guests} pers.`],
-                            ['Comuna', data.comunaDisplay],
-                        ].map(([label, value]) => (
-                            <div key={label} className="flex gap-2">
-                                <span className="font-semibold text-brand-text-muted text-[0.85rem] w-[80px] shrink-0">{label}: </span>
-                                <span className="font-bold text-brand-text">{value}</span>
-                            </div>
-                        ))}
-                    </div>
-                    {state.contact.comments && (
-                        <div className="mt-6">
-                            <span className="text-[0.8rem] block mb-2 font-semibold text-brand-text-muted">Notas Adicionales:</span>
-                            <div className="bg-[#f8fafc] p-4 rounded-xl text-[0.9rem] text-brand-text-muted border border-[#edf2f7]">
-                                {state.contact.comments}
-                            </div>
+                {/* Info Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8 pb-8 border-b border-brand-border">
+                    {/* Event Info */}
+                    <div>
+                        <div className="text-[0.7rem] text-primary uppercase font-black tracking-widest mb-4">Detalles del Evento</div>
+                        <div className="space-y-3">
+                            {[
+                                ['Temática', data.eventTypeDisplay],
+                                ['Fecha', data.formattedDate],
+                                ['Hora Inicio', state.eventData.startTime],
+                                ['Invitados', `${state.consumption.guests} personas`],
+                                ['Fecha Retiro', data.formattedPickupDate],
+                                ['Horario Retiro', state.eventData.pickupTime],
+                            ].filter(([key, value]) => {
+                                if (key === 'Fecha Retiro' || key === 'Horario Retiro') return !!state.eventData.pickupDate;
+                                return value && value !== 'No especificada';
+                            }).map(([label, value]) => (
+                                <div key={label} className="flex justify-between text-[0.9rem]">
+                                    <span className="text-brand-text-muted font-bold">{label}:</span>
+                                    <span className="text-brand-text font-black text-right">{value}</span>
+                                </div>
+                            ))}
                         </div>
-                    )}
+                    </div>
+
+                    {/* Contact Info */}
+                    <div className="md:border-l md:pl-8 border-brand-border">
+                        <div className="text-[0.7rem] text-primary uppercase font-black tracking-widest mb-4">Datos de Contacto</div>
+                        <div className="space-y-3">
+                            {[
+                                ['Nombre', `${state.contact.firstName} ${state.contact.lastName}`.trim()],
+                                ['Celular', state.contact.phone],
+                                ['Email', state.contact.email],
+                                ['Dirección', state.contact.address],
+                                ['Comuna', data.comunaDisplay],
+                            ].filter(([_, value]) => value && value !== 'No especificada').map(([label, value]) => (
+                                <div key={label} className="flex justify-between text-[0.9rem]">
+                                    <span className="text-brand-text-muted font-bold">{label}:</span>
+                                    <span className="text-brand-text font-black text-right">{value}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
                 </div>
+
+                {state.contact.comments && (
+                    <div className="mb-8 p-4 bg-slate-50 rounded-xl border border-brand-border">
+                        <span className="text-[0.7rem] uppercase font-black text-brand-text-muted block mb-2">Notas Especiales:</span>
+                        <p className="text-[0.9rem] text-brand-text italic">"{state.contact.comments}"</p>
+                    </div>
+                )}
 
                 {/* Products */}
                 <div className="mb-8">
@@ -163,6 +193,12 @@ export default function WizardStep6({ wizard, cocktails, comunas }: Props) {
                         <span>Transporte</span>
                         <span className={`font-bold ${data.shippingCost === 0 ? 'text-primary' : 'text-brand-text'}`}>{data.shippingLabel}</span>
                     </div>
+                    <div className="flex justify-between py-1 text-[0.95rem] font-medium text-brand-text-muted">
+                        <span>{data.dispenserLabel}</span>
+                        <span className={`font-bold ${data.installationCost === 0 ? 'text-primary' : 'text-brand-text'}`}>
+                            {data.installationCost === 0 ? '¡Gratis!' : formatCurrency(data.installationCost)}
+                        </span>
+                    </div>
                     <div className="flex justify-between pt-4 mt-2 border-t-2 border-primary items-center">
                         <span className="font-black text-brand-text text-[1rem]">TOTAL</span>
                         <span className="text-2xl font-black text-primary">{formatCurrency(data.totalPrice)}</span>
@@ -170,15 +206,14 @@ export default function WizardStep6({ wizard, cocktails, comunas }: Props) {
                 </div>
             </div>
 
-            <div className="mt-8 text-center">
+            <div className="mt-8 text-center flex flex-col gap-3 items-center">
                 <button
                     type="button"
                     className="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl border-2 border-[#e2e8f0] text-[#64748b] bg-transparent font-bold text-[0.95rem] transition-all hover:bg-[#f1f5f9] hover:text-brand-text cursor-pointer w-full max-w-[300px]"
-                    onClick={() => goToStep(4)}
+                    onClick={() => goToStep(1)}
                 >
-                    <RotateCcw className="w-4 h-4" /> Modificar Cócteles
+                    <RotateCcw className="w-4 h-4" /> Volver al Inicio
                 </button>
-
             </div>
         </div>
     );

@@ -11,7 +11,7 @@ interface ProductCardProps {
 }
 
 export default function ProductCard({ product, cart }: ProductCardProps) {
-    const [selectedSize, setSelectedSize] = useState(product.sizes[0]?.size ?? '');
+    const [selectedSize, setSelectedSize] = useState(product.selectedSize || product.sizes[0]?.size || '');
 
     const sizeInfo = product.sizes.find((s) => s.size === selectedSize) ?? product.sizes[0];
     if (!sizeInfo) return null;
