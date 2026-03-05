@@ -99,7 +99,7 @@ export default function WizardStep2({ wizard, comunas }: Props) {
             {showExtraFields && (
                 <>
                     <div className="animate-slide-up">
-                        <label htmlFor="wizard-email" className="block font-bold mb-2 text-brand-text text-[0.9rem]">Email</label>
+                        <label htmlFor="wizard-email" className="block font-bold mb-2 text-brand-text text-[0.9rem]">Email <span className="text-primary">*</span></label>
                         <input
                             id="wizard-email"
                             name="email"

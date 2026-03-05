@@ -2,9 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import { useWizard } from '@/hooks/useWizard';
-import { AlertCircle, ArrowLeft, ArrowRight } from 'lucide-react';
+import { AlertCircle, ArrowLeft, ArrowRight, Loader2, CheckCircle, ExternalLink } from 'lucide-react';
 import { WhatsappIcon } from '@/components/icons';
 import type { CocktailForWizard, EventType, Comuna } from '@/lib/types';
+import { createQuote } from '@/app/actions/createQuote';
 import WizardStep1 from './WizardStep1';
 import WizardStep2 from './WizardStep2';
 import WizardStep3 from './WizardStep3';
@@ -19,15 +20,19 @@ interface Props {
     categories: string[];
 }
 
+type SendStatus = 'idle' | 'saving' | 'saved' | 'error';
+
 export default function WizardShell({ cocktails, eventTypes, comunas, categories }: Props) {
     const wizard = useWizard(cocktails, comunas, categories);
     const { state } = wizard;
 
     const [validationError, setValidationError] = useState('');
+    const [sendStatus, setSendStatus] = useState<SendStatus>('idle');
+    const [quoteToken, setQuoteToken] = useState<string | null>(null);
+    const [saveError, setSaveError] = useState('');
 
     useEffect(() => {
         wizard.initCategory(categories);
-        // wizard.initCategory es un callback estable (useCallback sin deps), categories es la dependencia real
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [categories]);
 
@@ -44,6 +49,26 @@ export default function WizardShell({ cocktails, eventTypes, comunas, categories
         }
     };
 
+    const handleCotizar = async () => {
+        setSendStatus('saving');
+        setSaveError('');
+        setQuoteToken(null);
+
+        // Guardar en Supabase
+        const result = await createQuote({ state, cocktails, comunas });
+
+        if (result.success && result.token) {
+            setQuoteToken(result.token);
+            setSendStatus('saved');
+        } else {
+            setSaveError(result.error ?? 'Error guardando la cotización.');
+            setSendStatus('error');
+        }
+
+        // Siempre abrir WhatsApp independiente del resultado del guardado
+        wizard.sendWhatsAppQuote();
+    };
+
     const renderStep = () => {
         switch (state.step) {
             case 1: return <WizardStep1 wizard={wizard} eventTypes={eventTypes} comunas={comunas} />;
@@ -55,6 +80,8 @@ export default function WizardShell({ cocktails, eventTypes, comunas, categories
             default: return null;
         }
     };
+
+    const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://cocktailsontap.cl';
 
     return (
         <div className="flex flex-col min-h-[600px]">
@@ -78,6 +105,34 @@ export default function WizardShell({ cocktails, eventTypes, comunas, categories
                         <span className="flex-1">{validationError}</span>
                     </div>
                 )}
+
+                {/* Mensaje post-guardado (solo en step 6) */}
+                {state.step === 6 && sendStatus === 'saved' && quoteToken && (
+                    <div className="bg-green-50 border border-green-200 rounded-2xl px-5 py-4 mb-6 animate-slide-up">
+                        <div className="flex items-start gap-3">
+                            <CheckCircle className="w-5 h-5 text-green-600 shrink-0 mt-0.5" />
+                            <div>
+                                <p className="font-bold text-green-800 text-[0.95rem]">¡Cotización guardada! Te enviamos un email con el resumen.</p>
+                                <p className="text-green-700 text-[0.85rem] mt-1">Puedes retomar o confirmar tu reserva en cualquier momento desde el link que recibiste.</p>
+                                <a
+                                    href={`${SITE_URL}/cotizar/${quoteToken}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-1 mt-2 text-[0.85rem] font-bold text-green-700 underline hover:text-green-900"
+                                >
+                                    Ver mi cotización <ExternalLink className="w-3.5 h-3.5" />
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {state.step === 6 && sendStatus === 'error' && saveError && (
+                    <div className="bg-amber-50 border border-amber-200 text-amber-800 rounded-2xl px-5 py-4 mb-6 text-[0.9rem] animate-slide-up">
+                        <strong>Nota:</strong> {saveError} Tu solicitud igual fue enviada por WhatsApp.
+                    </div>
+                )}
+
                 <div className="animate-fade-in">
                     {renderStep()}
                 </div>
@@ -110,10 +165,15 @@ export default function WizardShell({ cocktails, eventTypes, comunas, categories
                         ) : (
                             <button
                                 type="button"
-                                className="inline-flex items-center gap-2 px-8 py-3 rounded-2xl bg-[#25D366] text-white font-bold text-[1rem] transition-all hover:bg-[#128c7e] active:scale-95 shadow-[0_4px_15px_rgba(37,211,102,0.35)] hover:shadow-[0_8px_25px_rgba(37,211,102,0.45)]"
-                                onClick={wizard.sendWhatsAppQuote}
+                                disabled={sendStatus === 'saving'}
+                                className="inline-flex items-center gap-2 px-8 py-3 rounded-2xl bg-[#25D366] text-white font-bold text-[1rem] transition-all hover:bg-[#128c7e] active:scale-95 shadow-[0_4px_15px_rgba(37,211,102,0.35)] hover:shadow-[0_8px_25px_rgba(37,211,102,0.45)] disabled:opacity-70 disabled:cursor-not-allowed"
+                                onClick={handleCotizar}
                             >
-                                <WhatsappIcon className="w-5 h-5" /> Cotizar
+                                {sendStatus === 'saving' ? (
+                                    <><Loader2 className="w-5 h-5 animate-spin" /> Guardando...</>
+                                ) : (
+                                    <><WhatsappIcon className="w-5 h-5" /> Cotizar</>
+                                )}
                             </button>
                         )}
                     </div>

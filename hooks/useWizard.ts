@@ -102,9 +102,8 @@ export function useWizard(cocktails: CocktailForWizard[], comunas: Comuna[], cat
             const c = state.contact;
             if (!c.firstName.trim()) return { valid: false, message: 'El nombre completo es obligatorio.' };
             if (!c.comuna.trim()) return { valid: false, message: 'Selecciona la comuna.' };
-
-            // Validar email solo si se ha ingresado algo
-            if (c.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(c.email)) {
+            if (!c.email.trim()) return { valid: false, message: 'El email es obligatorio para enviarte el resumen de la cotización.' };
+            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(c.email)) {
                 return { valid: false, message: 'El formato del email no es válido.' };
             }
         }

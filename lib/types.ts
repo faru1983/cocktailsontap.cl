@@ -98,3 +98,63 @@ export interface ICart {
     updateQuantity: (productId: string, size: string, quantity: number) => void;
     getQuantity: (productId: string, size: string) => number;
 }
+
+// ─── Sistema de Cotizaciones Persistente ──────────────────────────────────────
+
+export type QuoteStatus = 'draft' | 'confirmed' | 'cancelled' | 'completed';
+
+export interface QuoteItem {
+    id: string;
+    quote_id: string;
+    product_id: string | null;
+    product_name: string;
+    size: string;
+    quantity: number;
+    price_at_time: number;
+    offer_price_at_time: number;
+}
+
+export interface Quote {
+    id: string;
+    created_at: string;
+    updated_at: string;
+    token: string;
+    status: QuoteStatus;
+
+    // Cliente
+    client_name: string;
+    client_email: string | null;
+    client_phone: string | null;
+    client_address: string | null;
+    comments: string | null;
+
+    // Evento
+    event_type_id: string | null;
+    event_type_other: string | null;
+    event_date: string;
+    start_time: string | null;
+    pickup_date: string | null;
+    pickup_time: string | null;
+
+    // Ubicación
+    comuna_name: string | null;
+    comuna_other: string | null;
+
+    // Consumo
+    guests: number;
+    drinks_per_person: number;
+
+    // Dispensador
+    dispenser: 'portatil' | 'muro';
+
+    // Precios
+    total_normal_price: number;
+    total_offer_price: number;
+    shipping_cost: number;
+    installation_cost: number;
+    total_price: number;
+    total_liters: number | null;
+
+    // Items (cargados por join)
+    quote_items?: QuoteItem[];
+}
