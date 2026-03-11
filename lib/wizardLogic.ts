@@ -3,12 +3,26 @@ import { formatCurrency } from './utils';
 
 // ─── Utilidades puras ────────────────────────────────────────────────────────
 
+export function getTodayString(): string {
+    const now = new Date();
+    // Ajustar a la zona horaria de Chile (UTC-3/UTC-4)
+    const chileTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/Santiago' }));
+    return chileTime.toISOString().split('T')[0];
+}
+
 export function getSizeLiters(size: string): number {
     if (size.includes('30L')) return 30;
     if (size.includes('20L')) return 20;
     if (size.includes('10L')) return 10;
     if (size.includes('5L')) return 5;
     return 10; // Default
+}
+
+export function calculateMaxPickupDate(dateStr: string): string {
+    if (!dateStr) return '';
+    const d = new Date(dateStr + 'T12:00:00');
+    d.setDate(d.getDate() + 1);
+    return d.toISOString().split('T')[0];
 }
 
 export function formatEventDate(dateStr: string): string {
@@ -145,31 +159,38 @@ export function buildWhatsAppMessage(state: WizardState, data: SummaryData): str
     }).join('\n');
 
     let msg = `*SOLICITUD DE COTIZACIÓN*\n\n`;
-    msg += `*INFORMACIÓN*\n`;
-    msg += `Cliente: ${state.contact.firstName}\n`;
-    if (state.contact.email) msg += `Email: ${state.contact.email}\n`;
-    if (state.contact.phone) msg += `Celular: ${state.contact.phone}\n`;
-    if (state.contact.address || data.comunaDisplay !== 'No especificada') {
-        msg += `Dirección: ${[state.contact.address, data.comunaDisplay].filter(Boolean).join(', ')}\n`;
-    }
-    msg += `Fecha: ${data.formattedDate}\n`;
-    if (state.eventData.startTime) msg += `Hora Inicio: ${state.eventData.startTime}\n`;
-    if (state.eventData.pickupDate) {
-        msg += `Fecha Retiro: ${data.formattedPickupDate}\n`;
-        if (state.eventData.pickupTime) msg += `Horario Retiro: ${state.eventData.pickupTime}\n`;
-    }
-    msg += `Temática: ${data.eventTypeDisplay}\n`;
-    msg += `Invitados: ${guests} pers.\n`;
-    if (state.contact.comments) msg += `Comentarios: ${state.contact.comments}\n`;
-    msg += `\n*PRODUCTOS*:\n${itemsText}\n\n`;
-    msg += `Subtotal: ${formatCurrency(data.totalNormalPrice)}\n`;
-    if (data.totalDiscount > 0) msg += `Descuento: -${formatCurrency(data.totalDiscount)}\n`;
-    msg += `Traslados: ${data.shippingLabel}\n`;
-    msg += `${data.dispenserLabel}: ${data.installationCost === 0 ? '¡Gratis!' : formatCurrency(data.installationCost)}\n`;
+
+    msg += `*PRODUCTOS:*\n${itemsText}\n`;
+    msg += `--------------------------\n`;
+
+    msg += `*Subtotal:* ${formatCurrency(data.totalNormalPrice)}\n`;
+    if (data.totalDiscount > 0) msg += `*Descuento:* -${formatCurrency(data.totalDiscount)}\n`;
+    msg += `*Traslados:* ${data.shippingLabel}\n`;
+    msg += `*${data.dispenserLabel}:* ${data.installationCost === 0 ? '¡Gratis!' : formatCurrency(data.installationCost)}\n`;
+    msg += `--------------------------\n`;
     msg += `*TOTAL: ${formatCurrency(data.totalPrice)}*\n\n`;
+
     msg += `*Notas:*\n`;
-    msg += `Estas cotizando ${data.totalLiters}L con rendimiento total aprox. de ${totalDrinks} cócteles.\n`;
-    msg += `Para ${guests} invitados tienes en promedio de ${avgDrinks} cócteles x pers.`;
+    msg += `_Estas cotizando ${data.totalLiters}L con rendimiento total aprox. de ${totalDrinks} cócteles. Para ${guests} invitados tienes en promedio de ${avgDrinks} cócteles x pers._\n\n`;
+
+    msg += `*INFORMACIÓN DE RESERVA*\n`;
+    msg += `*Nombre:* ${state.contact.firstName.trim()}\n`;
+    if (state.contact.email) msg += `*Email:* ${state.contact.email}\n`;
+    if (state.contact.phone) msg += `*Celular:* ${state.contact.phone}\n`;
+
+    const fullAddress = [state.contact.address, data.comunaDisplay].filter(c => c && c !== 'No especificada').join(', ');
+    if (fullAddress) msg += `*Dirección:* ${fullAddress}\n`;
+
+    msg += `*Evento:* ${data.eventTypeDisplay} (${guests} pers.)\n`;
+    msg += `*Fecha/Hora:* ${data.formattedDate}${state.eventData.startTime ? ` · ${state.eventData.startTime}` : ''}\n`;
+
+    if (state.eventData.pickupDate) {
+        msg += `*Retiro:* ${data.formattedPickupDate}${state.eventData.pickupTime ? ` · (${state.eventData.pickupTime})` : ''}\n`;
+    }
+
+    if (state.contact.comments) {
+        msg += `*Comentarios:* ${state.contact.comments}\n`;
+    }
 
     return msg;
 }

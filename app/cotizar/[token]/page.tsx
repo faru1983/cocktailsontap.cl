@@ -20,15 +20,19 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     };
 }
 
+import { fetchAllProductData } from '@/lib/serverData';
+
 export default async function QuoteTokenPage({ params }: Props) {
     const { token } = await params;
     const db = createServerClient();
 
-    const { data, error } = await db
-        .from('quotes')
-        .select('*, quote_items(*)')
-        .eq('token', token)
-        .single();
+    const [
+        { data, error },
+        { cocktails, comunas, categories, eventTypes }
+    ] = await Promise.all([
+        db.from('quotes').select('*, quote_items(*)').eq('token', token).single(),
+        fetchAllProductData()
+    ]);
 
     if (error || !data) {
         notFound();
@@ -37,9 +41,15 @@ export default async function QuoteTokenPage({ params }: Props) {
     const quote = data as Quote & { quote_items: QuoteItem[] };
 
     return (
-        <main className="min-h-screen bg-brand-bg py-12 px-4">
-            <div className="max-w-3xl mx-auto">
-                <QuoteView quote={quote} />
+        <main className="min-h-screen bg-brand-bg py-12 px-4 pb-32">
+            <div className="max-w-4xl mx-auto">
+                <QuoteView
+                    quote={quote}
+                    comunas={comunas}
+                    availableCocktails={cocktails}
+                    categories={categories}
+                    eventTypes={eventTypes}
+                />
             </div>
         </main>
     );

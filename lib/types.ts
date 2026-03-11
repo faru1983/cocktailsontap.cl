@@ -105,7 +105,7 @@ export type QuoteStatus = 'draft' | 'confirmed' | 'cancelled' | 'completed';
 
 export interface QuoteItem {
     id: string;
-    quote_id: string;
+    quote_id?: string;
     product_id: string | null;
     product_name: string;
     size: string;

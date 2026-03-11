@@ -79,28 +79,10 @@ export function buildQuoteCreatedClientEmail(quote: Quote & { quote_items: Quote
     <h2 style="color:${brandDark};margin:0 0 8px;font-size:22px;">¡Hemos recibido tu cotización!</h2>
     <p style="color:${gray};margin:0 0 24px;font-size:15px;">Hola <strong>${quote.client_name}</strong>, aquí tienes el resumen de tu solicitud.</p>
 
-    <div style="background:${lightGray};border-radius:12px;padding:20px;margin-bottom:24px;border:1px solid ${borderColor};">
-      <table width="100%" cellpadding="0" cellspacing="0">
-        <tr>
-          <td style="font-size:13px;color:${gray};padding:4px 0;width:40%;">Fecha del Evento</td>
-          <td style="font-size:14px;color:${brandDark};font-weight:700;padding:4px 0;">${eventDate}</td>
-        </tr>
-        ${quote.start_time ? `<tr><td style="font-size:13px;color:${gray};padding:4px 0;">Hora Inicio</td><td style="font-size:14px;color:${brandDark};font-weight:700;padding:4px 0;">${quote.start_time}</td></tr>` : ''}
-        <tr>
-          <td style="font-size:13px;color:${gray};padding:4px 0;">Invitados</td>
-          <td style="font-size:14px;color:${brandDark};font-weight:700;padding:4px 0;">${quote.guests} personas</td>
-        </tr>
-        <tr>
-          <td style="font-size:13px;color:${gray};padding:4px 0;">Comuna</td>
-          <td style="font-size:14px;color:${brandDark};font-weight:700;padding:4px 0;">${quote.comuna_name === 'Otra' ? quote.comuna_other : quote.comuna_name}</td>
-        </tr>
-      </table>
-    </div>
-
     <h3 style="color:${brandDark};font-size:15px;margin:0 0 4px;">Productos seleccionados</h3>
     ${itemsTable(quote.quote_items)}
 
-    <div style="border-top:2px solid ${brandColor};padding-top:12px;margin-top:4px;">
+    <div style="border-top:2px solid ${brandColor};padding-top:12px;margin-top:4px;margin-bottom:32px;">
       ${quote.total_normal_price > quote.total_offer_price ? `<div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span style="color:${gray};font-size:13px;">Subtotal</span><span style="color:${gray};font-size:13px;text-decoration:line-through;">${formatCurrency(quote.total_normal_price)}</span></div>` : ''}
       ${quote.shipping_cost > 0 ? `<div style="margin-bottom:4px;color:${gray};font-size:13px;">Transporte: ${formatCurrency(quote.shipping_cost)}</div>` : `<div style="margin-bottom:4px;color:#059669;font-size:13px;">Transporte: ¡Gratis!</div>`}
       ${quote.installation_cost > 0 ? `<div style="margin-bottom:4px;color:${gray};font-size:13px;">Dispensador: ${formatCurrency(quote.installation_cost)}</div>` : ''}
@@ -108,6 +90,41 @@ export function buildQuoteCreatedClientEmail(quote: Quote & { quote_items: Quote
         <strong style="color:${brandDark};font-size:17px;">TOTAL</strong>
         <strong style="color:${brandColor};font-size:21px;">${formatCurrency(quote.total_price)}</strong>
       </div>
+    </div>
+
+    <div style="background:${lightGray};border-radius:12px;padding:20px;margin-bottom:24px;border:1px solid ${borderColor};">
+      <h3 style="color:${brandDark};font-size:14px;margin:0 0 12px;text-transform:uppercase;letter-spacing:1px;">Datos de Contacto</h3>
+      <table width="100%" cellpadding="0" cellspacing="0">
+        <tr><td style="font-size:13px;color:${gray};padding:4px 0;width:40%;">Nombre</td><td style="font-size:14px;color:${brandDark};font-weight:700;padding:4px 0;">${quote.client_name}</td></tr>
+        <tr><td style="font-size:13px;color:${gray};padding:4px 0;">Email</td><td style="font-size:14px;color:${brandDark};font-weight:700;padding:4px 0;">${quote.client_email}</td></tr>
+        ${quote.client_phone ? `<tr><td style="font-size:13px;color:${gray};padding:4px 0;">Celular</td><td style="font-size:14px;color:${brandDark};font-weight:700;padding:4px 0;">${quote.client_phone}</td></tr>` : ''}
+        <tr>
+          <td style="font-size:13px;color:${gray};padding:4px 0;">Dirección</td>
+          <td style="font-size:14px;color:${brandDark};font-weight:700;padding:4px 0;">${[quote.client_address, quote.comuna_name === 'Otra' ? quote.comuna_other : quote.comuna_name].filter(Boolean).join(', ')}</td>
+        </tr>
+      </table>
+    </div>
+
+    <div style="background:${lightGray};border-radius:12px;padding:20px;margin-bottom:24px;border:1px solid ${borderColor};">
+      <h3 style="color:${brandDark};font-size:14px;margin:0 0 12px;text-transform:uppercase;letter-spacing:1px;">Detalles del Evento</h3>
+      <table width="100%" cellpadding="0" cellspacing="0">
+        <tr>
+          <td style="font-size:13px;color:${gray};padding:4px 0;width:40%;">Temática</td>
+          <td style="font-size:14px;color:${brandDark};font-weight:700;padding:4px 0;">${quote.event_type_other || quote.event_type_id || 'No especificada'}</td>
+        </tr>
+        <tr>
+          <td style="font-size:13px;color:${gray};padding:4px 0;width:40%;">Invitados</td>
+          <td style="font-size:14px;color:${brandDark};font-weight:700;padding:4px 0;">${quote.guests} personas</td>
+        </tr>
+        <tr>
+          <td style="font-size:13px;color:${gray};padding:4px 0;">Fecha del Evento</td>
+          <td style="font-size:14px;color:${brandDark};font-weight:700;padding:4px 0;">${eventDate}</td>
+        </tr>
+        ${quote.start_time ? `<tr><td style="font-size:13px;color:${gray};padding:4px 0;">Hora Inicio</td><td style="font-size:14px;color:${brandDark};font-weight:700;padding:4px 0;">${quote.start_time}</td></tr>` : ''}
+        ${quote.pickup_date ? `<tr><td style="font-size:13px;color:${gray};padding:4px 0;">Fecha Retiro</td><td style="font-size:14px;color:${brandDark};font-weight:700;padding:4px 0;">${new Date(quote.pickup_date + 'T12:00:00').toLocaleDateString('es-CL', { day: '2-digit', month: 'long', year: 'numeric' })}</td></tr>` : ''}
+        ${quote.pickup_time ? `<tr><td style="font-size:13px;color:${gray};padding:4px 0;">Horario Retiro</td><td style="font-size:14px;color:${brandDark};font-weight:700;padding:4px 0;">${quote.pickup_time}</td></tr>` : ''}
+        ${quote.comments ? `<tr><td style="font-size:13px;color:${gray};padding:4px 0;">Comentarios</td><td style="font-size:14px;color:${brandDark};font-weight:400;font-style:italic;padding:4px 0;">"${quote.comments}"</td></tr>` : ''}
+      </table>
     </div>
 
     <div style="background:${brandColor};border-radius:12px;padding:24px;margin-top:32px;text-align:center;">
@@ -135,20 +152,38 @@ export function buildAdminNotificationEmail(quote: Quote & { quote_items: QuoteI
     <h2 style="color:${brandDark};margin:0 0 8px;font-size:20px;">⚡ Nueva cotización recibida</h2>
     <p style="color:${gray};margin:0 0 24px;font-size:14px;">Se ha creado una nueva cotización en el sistema.</p>
 
-    <div style="background:${lightGray};border-radius:12px;padding:20px;margin-bottom:24px;border:1px solid ${borderColor};">
+    <h3 style="color:${brandDark};font-size:14px;margin:0 0 4px;">Productos</h3>
+    ${itemsTable(quote.quote_items)}
+    
+    <div style="margin-top:16px;margin-bottom:32px;">
       <table width="100%" cellpadding="0" cellspacing="0">
-        <tr><td style="font-size:13px;color:${gray};padding:4px 0;width:40%;">Cliente</td><td style="font-size:14px;color:${brandDark};font-weight:700;padding:4px 0;">${quote.client_name}</td></tr>
-        ${quote.client_email ? `<tr><td style="font-size:13px;color:${gray};padding:4px 0;">Email</td><td style="font-size:14px;color:${brandDark};font-weight:700;padding:4px 0;">${quote.client_email}</td></tr>` : ''}
-        ${quote.client_phone ? `<tr><td style="font-size:13px;color:${gray};padding:4px 0;">Teléfono</td><td style="font-size:14px;color:${brandDark};font-weight:700;padding:4px 0;">${quote.client_phone}</td></tr>` : ''}
-        <tr><td style="font-size:13px;color:${gray};padding:4px 0;">Evento</td><td style="font-size:14px;color:${brandDark};font-weight:700;padding:4px 0;">${eventDate}</td></tr>
-        <tr><td style="font-size:13px;color:${gray};padding:4px 0;">Invitados</td><td style="font-size:14px;color:${brandDark};font-weight:700;padding:4px 0;">${quote.guests} personas</td></tr>
-        <tr><td style="font-size:13px;color:${gray};padding:4px 0;">Comuna</td><td style="font-size:14px;color:${brandDark};font-weight:700;padding:4px 0;">${quote.comuna_name === 'Otra' ? quote.comuna_other : quote.comuna_name}</td></tr>
-        <tr><td style="font-size:13px;color:${gray};padding:4px 0;">Total</td><td style="font-size:16px;color:${brandColor};font-weight:900;padding:4px 0;">${formatCurrency(quote.total_price)}</td></tr>
+        <tr><td style="font-size:14px;color:${gray};padding:4px 0;width:40%;">Total</td><td style="font-size:18px;color:${brandColor};font-weight:900;padding:4px 0;">${formatCurrency(quote.total_price)}</td></tr>
       </table>
     </div>
 
-    <h3 style="color:${brandDark};font-size:14px;margin:0 0 4px;">Productos</h3>
-    ${itemsTable(quote.quote_items)}
+    <div style="background:${lightGray};border-radius:12px;padding:20px;margin-bottom:24px;border:1px solid ${borderColor};">
+      <h3 style="color:${brandDark};font-size:14px;margin:0 0 12px;text-transform:uppercase;letter-spacing:1px;">Datos de Contacto</h3>
+      <table width="100%" cellpadding="0" cellspacing="0">
+        <tr><td style="font-size:13px;color:${gray};padding:4px 0;width:40%;">Nombre</td><td style="font-size:14px;color:${brandDark};font-weight:700;padding:4px 0;">${quote.client_name}</td></tr>
+        <tr><td style="font-size:13px;color:${gray};padding:4px 0;">Email</td><td style="font-size:14px;color:${brandDark};font-weight:700;padding:4px 0;">${quote.client_email}</td></tr>
+        ${quote.client_phone ? `<tr><td style="font-size:13px;color:${gray};padding:4px 0;">Celular</td><td style="font-size:14px;color:${brandDark};font-weight:700;padding:4px 0;">${quote.client_phone}</td></tr>` : ''}
+        <tr>
+          <td style="font-size:13px;color:${gray};padding:4px 0;">Dirección</td>
+          <td style="font-size:14px;color:${brandDark};font-weight:700;padding:4px 0;">${[quote.client_address, quote.comuna_name === 'Otra' ? quote.comuna_other : quote.comuna_name].filter(Boolean).join(', ')}</td>
+        </tr>
+      </table>
+    </div>
+
+    <div style="background:${lightGray};border-radius:12px;padding:20px;margin-bottom:24px;border:1px solid ${borderColor};">
+      <h3 style="color:${brandDark};font-size:14px;margin:0 0 12px;text-transform:uppercase;letter-spacing:1px;">Detalles del Evento</h3>
+      <table width="100%" cellpadding="0" cellspacing="0">
+        <tr><td style="font-size:13px;color:${gray};padding:4px 0;width:40%;">Temática</td><td style="font-size:14px;color:${brandDark};font-weight:700;padding:4px 0;">${quote.event_type_other || quote.event_type_id || 'No especificada'}</td></tr>
+        <tr><td style="font-size:13px;color:${gray};padding:4px 0;width:40%;">Invitados</td><td style="font-size:14px;color:${brandDark};font-weight:700;padding:4px 0;">${quote.guests} personas</td></tr>
+        <tr><td style="font-size:13px;color:${gray};padding:4px 0;">Evento</td><td style="font-size:14px;color:${brandDark};font-weight:700;padding:4px 0;">${eventDate}</td></tr>
+        ${quote.start_time ? `<tr><td style="font-size:13px;color:${gray};padding:4px 0;">Hora Inicio</td><td style="font-size:14px;color:${brandDark};font-weight:700;padding:4px 0;">${quote.start_time}</td></tr>` : ''}
+        ${quote.comments ? `<tr><td style="font-size:13px;color:${gray};padding:4px 0;">Comentarios</td><td style="font-size:14px;color:${brandDark};font-weight:400;font-style:italic;padding:4px 0;">"${quote.comments}"</td></tr>` : ''}
+      </table>
+    </div>
 
     <a href="${adminLink}" style="display:inline-block;background:${brandDark};color:#fff;font-weight:900;font-size:14px;padding:12px 28px;border-radius:10px;text-decoration:none;margin-top:16px;">Ver cotización completa →</a>
   `;
@@ -178,16 +213,29 @@ export function buildQuoteConfirmedEmail(quote: Quote & { quote_items: QuoteItem
 
     <!-- Datos bancarios -->
     <div style="background:${lightGray};border-radius:12px;padding:24px;margin-bottom:24px;border:1px solid ${borderColor};">
-      <h3 style="color:${brandDark};margin:0 0 16px;font-size:15px;">📲 Datos para transferencia bancaria</h3>
+      <h3 style="color:${brandDark};margin:0 0 16px;font-size:15px;text-transform:uppercase;letter-spacing:1px;font-weight:700;">Resumen del Evento</h3>
       <table width="100%" cellpadding="0" cellspacing="0">
-        <tr><td style="font-size:13px;color:${gray};padding:5px 0;width:45%;">Banco</td><td style="font-size:14px;color:${brandDark};font-weight:700;padding:5px 0;">Mercado Pago</td></tr>
-        <tr><td style="font-size:13px;color:${gray};padding:5px 0;">Tipo de cuenta</td><td style="font-size:14px;color:${brandDark};font-weight:700;padding:5px 0;">Cuenta Vista</td></tr>
-        <tr><td style="font-size:13px;color:${gray};padding:5px 0;">Número</td><td style="font-size:14px;color:${brandDark};font-weight:700;padding:5px 0;">1098081647</td></tr>
-        <tr><td style="font-size:13px;color:${gray};padding:5px 0;">Nombre</td><td style="font-size:14px;color:${brandDark};font-weight:700;padding:5px 0;">Felipe Ramírez</td></tr>
-        <tr><td style="font-size:13px;color:${gray};padding:5px 0;">RUT</td><td style="font-size:14px;color:${brandDark};font-weight:700;padding:5px 0;">15.332.189-2</td></tr>
-        <tr><td style="font-size:13px;color:${gray};padding:5px 0;">Email</td><td style="font-size:14px;color:${brandDark};font-weight:700;padding:5px 0;">contacto@cocktailsontap.cl</td></tr>
-        <tr><td style="font-size:13px;color:${gray};padding:5px 0;">Monto</td><td style="font-size:16px;color:#059669;font-weight:900;padding:5px 0;">${formatCurrency(halfAmount)}</td></tr>
+        <tr><td style="font-size:13px;color:${gray};padding:5px 0;width:45%;">Nombre</td><td style="font-size:14px;color:${brandDark};font-weight:700;padding:5px 0;">${quote.client_name}</td></tr>
+        <tr><td style="font-size:13px;color:${gray};padding:5px 0;">Temática</td><td style="font-size:14px;color:${brandDark};font-weight:700;padding:5px 0;">${quote.event_type_other || quote.event_type_id || 'No especificada'}</td></tr>
+        <tr><td style="font-size:13px;color:${gray};padding:5px 0;">Invitados</td><td style="font-size:14px;color:${brandDark};font-weight:700;padding:5px 0;">${quote.guests} pers.</td></tr>
+        <tr><td style="font-size:13px;color:${gray};padding:5px 0;">Fecha</td><td style="font-size:14px;color:${brandDark};font-weight:700;padding:5px 0;">${eventDate}</td></tr>
+        ${quote.start_time ? `<tr><td style="font-size:13px;color:${gray};padding:4px 0;">Hora Inicio</td><td style="font-size:14px;color:${brandDark};font-weight:700;padding:4px 0;">${quote.start_time}</td></tr>` : ''}
+        <tr>
+          <td style="font-size:13px;color:${gray};padding:5px 0;">Dirección</td>
+          <td style="font-size:14px;color:${brandDark};font-weight:700;padding:5px 0;">${[quote.client_address, quote.comuna_name === 'Otra' ? quote.comuna_other : quote.comuna_name].filter(Boolean).join(', ')}</td>
+        </tr>
       </table>
+      <div style="margin-top:16px;border-top:1px solid ${borderColor};padding-top:16px;">
+        <h3 style="color:${brandDark};margin:0 0 12px;font-size:15px;text-transform:uppercase;letter-spacing:1px;font-weight:700;">📲 Datos de Transferencia</h3>
+        <table width="100%" cellpadding="0" cellspacing="0">
+          <tr><td style="font-size:13px;color:${gray};padding:5px 0;width:45%;">Banco</td><td style="font-size:14px;color:${brandDark};font-weight:700;padding:5px 0;">Mercado Pago</td></tr>
+          <tr><td style="font-size:13px;color:${gray};padding:5px 0;">Tipo de cuenta</td><td style="font-size:14px;color:${brandDark};font-weight:700;padding:5px 0;">Cuenta Vista</td></tr>
+          <tr><td style="font-size:13px;color:${gray};padding:5px 0;">Número</td><td style="font-size:14px;color:${brandDark};font-weight:700;padding:5px 0;">1098081647</td></tr>
+          <tr><td style="font-size:13px;color:${gray};padding:5px 0;">Nombre</td><td style="font-size:14px;color:${brandDark};font-weight:700;padding:5px 0;">Felipe Ramírez</td></tr>
+          <tr><td style="font-size:13px;color:${gray};padding:5px 0;">RUT</td><td style="font-size:14px;color:${brandDark};font-weight:700;padding:5px 0;">15.332.189-2</td></tr>
+          <tr><td style="font-size:13px;color:${gray};padding:5px 0;">Total Abono</td><td style="font-size:16px;color:#059669;font-weight:900;padding:5px 0;">${formatCurrency(halfAmount)}</td></tr>
+        </table>
+      </div>
     </div>
 
     <p style="color:${gray};font-size:13px;margin:0 0 8px;">Una vez realizada la transferencia, envíanos el comprobante por WhatsApp para confirmar tu pago.</p>

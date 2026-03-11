@@ -4,6 +4,7 @@ import type { useWizard } from '@/hooks/useWizard';
 import type { EventType, Comuna } from '@/lib/types';
 import { Cake, Baby, Heart, Briefcase, Plus, type LucideIcon } from 'lucide-react';
 import SelectField from '@/components/ui/SelectField';
+import { calculateMaxPickupDate, getTodayString } from '@/lib/wizardLogic';
 
 const ICON_MAP: Record<string, LucideIcon> = {
     'fa-solid fa-cake-candles': Cake,
@@ -28,11 +29,8 @@ export default function WizardStep1({ wizard, eventTypes }: Props) {
 
     // Lógica para fechas de retiro 
     const minPickupDate = state.eventData.date;
-    const maxPickupDate = state.eventData.date ? (() => {
-        const d = new Date(state.eventData.date + 'T12:00:00');
-        d.setDate(d.getDate() + 1);
-        return d.toISOString().split('T')[0];
-    })() : '';
+    const maxPickupDate = calculateMaxPickupDate(state.eventData.date);
+    const today = getTodayString();
 
     return (
         <div className="flex flex-col">
@@ -117,6 +115,7 @@ export default function WizardStep1({ wizard, eventTypes }: Props) {
                         id="wizard-date"
                         type="date"
                         required
+                        min={today}
                         className="w-full p-4 border-2 border-brand-border rounded-2xl text-[1rem] font-sans text-brand-text bg-white transition-all focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10"
                         value={state.eventData.date}
                         onChange={(e) => {
@@ -165,8 +164,8 @@ export default function WizardStep1({ wizard, eventTypes }: Props) {
                         <SelectField
                             id="wizard-pickup-time"
                             value={state.eventData.pickupTime}
-                            onChange={(v) => updateEventData('pickupTime', v)}
-                            placeholder="Dato opcional"
+                            onChange={(v: string) => updateEventData('pickupTime', v)}
+                            placeholder="Seleccionar..."
                         >
                             <option value="12:00 a 14:00">12:00 a 14:00</option>
                             <option value="14:00 a 16:00">14:00 a 16:00</option>

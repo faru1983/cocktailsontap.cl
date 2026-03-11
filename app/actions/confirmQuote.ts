@@ -12,9 +12,21 @@ const MAKE_WEBHOOK_URL = process.env.MAKE_WEBHOOK_CALENDAR_URL;
 
 interface ConfirmQuoteInput {
     token: string;
-    // Datos opcionales para completar si faltan en la quote original
     client_phone?: string;
     client_address?: string;
+    comuna_name?: string;
+    comuna_other?: string | null;
+    guests?: number;
+    event_type_id?: string;
+    event_type_other?: string | null;
+    items?: QuoteItem[]; // Lista completa de items actualizada
+    event_date?: string;
+    start_time?: string;
+    pickup_date?: string | null;
+    pickup_time?: string | null;
+    comments?: string | null;
+    dispenser?: 'portatil' | 'muro';
+    installation_cost?: number;
 }
 
 interface ConfirmQuoteResult {
@@ -23,7 +35,24 @@ interface ConfirmQuoteResult {
 }
 
 export async function confirmQuote(input: ConfirmQuoteInput): Promise<ConfirmQuoteResult> {
-    const { token, client_phone, client_address } = input;
+    const {
+        token,
+        client_phone,
+        client_address,
+        comuna_name,
+        comuna_other,
+        guests,
+        event_type_id,
+        event_type_other,
+        items: updatedItems,
+        event_date,
+        start_time,
+        pickup_date,
+        pickup_time,
+        comments,
+        dispenser,
+        installation_cost
+    } = input;
 
     try {
         const db = createServerClient();
@@ -43,42 +72,141 @@ export async function confirmQuote(input: ConfirmQuoteInput): Promise<ConfirmQuo
             return { success: false, error: `Esta cotización ya está en estado "${quote.status}" y no se puede confirmar.` };
         }
 
-        // ─── 2. Validar campos requeridos para confirmar ──────────────────────
+        // ─── 2. Validar campos requeridos ─────────────────────────────────────
         const finalPhone = client_phone?.trim() || quote.client_phone;
         const finalAddress = client_address?.trim() || quote.client_address;
+        const finalEventDate = event_date || quote.event_date;
+        const finalComunaName = comuna_name || quote.comuna_name;
+        const finalComunaOther = comuna_other !== undefined ? comuna_other : quote.comuna_other;
+        const finalGuests = guests !== undefined ? guests : quote.guests;
 
-        if (!quote.client_email) {
-            return { success: false, error: 'Se requiere email para confirmar la reserva.' };
+        const finalStartTime = start_time || quote.start_time;
+        const finalPickupDate = pickup_date || quote.pickup_date;
+        const finalPickupTime = pickup_time || quote.pickup_time;
+
+        const isSameDayPickup = finalPickupDate === finalEventDate;
+
+        if (!finalPhone || !finalAddress || !finalEventDate || !finalComunaName || !finalGuests || !finalStartTime || !finalPickupDate || (!isSameDayPickup && !finalPickupTime)) {
+            return { success: false, error: 'Por favor completa todos los campos (Teléfono, Dirección, Comuna, Fecha, Invitados, Horarios y Retiro).' };
         }
-        if (!finalPhone && !quote.client_email) {
-            return { success: false, error: 'Se requiere al menos un dato de contacto (email o teléfono).' };
+
+        if (!updatedItems || updatedItems.length === 0) {
+            return { success: false, error: 'La cotización debe tener al menos un producto.' };
         }
 
-        // ─── 3. Actualizar columnas opcionales si se completaron ──────────────
-        const updateData: Record<string, string> = { status: 'confirmed' };
-        if (client_phone) updateData.client_phone = client_phone.trim();
-        if (client_address) updateData.client_address = client_address.trim();
+        // ─── 3. Procesar cambios en items y recalcular totales ────────────────
+        let totalNormalPrice = 0;
+        let totalOfferPrice = 0;
+        let totalLiters = 0;
 
-        const { error: updateError } = await db
+        for (const item of updatedItems) {
+            totalNormalPrice += item.price_at_time * item.quantity;
+            totalOfferPrice += item.offer_price_at_time * item.quantity;
+            totalLiters += getSizeLiters(item.size) * item.quantity;
+        }
+
+        // Recalcular envío basado en la comuna (usando la nueva si existe)
+        let finalShippingCost = quote.shipping_cost;
+        const { data: comuna } = await db.from('comunas').select().eq('name', finalComunaName).single();
+        if (comuna && comuna.free_from !== null) {
+            if (totalLiters >= comuna.free_from) {
+                finalShippingCost = 0;
+            } else {
+                finalShippingCost = comuna.cost || 0;
+            }
+        }
+
+        const finalInstallationCost = installation_cost !== undefined ? installation_cost : quote.installation_cost;
+        const finalPrice = totalOfferPrice + finalShippingCost + finalInstallationCost;
+
+        // ─── 4. Sincronizar items en la base de datos ────────────────────────
+        // a) Eliminar items que ya no están
+        const currentIds = updatedItems.filter(i => !i.id?.includes('temp-')).map(i => i.id);
+        await db.from('quote_items')
+            .delete()
+            .eq('quote_id', quote.id)
+            .not('id', 'in', `(${currentIds.join(',') || 'NULL'})`);
+
+        // b) Actualizar existentes e insertar nuevos
+        for (const item of updatedItems) {
+            if (item.id?.includes('temp-')) {
+                // Nuevo item
+                await db.from('quote_items').insert({
+                    quote_id: quote.id,
+                    product_id: item.product_id,
+                    product_name: item.product_name,
+                    size: item.size,
+                    quantity: item.quantity,
+                    price_at_time: item.price_at_time,
+                    offer_price_at_time: item.offer_price_at_time
+                });
+            } else {
+                // Actualizar existente
+                await db.from('quote_items')
+                    .update({ quantity: item.quantity })
+                    .eq('id', item.id);
+            }
+        }
+
+        // ─── 5. Actualizar la Cotización ───────────────────────────────
+        const { error: updateQuoteError } = await db
             .from('quotes')
-            .update(updateData)
+            .update({
+                status: 'confirmed',
+                client_phone: finalPhone,
+                client_address: finalAddress,
+                comuna_name: finalComunaName,
+                comuna_other: finalComunaOther,
+                guests: finalGuests,
+                event_type_id: event_type_id || quote.event_type_id,
+                event_type_other: event_type_other !== undefined ? event_type_other : quote.event_type_other,
+                event_date: finalEventDate,
+                start_time: start_time || quote.start_time,
+                pickup_date: pickup_date !== undefined ? pickup_date : quote.pickup_date,
+                pickup_time: pickup_time !== undefined ? pickup_time : quote.pickup_time,
+                comments: comments !== undefined ? comments : quote.comments,
+                total_normal_price: totalNormalPrice,
+                total_offer_price: totalOfferPrice,
+                total_price: finalPrice,
+                total_liters: totalLiters,
+                shipping_cost: finalShippingCost, // Guardar el nuevo costo de envío
+                dispenser: dispenser || quote.dispenser,
+                installation_cost: finalInstallationCost,
+                updated_at: new Date().toISOString()
+            })
             .eq('token', token);
 
-        if (updateError) {
-            console.error('Error actualizando estado:', updateError);
-            return { success: false, error: 'No se pudo confirmar la reserva. Intenta nuevamente.' };
+        if (updateQuoteError) {
+            console.error('Error actualizando quote:', updateQuoteError);
+            return { success: false, error: 'No se pudo confirmar la reserva.' };
         }
 
-        // ─── 4. Construir la quote actualizada para emails ────────────────────
+        // ─── 6. Enviar emails y disparar webhook ───────
         const fullQuote: Quote & { quote_items: QuoteItem[] } = {
             ...quote,
             status: 'confirmed',
-            client_phone: finalPhone ?? quote.client_phone,
-            client_address: finalAddress ?? quote.client_address,
-            quote_items: (quote.quote_items ?? []) as QuoteItem[],
+            client_phone: finalPhone,
+            client_address: finalAddress,
+            comuna_name: finalComunaName,
+            comuna_other: finalComunaOther,
+            guests: finalGuests,
+            event_type_id: event_type_id || quote.event_type_id,
+            event_type_other: event_type_other !== undefined ? event_type_other : quote.event_type_other,
+            event_date: finalEventDate,
+            start_time: start_time || quote.start_time,
+            pickup_date: pickup_date !== undefined ? pickup_date : quote.pickup_date,
+            pickup_time: pickup_time !== undefined ? pickup_time : quote.pickup_time,
+            comments: comments !== undefined ? comments : quote.comments,
+            total_normal_price: totalNormalPrice,
+            total_offer_price: totalOfferPrice,
+            total_price: finalPrice,
+            total_liters: totalLiters,
+            shipping_cost: finalShippingCost,
+            dispenser: dispenser || quote.dispenser,
+            installation_cost: finalInstallationCost,
+            quote_items: updatedItems,
         };
 
-        // ─── 5. Enviar email de confirmación al cliente ───────────────────────
         const resendKey = process.env.RESEND_API_KEY;
         if (resendKey && fullQuote.client_email) {
             try {
@@ -91,37 +219,34 @@ export async function confirmQuote(input: ConfirmQuoteInput): Promise<ConfirmQuo
                     html: confirmedEmail.html,
                 });
             } catch (emailErr) {
-                console.error('Error enviando email de confirmación:', emailErr);
+                console.error('Error enviando email:', emailErr);
             }
         }
 
-        // ─── 6. Disparar webhook de Make.com para Google Calendar ─────────────
         if (MAKE_WEBHOOK_URL) {
             try {
                 const eventDate = fullQuote.event_date
                     ? new Date(fullQuote.event_date + 'T12:00:00').toISOString()
                     : null;
-
-                const items = fullQuote.quote_items
+                const itemsDesc = fullQuote.quote_items
                     .map(i => `${i.quantity}x ${i.product_name} (${i.size})`)
                     .join(', ');
 
                 const payload = {
-                    title: `🍸 ${fullQuote.client_name} – ${fullQuote.guests} invitados`,
+                    title: `🍸 RESERVA: ${fullQuote.client_name} – ${fullQuote.guests} invitados`,
                     description: [
                         `Cliente: ${fullQuote.client_name}`,
-                        fullQuote.client_phone ? `Teléfono: ${fullQuote.client_phone}` : '',
-                        fullQuote.client_email ? `Email: ${fullQuote.client_email}` : '',
-                        fullQuote.client_address ? `Dirección: ${fullQuote.client_address}` : '',
+                        `Teléfono: ${fullQuote.client_phone}`,
+                        `Dirección: ${fullQuote.client_address}`,
                         `Comuna: ${fullQuote.comuna_name === 'Otra' ? fullQuote.comuna_other : fullQuote.comuna_name}`,
                         `Invitados: ${fullQuote.guests}`,
-                        `Productos: ${items}`,
+                        `Productos: ${itemsDesc}`,
                         fullQuote.comments ? `Notas: ${fullQuote.comments}` : '',
                     ].filter(Boolean).join('\n'),
                     start_date: eventDate,
                     start_time: fullQuote.start_time,
                     guests_email: fullQuote.client_email,
-                    location: [fullQuote.client_address, fullQuote.comuna_name].filter(Boolean).join(', '),
+                    location: `${fullQuote.client_address}, ${fullQuote.comuna_name}`,
                     event_date_formatted: formatEventDate(fullQuote.event_date),
                 };
 
@@ -131,13 +256,22 @@ export async function confirmQuote(input: ConfirmQuoteInput): Promise<ConfirmQuo
                     body: JSON.stringify(payload),
                 });
             } catch (webhookErr) {
-                console.error('Error disparando webhook de Make.com:', webhookErr);
+                console.error('Error webhook:', webhookErr);
             }
         }
 
         return { success: true };
     } catch (err) {
         console.error('Error inesperado en confirmQuote:', err);
-        return { success: false, error: 'Error inesperado. Intenta nuevamente.' };
+        return { success: false, error: 'Error inesperado.' };
     }
 }
+
+function getSizeLiters(size: string): number {
+    if (size.includes('30L')) return 30;
+    if (size.includes('20L')) return 20;
+    if (size.includes('10L')) return 10;
+    if (size.includes('5L')) return 5;
+    return 10;
+}
+

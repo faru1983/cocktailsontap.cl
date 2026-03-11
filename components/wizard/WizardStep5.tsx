@@ -21,7 +21,7 @@ const INCLUYE_ITEMS = [
     { icon: Leaf, label: 'Decoraciones (garnish) deshidratadas' },
     { icon: GlassWater, label: 'Préstamo de vasos y/o copas' },
     { icon: Martini, label: 'Accesorios de bar: hieleras, palas, pinzas y más' },
-    { icon: Infinity, label: '¡Sin límite de tiempo! Tú indicas el horario de retiro' },
+    { icon: Infinity, label: '¡Sin límite de tiempo!' },
 ];
 
 export default function WizardStep5({ wizard }: Props) {
