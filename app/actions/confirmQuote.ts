@@ -225,12 +225,20 @@ export async function confirmQuote(input: ConfirmQuoteInput): Promise<ConfirmQuo
 
         if (MAKE_WEBHOOK_URL) {
             try {
-                // Calcular fecha ISO de inicio usando la hora del evento
-                const startTimeStr = (fullQuote.start_time && fullQuote.start_time !== '--:--') ? fullQuote.start_time : '12:00';
-                const isoStart = fullQuote.event_date ? new Date(`${fullQuote.event_date}T${startTimeStr}:00`).toISOString() : null;
+                // Helper para generar hora literal "YYYY-MM-DDTHH:mm:ss" sin zona horaria
+                const formatLiteral = (d: Date) => {
+                    const pad = (n: number) => String(n).padStart(2, '0');
+                    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+                };
 
-                // Estimar fin (ej: 3 horas después)
-                const isoEnd = isoStart ? new Date(new Date(isoStart).getTime() + 3 * 60 * 60 * 1000).toISOString() : null;
+                const startTimeStr = (fullQuote.start_time && fullQuote.start_time !== '--:--') ? fullQuote.start_time : '12:00';
+                
+                // Creamos los objetos Date asumiendo que el texto es la hora local
+                const startDate = new Date(`${fullQuote.event_date}T${startTimeStr}:00`);
+                const endDate = new Date(startDate.getTime() + 3 * 60 * 60 * 1000); // +3 horas
+
+                const isoStart = formatLiteral(startDate);
+                const isoEnd = formatLiteral(endDate);
 
                 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://cocktailsontap.cl';
                 const resumeLink = `${siteUrl}/cotizar/${fullQuote.token}`;
