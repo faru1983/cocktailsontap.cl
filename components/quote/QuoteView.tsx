@@ -294,6 +294,7 @@ export default function QuoteView({ quote, comunas, availableCocktails, categori
         if (result.success) {
             setConfirmed(true);
             setShowConfirmModal(false);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
         } else {
             setConfirmError(result.error ?? 'Error al confirmar. Intenta nuevamente.');
         }

@@ -2,7 +2,7 @@
 
 import { createServerClient } from '@/lib/supabaseServer';
 import { Resend } from 'resend';
-import { buildQuoteConfirmedEmail } from '@/lib/emails';
+import { buildQuoteConfirmedEmail, buildAdminConfirmationNotificationEmail } from '@/lib/emails';
 import type { Quote, QuoteItem } from '@/lib/types';
 import { formatEventDate } from '@/lib/wizardLogic';
 
@@ -217,6 +217,15 @@ export async function confirmQuote(input: ConfirmQuoteInput): Promise<ConfirmQuo
                     to: fullQuote.client_email,
                     subject: confirmedEmail.subject,
                     html: confirmedEmail.html,
+                });
+
+                // --- Email al Administrador (Notificación de Confirmación) ---
+                const adminEmail = buildAdminConfirmationNotificationEmail(fullQuote);
+                await resend.emails.send({
+                    from: FROM_EMAIL,
+                    to: ADMIN_EMAIL,
+                    subject: adminEmail.subject,
+                    html: adminEmail.html,
                 });
             } catch (emailErr) {
                 console.error('Error enviando email:', emailErr);

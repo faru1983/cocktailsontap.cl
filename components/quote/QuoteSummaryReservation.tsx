@@ -59,10 +59,10 @@ export default function QuoteSummaryReservation({ data }: Props) {
                         <span className="font-medium text-brand-text leading-tight">{data.eventTypeDisplay} ({data.guests} pers.)</span>
                     </div>
                     <div className="flex items-start gap-2">
-                        <span className="font-bold text-brand-text-muted min-w-[85px]">Fecha/Hora:</span>
+                        <span className="font-bold text-brand-text-muted min-w-[85px]">Fecha:</span>
                         <span className="font-medium text-brand-text leading-tight">
                             {data.formattedDate}
-                            {data.startTime && data.startTime !== '--:--' && ` · ${data.startTime}`}
+                            {data.startTime && data.startTime !== '--:--' && ` · (${data.startTime})`}
                         </span>
                     </div>
                     {data.formattedPickupDate && (

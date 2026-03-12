@@ -306,3 +306,70 @@ export function buildQuoteConfirmedEmail(quote: Quote & { quote_items: QuoteItem
         html: baseLayout(content),
     };
 }
+
+// ─── Email 4: Notificación al administrador (Reserva Confirmada) ──────────────
+
+export function buildAdminConfirmationNotificationEmail(quote: Quote & { quote_items: QuoteItem[] }): { subject: string; html: string } {
+    const adminLink = `${SITE_URL}/cotizar/${quote.token}`;
+    const eventDate = quote.event_date ? new Date(quote.event_date + 'T12:00:00').toLocaleDateString('es-CL', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' }) : '';
+    const dispenserLabel = quote.dispenser === 'muro' ? 'Muro de Coctelería' : 'Dispensador Portátil';
+    const communaDisplay = quote.comuna_name === 'Otra' ? (quote.comuna_other || '') : (quote.comuna_name || '');
+    const fullAddress = [quote.client_address, communaDisplay].filter(Boolean).join(', ');
+
+    const content = `
+    <h2 style="color:#059669;margin:0 0 8px;font-size:20px;">✅ Reserva Confirmada por el Cliente</h2>
+    <p style="color:${gray};margin:0 0 24px;font-size:14px;">El cliente ha confirmado su reserva y debería estar realizando la transferencia.</p>
+
+    <h3 style="color:${brandDark};font-size:14px;margin:0 0 4px;text-transform:uppercase;letter-spacing:1px;">Pedido Confirmado</h3>
+    ${itemsTable(quote.quote_items)}
+
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin:4px 0 32px;border-top:2px solid ${brandColor};padding-top:12px;">
+      ${quote.total_normal_price > quote.total_offer_price ? `
+      <tr>
+        <td style="font-size:13px;color:${gray};padding:3px 0;width:50%;">Subtotal</td>
+        <td style="font-size:13px;color:${gray};text-align:right;">${formatCurrency(quote.total_normal_price)}</td>
+      </tr>
+      <tr>
+        <td style="font-size:13px;color:#059669;padding:3px 0;">Descuento</td>
+        <td style="font-size:13px;color:#059669;text-align:right;">-${formatCurrency(quote.total_normal_price - quote.total_offer_price)}</td>
+      </tr>` : `
+      <tr>
+        <td style="font-size:13px;color:${gray};padding:3px 0;width:50%;">Subtotal</td>
+        <td style="font-size:13px;color:${gray};text-align:right;">${formatCurrency(quote.total_normal_price)}</td>
+      </tr>`}
+      <tr>
+        <td style="font-size:13px;color:${gray};padding:3px 0;">Transporte</td>
+        <td style="font-size:13px;${quote.shipping_cost === 0 ? `color:#059669;` : `color:${gray};`}text-align:right;">${quote.shipping_cost === 0 ? '¡Gratis!' : formatCurrency(quote.shipping_cost)}</td>
+      </tr>
+      <tr>
+        <td style="font-size:13px;color:${gray};padding:3px 0;">${dispenserLabel}</td>
+        <td style="font-size:13px;${quote.installation_cost === 0 ? `color:#059669;` : `color:${gray};`}text-align:right;">${quote.installation_cost === 0 ? '¡Gratis!' : formatCurrency(quote.installation_cost)}</td>
+      </tr>
+      <tr style="border-top:1px solid ${borderColor};">
+        <td style="font-size:16px;color:${brandDark};font-weight:900;padding:10px 0 0;">TOTAL</td>
+        <td style="font-size:16px;color:${brandDark};font-weight:900;text-align:right;padding:10px 0 0;">${formatCurrency(quote.total_price)}</td>
+      </tr>
+    </table>
+
+    <div style="background:${lightGray};border-radius:12px;padding:20px;margin-bottom:24px;border:1px solid ${borderColor};">
+      <h3 style="color:${brandDark};font-size:13px;margin:0 0 12px;text-transform:uppercase;letter-spacing:1px;">Información de Reserva</h3>
+      <table width="100%" cellpadding="0" cellspacing="0">
+        <tr><td style="font-size:13px;color:${gray};padding:4px 0;width:40%;">Nombre</td><td style="font-size:14px;color:${brandDark};font-weight:700;padding:4px 0;">${quote.client_name}</td></tr>
+        <tr><td style="font-size:13px;color:${gray};padding:4px 0;">Email</td><td style="font-size:14px;color:${brandDark};font-weight:700;padding:4px 0;">${quote.client_email}</td></tr>
+        ${quote.client_phone ? `<tr><td style="font-size:13px;color:${gray};padding:4px 0;">Celular</td><td style="font-size:14px;color:${brandDark};font-weight:700;padding:4px 0;">${quote.client_phone}</td></tr>` : ''}
+        ${fullAddress ? `<tr><td style="font-size:13px;color:${gray};padding:4px 0;">Dirección</td><td style="font-size:14px;color:${brandDark};font-weight:700;padding:4px 0;">${fullAddress}</td></tr>` : ''}
+        <tr><td style="font-size:13px;color:${gray};padding:4px 0;">Evento</td><td style="font-size:14px;color:${brandDark};font-weight:700;padding:4px 0;">${quote.event_type_other || quote.event_type_id || 'No especificado'} (${quote.guests} pers.)</td></tr>
+        <tr><td style="font-size:13px;color:${gray};padding:4px 0;">Fecha</td><td style="font-size:14px;color:${brandDark};font-weight:700;padding:4px 0;">${eventDate}${quote.start_time && quote.start_time !== '--:--' ? ` · (${quote.start_time})` : ''}</td></tr>
+        ${quote.pickup_date ? `<tr><td style="font-size:13px;color:${gray};padding:4px 0;">Retiro</td><td style="font-size:14px;color:${brandDark};font-weight:700;padding:4px 0;">${new Date(quote.pickup_date + 'T12:00:00').toLocaleDateString('es-CL', { day: '2-digit', month: 'long', year: 'numeric' })}${quote.pickup_time ? ` · (${quote.pickup_time})` : ''}</td></tr>` : ''}
+        ${quote.comments ? `<tr><td style="font-size:13px;color:${gray};padding:4px 0;">Comentarios</td><td style="font-size:14px;color:${brandDark};font-weight:400;font-style:italic;padding:4px 0;">"${quote.comments}"</td></tr>` : ''}
+      </table>
+    </div>
+
+    <a href="${adminLink}" style="display:inline-block;background:#059669;color:#fff;font-weight:900;font-size:14px;padding:12px 28px;border-radius:10px;text-decoration:none;margin-top:8px;">Ver reserva confirmada →</a>
+    `;
+
+    return {
+        subject: `✅ [Reserva Confirmada] ${quote.client_name} – ${eventDate}`,
+        html: baseLayout(content),
+    };
+}
