@@ -192,6 +192,7 @@ export function buildQuoteConfirmedEmail(quote: Quote & { quote_items: QuoteItem
         ? new Date(quote.event_date + 'T12:00:00').toLocaleDateString('es-CL', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })
         : '';
 
+    const resumeLink = `${SITE_URL}/cotizar/${quote.token}`;
     const content = `
     <h2 style="color:#059669;margin:0 0 8px;font-size:22px;">✅ ¡Reserva confirmada!</h2>
     <p style="color:${gray};margin:0 0 24px;font-size:15px;">Hola <strong>${quote.client_name}</strong>, tu reserva para el <strong>${eventDate}</strong> ha sido confirmada exitosamente.</p>
@@ -222,6 +223,11 @@ export function buildQuoteConfirmedEmail(quote: Quote & { quote_items: QuoteItem
     </div>
 
     ${reservationInfoSection(quote)}
+
+    <div style="margin-bottom:32px;text-align:center;">
+      <p style="color:${gray};font-size:14px;margin-bottom:12px;">Puedes revisar los detalles actualizados de tu reserva en el siguiente enlace:</p>
+      <a href="${resumeLink}" style="display:inline-block;color:${brandColor};font-weight:700;font-size:14px;text-decoration:underline;">Ver detalles de tu reserva →</a>
+    </div>
 
     <p style="color:${gray};font-size:13px;margin:0 0 8px;">Una vez realizada la transferencia, envíanos el comprobante por WhatsApp para confirmar tu pago.</p>
     <a href="https://wa.me/56929672978" style="display:inline-block;background:#25D366;color:#fff;font-weight:700;font-size:14px;padding:12px 24px;border-radius:10px;text-decoration:none;">Enviar comprobante por WhatsApp →</a>

@@ -7,7 +7,7 @@ import { confirmQuote } from '@/app/actions/confirmQuote';
 import {
     CheckCircle, Clock, XCircle, AlertCircle, ShoppingCart,
     Calendar, Users, MapPin, User, Mail, Phone, MessageSquare, Loader2, Lock,
-    Plus, Search, ChevronRight, Tag, Info, Copy
+    Plus, Search, ChevronRight, Tag, Info, Copy, ExternalLink
 } from 'lucide-react';
 import type { Quote, QuoteItem, Comuna, CocktailForWizard, EventType, Product, ICart } from '@/lib/types';
 import ProductCatalog from '@/components/catalog/ProductCatalog';
@@ -341,6 +341,23 @@ export default function QuoteView({ quote, comunas, availableCocktails, categori
                         <Copy className="w-4 h-4" /> Copiar Datos de Cuenta
                     </button>
                     <p className="text-[0.8rem] text-green-700 mt-4 text-center italic opacity-80 underline underline-offset-4 decoration-green-300">El 50% restante se paga el día del montaje.</p>
+                </div>
+
+                <div className="mt-12 flex flex-col sm:flex-row items-center justify-center gap-6">
+                    <button 
+                        onClick={() => setConfirmed(false)}
+                        className="inline-flex items-center gap-2 text-brand-text font-black text-sm border-b-2 border-brand-border hover:border-primary transition-all pb-1 px-2"
+                    >
+                        <ExternalLink className="w-4 h-4" /> Ver detalles de la reserva
+                    </button>
+                    <button 
+                        onClick={() => {
+                            navigator.clipboard.writeText(window.location.href);
+                        }}
+                        className="inline-flex items-center gap-2 text-brand-text-muted font-bold text-sm hover:text-primary transition-all"
+                    >
+                        <Copy className="w-4 h-4" /> Copiar enlace de comprobante
+                    </button>
                 </div>
             </div>
         );

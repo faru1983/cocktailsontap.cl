@@ -213,28 +213,43 @@ export async function confirmQuote(input: ConfirmQuoteInput): Promise<ConfirmQuo
         };
 
         const resendKey = process.env.RESEND_API_KEY;
-        if (resendKey && fullQuote.client_email) {
+        if (resendKey) {
             try {
                 const resend = new Resend(resendKey);
-                const confirmedEmail = buildQuoteConfirmedEmail(fullQuote);
                 const adminEmail = buildAdminConfirmationNotificationEmail(fullQuote);
-                // Enviar ambos emails en paralelo
-                await Promise.allSettled([
-                    resend.emails.send({
-                        from: FROM_EMAIL,
-                        to: fullQuote.client_email,
-                        subject: confirmedEmail.subject,
-                        html: confirmedEmail.html,
-                    }),
+                const emailPromises = [];
+
+                // Notificación al Administrador (Siempre)
+                emailPromises.push(
                     resend.emails.send({
                         from: FROM_EMAIL,
                         to: ADMIN_EMAIL,
                         subject: adminEmail.subject,
                         html: adminEmail.html,
-                    }),
-                ]);
+                    })
+                );
+
+                // Confirmación al Cliente (Si tiene email)
+                if (fullQuote.client_email) {
+                    const confirmedEmail = buildQuoteConfirmedEmail(fullQuote);
+                    emailPromises.push(
+                        resend.emails.send({
+                            from: FROM_EMAIL,
+                            to: fullQuote.client_email,
+                            subject: confirmedEmail.subject,
+                            html: confirmedEmail.html,
+                        })
+                    );
+                }
+
+                const results = await Promise.allSettled(emailPromises);
+                results.forEach((result, idx) => {
+                    if (result.status === 'rejected') {
+                        console.error(`Error en email ${idx}:`, result.reason);
+                    }
+                });
             } catch (emailErr) {
-                console.error('Error enviando email:', emailErr);
+                console.error('Error general enviando emails:', emailErr);
             }
         }
 
