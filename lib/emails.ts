@@ -126,7 +126,7 @@ export function buildQuoteCreatedClientEmail(quote: Quote & { quote_items: Quote
         ${quote.client_phone ? `<tr><td style="font-size:13px;color:${gray};padding:4px 0;">Celular</td><td style="font-size:14px;color:${brandDark};font-weight:700;padding:4px 0;">${quote.client_phone}</td></tr>` : ''}
         ${fullAddress ? `<tr><td style="font-size:13px;color:${gray};padding:4px 0;">Dirección</td><td style="font-size:14px;color:${brandDark};font-weight:700;padding:4px 0;">${fullAddress}</td></tr>` : ''}
         <tr><td style="font-size:13px;color:${gray};padding:4px 0;">Evento</td><td style="font-size:14px;color:${brandDark};font-weight:700;padding:4px 0;">${quote.event_type_other || quote.event_type_id || 'No especificado'} (${quote.guests} pers.)</td></tr>
-        <tr><td style="font-size:13px;color:${gray};padding:4px 0;">Fecha</td><td style="font-size:14px;color:${brandDark};font-weight:700;padding:4px 0;">${eventDate}${quote.start_time && quote.start_time !== '--:--' ? ` · ${quote.start_time}` : ''}</td></tr>
+        <tr><td style="font-size:13px;color:${gray};padding:4px 0;">Fecha</td><td style="font-size:14px;color:${brandDark};font-weight:700;padding:4px 0;">${eventDate}${quote.start_time && quote.start_time !== '--:--' ? ` · (${quote.start_time})` : ''}</td></tr>
         ${quote.pickup_date ? `<tr><td style="font-size:13px;color:${gray};padding:4px 0;">Retiro</td><td style="font-size:14px;color:${brandDark};font-weight:700;padding:4px 0;">${new Date(quote.pickup_date + 'T12:00:00').toLocaleDateString('es-CL', { day: '2-digit', month: 'long', year: 'numeric' })}${quote.pickup_time ? ` · (${quote.pickup_time})` : ''}</td></tr>` : ''}
         ${quote.comments ? `<tr><td style="font-size:13px;color:${gray};padding:4px 0;">Comentarios</td><td style="font-size:14px;color:${brandDark};font-weight:400;font-style:italic;padding:4px 0;">"${quote.comments}"</td></tr>` : ''}
       </table>
@@ -199,7 +199,7 @@ export function buildAdminNotificationEmail(quote: Quote & { quote_items: QuoteI
         ${quote.client_phone ? `<tr><td style="font-size:13px;color:${gray};padding:4px 0;">Celular</td><td style="font-size:14px;color:${brandDark};font-weight:700;padding:4px 0;">${quote.client_phone}</td></tr>` : ''}
         ${fullAddress ? `<tr><td style="font-size:13px;color:${gray};padding:4px 0;">Dirección</td><td style="font-size:14px;color:${brandDark};font-weight:700;padding:4px 0;">${fullAddress}</td></tr>` : ''}
         <tr><td style="font-size:13px;color:${gray};padding:4px 0;">Evento</td><td style="font-size:14px;color:${brandDark};font-weight:700;padding:4px 0;">${quote.event_type_other || quote.event_type_id || 'No especificado'} (${quote.guests} pers.)</td></tr>
-        <tr><td style="font-size:13px;color:${gray};padding:4px 0;">Fecha</td><td style="font-size:14px;color:${brandDark};font-weight:700;padding:4px 0;">${eventDate}${quote.start_time && quote.start_time !== '--:--' ? ` · ${quote.start_time}` : ''}</td></tr>
+        <tr><td style="font-size:13px;color:${gray};padding:4px 0;">Fecha</td><td style="font-size:14px;color:${brandDark};font-weight:700;padding:4px 0;">${eventDate}${quote.start_time && quote.start_time !== '--:--' ? ` · (${quote.start_time})` : ''}</td></tr>
         ${quote.pickup_date ? `<tr><td style="font-size:13px;color:${gray};padding:4px 0;">Retiro</td><td style="font-size:14px;color:${brandDark};font-weight:700;padding:4px 0;">${new Date(quote.pickup_date + 'T12:00:00').toLocaleDateString('es-CL', { day: '2-digit', month: 'long', year: 'numeric' })}${quote.pickup_time ? ` · (${quote.pickup_time})` : ''}</td></tr>` : ''}
         ${quote.comments ? `<tr><td style="font-size:13px;color:${gray};padding:4px 0;">Comentarios</td><td style="font-size:14px;color:${brandDark};font-weight:400;font-style:italic;padding:4px 0;">"${quote.comments}"</td></tr>` : ''}
       </table>
@@ -282,12 +282,16 @@ export function buildQuoteConfirmedEmail(quote: Quote & { quote_items: QuoteItem
 
     <!-- Información de Reserva -->
     <div style="background:${lightGray};border-radius:12px;padding:20px;margin-bottom:24px;border:1px solid ${borderColor};">
-      <h3 style="color:${brandDark};font-size:13px;margin:0 0 12px;text-transform:uppercase;letter-spacing:1px;">Resumen del Evento</h3>
+      <h3 style="color:${brandDark};font-size:13px;margin:0 0 12px;text-transform:uppercase;letter-spacing:1px;">Información de Reserva</h3>
       <table width="100%" cellpadding="0" cellspacing="0">
-        <tr><td style="font-size:13px;color:${gray};padding:4px 0;width:40%;">Evento</td><td style="font-size:14px;color:${brandDark};font-weight:700;padding:4px 0;">${quote.event_type_other || quote.event_type_id || 'No especificado'} (${quote.guests} pers.)</td></tr>
-        <tr><td style="font-size:13px;color:${gray};padding:4px 0;">Fecha/Hora</td><td style="font-size:14px;color:${brandDark};font-weight:700;padding:4px 0;">${eventDate}${quote.start_time && quote.start_time !== '--:--' ? ` · ${quote.start_time}` : ''}</td></tr>
+        <tr><td style="font-size:13px;color:${gray};padding:4px 0;width:40%;">Nombre</td><td style="font-size:14px;color:${brandDark};font-weight:700;padding:4px 0;">${quote.client_name}</td></tr>
+        <tr><td style="font-size:13px;color:${gray};padding:4px 0;">Email</td><td style="font-size:14px;color:${brandDark};font-weight:700;padding:4px 0;">${quote.client_email}</td></tr>
+        ${quote.client_phone ? `<tr><td style="font-size:13px;color:${gray};padding:4px 0;">Celular</td><td style="font-size:14px;color:${brandDark};font-weight:700;padding:4px 0;">${quote.client_phone}</td></tr>` : ''}
         ${fullAddress ? `<tr><td style="font-size:13px;color:${gray};padding:4px 0;">Dirección</td><td style="font-size:14px;color:${brandDark};font-weight:700;padding:4px 0;">${fullAddress}</td></tr>` : ''}
+        <tr><td style="font-size:13px;color:${gray};padding:4px 0;">Evento</td><td style="font-size:14px;color:${brandDark};font-weight:700;padding:4px 0;">${quote.event_type_other || quote.event_type_id || 'No especificado'} (${quote.guests} pers.)</td></tr>
+        <tr><td style="font-size:13px;color:${gray};padding:4px 0;">Fecha</td><td style="font-size:14px;color:${brandDark};font-weight:700;padding:4px 0;">${eventDate}${quote.start_time && quote.start_time !== '--:--' ? ` · (${quote.start_time})` : ''}</td></tr>
         ${quote.pickup_date ? `<tr><td style="font-size:13px;color:${gray};padding:4px 0;">Retiro</td><td style="font-size:14px;color:${brandDark};font-weight:700;padding:4px 0;">${new Date(quote.pickup_date + 'T12:00:00').toLocaleDateString('es-CL', { day: '2-digit', month: 'long', year: 'numeric' })}${quote.pickup_time ? ` · (${quote.pickup_time})` : ''}</td></tr>` : ''}
+        ${quote.comments ? `<tr><td style="font-size:13px;color:${gray};padding:4px 0;">Comentarios</td><td style="font-size:14px;color:${brandDark};font-weight:400;font-style:italic;padding:4px 0;">"${quote.comments}"</td></tr>` : ''}
       </table>
     </div>
 
