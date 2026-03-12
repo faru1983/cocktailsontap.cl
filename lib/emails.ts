@@ -66,7 +66,7 @@ function itemsTable(items: QuoteItem[]): string {
 
     return `<table width="100%" cellpadding="0" cellspacing="0" style="margin:16px 0;">
     <tr>
-      <th align="left" style="font-size:12px;text-transform:uppercase;color:${gray};padding-bottom:8px;border-bottom:2px solid ${brandColor};">Producto</th>
+      <th align="left" style="font-size:12px;text-transform:uppercase;color:${gray};padding-bottom:8px;border-bottom:2px solid ${brandColor};">Cóctel</th>
       <th align="center" style="font-size:12px;text-transform:uppercase;color:${gray};padding-bottom:8px;border-bottom:2px solid ${brandColor};">Cant.</th>
       <th align="right" style="font-size:12px;text-transform:uppercase;color:${gray};padding-bottom:8px;border-bottom:2px solid ${brandColor};">Precio</th>
     </tr>
@@ -126,7 +126,7 @@ export function buildQuoteCreatedClientEmail(quote: Quote & { quote_items: Quote
         ${quote.client_phone ? `<tr><td style="font-size:13px;color:${gray};padding:4px 0;">Celular</td><td style="font-size:14px;color:${brandDark};font-weight:700;padding:4px 0;">${quote.client_phone}</td></tr>` : ''}
         ${fullAddress ? `<tr><td style="font-size:13px;color:${gray};padding:4px 0;">Dirección</td><td style="font-size:14px;color:${brandDark};font-weight:700;padding:4px 0;">${fullAddress}</td></tr>` : ''}
         <tr><td style="font-size:13px;color:${gray};padding:4px 0;">Evento</td><td style="font-size:14px;color:${brandDark};font-weight:700;padding:4px 0;">${quote.event_type_other || quote.event_type_id || 'No especificado'} (${quote.guests} pers.)</td></tr>
-        <tr><td style="font-size:13px;color:${gray};padding:4px 0;">Fecha/Hora</td><td style="font-size:14px;color:${brandDark};font-weight:700;padding:4px 0;">${eventDate}${quote.start_time && quote.start_time !== '--:--' ? ` · ${quote.start_time}` : ''}</td></tr>
+        <tr><td style="font-size:13px;color:${gray};padding:4px 0;">Fecha</td><td style="font-size:14px;color:${brandDark};font-weight:700;padding:4px 0;">${eventDate}${quote.start_time && quote.start_time !== '--:--' ? ` · ${quote.start_time}` : ''}</td></tr>
         ${quote.pickup_date ? `<tr><td style="font-size:13px;color:${gray};padding:4px 0;">Retiro</td><td style="font-size:14px;color:${brandDark};font-weight:700;padding:4px 0;">${new Date(quote.pickup_date + 'T12:00:00').toLocaleDateString('es-CL', { day: '2-digit', month: 'long', year: 'numeric' })}${quote.pickup_time ? ` · (${quote.pickup_time})` : ''}</td></tr>` : ''}
         ${quote.comments ? `<tr><td style="font-size:13px;color:${gray};padding:4px 0;">Comentarios</td><td style="font-size:14px;color:${brandDark};font-weight:400;font-style:italic;padding:4px 0;">"${quote.comments}"</td></tr>` : ''}
       </table>
@@ -134,8 +134,7 @@ export function buildQuoteCreatedClientEmail(quote: Quote & { quote_items: Quote
 
     <div style="background:${brandColor};border-radius:12px;padding:24px;margin-top:8px;text-align:center;">
       <p style="color:#fff;margin:0 0 16px;font-size:15px;font-weight:700;">¿Listo para confirmar tu reserva?</p>
-      <a href="${resumeLink}" style="display:inline-block;background:#fff;color:${brandDark};font-weight:900;font-size:15px;padding:14px 32px;border-radius:10px;text-decoration:none;">Ver y confirmar cotización →</a>
-      <p style="color:rgba(255,255,255,0.8);margin:12px 0 0;font-size:12px;">${resumeLink}</p>
+      <a href="${resumeLink}" style="display:inline-block;background:#fff;color:${brandDark};font-weight:900;font-size:15px;padding:14px 32px;border-radius:10px;text-decoration:none;">Confirmar cotización →</a>
     </div>
 
     <p style="color:${gray};font-size:13px;margin-top:24px;">Si tienes dudas, escríbenos por WhatsApp al <a href="https://wa.me/56929672978" style="color:${brandColor};">+56 9 2967 2978</a></p>
@@ -161,7 +160,7 @@ export function buildAdminNotificationEmail(quote: Quote & { quote_items: QuoteI
     <h2 style="color:${brandDark};margin:0 0 8px;font-size:20px;">⚡ Nueva cotización recibida</h2>
     <p style="color:${gray};margin:0 0 24px;font-size:14px;">Se ha creado una nueva cotización en el sistema.</p>
 
-    <h3 style="color:${brandDark};font-size:14px;margin:0 0 4px;text-transform:uppercase;letter-spacing:1px;">Productos</h3>
+    <h3 style="color:${brandDark};font-size:14px;margin:0 0 4px;text-transform:uppercase;letter-spacing:1px;">Productos Seleccionados</h3>
     ${itemsTable(quote.quote_items)}
 
     <table width="100%" cellpadding="0" cellspacing="0" style="margin:4px 0 32px;border-top:2px solid ${brandColor};padding-top:12px;">
@@ -200,7 +199,7 @@ export function buildAdminNotificationEmail(quote: Quote & { quote_items: QuoteI
         ${quote.client_phone ? `<tr><td style="font-size:13px;color:${gray};padding:4px 0;">Celular</td><td style="font-size:14px;color:${brandDark};font-weight:700;padding:4px 0;">${quote.client_phone}</td></tr>` : ''}
         ${fullAddress ? `<tr><td style="font-size:13px;color:${gray};padding:4px 0;">Dirección</td><td style="font-size:14px;color:${brandDark};font-weight:700;padding:4px 0;">${fullAddress}</td></tr>` : ''}
         <tr><td style="font-size:13px;color:${gray};padding:4px 0;">Evento</td><td style="font-size:14px;color:${brandDark};font-weight:700;padding:4px 0;">${quote.event_type_other || quote.event_type_id || 'No especificado'} (${quote.guests} pers.)</td></tr>
-        <tr><td style="font-size:13px;color:${gray};padding:4px 0;">Fecha/Hora</td><td style="font-size:14px;color:${brandDark};font-weight:700;padding:4px 0;">${eventDate}${quote.start_time && quote.start_time !== '--:--' ? ` · ${quote.start_time}` : ''}</td></tr>
+        <tr><td style="font-size:13px;color:${gray};padding:4px 0;">Fecha</td><td style="font-size:14px;color:${brandDark};font-weight:700;padding:4px 0;">${eventDate}${quote.start_time && quote.start_time !== '--:--' ? ` · ${quote.start_time}` : ''}</td></tr>
         ${quote.pickup_date ? `<tr><td style="font-size:13px;color:${gray};padding:4px 0;">Retiro</td><td style="font-size:14px;color:${brandDark};font-weight:700;padding:4px 0;">${new Date(quote.pickup_date + 'T12:00:00').toLocaleDateString('es-CL', { day: '2-digit', month: 'long', year: 'numeric' })}${quote.pickup_time ? ` · (${quote.pickup_time})` : ''}</td></tr>` : ''}
         ${quote.comments ? `<tr><td style="font-size:13px;color:${gray};padding:4px 0;">Comentarios</td><td style="font-size:14px;color:${brandDark};font-weight:400;font-style:italic;padding:4px 0;">"${quote.comments}"</td></tr>` : ''}
       </table>
