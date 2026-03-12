@@ -254,9 +254,8 @@ export async function confirmQuote(input: ConfirmQuoteInput): Promise<ConfirmQuo
                     : '';
 
                 const payload = {
-                    title: `🍸 RESERVA: ${fullQuote.client_name} – ${fullQuote.guests} invitados`,
+                    title: `Cócteles - ${fullQuote.client_name} ${fullQuote.guests}px`,
                     customerName: fullQuote.client_name,
-                    summary: `${fullQuote.guests} invitados, ${fullQuote.quote_items.length} productos`,
                     description: [
                         `Nombre: ${fullQuote.client_name}`,
                         `Teléfono: ${fullQuote.client_phone}`,
