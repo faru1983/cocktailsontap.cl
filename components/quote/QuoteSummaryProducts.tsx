@@ -38,22 +38,22 @@ export default function QuoteSummaryProducts({ data, isEditable = false, onUpdat
         <div className="bg-white rounded-[20px] p-8 shadow-[0_4px_20px_rgba(0,0,0,0.07)] border border-brand-border mb-6">
             {/* Products */}
             <div className="mb-8">
-                <div className="flex items-center justify-between mb-5 border-b border-brand-border pb-2">
-                    <div className="flex items-center gap-2 font-extrabold text-[1.1rem] text-brand-text m-0">
-                        <ShoppingCart className="w-5 h-5 text-primary" />
+                <div className="flex items-center justify-between mb-5 border-b border-brand-border pb-2 gap-2">
+                    <div className="flex items-center gap-2 font-extrabold text-[1rem] sm:text-[1.1rem] text-brand-text m-0 shrink-0">
+                        <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
                         <span>Productos</span>
                     </div>
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
                         {isEditable && onAddProductsClick && (
                             <button
                                 type="button"
                                 onClick={onAddProductsClick}
-                                className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 text-primary border border-primary/20 rounded-lg font-black text-[0.7rem] hover:bg-primary hover:text-white transition-all active:scale-95 uppercase tracking-wider"
+                                className="flex items-center gap-1 px-2 py-1 sm:px-3 sm:py-1.5 bg-primary/10 text-primary border border-primary/20 rounded-lg font-black text-[0.6rem] sm:text-[0.7rem] hover:bg-primary hover:text-white transition-all active:scale-95 uppercase tracking-wider whitespace-nowrap"
                             >
-                                <Plus className="w-3 h-3" /> Añadir más
+                                <Plus className="w-2.5 h-2.5 sm:w-3 sm:h-3" /> Añadir más
                             </button>
                         )}
-                        <span className="text-[0.7rem] bg-slate-100 text-brand-text-muted px-3 py-1.5 rounded-lg font-black uppercase tracking-wider border border-brand-border">
+                        <span className="text-[0.6rem] sm:text-[0.7rem] bg-slate-100 text-brand-text-muted px-2 py-1 sm:px-3 sm:py-1.5 rounded-lg font-black uppercase tracking-wider border border-brand-border whitespace-nowrap">
                             {data.items.length} {data.items.length === 1 ? 'Ítem' : 'Ítems'}
                         </span>
                     </div>
