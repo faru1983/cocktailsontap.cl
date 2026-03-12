@@ -6,6 +6,7 @@ import { buildQuoteCreatedClientEmail, buildAdminNotificationEmail } from '@/lib
 import type { WizardState, WizardSelection, Quote, QuoteItem } from '@/lib/types';
 import type { CocktailForWizard, Comuna } from '@/lib/types';
 import { calculateSummaryData } from '@/lib/wizardLogic';
+import { SITE_URL } from '@/lib/config';
 
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? 'contacto@cocktailsontap.cl';
 const FROM_EMAIL = 'Cocktails on Tap <no-reply@cocktailsontap.cl>';
@@ -112,8 +113,8 @@ export async function createQuote(input: CreateQuoteInput): Promise<CreateQuoteR
                     client_phone: state.contact.phone || null,
                     client_address: state.contact.address || null,
                     comments: state.contact.comments || null,
-                    event_type_id: state.eventData.type || null,
-                    event_type_other: state.eventData.otherType || null,
+                    event_type_id: state.eventData.type === 'Otro' ? null : state.eventData.type || null,
+                    event_type_other: state.eventData.type === 'Otro' ? state.eventData.otherType : null,
                     event_date: state.eventData.date,
                     start_time: state.eventData.startTime || null,
                     pickup_date: state.eventData.pickupDate || null,

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useWizard } from '@/hooks/useWizard';
-import { AlertCircle, ArrowLeft, ArrowRight, Loader2, CheckCircle, ExternalLink } from 'lucide-react';
+import { AlertCircle, ArrowLeft, ArrowRight, Loader2 } from 'lucide-react';
 import { WhatsappIcon } from '@/components/icons';
 import type { CocktailForWizard, EventType, Comuna } from '@/lib/types';
 import { createQuote } from '@/app/actions/createQuote';

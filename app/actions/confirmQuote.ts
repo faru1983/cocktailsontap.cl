@@ -4,7 +4,8 @@ import { createServerClient } from '@/lib/supabaseServer';
 import { Resend } from 'resend';
 import { buildQuoteConfirmedEmail, buildAdminConfirmationNotificationEmail } from '@/lib/emails';
 import type { Quote, QuoteItem } from '@/lib/types';
-import { formatEventDate } from '@/lib/wizardLogic';
+import { getSizeLiters } from '@/lib/wizardLogic';
+import { SITE_URL, MURO_INSTALLATION_COST, MURO_COMPATIBLE_SIZES, MURO_MIN_LITERS } from '@/lib/config';
 
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? 'contacto@cocktailsontap.cl';
 const FROM_EMAIL = 'Cocktails on Tap <no-reply@cocktailsontap.cl>';
@@ -116,7 +117,11 @@ export async function confirmQuote(input: ConfirmQuoteInput): Promise<ConfirmQuo
             }
         }
 
-        const finalInstallationCost = installation_cost !== undefined ? installation_cost : quote.installation_cost;
+        // Recalcular installation_cost en el servidor según el tipo de dispensador y litros totales
+        const hasIncompatibleSize = (updatedItems || []).some(i => !MURO_COMPATIBLE_SIZES.includes(getSizeLiters(i.size)));
+        const canHaveMuro = !hasIncompatibleSize && totalLiters >= MURO_MIN_LITERS;
+        const finalDispenser = dispenser || quote.dispenser;
+        const finalInstallationCost = (finalDispenser === 'muro' && canHaveMuro) ? MURO_INSTALLATION_COST : 0;
         const finalPrice = totalOfferPrice + finalShippingCost + finalInstallationCost;
 
         // ─── 4. Sincronizar items en la base de datos ────────────────────────
@@ -212,21 +217,22 @@ export async function confirmQuote(input: ConfirmQuoteInput): Promise<ConfirmQuo
             try {
                 const resend = new Resend(resendKey);
                 const confirmedEmail = buildQuoteConfirmedEmail(fullQuote);
-                await resend.emails.send({
-                    from: FROM_EMAIL,
-                    to: fullQuote.client_email,
-                    subject: confirmedEmail.subject,
-                    html: confirmedEmail.html,
-                });
-
-                // --- Email al Administrador (Notificación de Confirmación) ---
                 const adminEmail = buildAdminConfirmationNotificationEmail(fullQuote);
-                await resend.emails.send({
-                    from: FROM_EMAIL,
-                    to: ADMIN_EMAIL,
-                    subject: adminEmail.subject,
-                    html: adminEmail.html,
-                });
+                // Enviar ambos emails en paralelo
+                await Promise.allSettled([
+                    resend.emails.send({
+                        from: FROM_EMAIL,
+                        to: fullQuote.client_email,
+                        subject: confirmedEmail.subject,
+                        html: confirmedEmail.html,
+                    }),
+                    resend.emails.send({
+                        from: FROM_EMAIL,
+                        to: ADMIN_EMAIL,
+                        subject: adminEmail.subject,
+                        html: adminEmail.html,
+                    }),
+                ]);
             } catch (emailErr) {
                 console.error('Error enviando email:', emailErr);
             }
@@ -249,8 +255,7 @@ export async function confirmQuote(input: ConfirmQuoteInput): Promise<ConfirmQuo
                 const isoStart = formatLiteral(startDate);
                 const isoEnd = formatLiteral(endDate);
 
-                const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://cocktailsontap.cl';
-                const resumeLink = `${siteUrl}/cotizar/${fullQuote.token}`;
+                const resumeLink = `${SITE_URL}/cotizar/${fullQuote.token}`;
                 const dispenserLabel = fullQuote.dispenser === 'muro' ? 'Muro de Coctelería' : 'Dispensador Portátil';
                 const currency = new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' });
 
@@ -265,6 +270,7 @@ export async function confirmQuote(input: ConfirmQuoteInput): Promise<ConfirmQuo
                 const payload = {
                     title: `Cócteles - ${fullQuote.client_name} ${fullQuote.guests}px`,
                     customerName: fullQuote.client_name,
+                    phone: fullQuote.client_phone || '',
                     description: [
                         `Nombre: ${fullQuote.client_name}`,
                         `Teléfono: ${fullQuote.client_phone}`,
@@ -302,13 +308,5 @@ export async function confirmQuote(input: ConfirmQuoteInput): Promise<ConfirmQuo
         console.error('Error inesperado en confirmQuote:', err);
         return { success: false, error: 'Error inesperado.' };
     }
-}
-
-function getSizeLiters(size: string): number {
-    if (size.includes('30L')) return 30;
-    if (size.includes('20L')) return 20;
-    if (size.includes('10L')) return 10;
-    if (size.includes('5L')) return 5;
-    return 10;
 }
 

@@ -1,5 +1,6 @@
 import type { CocktailForWizard, Comuna, WizardState, WizardSelection } from './types';
 import { formatCurrency } from './utils';
+import { SITE_URL, MURO_INSTALLATION_COST, MURO_COMPATIBLE_SIZES, MURO_MIN_LITERS } from './config';
 
 // ─── Utilidades puras ────────────────────────────────────────────────────────
 
@@ -126,11 +127,11 @@ export function calculateSummaryData(
 
     const hasIncompatibleSize = state.selections.some((s: WizardSelection) => {
         const liters = getSizeLiters(s.size);
-        return liters !== 10 && liters !== 20 && liters !== 30;
+        return !MURO_COMPATIBLE_SIZES.includes(liters);
     });
-    const canHaveMuro = !hasIncompatibleSize && totalLiters >= 30;
+    const canHaveMuro = !hasIncompatibleSize && totalLiters >= MURO_MIN_LITERS;
     const dispenserLabel = (state.dispenser === 'muro' && canHaveMuro) ? 'Muro de Coctelería' : 'Dispensador Portátil';
-    const installationCost = (state.dispenser === 'muro' && canHaveMuro) ? 50000 : 0;
+    const installationCost = (state.dispenser === 'muro' && canHaveMuro) ? MURO_INSTALLATION_COST : 0;
 
     return {
         items, totalNormalPrice, totalOfferPrice,
@@ -172,8 +173,7 @@ export function buildWhatsAppMessage(state: WizardState, data: SummaryData, toke
     msg += `_Estas cotizando ${data.totalLiters}L con rendimiento total aprox. de ${totalDrinks} cócteles._\n_Para ${guests} invitados tienes en promedio de ${avgDrinks} cócteles x pers._\n\n`;
 
     if (token) {
-        const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://cocktailsontap.cl';
-        msg += `*Confirma tu cotización aquí:* ${baseUrl}/cotizar/${token}\n`;
+        msg += `*Confirma tu cotización aquí:* ${SITE_URL}/cotizar/${token}\n`;
     }
 
     return msg;
