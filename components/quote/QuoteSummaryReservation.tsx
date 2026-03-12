@@ -68,7 +68,7 @@ export default function QuoteSummaryReservation({ data }: Props) {
                     {data.formattedPickupDate && (
                         <div className="flex items-start gap-2">
                             <span className="font-bold text-brand-text-muted min-w-[85px]">Retiro:</span>
-                            <span className="font-medium text-brand-text leading-tight">{data.formattedPickupDate} {data.pickupTime && `(${data.pickupTime})`}</span>
+                            <span className="font-medium text-brand-text leading-tight">{data.formattedPickupDate} {data.pickupTime && ` · (${data.pickupTime})`}</span>
                         </div>
                     )}
                 </div>
