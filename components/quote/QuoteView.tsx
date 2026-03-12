@@ -7,7 +7,7 @@ import { confirmQuote } from '@/app/actions/confirmQuote';
 import {
     CheckCircle, Clock, XCircle, AlertCircle, ShoppingCart,
     Calendar, Users, MapPin, User, Mail, Phone, MessageSquare, Loader2, Lock,
-    Plus, Search, ChevronRight, Tag, Info
+    Plus, Search, ChevronRight, Tag, Info, Copy
 } from 'lucide-react';
 import type { Quote, QuoteItem, Comuna, CocktailForWizard, EventType, Product, ICart } from '@/lib/types';
 import ProductCatalog from '@/components/catalog/ProductCatalog';
@@ -319,7 +319,7 @@ export default function QuoteView({ quote, comunas, availableCocktails, categori
                 <p className="text-brand-text-muted text-[1.05rem] mb-8 max-w-md mx-auto leading-relaxed">
                     Te enviamos un email con todos los detalles y las instrucciones para el abono del 50%.
                 </p>
-                <div className="bg-green-50 border-2 border-green-200 rounded-3xl p-8 max-w-sm mx-auto text-left shadow-lg overflow-hidden relative">
+                <div className="bg-green-50 border-2 border-green-200 rounded-3xl p-8 max-w-sm mx-auto text-left shadow-lg overflow-hidden relative group">
                     <div className="absolute top-0 right-0 w-32 h-32 bg-green-200/20 rounded-full -mr-16 -mt-16" />
                     <p className="text-green-800 font-black text-center mb-1 uppercase tracking-widest text-[0.7rem]">Monto a depositar (50%)</p>
                     <p className="text-green-600 font-black text-4xl text-center mb-6">{formatCurrency(halfAmount)}</p>
@@ -330,7 +330,16 @@ export default function QuoteView({ quote, comunas, availableCocktails, categori
                         <p className="flex justify-between"><strong>RUT:</strong> <span>15.332.189-2</span></p>
                         <p className="flex justify-between"><strong>Email:</strong> <span>contacto@cocktailsontap.cl</span></p>
                     </div>
-                    <p className="text-[0.8rem] text-green-700 mt-6 text-center italic opacity-80 underline underline-offset-4 decoration-green-300">El 50% restante se paga el día del montaje.</p>
+                    <button 
+                        onClick={() => {
+                            const text = `Banco: Mercado Pago\nCuenta Vista: 1098081647\nNombre: Felipe Ramírez\nRUT: 15.332.189-2\nE-mail: contacto@cocktailsontap.cl`;
+                            navigator.clipboard.writeText(text);
+                        }}
+                        className="w-full mt-6 inline-flex items-center justify-center gap-2 px-4 py-3 bg-white border border-green-200 rounded-xl text-[0.85rem] font-black text-green-700 hover:border-green-400 hover:bg-green-50 transition-all active:scale-95 shadow-sm"
+                    >
+                        <Copy className="w-4 h-4" /> Copiar Datos de Cuenta
+                    </button>
+                    <p className="text-[0.8rem] text-green-700 mt-4 text-center italic opacity-80 underline underline-offset-4 decoration-green-300">El 50% restante se paga el día del montaje.</p>
                 </div>
             </div>
         );
@@ -752,16 +761,25 @@ export default function QuoteView({ quote, comunas, availableCocktails, categori
                         </div>
 
                         {/* Datos bancarios comprimidos */}
-                        <div className="bg-slate-50 rounded-2xl p-6 mb-8 text-[0.9rem] border border-brand-border space-y-2">
-                            <p className="font-black text-brand-text mb-3 flex items-center gap-2">
+                        <div className="bg-slate-50 rounded-2xl p-6 mb-8 text-[0.9rem] border border-brand-border space-y-4 relative group overflow-hidden">
+                            <p className="font-black text-brand-text flex items-center gap-2">
                                 <span className="p-1 bg-brand-text text-white rounded-md uppercase text-[0.6rem] tracking-widest">Pago</span> Datos de Transferencia
                             </p>
-                            <div className="grid grid-cols-2 gap-y-2 gap-x-4">
+                            <div className="grid grid-cols-2 gap-y-2 gap-x-4 border-b border-brand-border/50 pb-4">
                                 <div><p className="text-[0.7rem] font-bold text-brand-text-muted uppercase">Banco</p><p className="font-bold">Mercado Pago</p></div>
                                 <div><p className="text-[0.7rem] font-bold text-brand-text-muted uppercase">Tipo Cuenta</p><p className="font-bold">Vista</p></div>
                                 <div className="col-span-2"><p className="text-[0.7rem] font-bold text-brand-text-muted uppercase">Nº Cuenta</p><p className="font-bold text-lg select-all">1098081647</p></div>
                                 <div className="col-span-2"><p className="text-[0.7rem] font-bold text-brand-text-muted uppercase">Nombre y RUT</p><p className="font-bold">Felipe Ramírez (15.332.189-2)</p></div>
                             </div>
+                            <button 
+                                onClick={() => {
+                                    const text = `Banco: Mercado Pago\nCuenta Vista: 1098081647\nNombre: Felipe Ramírez\nRUT: 15.332.189-2\nE-mail: contacto@cocktailsontap.cl`;
+                                    navigator.clipboard.writeText(text);
+                                }}
+                                className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-brand-border rounded-xl text-[0.8rem] font-bold text-brand-text hover:border-primary hover:text-primary transition-all active:scale-95 shadow-sm"
+                            >
+                                <Copy className="w-4 h-4" /> Copiar Datos para Transferir
+                            </button>
                         </div>
 
                         {confirmError && (

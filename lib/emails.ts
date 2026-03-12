@@ -94,7 +94,7 @@ export function buildQuoteCreatedClientEmail(quote: Quote & { quote_items: Quote
       ${quote.total_normal_price > quote.total_offer_price ? `
       <tr>
         <td style="font-size:13px;color:${gray};padding:3px 0;width:50%;">Subtotal</td>
-        <td style="font-size:13px;color:${gray};text-align:right;text-decoration:line-through;">${formatCurrency(quote.total_normal_price)}</td>
+        <td style="font-size:13px;color:${gray};text-align:right;">${formatCurrency(quote.total_normal_price)}</td>
       </tr>
       <tr>
         <td style="font-size:13px;color:#059669;padding:3px 0;">Descuento</td>
@@ -142,7 +142,7 @@ export function buildQuoteCreatedClientEmail(quote: Quote & { quote_items: Quote
   `;
 
     return {
-        subject: `Tu cotización – ${eventDate}`,
+        subject: `🍸 Tu cotización – ${eventDate}`,
         html: baseLayout(content),
     };
 }
@@ -168,7 +168,7 @@ export function buildAdminNotificationEmail(quote: Quote & { quote_items: QuoteI
       ${quote.total_normal_price > quote.total_offer_price ? `
       <tr>
         <td style="font-size:13px;color:${gray};padding:3px 0;width:50%;">Subtotal</td>
-        <td style="font-size:13px;color:${gray};text-align:right;text-decoration:line-through;">${formatCurrency(quote.total_normal_price)}</td>
+        <td style="font-size:13px;color:${gray};text-align:right;">${formatCurrency(quote.total_normal_price)}</td>
       </tr>
       <tr>
         <td style="font-size:13px;color:#059669;padding:3px 0;">Descuento</td>
@@ -221,43 +221,75 @@ export function buildAdminNotificationEmail(quote: Quote & { quote_items: QuoteI
 export function buildQuoteConfirmedEmail(quote: Quote & { quote_items: QuoteItem[] }): { subject: string; html: string } {
     const halfAmount = quote.total_price / 2;
     const eventDate = quote.event_date ? new Date(quote.event_date + 'T12:00:00').toLocaleDateString('es-CL', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' }) : '';
+    const dispenserLabel = quote.dispenser === 'muro' ? 'Muro de Coctelería' : 'Dispensador Portátil';
+    const communaDisplay = quote.comuna_name === 'Otra' ? (quote.comuna_other || '') : (quote.comuna_name || '');
+    const fullAddress = [quote.client_address, communaDisplay].filter(Boolean).join(', ');
 
     const content = `
     <h2 style="color:#059669;margin:0 0 8px;font-size:22px;">✅ ¡Reserva confirmada!</h2>
-    <p style="color:${gray};margin:0 0 24px;font-size:15px;">Hola <strong>${quote.client_name}</strong>, tu reserva para el <strong>${eventDate}</strong> ha sido confirmada. Para asegurarla, debes abonar el 50% del total.</p>
+    <p style="color:${gray};margin:0 0 24px;font-size:15px;">Hola <strong>${quote.client_name}</strong>, tu reserva para el <strong>${eventDate}</strong> ha sido confirmada exitosamente.</p>
 
     <!-- Monto a pagar -->
     <div style="background:#f0fdf4;border:2px solid #86efac;border-radius:12px;padding:24px;text-align:center;margin-bottom:24px;">
-      <p style="color:#166534;margin:0 0 8px;font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:1px;">Monto a abonar ahora (50%)</p>
+      <p style="color:#166534;margin:0 0 8px;font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:1px;">Abono para asegurar fecha (50%)</p>
       <p style="color:#059669;margin:0;font-size:36px;font-weight:900;">${formatCurrency(halfAmount)}</p>
-      <p style="color:#166534;margin:8px 0 0;font-size:12px;">El 50% restante (${formatCurrency(halfAmount)}) se paga el día del montaje del evento.</p>
+      <p style="color:#166534;margin:8px 0 0;font-size:12px;">El 50% restante (${formatCurrency(halfAmount)}) se paga el día del montaje.</p>
     </div>
 
-    <!-- Datos bancarios -->
+    <!-- Detalle de Productos -->
+    <h3 style="color:${brandDark};font-size:14px;margin:0 0 4px;text-transform:uppercase;letter-spacing:1px;">Detalle de tu pedido</h3>
+    ${itemsTable(quote.quote_items)}
+
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin:4px 0 32px;border-top:2px solid ${brandColor};padding-top:12px;">
+      ${quote.total_normal_price > quote.total_offer_price ? `
+      <tr>
+        <td style="font-size:13px;color:${gray};padding:3px 0;width:50%;">Subtotal</td>
+        <td style="font-size:13px;color:${gray};text-align:right;">${formatCurrency(quote.total_normal_price)}</td>
+      </tr>
+      <tr>
+        <td style="font-size:13px;color:#059669;padding:3px 0;">Descuento</td>
+        <td style="font-size:13px;color:#059669;text-align:right;">-${formatCurrency(quote.total_normal_price - quote.total_offer_price)}</td>
+      </tr>` : `
+      <tr>
+        <td style="font-size:13px;color:${gray};padding:3px 0;width:50%;">Subtotal</td>
+        <td style="font-size:13px;color:${gray};text-align:right;">${formatCurrency(quote.total_normal_price)}</td>
+      </tr>`}
+      <tr>
+        <td style="font-size:13px;color:${gray};padding:3px 0;">Transporte</td>
+        <td style="font-size:13px;${quote.shipping_cost === 0 ? `color:#059669;` : `color:${gray};`}text-align:right;">${quote.shipping_cost === 0 ? '¡Gratis!' : formatCurrency(quote.shipping_cost)}</td>
+      </tr>
+      <tr>
+        <td style="font-size:13px;color:${gray};padding:3px 0;">${dispenserLabel}</td>
+        <td style="font-size:13px;${quote.installation_cost === 0 ? `color:#059669;` : `color:${gray};`}text-align:right;">${quote.installation_cost === 0 ? '¡Gratis!' : formatCurrency(quote.installation_cost)}</td>
+      </tr>
+      <tr style="border-top:1px solid ${borderColor};">
+        <td style="font-size:16px;color:${brandDark};font-weight:900;padding:10px 0 0;">TOTAL</td>
+        <td style="font-size:16px;color:${brandDark};font-weight:900;text-align:right;padding:10px 0 0;">${formatCurrency(quote.total_price)}</td>
+      </tr>
+    </table>
+
+    <!-- Datos de Transferencia -->
     <div style="background:${lightGray};border-radius:12px;padding:24px;margin-bottom:24px;border:1px solid ${borderColor};">
-      <h3 style="color:${brandDark};margin:0 0 16px;font-size:15px;text-transform:uppercase;letter-spacing:1px;font-weight:700;">Resumen del Evento</h3>
+      <h3 style="color:${brandDark};margin:0 0 16px;font-size:15px;text-transform:uppercase;letter-spacing:1px;font-weight:700;">Datos de Transferencia</h3>
       <table width="100%" cellpadding="0" cellspacing="0">
-        <tr><td style="font-size:13px;color:${gray};padding:5px 0;width:45%;">Nombre</td><td style="font-size:14px;color:${brandDark};font-weight:700;padding:5px 0;">${quote.client_name}</td></tr>
-        <tr><td style="font-size:13px;color:${gray};padding:5px 0;">Temática</td><td style="font-size:14px;color:${brandDark};font-weight:700;padding:5px 0;">${quote.event_type_other || quote.event_type_id || 'No especificada'}</td></tr>
-        <tr><td style="font-size:13px;color:${gray};padding:5px 0;">Invitados</td><td style="font-size:14px;color:${brandDark};font-weight:700;padding:5px 0;">${quote.guests} pers.</td></tr>
-        <tr><td style="font-size:13px;color:${gray};padding:5px 0;">Fecha</td><td style="font-size:14px;color:${brandDark};font-weight:700;padding:5px 0;">${eventDate}</td></tr>
-        ${quote.start_time ? `<tr><td style="font-size:13px;color:${gray};padding:4px 0;">Hora Inicio</td><td style="font-size:14px;color:${brandDark};font-weight:700;padding:4px 0;">${quote.start_time}</td></tr>` : ''}
-        <tr>
-          <td style="font-size:13px;color:${gray};padding:5px 0;">Dirección</td>
-          <td style="font-size:14px;color:${brandDark};font-weight:700;padding:5px 0;">${[quote.client_address, quote.comuna_name === 'Otra' ? quote.comuna_other : quote.comuna_name].filter(Boolean).join(', ')}</td>
-        </tr>
+        <tr><td style="font-size:13px;color:${gray};padding:5px 0;width:45%;">Banco</td><td style="font-size:14px;color:${brandDark};font-weight:700;padding:5px 0;">Mercado Pago</td></tr>
+        <tr><td style="font-size:13px;color:${gray};padding:5px 0;">Tipo de cuenta</td><td style="font-size:14px;color:${brandDark};font-weight:700;padding:5px 0;">Cuenta Vista</td></tr>
+        <tr><td style="font-size:13px;color:${gray};padding:5px 0;">Número</td><td style="font-size:14px;color:${brandDark};font-weight:700;padding:5px 0;">1098081647</td></tr>
+        <tr><td style="font-size:13px;color:${gray};padding:5px 0;">Nombre</td><td style="font-size:14px;color:${brandDark};font-weight:700;padding:5px 0;">Felipe Ramírez</td></tr>
+        <tr><td style="font-size:13px;color:${gray};padding:5px 0;">RUT</td><td style="font-size:14px;color:${brandDark};font-weight:700;padding:5px 0;">15.332.189-2</td></tr>
+        <tr><td style="font-size:13px;color:${gray};padding:5px 0;">Email</td><td style="font-size:14px;color:${brandDark};font-weight:700;padding:5px 0;">contacto@cocktailsontap.cl</td></tr>
       </table>
-      <div style="margin-top:16px;border-top:1px solid ${borderColor};padding-top:16px;">
-        <h3 style="color:${brandDark};margin:0 0 12px;font-size:15px;text-transform:uppercase;letter-spacing:1px;font-weight:700;">📲 Datos de Transferencia</h3>
-        <table width="100%" cellpadding="0" cellspacing="0">
-          <tr><td style="font-size:13px;color:${gray};padding:5px 0;width:45%;">Banco</td><td style="font-size:14px;color:${brandDark};font-weight:700;padding:5px 0;">Mercado Pago</td></tr>
-          <tr><td style="font-size:13px;color:${gray};padding:5px 0;">Tipo de cuenta</td><td style="font-size:14px;color:${brandDark};font-weight:700;padding:5px 0;">Cuenta Vista</td></tr>
-          <tr><td style="font-size:13px;color:${gray};padding:5px 0;">Número</td><td style="font-size:14px;color:${brandDark};font-weight:700;padding:5px 0;">1098081647</td></tr>
-          <tr><td style="font-size:13px;color:${gray};padding:5px 0;">Nombre</td><td style="font-size:14px;color:${brandDark};font-weight:700;padding:5px 0;">Felipe Ramírez</td></tr>
-          <tr><td style="font-size:13px;color:${gray};padding:5px 0;">RUT</td><td style="font-size:14px;color:${brandDark};font-weight:700;padding:5px 0;">15.332.189-2</td></tr>
-          <tr><td style="font-size:13px;color:${gray};padding:5px 0;">Total Abono</td><td style="font-size:16px;color:#059669;font-weight:900;padding:5px 0;">${formatCurrency(halfAmount)}</td></tr>
-        </table>
-      </div>
+    </div>
+
+    <!-- Información de Reserva -->
+    <div style="background:${lightGray};border-radius:12px;padding:20px;margin-bottom:24px;border:1px solid ${borderColor};">
+      <h3 style="color:${brandDark};font-size:13px;margin:0 0 12px;text-transform:uppercase;letter-spacing:1px;">Resumen del Evento</h3>
+      <table width="100%" cellpadding="0" cellspacing="0">
+        <tr><td style="font-size:13px;color:${gray};padding:4px 0;width:40%;">Evento</td><td style="font-size:14px;color:${brandDark};font-weight:700;padding:4px 0;">${quote.event_type_other || quote.event_type_id || 'No especificado'} (${quote.guests} pers.)</td></tr>
+        <tr><td style="font-size:13px;color:${gray};padding:4px 0;">Fecha/Hora</td><td style="font-size:14px;color:${brandDark};font-weight:700;padding:4px 0;">${eventDate}${quote.start_time && quote.start_time !== '--:--' ? ` · ${quote.start_time}` : ''}</td></tr>
+        ${fullAddress ? `<tr><td style="font-size:13px;color:${gray};padding:4px 0;">Dirección</td><td style="font-size:14px;color:${brandDark};font-weight:700;padding:4px 0;">${fullAddress}</td></tr>` : ''}
+        ${quote.pickup_date ? `<tr><td style="font-size:13px;color:${gray};padding:4px 0;">Retiro</td><td style="font-size:14px;color:${brandDark};font-weight:700;padding:4px 0;">${new Date(quote.pickup_date + 'T12:00:00').toLocaleDateString('es-CL', { day: '2-digit', month: 'long', year: 'numeric' })}${quote.pickup_time ? ` · (${quote.pickup_time})` : ''}</td></tr>` : ''}
+      </table>
     </div>
 
     <p style="color:${gray};font-size:13px;margin:0 0 8px;">Una vez realizada la transferencia, envíanos el comprobante por WhatsApp para confirmar tu pago.</p>
@@ -267,7 +299,7 @@ export function buildQuoteConfirmedEmail(quote: Quote & { quote_items: QuoteItem
   `;
 
     return {
-        subject: `✅ Reserva confirmada – ${eventDate} – Cocktails on Tap`,
+        subject: `✅ Reserva confirmada – ${eventDate}`,
         html: baseLayout(content),
     };
 }

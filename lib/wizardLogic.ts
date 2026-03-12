@@ -168,12 +168,12 @@ export function buildWhatsAppMessage(state: WizardState, data: SummaryData, toke
     msg += `*${data.dispenserLabel}:* ${data.installationCost === 0 ? '¡Gratis!' : formatCurrency(data.installationCost)}\n`;
     msg += `*TOTAL: ${formatCurrency(data.totalPrice)}*\n\n`;
 
-    msg += `*Rendimiento estimado:* \n`;
-    msg += `_Estas cotizando ${data.totalLiters}L con rendimiento total aprox. de ${totalDrinks} cócteles. Para ${guests} invitados tienes en promedio de ${avgDrinks} cócteles x pers._\n\n`;
+    msg += `*Notas:* \n`;
+    msg += `_Estas cotizando ${data.totalLiters}L con rendimiento total aprox. de ${totalDrinks} cócteles._\n_Para ${guests} invitados tienes en promedio de ${avgDrinks} cócteles x pers._\n\n`;
 
     if (token) {
         const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://cocktailsontap.cl';
-        msg += `Confirma tu cotización aquí: ${baseUrl}/cotizar/${token}\n`;
+        msg += `*Confirma tu cotización aquí:* ${baseUrl}/cotizar/${token}\n`;
     }
 
     return msg;
