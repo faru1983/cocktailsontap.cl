@@ -225,29 +225,52 @@ export async function confirmQuote(input: ConfirmQuoteInput): Promise<ConfirmQuo
 
         if (MAKE_WEBHOOK_URL) {
             try {
-                const eventDate = fullQuote.event_date
-                    ? new Date(fullQuote.event_date + 'T12:00:00').toISOString()
-                    : null;
-                const itemsDesc = fullQuote.quote_items
-                    .map(i => `${i.quantity}x ${i.product_name} (${i.size})`)
-                    .join(', ');
+                // Calcular fecha ISO de inicio usando la hora del evento
+                const startTimeStr = (fullQuote.start_time && fullQuote.start_time !== '--:--') ? fullQuote.start_time : '12:00';
+                const isoStart = fullQuote.event_date ? new Date(`${fullQuote.event_date}T${startTimeStr}:00`).toISOString() : null;
+
+                // Estimar fin (ej: 3 horas después)
+                const isoEnd = isoStart ? new Date(new Date(isoStart).getTime() + 3 * 60 * 60 * 1000).toISOString() : null;
+
+                const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://cocktailsontap.cl';
+                const resumeLink = `${siteUrl}/cotizar/${fullQuote.token}`;
+                const dispenserLabel = fullQuote.dispenser === 'muro' ? 'Muro de Coctelería' : 'Dispensador Portátil';
+                const currency = new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' });
+
+                const itemsDetailed = fullQuote.quote_items
+                    .map(i => `${i.quantity}x ${i.product_name} (${i.size}) ${currency.format(i.offer_price_at_time * i.quantity)}`)
+                    .join('\n');
+
+                const pickupDateDisplay = fullQuote.pickup_date
+                    ? new Date(fullQuote.pickup_date + 'T12:00:00').toLocaleDateString('es-CL', { day: '2-digit', month: 'long', year: 'numeric' })
+                    : '';
 
                 const payload = {
                     title: `🍸 RESERVA: ${fullQuote.client_name} – ${fullQuote.guests} invitados`,
+                    customerName: fullQuote.client_name,
+                    summary: `${fullQuote.guests} invitados, ${fullQuote.quote_items.length} productos`,
                     description: [
-                        `Cliente: ${fullQuote.client_name}`,
+                        `Nombre: ${fullQuote.client_name}`,
                         `Teléfono: ${fullQuote.client_phone}`,
-                        `Dirección: ${fullQuote.client_address}`,
-                        `Comuna: ${fullQuote.comuna_name === 'Otra' ? fullQuote.comuna_other : fullQuote.comuna_name}`,
-                        `Invitados: ${fullQuote.guests}`,
-                        `Productos: ${itemsDesc}`,
+                        `Email: ${fullQuote.client_email}`,
+                        `Dirección: ${fullQuote.client_address}, ${fullQuote.comuna_name === 'Otra' ? fullQuote.comuna_other : fullQuote.comuna_name}`,
+                        `Evento: ${fullQuote.event_type_other || fullQuote.event_type_id} (${fullQuote.guests} pers.)`,
+                        fullQuote.pickup_date ? `Retiro: ${pickupDateDisplay} (${fullQuote.pickup_time || 'Rango no especificado'})` : '',
                         fullQuote.comments ? `Notas: ${fullQuote.comments}` : '',
+                        ``,
+                        `Productos:`,
+                        itemsDetailed,
+                        `Transporte: ${currency.format(fullQuote.shipping_cost)}`,
+                        `${dispenserLabel}: ${currency.format(fullQuote.installation_cost)}`,
+                        `Total: ${currency.format(fullQuote.total_price)}`,
+                        ``,
+                        `Ver cotización: ${resumeLink}`
                     ].filter(Boolean).join('\n'),
-                    start_date: eventDate,
-                    start_time: fullQuote.start_time,
-                    guests_email: fullQuote.client_email,
+                    start_date: isoStart,
+                    end_date: isoEnd,
                     location: `${fullQuote.client_address}, ${fullQuote.comuna_name}`,
-                    event_date_formatted: formatEventDate(fullQuote.event_date),
+                    guests_email: fullQuote.client_email,
+                    guests: fullQuote.guests,
                 };
 
                 await fetch(MAKE_WEBHOOK_URL, {

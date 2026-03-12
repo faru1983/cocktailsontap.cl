@@ -123,9 +123,9 @@ export function useWizard(cocktails: CocktailForWizard[], comunas: Comuna[], cat
         [state, cocktails, comunas]
     );
 
-    function sendWhatsAppQuote() {
+    function sendWhatsAppQuote(token?: string) {
         const data = calculateSummaryData(state, cocktails, comunas);
-        const msg = buildWhatsAppMessage(state, data);
+        const msg = buildWhatsAppMessage(state, data, token);
         const whatsappNumber = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER ?? '56929672978';
         window.open(`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(msg)}`, '_blank');
     }

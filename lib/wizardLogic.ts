@@ -147,7 +147,7 @@ export function calculateSummaryData(
 
 // ─── Construcción del mensaje de WhatsApp ────────────────────────────────────
 
-export function buildWhatsAppMessage(state: WizardState, data: SummaryData): string {
+export function buildWhatsAppMessage(state: WizardState, data: SummaryData, token?: string): string {
     const guests = Math.max(state.consumption.guests, 1);
     const totalDrinks = data.totalLiters * 5;
     const avgDrinks = (totalDrinks / guests).toFixed(1);
@@ -161,35 +161,19 @@ export function buildWhatsAppMessage(state: WizardState, data: SummaryData): str
     let msg = `*SOLICITUD DE COTIZACIÓN*\n\n`;
 
     msg += `*PRODUCTOS:*\n${itemsText}\n`;
-    msg += `--------------------------\n`;
 
     msg += `*Subtotal:* ${formatCurrency(data.totalNormalPrice)}\n`;
     if (data.totalDiscount > 0) msg += `*Descuento:* -${formatCurrency(data.totalDiscount)}\n`;
     msg += `*Traslados:* ${data.shippingLabel}\n`;
     msg += `*${data.dispenserLabel}:* ${data.installationCost === 0 ? '¡Gratis!' : formatCurrency(data.installationCost)}\n`;
-    msg += `--------------------------\n`;
     msg += `*TOTAL: ${formatCurrency(data.totalPrice)}*\n\n`;
 
-    msg += `*Notas:*\n`;
+    msg += `*Rendimiento estimado:* \n`;
     msg += `_Estas cotizando ${data.totalLiters}L con rendimiento total aprox. de ${totalDrinks} cócteles. Para ${guests} invitados tienes en promedio de ${avgDrinks} cócteles x pers._\n\n`;
 
-    msg += `*INFORMACIÓN DE RESERVA*\n`;
-    msg += `*Nombre:* ${state.contact.firstName.trim()}\n`;
-    if (state.contact.email) msg += `*Email:* ${state.contact.email}\n`;
-    if (state.contact.phone) msg += `*Celular:* ${state.contact.phone}\n`;
-
-    const fullAddress = [state.contact.address, data.comunaDisplay].filter(c => c && c !== 'No especificada').join(', ');
-    if (fullAddress) msg += `*Dirección:* ${fullAddress}\n`;
-
-    msg += `*Evento:* ${data.eventTypeDisplay} (${guests} pers.)\n`;
-    msg += `*Fecha/Hora:* ${data.formattedDate}${state.eventData.startTime ? ` · ${state.eventData.startTime}` : ''}\n`;
-
-    if (state.eventData.pickupDate) {
-        msg += `*Retiro:* ${data.formattedPickupDate}${state.eventData.pickupTime ? ` · (${state.eventData.pickupTime})` : ''}\n`;
-    }
-
-    if (state.contact.comments) {
-        msg += `*Comentarios:* ${state.contact.comments}\n`;
+    if (token) {
+        const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://cocktailsontap.cl';
+        msg += `Confirma tu cotización aquí: ${baseUrl}/cotizar/${token}\n`;
     }
 
     return msg;

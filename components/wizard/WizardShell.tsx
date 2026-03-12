@@ -12,6 +12,7 @@ import WizardStep3 from './WizardStep3';
 import WizardStep4 from './WizardStep4';
 import WizardStep5 from './WizardStep5';
 import WizardStep6 from './WizardStep6';
+import WizardSuccess from './WizardSuccess';
 
 interface Props {
     cocktails: CocktailForWizard[];
@@ -65,8 +66,19 @@ export default function WizardShell({ cocktails, eventTypes, comunas, categories
             setSendStatus('error');
         }
 
-        // Siempre abrir WhatsApp independiente del resultado del guardado
-        wizard.sendWhatsAppQuote();
+        // Subir al top para ver el mensaje de confirmación
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+
+        // Siempre abrir WhatsApp independiente del resultado del guardado, pasando el token si existe
+        wizard.sendWhatsAppQuote(result.token);
+    };
+
+    const handleReset = () => {
+        setSendStatus('idle');
+        setQuoteToken(null);
+        wizard.goToStep(1);
+        // Resetear otros estados si es necesario, pero goToStep(1) ya limpia gran parte
+        window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
     const renderStep = () => {
@@ -94,7 +106,6 @@ export default function WizardShell({ cocktails, eventTypes, comunas, categories
                     </div>
                 </div>
             </div>
-
             {/* Content */}
             <div className="w-full max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-2 md:py-4 flex-1 mb-24">
                 {validationError && (
@@ -106,27 +117,6 @@ export default function WizardShell({ cocktails, eventTypes, comunas, categories
                     </div>
                 )}
 
-                {/* Mensaje post-guardado (solo en step 6) */}
-                {state.step === 6 && sendStatus === 'saved' && quoteToken && (
-                    <div className="bg-green-50 border border-green-200 rounded-2xl px-5 py-4 mb-6 animate-slide-up">
-                        <div className="flex items-start gap-3">
-                            <CheckCircle className="w-5 h-5 text-green-600 shrink-0 mt-0.5" />
-                            <div>
-                                <p className="font-bold text-green-800 text-[0.95rem]">¡Cotización guardada! Te enviamos un email con el resumen.</p>
-                                <p className="text-green-700 text-[0.85rem] mt-1">Puedes retomar o confirmar tu reserva en cualquier momento desde el link que recibiste.</p>
-                                <a
-                                    href={`${SITE_URL}/cotizar/${quoteToken}`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="inline-flex items-center gap-1 mt-2 text-[0.85rem] font-bold text-green-700 underline hover:text-green-900"
-                                >
-                                    Ver mi cotización <ExternalLink className="w-3.5 h-3.5" />
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-                )}
-
                 {state.step === 6 && sendStatus === 'error' && saveError && (
                     <div className="bg-amber-50 border border-amber-200 text-amber-800 rounded-2xl px-5 py-4 mb-6 text-[0.9rem] animate-slide-up">
                         <strong>Nota:</strong> {saveError} Tu solicitud igual fue enviada por WhatsApp.
@@ -134,51 +124,61 @@ export default function WizardShell({ cocktails, eventTypes, comunas, categories
                 )}
 
                 <div className="animate-fade-in">
-                    {renderStep()}
+                    {sendStatus === 'saved' && quoteToken ? (
+                        <WizardSuccess 
+                            token={quoteToken} 
+                            clientEmail={state.contact.email} 
+                            onReset={handleReset} 
+                        />
+                    ) : (
+                        renderStep()
+                    )}
                 </div>
             </div>
 
-            {/* Fixed Nav */}
-            <div className="fixed bottom-0 left-0 right-0 z-[160] bg-white border-t border-brand-border py-4 px-6 flex items-center justify-between gap-4 shadow-[0_-10px_40px_rgba(0,0,0,0.05)]">
-                <div className="max-w-[1400px] mx-auto w-full flex items-center justify-between">
-                    <div className="flex-1 flex justify-start">
-                        {state.step > 1 && (
-                            <button
-                                type="button"
-                                className="group inline-flex items-center gap-2 px-6 py-3 rounded-2xl border border-brand-border text-brand-text-muted font-bold text-[0.9rem] transition-all hover:border-primary hover:text-primary active:scale-95 bg-white"
-                                onClick={() => { setValidationError(''); wizard.goToStep(state.step - 1); }}
-                            >
-                                <ArrowLeft className="w-4 h-4 transition-transform group-hover:-translate-x-1" /> Anterior
-                            </button>
-                        )}
-                    </div>
+            {/* Fixed Nav - Ocultar en pantalla de éxito */}
+            {sendStatus !== 'saved' && (
+                <div className="fixed bottom-0 left-0 right-0 z-[160] bg-white border-t border-brand-border py-4 px-6 flex items-center justify-between gap-4 shadow-[0_-10px_40px_rgba(0,0,0,0.05)]">
+                    <div className="max-w-[1400px] mx-auto w-full flex items-center justify-between">
+                        <div className="flex-1 flex justify-start">
+                            {state.step > 1 && (
+                                <button
+                                    type="button"
+                                    className="group inline-flex items-center gap-2 px-6 py-3 rounded-2xl border border-brand-border text-brand-text-muted font-bold text-[0.9rem] transition-all hover:border-primary hover:text-primary active:scale-95 bg-white"
+                                    onClick={() => { setValidationError(''); wizard.goToStep(state.step - 1); }}
+                                >
+                                    <ArrowLeft className="w-4 h-4 transition-transform group-hover:-translate-x-1" /> Anterior
+                                </button>
+                            )}
+                        </div>
 
-                    <div className="flex-1 flex justify-end">
-                        {state.step < 6 ? (
-                            <button
-                                type="button"
-                                className="inline-flex items-center gap-2 px-8 py-3 rounded-2xl bg-primary text-white font-bold text-[1rem] transition-all hover:bg-primary-dark active:scale-95 shadow-[0_4px_15px_rgba(226,160,73,0.35)] hover:shadow-[0_8px_25px_rgba(226,160,73,0.45)]"
-                                onClick={handleNext}
-                            >
-                                Siguiente <ArrowRight className="w-4 h-4" />
-                            </button>
-                        ) : (
-                            <button
-                                type="button"
-                                disabled={sendStatus === 'saving'}
-                                className="inline-flex items-center gap-2 px-8 py-3 rounded-2xl bg-[#25D366] text-white font-bold text-[1rem] transition-all hover:bg-[#128c7e] active:scale-95 shadow-[0_4px_15px_rgba(37,211,102,0.35)] hover:shadow-[0_8px_25px_rgba(37,211,102,0.45)] disabled:opacity-70 disabled:cursor-not-allowed"
-                                onClick={handleCotizar}
-                            >
-                                {sendStatus === 'saving' ? (
-                                    <><Loader2 className="w-5 h-5 animate-spin" /> Guardando...</>
-                                ) : (
-                                    <><WhatsappIcon className="w-5 h-5" /> Cotizar</>
-                                )}
-                            </button>
-                        )}
+                        <div className="flex-1 flex justify-end">
+                            {state.step < 6 ? (
+                                <button
+                                    type="button"
+                                    className="inline-flex items-center gap-2 px-8 py-3 rounded-2xl bg-primary text-white font-bold text-[1rem] transition-all hover:bg-primary-dark active:scale-95 shadow-[0_4px_15px_rgba(226,160,73,0.35)] hover:shadow-[0_8_25px_rgba(226,160,73,0.45)]"
+                                    onClick={handleNext}
+                                >
+                                    Siguiente <ArrowRight className="w-4 h-4" />
+                                </button>
+                            ) : (
+                                <button
+                                    type="button"
+                                    disabled={sendStatus === 'saving'}
+                                    className="inline-flex items-center gap-2 px-8 py-3 rounded-2xl bg-[#25D366] text-white font-bold text-[1rem] transition-all hover:bg-[#128c7e] active:scale-95 shadow-[0_4px_15px_rgba(37,211,102,0.35)] hover:shadow-[0_8_25px_rgba(37,211,102,0.45)] disabled:opacity-70 disabled:cursor-not-allowed"
+                                    onClick={handleCotizar}
+                                >
+                                    {sendStatus === 'saving' ? (
+                                        <><Loader2 className="w-5 h-5 animate-spin" /> Guardando...</>
+                                    ) : (
+                                        <><WhatsappIcon className="w-5 h-5" /> Cotizar</>
+                                    )}
+                                </button>
+                            )}
+                        </div>
                     </div>
                 </div>
-            </div>
+            )}
         </div>
     );
 }

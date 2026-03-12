@@ -8,6 +8,8 @@
   --color-brand-bg: #f8fafc;
   --color-brand-card: #ffffff;
   --color-brand-border: #e2e8f0;
+  --color-brand-dark: #0f172a;
+  --color-brand-light: #f1f5f9;
   --font-sans: var(--font-outfit), ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
   --spacing-navbar: 70px;
 
