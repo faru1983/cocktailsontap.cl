@@ -3,7 +3,7 @@ import type { Quote, QuoteItem } from '@/lib/types';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://cocktailsontap.cl';
 // Durante desarrollo local (localhost), el logo no se verá en Gmail porque Gmail no puede acceder a tu PC.
-// Usamos la URL de producción para el logo para que siempre sea visible en los correos de prueba.
+// Usamos la URL de producción para el logo para que siempre sea visible en los correos de prueba
 const LOGO_URL = SITE_URL.includes('localhost') 
     ? 'https://cocktailsontap.cl/assets/logo2.webp' 
     : `${SITE_URL}/assets/logo2.webp`;
