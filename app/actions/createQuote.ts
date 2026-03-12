@@ -36,6 +36,7 @@ export async function createQuote(input: CreateQuoteInput): Promise<CreateQuoteR
             .insert({
                 status: 'draft',
                 client_name: state.contact.firstName.trim(),
+                client_lastname: state.contact.lastName.trim() || null,
                 client_email: state.contact.email.trim() || null,
                 client_phone: state.contact.phone.trim() || null,
                 client_address: state.contact.address.trim() || null,
@@ -109,6 +110,7 @@ export async function createQuote(input: CreateQuoteInput): Promise<CreateQuoteR
                     updated_at: new Date().toISOString(),
                     status: 'draft',
                     client_name: state.contact.firstName,
+                    client_lastname: state.contact.lastName || null,
                     client_email: state.contact.email || null,
                     client_phone: state.contact.phone || null,
                     client_address: state.contact.address || null,

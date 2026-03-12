@@ -14,13 +14,14 @@ const MAKE_WEBHOOK_URL = process.env.MAKE_WEBHOOK_CALENDAR_URL;
 interface ConfirmQuoteInput {
     token: string;
     client_phone?: string;
+    client_lastname?: string | null;
     client_address?: string;
     comuna_name?: string;
     comuna_other?: string | null;
     guests?: number;
     event_type_id?: string;
     event_type_other?: string | null;
-    items?: QuoteItem[]; // Lista completa de items actualizada
+    items?: QuoteItem[];
     event_date?: string;
     start_time?: string;
     pickup_date?: string | null;
@@ -39,6 +40,7 @@ export async function confirmQuote(input: ConfirmQuoteInput): Promise<ConfirmQuo
     const {
         token,
         client_phone,
+        client_lastname,
         client_address,
         comuna_name,
         comuna_other,
@@ -159,6 +161,7 @@ export async function confirmQuote(input: ConfirmQuoteInput): Promise<ConfirmQuo
             .update({
                 status: 'confirmed',
                 client_phone: finalPhone,
+                client_lastname: client_lastname !== undefined ? client_lastname : quote.client_lastname,
                 client_address: finalAddress,
                 comuna_name: finalComunaName,
                 comuna_other: finalComunaOther,
@@ -191,6 +194,7 @@ export async function confirmQuote(input: ConfirmQuoteInput): Promise<ConfirmQuo
             ...quote,
             status: 'confirmed',
             client_phone: finalPhone,
+            client_lastname: client_lastname !== undefined ? client_lastname : quote.client_lastname,
             client_address: finalAddress,
             comuna_name: finalComunaName,
             comuna_other: finalComunaOther,
@@ -265,7 +269,7 @@ export async function confirmQuote(input: ConfirmQuoteInput): Promise<ConfirmQuo
                 
                 // Creamos los objetos Date asumiendo que el texto es la hora local
                 const startDate = new Date(`${fullQuote.event_date}T${startTimeStr}:00`);
-                const endDate = new Date(startDate.getTime() + 3 * 60 * 60 * 1000); // +3 horas
+                const endDate = startDate; // Duración 0
 
                 const isoStart = formatLiteral(startDate);
                 const isoEnd = formatLiteral(endDate);
@@ -282,12 +286,14 @@ export async function confirmQuote(input: ConfirmQuoteInput): Promise<ConfirmQuo
                     ? new Date(fullQuote.pickup_date + 'T12:00:00').toLocaleDateString('es-CL', { day: '2-digit', month: 'long', year: 'numeric' })
                     : '';
 
+                const fullName = `${fullQuote.client_name}${fullQuote.client_lastname ? ' ' + fullQuote.client_lastname : ''}`;
                 const payload = {
-                    title: `Cócteles - ${fullQuote.client_name} ${fullQuote.guests}px`,
+                    title: `Cócteles - ${fullName} ${fullQuote.guests}px`,
                     customerName: fullQuote.client_name,
+                    customerLastname: fullQuote.client_lastname || '',
                     phone: fullQuote.client_phone || '',
                     description: [
-                        `Nombre: ${fullQuote.client_name}`,
+                        `Nombre: ${fullName}`,
                         `Teléfono: ${fullQuote.client_phone}`,
                         `Email: ${fullQuote.client_email}`,
                         `Dirección: ${fullQuote.client_address}, ${fullQuote.comuna_name === 'Otra' ? fullQuote.comuna_other : fullQuote.comuna_name}`,

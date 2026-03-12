@@ -11,10 +11,11 @@ interface Props {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
     const { token } = await params;
     const db = createServerClient();
-    const { data } = await db.from('quotes').select('client_name, event_date').eq('token', token).single();
+    const { data } = await db.from('quotes').select('client_name, client_lastname, event_date').eq('token', token).single();
     if (!data) return { title: 'Cotización no encontrada' };
+    const fullName = `${data.client_name}${data.client_lastname ? ' ' + data.client_lastname : ''}`;
     return {
-        title: `Cotización de ${data.client_name} – Cocktails on Tap`,
+        title: `Cotización de ${fullName} – Cocktails on Tap`,
         description: 'Revisa y confirma tu cotización de Cocktails on Tap.',
         robots: { index: false, follow: false },
     };

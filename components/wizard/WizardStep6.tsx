@@ -36,13 +36,13 @@ export default function WizardStep6({ wizard, cocktails, comunas }: Props) {
                 data={{ ...data, guests: state.consumption.guests }}
                 isEditable={true}
                 onUpdateQuantity={wizard.updateQuantity}
-                onAddProductsClick={() => goToStep(4)}
+                onAddProductsClick={() => goToStep(3)}
             />
 
             {/* Bloque 2: Información de Reserva */}
             <QuoteSummaryReservation
                 data={{
-                    clientName: state.contact.firstName.trim(),
+                    clientName: `${state.contact.firstName.trim()} ${state.contact.lastName.trim()}`.trim(),
                     clientEmail: state.contact.email,
                     clientPhone: state.contact.phone,
                     clientAddress: state.contact.address,

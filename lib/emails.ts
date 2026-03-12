@@ -114,6 +114,7 @@ function reservationInfoSection(quote: Quote): string {
       <h3 style="color:${brandDark};font-size:13px;margin:0 0 12px;text-transform:uppercase;letter-spacing:1px;">Información de Reserva</h3>
       <table width="100%" cellpadding="0" cellspacing="0">
         <tr><td style="font-size:13px;color:${gray};padding:4px 0;width:40%;">Nombre</td><td style="font-size:14px;color:${brandDark};font-weight:700;padding:4px 0;">${quote.client_name}</td></tr>
+        ${quote.client_lastname ? `<tr><td style="font-size:13px;color:${gray};padding:4px 0;">Apellido</td><td style="font-size:14px;color:${brandDark};font-weight:700;padding:4px 0;">${quote.client_lastname}</td></tr>` : ''}
         <tr><td style="font-size:13px;color:${gray};padding:4px 0;">Email</td><td style="font-size:14px;color:${brandDark};font-weight:700;padding:4px 0;">${quote.client_email}</td></tr>
         ${quote.client_phone ? `<tr><td style="font-size:13px;color:${gray};padding:4px 0;">Celular</td><td style="font-size:14px;color:${brandDark};font-weight:700;padding:4px 0;">${quote.client_phone}</td></tr>` : ''}
         ${fullAddress ? `<tr><td style="font-size:13px;color:${gray};padding:4px 0;">Dirección</td><td style="font-size:14px;color:${brandDark};font-weight:700;padding:4px 0;">${fullAddress}</td></tr>` : ''}
@@ -133,9 +134,10 @@ export function buildQuoteCreatedClientEmail(quote: Quote & { quote_items: Quote
         ? new Date(quote.event_date + 'T12:00:00').toLocaleDateString('es-CL', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })
         : '';
 
+    const fullName = `${quote.client_name}${quote.client_lastname ? ' ' + quote.client_lastname : ''}`;
     const content = `
     <h2 style="color:${brandDark};margin:0 0 8px;font-size:22px;">¡Hemos recibido tu cotización!</h2>
-    <p style="color:${gray};margin:0 0 24px;font-size:15px;">Hola <strong>${quote.client_name}</strong>, aquí tienes el resumen de tu solicitud.</p>
+    <p style="color:${gray};margin:0 0 24px;font-size:15px;">Hola <strong>${fullName}</strong>, aquí tienes el resumen de tu solicitud.</p>
 
     <h3 style="color:${brandDark};font-size:14px;margin:0 0 4px;text-transform:uppercase;letter-spacing:1px;">Productos seleccionados</h3>
     ${itemsTable(quote.quote_items)}
@@ -178,7 +180,7 @@ export function buildAdminNotificationEmail(quote: Quote & { quote_items: QuoteI
   `;
 
     return {
-        subject: `[Nueva Cotización] ${quote.client_name} – ${eventDate} – ${formatCurrency(quote.total_price)}`,
+        subject: `[Nueva Cotización] ${quote.client_name}${quote.client_lastname ? ' ' + quote.client_lastname : ''} – ${eventDate} – ${formatCurrency(quote.total_price)}`,
         html: baseLayout(content),
     };
 }
@@ -192,10 +194,11 @@ export function buildQuoteConfirmedEmail(quote: Quote & { quote_items: QuoteItem
         ? new Date(quote.event_date + 'T12:00:00').toLocaleDateString('es-CL', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })
         : '';
 
+    const fullName = `${quote.client_name}${quote.client_lastname ? ' ' + quote.client_lastname : ''}`;
     const resumeLink = `${SITE_URL}/cotizar/${quote.token}`;
     const content = `
     <h2 style="color:#059669;margin:0 0 8px;font-size:22px;">✅ ¡Reserva confirmada!</h2>
-    <p style="color:${gray};margin:0 0 24px;font-size:15px;">Hola <strong>${quote.client_name}</strong>, tu reserva para el <strong>${eventDate}</strong> ha sido confirmada exitosamente.</p>
+    <p style="color:${gray};margin:0 0 24px;font-size:15px;">Hola <strong>${fullName}</strong>, tu reserva para el <strong>${eventDate}</strong> ha sido confirmada exitosamente.</p>
 
     <!-- Monto a pagar -->
     <div style="background:#f0fdf4;border:2px solid #86efac;border-radius:12px;padding:24px;text-align:center;margin-bottom:24px;">
@@ -263,7 +266,7 @@ export function buildAdminConfirmationNotificationEmail(quote: Quote & { quote_i
   `;
 
     return {
-        subject: `✅ [Reserva Confirmada] ${quote.client_name} – ${eventDate}`,
+        subject: `✅ [Reserva Confirmada] ${quote.client_name}${quote.client_lastname ? ' ' + quote.client_lastname : ''} – ${eventDate}`,
         html: baseLayout(content),
     };
 }

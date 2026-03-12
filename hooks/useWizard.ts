@@ -22,6 +22,7 @@ const INITIAL_STATE: WizardState = {
     },
     contact: {
         firstName: '',
+        lastName: '',
         email: '',
         phone: '',
         address: '',
@@ -98,19 +99,20 @@ export function useWizard(cocktails: CocktailForWizard[], comunas: Comuna[], cat
             if (!e.date.trim()) return { valid: false, message: 'Indica la fecha del evento.' };
             if (state.consumption.guests < 10) return { valid: false, message: 'La cantidad de invitados debe ser al menos 10.' };
         }
-        if (step === 2) {
+        if (step === 5) {
             const c = state.contact;
-            if (!c.firstName.trim()) return { valid: false, message: 'El nombre completo es obligatorio.' };
+            if (!c.firstName.trim()) return { valid: false, message: 'El nombre es obligatorio.' };
+            if (!c.lastName.trim()) return { valid: false, message: 'El apellido es obligatorio.' };
             if (!c.comuna.trim()) return { valid: false, message: 'Selecciona la comuna.' };
             if (!c.email.trim()) return { valid: false, message: 'El email es obligatorio para enviarte el resumen de la cotización.' };
             if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(c.email)) {
                 return { valid: false, message: 'El formato del email no es válido.' };
             }
         }
-        if (step === 4) {
+        if (step === 3) {
             if (state.selections.length === 0) return { valid: false, message: 'Selecciona al menos un cóctel para continuar.' };
         }
-        if (step === 5) {
+        if (step === 4) {
             if (!state.dispenser) return { valid: false, message: 'Selecciona un sistema de dispensación.' };
         }
         return { valid: true };

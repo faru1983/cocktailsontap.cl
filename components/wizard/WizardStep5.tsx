@@ -76,7 +76,7 @@ export default function WizardStep5({ wizard }: Props) {
     return (
         <div className="flex flex-col gap-8">
             <div>
-                <h3 className="text-2xl font-extrabold text-brand-text mb-2">5. Sistema de Dispensación</h3>
+                <h3 className="text-2xl font-extrabold text-brand-text mb-2">4. Sistema de Dispensación</h3>
                 <p className="text-brand-text-muted text-[0.95rem] leading-relaxed">
                     Selecciona el sistema que mejor se adapte a tu evento.
                 </p>

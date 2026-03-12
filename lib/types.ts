@@ -70,6 +70,7 @@ export interface WizardState {
     };
     contact: {
         firstName: string;
+        lastName: string;
         email: string;
         phone: string;
         address: string;
@@ -123,6 +124,7 @@ export interface Quote {
 
     // Cliente
     client_name: string;
+    client_lastname: string | null;
     client_email: string | null;
     client_phone: string | null;
     client_address: string | null;

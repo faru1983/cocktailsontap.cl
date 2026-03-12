@@ -14,7 +14,7 @@ export default function WizardStep3({ wizard }: { wizard: WizardHook }) {
 
     return (
         <div className="flex flex-col">
-            <h3 className="text-2xl font-extrabold text-brand-text mb-2">3. Preferencias de Consumo</h3>
+            <h3 className="text-2xl font-extrabold text-brand-text mb-2">2. Preferencias de Consumo</h3>
             <p className="text-brand-text-muted text-[0.95rem] mb-8 leading-relaxed">Ajusta la intensidad de la barra según el perfil de tus invitados.</p>
 
             {/* Slider de Consumo */}

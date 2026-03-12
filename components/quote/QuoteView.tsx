@@ -37,6 +37,7 @@ export default function QuoteView({ quote, comunas, availableCocktails, categori
 
     // State para datos editables
     const [phone, setPhone] = useState(quote.client_phone ?? '');
+    const [lastName, setLastName] = useState(quote.client_lastname ?? '');
     const [address, setAddress] = useState(quote.client_address ?? '');
     const [eventDate, setEventDate] = useState(quote.event_date ?? '');
     const [startTime, setStartTime] = useState(quote.start_time ?? '');
@@ -180,8 +181,9 @@ export default function QuoteView({ quote, comunas, availableCocktails, categori
     }, [items, totals, guests, dispenser]);
 
     const reservationData: QuoteSummaryReservationData = useMemo(() => {
+        const fullName = `${quote.client_name}${quote.client_lastname ? ' ' + quote.client_lastname : ''}`;
         return {
-            clientName: quote.client_name,
+            clientName: fullName,
             clientEmail: quote.client_email || '',
             clientPhone: phone,
             clientAddress: address,
@@ -194,7 +196,7 @@ export default function QuoteView({ quote, comunas, availableCocktails, categori
             pickupTime: pickupTime,
             comments: comments
         };
-    }, [quote.client_name, quote.client_email, phone, address, comuna, comunaOther, eventType, otherType, eventTypes, guests, eventDate, startTime, pickupDate, pickupTime, comments]);
+    }, [quote.client_name, quote.client_lastname, quote.client_email, phone, address, comuna, comunaOther, eventType, otherType, eventTypes, guests, eventDate, startTime, pickupDate, pickupTime, comments]);
 
     // 1. Mapeamos availableCocktails a Product (para el modal)
     const mappedProducts: Product[] = useMemo(() => availableCocktails.map(c => ({
@@ -275,6 +277,7 @@ export default function QuoteView({ quote, comunas, availableCocktails, categori
         const result = await confirmQuote({
             token: quote.token,
             client_phone: phone,
+            client_lastname: lastName,
             client_address: address,
             comuna_name: comuna,
             comuna_other: comunaOther,
@@ -377,7 +380,7 @@ export default function QuoteView({ quote, comunas, availableCocktails, categori
                             {statusCfg.label}
                         </span>
                     </div>
-                    <h1 className="text-xl sm:text-2xl font-black text-brand-text">Cotización de {quote.client_name}</h1>
+                    <h1 className="text-xl sm:text-2xl font-black text-brand-text">Cotización de {quote.client_name}{quote.client_lastname ? ` ${quote.client_lastname}` : ''}</h1>
                     <p className="text-brand-text-muted text-[0.8rem] sm:text-[0.9rem]">Creada el {new Date(quote.created_at).toLocaleDateString('es-CL', { day: '2-digit', month: 'long', year: 'numeric' })}</p>
                 </div>
 
@@ -449,10 +452,17 @@ export default function QuoteView({ quote, comunas, availableCocktails, categori
 
                                 <div className="flex flex-col gap-0.5">
                                     <label className="text-[0.65rem] font-black text-brand-text-muted flex items-center gap-1.5 uppercase">
-                                        <Mail className="w-3 h-3" /> Email
+                                        <User className="w-3 h-3" /> Apellido
                                     </label>
-                                    <p className="text-[0.9rem] text-brand-text font-bold truncate" title={quote.client_email || ''}>{quote.client_email}</p>
+                                    <p className="text-[0.9rem] text-brand-text font-bold truncate">{quote.client_lastname || '--'}</p>
                                 </div>
+                            </div>
+
+                            <div className="flex flex-col gap-0.5">
+                                <label className="text-[0.65rem] font-black text-brand-text-muted flex items-center gap-1.5 uppercase">
+                                    <Mail className="w-3 h-3" /> Email
+                                </label>
+                                <p className="text-[0.9rem] text-brand-text font-bold truncate" title={quote.client_email || ''}>{quote.client_email}</p>
                             </div>
 
                             <div className="flex flex-col gap-1">
@@ -579,7 +589,7 @@ export default function QuoteView({ quote, comunas, availableCocktails, categori
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="flex flex-col gap-1">
                                     <label className="text-[0.65rem] font-black text-brand-text-muted flex items-center gap-1.5 uppercase">
-                                        <Calendar className="w-3 h-3" /> Fecha <span className="text-red-500">*</span>
+                                        <Calendar className="w-3 h-3" /> Fecha del Evento<span className="text-red-500">*</span>
                                     </label>
                                     <input
                                         type="date"
@@ -591,7 +601,7 @@ export default function QuoteView({ quote, comunas, availableCocktails, categori
                                 </div>
                                 <div className="flex flex-col gap-1">
                                     <label className="text-[0.65rem] font-black text-brand-text-muted flex items-center gap-1.5 uppercase">
-                                        <Clock className="w-3 h-3" /> Inicio <span className="text-red-500">*</span>
+                                        <Clock className="w-3 h-3" /> Hora de Inicio <span className="text-red-500">*</span>
                                     </label>
                                     <input
                                         type="time"
@@ -605,7 +615,7 @@ export default function QuoteView({ quote, comunas, availableCocktails, categori
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="flex flex-col gap-1">
                                     <label className="text-[0.65rem] font-black text-brand-text-muted flex items-center gap-1.5 uppercase">
-                                        <Calendar className="w-3 h-3" /> Retiro <span className="text-red-500">*</span>
+                                        <Calendar className="w-3 h-3" /> Fecha del Retiro <span className="text-red-500">*</span>
                                     </label>
                                     <input
                                         type="date"

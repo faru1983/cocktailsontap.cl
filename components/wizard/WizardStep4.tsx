@@ -77,7 +77,7 @@ export default function WizardStep4({ wizard, cocktails, categories }: Props) {
 
     return (
         <div className="flex flex-col">
-            <h3 className="text-2xl font-extrabold text-brand-text mb-2">4. Selección de Cócteles</h3>
+            <h3 className="text-2xl font-extrabold text-brand-text mb-2">3. Selección de Cócteles</h3>
             <p className="text-brand-text-muted text-[0.95rem] mb-8 leading-relaxed">Elige las variedades y tamaños que prefieras para tu evento.</p>
 
             <div className="mb-8">

@@ -84,10 +84,10 @@ export default function WizardShell({ cocktails, eventTypes, comunas, categories
     const renderStep = () => {
         switch (state.step) {
             case 1: return <WizardStep1 wizard={wizard} eventTypes={eventTypes} comunas={comunas} />;
-            case 2: return <WizardStep2 wizard={wizard} comunas={comunas} />;
-            case 3: return <WizardStep3 wizard={wizard} />;
-            case 4: return <WizardStep4 wizard={wizard} cocktails={cocktails} categories={categories} />;
-            case 5: return <WizardStep5 wizard={wizard} cocktails={cocktails} comunas={comunas} />;
+            case 2: return <WizardStep3 wizard={wizard} />;
+            case 3: return <WizardStep4 wizard={wizard} cocktails={cocktails} categories={categories} />;
+            case 4: return <WizardStep5 wizard={wizard} cocktails={cocktails} comunas={comunas} />;
+            case 5: return <WizardStep2 wizard={wizard} comunas={comunas} />;
             case 6: return <WizardStep6 wizard={wizard} cocktails={cocktails} comunas={comunas} />;
             default: return null;
         }
