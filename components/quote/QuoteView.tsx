@@ -827,7 +827,7 @@ export default function QuoteView({ quote, comunas, availableCocktails, categori
                                     <ul className="list-disc pl-5 mb-4 space-y-1">
                                         <li>El servicio incluye entrega, instalación y retiro del equipamiento.</li>
                                         <li>El Arrendatario se compromete a cuidar adecuadamente todos los elementos arrendados.</li>
-                                        <li>Para asegurar la reserva, el Arrendatario deberá realizar el pago por anticipado del total del servicio.</li>
+                                        <li>Para asegurar la reserva, el Arrendatario deberá realizar un abono del 50% del total del servicio y cancelar la diferencia al momento del montaje.</li>
                                     </ul>
                                     
                                     <p className="font-bold mb-1">5. Aceptación</p>
