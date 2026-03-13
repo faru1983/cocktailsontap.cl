@@ -8,7 +8,7 @@ import { getSizeLiters } from '@/lib/wizardLogic';
 import { SITE_URL, MURO_INSTALLATION_COST, MURO_COMPATIBLE_SIZES, MURO_MIN_LITERS } from '@/lib/config';
 
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? 'contacto@cocktailsontap.cl';
-const FROM_EMAIL = 'Cocktails on Tap <no-reply@cocktailsontap.cl>';
+const FROM_EMAIL = 'Cocktails on Tap <contacto@cocktailsontap.cl>';
 const MAKE_WEBHOOK_URL = process.env.MAKE_WEBHOOK_CALENDAR_URL;
 
 interface ConfirmQuoteInput {

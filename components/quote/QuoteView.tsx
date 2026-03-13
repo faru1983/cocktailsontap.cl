@@ -535,7 +535,7 @@ export default function QuoteView({ quote, comunas, availableCocktails, categori
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="flex flex-col gap-1">
                                     <label className="text-[0.65rem] font-black text-brand-text-muted flex items-center gap-1.5 uppercase">
-                                        <Tag className="w-3 h-3" /> Evento <span className="text-red-500">*</span>
+                                        <Tag className="w-3 h-3" /> Temática <span className="text-red-500">*</span>
                                     </label>
                                     <div className="relative">
                                         <select

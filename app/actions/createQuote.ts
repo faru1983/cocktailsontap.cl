@@ -9,7 +9,7 @@ import { calculateSummaryData } from '@/lib/wizardLogic';
 import { SITE_URL } from '@/lib/config';
 
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? 'contacto@cocktailsontap.cl';
-const FROM_EMAIL = 'Cocktails on Tap <no-reply@cocktailsontap.cl>';
+const FROM_EMAIL = 'Cocktails on Tap <contacto@cocktailsontap.cl>';
 
 interface CreateQuoteInput {
     state: WizardState;
