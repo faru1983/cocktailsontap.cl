@@ -286,6 +286,10 @@ export async function confirmQuote(input: ConfirmQuoteInput): Promise<ConfirmQuo
                     ? new Date(fullQuote.pickup_date + 'T12:00:00').toLocaleDateString('es-CL', { day: '2-digit', month: 'long', year: 'numeric' })
                     : '';
 
+                const eventDateDisplay = fullQuote.event_date
+                    ? new Date(fullQuote.event_date + 'T12:00:00').toLocaleDateString('es-CL', { day: '2-digit', month: 'long', year: 'numeric' })
+                    : '';
+
                 const fullName = `${fullQuote.client_name}${fullQuote.client_lastname ? ' ' + fullQuote.client_lastname : ''}`;
 
                 // --- Lógica para el Segundo Evento (Retiro) ---
@@ -324,7 +328,8 @@ export async function confirmQuote(input: ConfirmQuoteInput): Promise<ConfirmQuo
                         `Teléfono: ${fullQuote.client_phone}`,
                         `Email: ${fullQuote.client_email}`,
                         `Dirección: ${fullQuote.client_address}, ${fullQuote.comuna_name === 'Otra' ? fullQuote.comuna_other : fullQuote.comuna_name}`,
-                        `Evento: ${fullQuote.event_type_other || fullQuote.event_type_id} (${fullQuote.guests} pers.)`,
+                        `Evento: ${fullQuote.event_type_other || fullQuote.event_type_id} (${fullQuote.guests} pers.)`,                        
+                        `Fecha: ${eventDateDisplay} (${startTimeStr}hrs)`,
                         fullQuote.pickup_date ? `Retiro: ${pickupDateDisplay} (${fullQuote.pickup_time || 'Rango no especificado'})` : '',
                         fullQuote.comments ? `Notas: ${fullQuote.comments}\n` : '',
                         `Ver cotización: ${resumeLink}\n`,
