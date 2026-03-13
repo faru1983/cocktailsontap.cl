@@ -55,6 +55,7 @@ export default function QuoteView({ quote, comunas, availableCocktails, categori
     const [isConfirming, setIsConfirming] = useState(false);
     const [confirmError, setConfirmError] = useState('');
     const [confirmed, setConfirmed] = useState(quote.status === 'confirmed');
+    const [acceptedTerms, setAcceptedTerms] = useState(false);
 
     const statusCfg = STATUS_CONFIG[quote.status] ?? STATUS_CONFIG.draft;
     const StatusIcon = statusCfg.icon;
@@ -297,6 +298,7 @@ export default function QuoteView({ quote, comunas, availableCocktails, categori
         if (result.success) {
             setConfirmed(true);
             setShowConfirmModal(false);
+            setAcceptedTerms(false);
             window.scrollTo({ top: 0, behavior: 'smooth' });
         } else {
             setConfirmError(result.error ?? 'Error al confirmar. Intenta nuevamente.');
@@ -387,7 +389,10 @@ export default function QuoteView({ quote, comunas, availableCocktails, categori
                 {isDraft && (
                     <button
                         type="button"
-                        onClick={() => setShowConfirmModal(true)}
+                        onClick={() => {
+                            setAcceptedTerms(false);
+                            setShowConfirmModal(true);
+                        }}
                         disabled={!canConfirm}
                         className="hidden sm:inline-flex items-center gap-2 px-8 py-4 rounded-2xl bg-primary text-white font-black text-[1rem] shadow-[0_4px_20px_rgba(226,160,73,0.35)] hover:bg-primary-dark transition-all active:scale-95 whitespace-nowrap disabled:opacity-50 disabled:grayscale disabled:cursor-not-allowed"
                     >
@@ -756,7 +761,10 @@ export default function QuoteView({ quote, comunas, availableCocktails, categori
                         </div>
                         <button
                             type="button"
-                            onClick={() => setShowConfirmModal(true)}
+                            onClick={() => {
+                                setAcceptedTerms(false);
+                                setShowConfirmModal(true);
+                            }}
                             disabled={!canConfirm}
                             className="flex-1 py-3.5 sm:py-4 sm:flex-none sm:px-12 rounded-2xl bg-primary text-white font-black text-[1rem] sm:text-[1.1rem] shadow-[0_4px_25px_rgba(226,160,73,0.45)] hover:bg-primary-dark transition-all active:scale-95 disabled:grayscale disabled:opacity-50"
                         >
@@ -779,12 +787,66 @@ export default function QuoteView({ quote, comunas, availableCocktails, categori
                         <p className="text-brand-text-muted text-[0.95rem] mb-8 leading-relaxed">Para asegurar tu fecha, no olvides realizar un abono del <strong>50%</strong>.</p>
 
                         {/* Monto a pagar destacada */}
-                        <div className="bg-amber-50 border-2 border-amber-100 rounded-[2rem] p-8 text-center mb-8 relative overflow-hidden group">
+                        <div className="bg-amber-50 border-2 border-amber-100 rounded-[2rem] p-8 text-center mb-6 relative overflow-hidden group">
                             <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity" />
                             <p className="text-amber-800 text-[0.75rem] font-black uppercase tracking-[0.2em] mb-2">Abono para confirmar (50%)</p>
                             <p className="text-primary font-black text-5xl mt-1 tracking-tighter">{formatCurrency(halfAmount)}</p>
                             <div className="mt-4 inline-flex items-center gap-2 bg-amber-200/40 px-4 py-1.5 rounded-full text-[0.8rem] text-amber-900 font-bold">
                                 <Clock className="w-3.5 h-3.5" /> Saldo restante el día del evento
+                            </div>
+                        </div>
+
+                        {/* Contrato de Servicio */}
+                        <div className="mb-6">
+                            <h3 className="text-[0.65rem] font-black text-brand-text-muted uppercase tracking-[0.2em] mb-3 flex items-center gap-2">
+                                <Lock className="w-3.5 h-3.5" /> Contrato de Servicio
+                            </h3>
+                            <div className="bg-white border-2 border-brand-border rounded-2xl overflow-hidden shadow-inner">
+                                <div className="h-48 overflow-y-auto p-5 text-[0.8rem] text-brand-text leading-relaxed font-medium bg-slate-50/50">
+                                    <div className="text-center font-black mb-4 uppercase tracking-widest border-b border-brand-border pb-2">CONTRATO DE SERVICIO</div>
+                                    <p className="mb-4">
+                                        Entre <strong>Cocktails on Tap Chile</strong>, en adelante “El Arrendador”, y don/doña: <strong>{quote.client_name} {lastName}</strong>, en adelante “El Arrendatario”, se acuerda lo siguiente:
+                                    </p>
+                                    
+                                    <p className="font-bold mb-1">1. Objeto del contrato</p>
+                                    <p className="mb-4">El Arrendador proporcionará al Arrendatario un servicio de cócteles listos para servir en formato autoservicio, que incluye el arriendo de barriles, dispensadores y cristalería (vasos y/o copas), para el evento acordado.</p>
+                                    
+                                    <p className="font-bold mb-1">2. Fecha y lugar del evento</p>
+                                    <p className="mb-1"><strong>Fecha:</strong> {formatEventDate(eventDate)}</p>
+                                    <p className="mb-4"><strong>Lugar:</strong> {address}, {comuna === 'Otra' ? comunaOther : comuna}</p>
+                                    
+                                    <p className="font-bold mb-1">3. Responsabilidad por pérdidas o daños</p>
+                                    <p className="mb-2">El Arrendatario acepta que, en caso de pérdida o daño de los elementos arrendados, deberá pagar lo siguiente:</p>
+                                    <ul className="list-disc pl-5 mb-4 space-y-1">
+                                        <li>$1.000 (mil pesos) por cada vaso extraviado o dañado.</li>
+                                        <li>$2.000 (dos mil pesos) por cada copa extraviada o dañada.</li>
+                                        <li>Hasta $500.000 (quinientos mil pesos) por daños o pérdida de cada dispensador dejado en préstamo para el evento.</li>
+                                    </ul>
+                                    
+                                    <p className="font-bold mb-1">4. Condiciones generales</p>
+                                    <ul className="list-disc pl-5 mb-4 space-y-1">
+                                        <li>El servicio incluye entrega, instalación y retiro del equipamiento.</li>
+                                        <li>El Arrendatario se compromete a cuidar adecuadamente todos los elementos arrendados.</li>
+                                        <li>Para asegurar la reserva, el Arrendatario deberá realizar el pago por anticipado del total del servicio.</li>
+                                    </ul>
+                                    
+                                    <p className="font-bold mb-1">5. Aceptación</p>
+                                    <p>Ambas partes declaran haber leído, entendido y aceptado las condiciones establecidas en el presente contrato.</p>
+                                </div>
+                                <div className="p-4 bg-brand-bg flex items-center gap-3 border-t border-brand-border">
+                                    <label className="flex items-center gap-3 cursor-pointer group">
+                                        <div className="relative flex items-center justify-center">
+                                            <input 
+                                                type="checkbox" 
+                                                checked={acceptedTerms}
+                                                onChange={(e) => setAcceptedTerms(e.target.checked)}
+                                                className="peer appearance-none w-6 h-6 border-2 border-brand-border rounded-lg checked:bg-primary checked:border-primary transition-all cursor-pointer" 
+                                            />
+                                            <CheckCircle className="absolute w-4 h-4 text-white opacity-0 peer-checked:opacity-100 transition-opacity pointer-events-none" />
+                                        </div>
+                                        <span className="text-[0.85rem] font-black text-brand-text group-hover:text-primary transition-colors">He leído y acepto los términos del contrato</span>
+                                    </label>
+                                </div>
                             </div>
                         </div>
 
@@ -827,7 +889,7 @@ export default function QuoteView({ quote, comunas, availableCocktails, categori
                             <button
                                 type="button"
                                 onClick={handleConfirm}
-                                disabled={isConfirming || !canConfirm}
+                                disabled={isConfirming || !canConfirm || !acceptedTerms}
                                 className="order-1 sm:order-2 flex-[2] py-4 rounded-2xl bg-primary text-white font-black text-[1.1rem] hover:bg-primary-dark transition-all disabled:opacity-50 disabled:grayscale flex items-center justify-center gap-2 shadow-lg active:scale-95"
                             >
                                 {isConfirming ? <><Loader2 className="w-5 h-5 animate-spin" /> Procesando...</> : '🚀 Confirmar Ahora'}
