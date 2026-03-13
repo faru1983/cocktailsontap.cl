@@ -343,7 +343,7 @@ export async function confirmQuote(input: ConfirmQuoteInput): Promise<ConfirmQuo
                     pickup_is_all_day: pickupAllDay,
                     pickup_start: pickupStart,
                     pickup_end: pickupEnd,
-                    pickup_title: `RETIRO: ${fullName}`
+                    pickup_title: `Retiro - ${fullName}`
                 };
 
                 await fetch(MAKE_WEBHOOK_URL, {
