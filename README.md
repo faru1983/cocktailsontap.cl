@@ -107,6 +107,7 @@ Se incluye una carpeta de `tests/` con scripts especializados para garantizar la
 - **`/lib`**: "Cerebro" del proyecto. Lógica de negocio, configuración y helpers de datos.
 - **`/tests`**: Scripts de validación y herramientas de desarrollo.
 - **`/public/assets`**: Recursos estáticos (logos, imágenes).
+- **`.ai-context.md`**: Memoria del proyecto para IA (se actualiza automáticamente tras cambios importantes).
 
 ---
 
