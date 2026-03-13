@@ -287,6 +287,33 @@ export async function confirmQuote(input: ConfirmQuoteInput): Promise<ConfirmQuo
                     : '';
 
                 const fullName = `${fullQuote.client_name}${fullQuote.client_lastname ? ' ' + fullQuote.client_lastname : ''}`;
+
+                // --- Lógica para el Segundo Evento (Retiro) ---
+                let pickupStart = null;
+                let pickupEnd = null;
+                let pickupAllDay = false;
+
+                if (fullQuote.pickup_date) {
+                    if (fullQuote.pickup_date === fullQuote.event_date) {
+                        // Mismo día: Todo el día
+                        pickupAllDay = true;
+                        pickupStart = `${fullQuote.pickup_date}T00:00:00`;
+                        pickupEnd = `${fullQuote.pickup_date}T23:59:59`;
+                    } else if (fullQuote.pickup_time && fullQuote.pickup_time.includes(' a ')) {
+                        // Rango de horas (ej: "14:00 a 16:00")
+                        const parts = fullQuote.pickup_time.split(' a ');
+                        const startH = parts[0].trim();
+                        const endH = parts[1].trim().replace('hrs', '').trim();
+                        pickupStart = formatLiteral(new Date(`${fullQuote.pickup_date}T${startH}:00`));
+                        pickupEnd = formatLiteral(new Date(`${fullQuote.pickup_date}T${endH}:00`));
+                    } else {
+                        // Solo fecha, sin rango claro: Todo el día por defecto
+                        pickupAllDay = true;
+                        pickupStart = `${fullQuote.pickup_date}T00:00:00`;
+                        pickupEnd = `${fullQuote.pickup_date}T23:59:59`;
+                    }
+                }
+
                 const payload = {
                     title: `Cócteles - ${fullName} ${fullQuote.guests}px`,
                     customerName: fullQuote.client_name,
@@ -312,6 +339,11 @@ export async function confirmQuote(input: ConfirmQuoteInput): Promise<ConfirmQuo
                     location: `${fullQuote.client_address}, ${fullQuote.comuna_name}`,
                     guests_email: fullQuote.client_email,
                     guests: fullQuote.guests,
+                    // Campos para el Retiro
+                    pickup_is_all_day: pickupAllDay,
+                    pickup_start: pickupStart,
+                    pickup_end: pickupEnd,
+                    pickup_title: `RETIRO: ${fullName}`
                 };
 
                 await fetch(MAKE_WEBHOOK_URL, {
