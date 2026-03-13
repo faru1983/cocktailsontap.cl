@@ -155,6 +155,17 @@ export async function confirmQuote(input: ConfirmQuoteInput): Promise<ConfirmQuo
             }
         }
 
+        // ─── 4.5 Sincronizar con CRM (Clientes) ───────────────────────
+        if (quote.client_id) {
+            await db
+                .from('clients')
+                .update({
+                    last_name: client_lastname !== undefined ? client_lastname : quote.client_lastname,
+                    phone: finalPhone
+                })
+                .eq('id', quote.client_id);
+        }
+
         // ─── 5. Actualizar la Cotización ───────────────────────────────
         const { error: updateQuoteError } = await db
             .from('quotes')

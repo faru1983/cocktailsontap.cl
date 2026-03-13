@@ -30,14 +30,38 @@ export async function createQuote(input: CreateQuoteInput): Promise<CreateQuoteR
         const db = createServerClient();
         const data = calculateSummaryData(state, cocktails, comunas);
 
+        // ─── 0. Upsert Cliente (CRM) ──────────────────────────────────────────
+        let clientId: string | null = null;
+        const emailTrimmed = state.contact.email.trim().toLowerCase();
+
+        if (emailTrimmed) {
+            const { data: clientData, error: clientError } = await db
+                .from('clients')
+                .upsert({
+                    email: emailTrimmed,
+                    first_name: state.contact.firstName.trim(),
+                    last_name: state.contact.lastName.trim() || null,
+                    phone: state.contact.phone.trim() || null,
+                }, { onConflict: 'email' })
+                .select('id')
+                .single();
+
+            if (!clientError && clientData) {
+                clientId = clientData.id;
+            } else {
+                console.error('Error gestionando cliente:', clientError);
+            }
+        }
+
         // ─── 1. Insertar la cotización ─────────────────────────────────────────
         const { data: quote, error: quoteError } = await db
             .from('quotes')
             .insert({
                 status: 'draft',
+                client_id: clientId, // Vincular al cliente
                 client_name: state.contact.firstName.trim(),
                 client_lastname: state.contact.lastName.trim() || null,
-                client_email: state.contact.email.trim() || null,
+                client_email: emailTrimmed || null,
                 client_phone: state.contact.phone.trim() || null,
                 client_address: state.contact.address.trim() || null,
                 comments: state.contact.comments.trim() || null,
@@ -132,6 +156,7 @@ export async function createQuote(input: CreateQuoteInput): Promise<CreateQuoteR
                     installation_cost: data.installationCost,
                     total_price: data.totalPrice,
                     total_liters: data.totalLiters,
+                    client_id: clientId,
                     quote_items: items.map((item, i) => ({
                         id: String(i),
                         quote_id: quote.id,

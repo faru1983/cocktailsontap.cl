@@ -104,6 +104,15 @@ export interface ICart {
 
 export type QuoteStatus = 'draft' | 'confirmed' | 'cancelled' | 'completed';
 
+export interface Client {
+    id: string;
+    first_name: string;
+    last_name: string | null;
+    email: string;
+    phone: string | null;
+    created_at: string;
+}
+
 export interface QuoteItem {
     id: string;
     quote_id?: string;
@@ -157,6 +166,7 @@ export interface Quote {
     total_price: number;
     total_liters: number | null;
 
-    // Items (cargados por join)
+    // Items y Relaciones
+    client_id?: string | null;
     quote_items?: QuoteItem[];
 }
