@@ -1,35 +1,63 @@
-# 🍸 Cocktails on Tap Chile - Barra Móvil Autoservicio
+# 🍸 Cocktails on Tap Chile - Barra Móvil & Autoservicio
 
-¡Bienvenido al repositorio oficial de **Cocktails on Tap Chile**! Esta es una aplicación web moderna diseñada para ofrecer una experiencia premium en la cotización y gestión de servicios de barra móvil y estaciones de autoservicio de coctelería.
+¡Bienvenido al repositorio oficial de **Cocktails on Tap Chile**! Esta es una aplicación web de nivel producción diseñada para ofrecer una experiencia premium en la cotización y gestión de servicios de barra móvil y estaciones de autoservicio de coctelería.
+
+El proyecto está construido con un enfoque en **arquitectura limpia, seguridad y automatización**, siendo ideal tanto para el negocio real como para servir de referencia a la comunidad sobre integraciones modernas.
 
 [![Vercel Deployment](https://img.shields.io/badge/Deployed%20on-Vercel-black?style=flat&logo=vercel)](https://cocktailsontap.cl)
 [![Next.js](https://img.shields.io/badge/Framework-Next.js%2015-blue?style=flat&logo=next.js)](https://nextjs.org/)
 [![Tailwind CSS](https://img.shields.io/badge/Styling-Tailwind%20CSS-38B2AC?style=flat&logo=tailwind-css)](https://tailwindcss.com/)
 [![Supabase](https://img.shields.io/badge/Database-Supabase-3ECF8E?style=flat&logo=supabase)](https://supabase.com/)
+[![Resend](https://img.shields.io/badge/Emails-Resend-000000?style=flat&logo=resend)](https://resend.com/)
 
 ---
 
 ## 🚀 Características Principales
 
-- **Cotizador Inteligente (Wizard):** Proceso paso a paso refactorizado con lógica desacoplada y robusta.
-- **Arquitectura de Alto Rendimiento:** Implementación de **Server Components** y **Caché de Servidor** (5 min) para minimizar latencia y carga en base de datos.
-- **Cálculo de Insumos:** Algoritmos automáticos para configuración de barriles (5L/10L) según invitados y duración.
-- **SEO & Web Vitals:** Generación automática de `sitemap.xml` y `robots.txt`, optimización de metadatos y seguridad avanzada.
-- **Integración con Supabase:** Gestión centralizada de productos, precios, categorías y comunas.
-- **WhatsApp Bridge:** Generador de cotizaciones detalladas con formato profesional para envío directo.
+### 💎 Experiencia de Usuario (Wizard)
+- **Cotizador Premium:** Flujo de 6 pasos optimizado para conversión, con validaciones en tiempo real y persistencia.
+- **Lógica de Insumos Automática:** Cálculo dinámico de litros, combinaciones de barriles (5L, 10L, 20L, 30L) y sugerencias según el número de invitados.
+- **Diseño Mobile-First:** Interfaz moderna y envolvente utilizando Tailwind CSS v4 y animaciones fluidas.
+
+### ⚙️ Automatización y Backend
+- **Integración con Make (Integromat):** Webhooks automáticos que sincronizan:
+  - **Calendario de Eventos:** Creación automática del evento de montaje/servicio.
+  - **Calendario de Retiros:** Gestión logística independiente para el retiro de equipos por fecha y rango horario.
+- **Sistema de Emails (Resend):** Plantillas HTML mobile-first refactorizadas para notificaciones a clientes y administración, manteniendo identidad de marca.
+- **Base de Datos Robusta:** Supabase gestiona productos, categorías, comunas y el historial de cotizaciones con alta integridad.
+
+### 🛡️ Seguridad y Robustez
+- **Tokens de Acceso Únicos:** Cada cotización genera un token seguro para acceso permanente y edición.
+- **Protección de Datos:** Implementación de variables de entorno seguras para APIs críticas.
+- **Service Role Integration:** Uso de claves administrativas seguras para operaciones críticas de base de datos desde el servidor.
 
 ---
 
 ## 🛠️ Stack Tecnológico
 
-- **Frontend:** [Next.js](https://nextjs.org/) (App Router) + React 19.
-- **Estilos:** [Tailwind CSS](https://tailwindcss.com/) v4.
+- **Framework:** [Next.js 15](https://nextjs.org/) (App Router, Server Actions).
+- **Base de Datos:** [Supabase](https://supabase.com/) (PostgreSQL).
+- **Estilos:** [Tailwind CSS v4](https://tailwindcss.com/).
+- **Emails:** [Resend](https://resend.com/).
+- **Automatización:** [Make.com](https://make.com/) (Webhooks & Google Calendar).
 - **Iconografía:** [Lucide React](https://lucide.dev/).
-- **Backend:** [Supabase](https://supabase.com/) (PostgreSQL + Auth + Storage).
+- **Validación:** [TypeScript](https://www.typescriptlang.org/).
 
 ---
 
-## 🛠️ Instalación y Desarrollo Local
+## 🧪 Suite de Pruebas (Test Suite)
+
+Se incluye una carpeta de `tests/` con scripts especializados para garantizar la continuidad operativa:
+
+- **`test-db-schema.js`**: Valida la integridad de las tablas y columnas críticas en Supabase.
+- **`test-calculations.js`**: Verifica que las fórmulas de precios, envíos e instalaciones sean exactas.
+- **`test-email-preview.ts`**: Sistema para enviar los 4 tipos de correos reales a la bandeja del administrador para previsualizar diseño y datos.
+- **`trigger-make.js`**: Simula el envío de datos a Make para probar los escenarios de sincronización de calendarios.
+- **`test-create-full-quote.js`**: Genera una cotización completa desde el backend para pruebas de flujo de datos.
+
+---
+
+## 🏗️ Instalación y Configuración
 
 1. **Clonar el repositorio:**
    ```bash
@@ -42,34 +70,50 @@
    npm install
    ```
 
-3. **Configurar variables de entorno:**
-   Crea un archivo `.env.local`:
+3. **Variables de Entorno (.env.local):**
    ```env
-   NEXT_PUBLIC_SUPABASE_URL=tu_url
-   NEXT_PUBLIC_SUPABASE_ANON_KEY=tu_clave
+   # Supabase
+   NEXT_PUBLIC_SUPABASE_URL=...
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+   SUPABASE_SERVICE_ROLE_KEY=...
+
+   # Configuración de Sitio
+   NEXT_PUBLIC_SITE_URL=http://localhost:3000
+
+   # Integraciones
+   RESEND_API_KEY=...
+   MAKE_WEBHOOK_CALENDAR_URL=...
+   ADMIN_EMAIL=contacto@cocktailsontap.cl
    NEXT_PUBLIC_WHATSAPP_NUMBER=56929672978
    ```
 
-4. **Scripts disponibles:**
-   - `npm run dev`: Inicia el servidor de desarrollo.
-   - `npm run build`: Genera el build de producción (valida tipos y rutas).
+4. **Ejecutar Desarrollo:**
+   ```bash
+   npm run dev
+   ```
+
+5. **Ejecutar Tests:**
+   ```bash
+   # Ejemplo de test de emails
+   npx tsx --tsconfig tsconfig.json --env-file=.env.local tests/test-email-preview.ts
+   ```
 
 ---
 
-## 🏗️ Arquitectura y Mejores Prácticas
+## 📄 Arquitectura del Proyecto
 
-El proyecto sigue principios de **Clean Architecture**:
-- **`lib/wizardLogic.ts`**: Lógica de negocio pura, independiente de React y fácil de testear.
-- **`lib/serverData.ts`**: Capa de datos en servidor con `unstable_cache`.
-- **`components/ui`**: Componentes atómicos reutilizables (ej: `SelectField`).
-- **`hooks/`**: Gestión de estado de UI y efectos secundarios.
+- **`/app`**: Rutas de Next.js y Server Actions (`actions/`).
+- **`/components`**: UI dividida en componentes reutilizables y secciones del Wizard.
+- **`/lib`**: "Cerebro" del proyecto. Lógica de negocio, configuración y helpers de datos.
+- **`/tests`**: Scripts de validación y herramientas de desarrollo.
+- **`/public/assets`**: Recursos estáticos (logos, imágenes).
 
 ---
 
 ## 📄 Licencia
 
-Este proyecto es privado para Cocktails on Tap Chile. Todos los derechos reservados.
+Este proyecto es propiedad de **Cocktails on Tap Chile**. El código se comparte con fines educativos y de referencia para la comunidad. Para usos comerciales o adaptaciones, por favor contactar al propietario.
 
 ---
 
-Desarrollado con ❤️ para elevar la experiencia de coctelería en Chile. 🇨🇱
+Desarrollado con ❤️ para elevar el estándar de la coctelería en Chile. 🇨🇱✨
