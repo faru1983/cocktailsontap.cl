@@ -780,120 +780,130 @@ export default function QuoteView({ quote, comunas, availableCocktails, categori
             {/* Modal de confirmación */}
             {showConfirmModal && (
                 <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md" onClick={() => setShowConfirmModal(false)}>
-                    <div className="bg-white rounded-[2.5rem] max-w-lg w-full p-10 shadow-2xl overflow-hidden relative" onClick={(e) => e.stopPropagation()}>
+                    <div className="bg-white rounded-[2.5rem] max-w-lg w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden relative" onClick={(e) => e.stopPropagation()}>
                         <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-primary to-amber-300" />
 
-                        <h2 className="text-2xl font-black text-brand-text mb-2 tracking-tight">Finalizar Reserva</h2>
-                        <p className="text-brand-text-muted text-[0.95rem] mb-8 leading-relaxed">Para asegurar tu fecha, no olvides realizar un abono del <strong>50%</strong>.</p>
+                        {/* Header Fijo */}
+                        <div className="p-6 pb-0 sm:px-10 sm:pt-8 sm:pb-0 shrink-0">
+                            <h2 className="text-2xl font-black text-brand-text mb-1 tracking-tight">Finalizar Reserva</h2>
+                            <p className="text-brand-text-muted text-[0.9rem] sm:text-[0.95rem] leading-relaxed">Para asegurar tu fecha, no olvides realizar un abono del <strong>50%</strong>.</p>
+                        </div>
+
+                        {/* Contenido Scrollable */}
+                        <div className="flex-1 overflow-y-auto p-6 pt-4 sm:px-10 sm:pt-4 space-y-6">
 
                         {/* Monto a pagar destacada */}
-                        <div className="bg-amber-50 border-2 border-amber-100 rounded-[2rem] p-8 text-center mb-6 relative overflow-hidden group">
-                            <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity" />
-                            <p className="text-amber-800 text-[0.75rem] font-black uppercase tracking-[0.2em] mb-2">Abono para confirmar (50%)</p>
-                            <p className="text-primary font-black text-5xl mt-1 tracking-tighter">{formatCurrency(halfAmount)}</p>
-                            <div className="mt-4 inline-flex items-center gap-2 bg-amber-200/40 px-4 py-1.5 rounded-full text-[0.8rem] text-amber-900 font-bold">
-                                <Clock className="w-3.5 h-3.5" /> Saldo restante el día del evento
+                            <div className="bg-amber-50 border-2 border-amber-100 rounded-[2rem] p-8 text-center relative overflow-hidden group">
+                                <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                <p className="text-amber-800 text-[0.75rem] font-black uppercase tracking-[0.2em] mb-2">Abono para confirmar (50%)</p>
+                                <p className="text-primary font-black text-5xl mt-1 tracking-tighter">{formatCurrency(halfAmount)}</p>
+                                <div className="mt-4 inline-flex items-center gap-2 bg-amber-200/40 px-4 py-1.5 rounded-full text-[0.8rem] text-amber-900 font-bold">
+                                    <Clock className="w-3.5 h-3.5" /> Saldo restante el día del evento
+                                </div>
                             </div>
-                        </div>
 
                         {/* Contrato de Servicio */}
-                        <div className="mb-6">
-                            <h3 className="text-[0.65rem] font-black text-brand-text-muted uppercase tracking-[0.2em] mb-3 flex items-center gap-2">
-                                <Lock className="w-3.5 h-3.5" /> Contrato de Servicio
-                            </h3>
-                            <div className="bg-white border-2 border-brand-border rounded-2xl overflow-hidden shadow-inner">
-                                <div className="h-48 overflow-y-auto p-5 text-[0.8rem] text-brand-text leading-relaxed font-medium bg-slate-50/50">
-                                    <div className="text-center font-black mb-4 uppercase tracking-widest border-b border-brand-border pb-2">CONTRATO DE SERVICIO</div>
-                                    <p className="mb-4">
-                                        Entre <strong>Cocktails on Tap Chile</strong>, en adelante “El Arrendador”, y don/doña: <strong>{quote.client_name} {lastName}</strong>, en adelante “El Arrendatario”, se acuerda lo siguiente:
-                                    </p>
-                                    
-                                    <p className="font-bold mb-1">1. Objeto del contrato</p>
-                                    <p className="mb-4">El Arrendador proporcionará al Arrendatario un servicio de cócteles listos para servir en formato autoservicio, que incluye el arriendo de barriles, dispensadores y cristalería (vasos y/o copas), para el evento acordado.</p>
-                                    
-                                    <p className="font-bold mb-1">2. Fecha y lugar del evento</p>
-                                    <p className="mb-1"><strong>Fecha:</strong> {formatEventDate(eventDate)}</p>
-                                    <p className="mb-4"><strong>Lugar:</strong> {address}, {comuna === 'Otra' ? comunaOther : comuna}</p>
-                                    
-                                    <p className="font-bold mb-1">3. Responsabilidad por pérdidas o daños</p>
-                                    <p className="mb-2">El Arrendatario acepta que, en caso de pérdida o daño de los elementos arrendados, deberá pagar lo siguiente:</p>
-                                    <ul className="list-disc pl-5 mb-4 space-y-1">
-                                        <li>$1.000 (mil pesos) por cada vaso extraviado o dañado.</li>
-                                        <li>$2.000 (dos mil pesos) por cada copa extraviada o dañada.</li>
-                                        <li>Hasta $500.000 (quinientos mil pesos) por daños o pérdida de cada dispensador dejado en préstamo para el evento.</li>
-                                    </ul>
-                                    
-                                    <p className="font-bold mb-1">4. Condiciones generales</p>
-                                    <ul className="list-disc pl-5 mb-4 space-y-1">
-                                        <li>El servicio incluye entrega, instalación y retiro del equipamiento.</li>
-                                        <li>El Arrendatario se compromete a cuidar adecuadamente todos los elementos arrendados.</li>
-                                        <li>Para asegurar la reserva, el Arrendatario deberá realizar un abono del 50% del total del servicio y cancelar la diferencia al momento del montaje.</li>
-                                    </ul>
-                                    
-                                    <p className="font-bold mb-1">5. Aceptación</p>
-                                    <p>Ambas partes declaran haber leído, entendido y aceptado las condiciones establecidas en el presente contrato.</p>
+                            <div className="mb-0">
+                                <h3 className="text-[0.65rem] font-black text-brand-text-muted uppercase tracking-[0.2em] mb-3 flex items-center gap-2">
+                                    <Lock className="w-3.5 h-3.5" /> Contrato de Servicio
+                                </h3>
+                                <div className="bg-white border-2 border-brand-border rounded-2xl overflow-hidden shadow-inner">
+                                    <div className="h-48 overflow-y-auto p-5 text-[0.8rem] text-brand-text leading-relaxed font-medium bg-slate-50/50">
+                                        <div className="text-center font-black mb-4 uppercase tracking-widest border-b border-brand-border pb-2">CONTRATO DE SERVICIO</div>
+                                        <p className="mb-4">
+                                            Entre <strong>Cocktails on Tap Chile</strong>, en adelante “El Arrendador”, y don/doña: <strong>{quote.client_name} {lastName}</strong>, en adelante “El Arrendatario”, se acuerda lo siguiente:
+                                        </p>
+                                        
+                                        <p className="font-bold mb-1">1. Objeto del contrato</p>
+                                        <p className="mb-4">El Arrendador proporcionará al Arrendatario un servicio de cócteles listos para servir en formato autoservicio, que incluye el arriendo de barriles, dispensadores y cristalería (vasos y/o copas), para el evento acordado.</p>
+                                        
+                                        <p className="font-bold mb-1">2. Fecha y lugar del evento</p>
+                                        <p className="mb-1"><strong>Fecha:</strong> {formatEventDate(eventDate)}</p>
+                                        <p className="mb-4"><strong>Lugar:</strong> {address}, {comuna === 'Otra' ? comunaOther : comuna}</p>
+                                        
+                                        <p className="font-bold mb-1">3. Responsabilidad por pérdidas o daños</p>
+                                        <p className="mb-2">El Arrendatario acepta que, en caso de pérdida o daño de los elementos arrendados, deberá pagar lo siguiente:</p>
+                                        <ul className="list-disc pl-5 mb-4 space-y-1">
+                                            <li>$1.000 (mil pesos) por cada vaso extraviado o dañado.</li>
+                                            <li>$2.000 (dos mil pesos) por cada copa extraviada o dañada.</li>
+                                            <li>Hasta $500.000 (quinientos mil pesos) por daños o pérdida de cada dispensador dejado en préstamo para el evento.</li>
+                                        </ul>
+                                        
+                                        <p className="font-bold mb-1">4. Condiciones generales</p>
+                                        <ul className="list-disc pl-5 mb-4 space-y-1">
+                                            <li>El servicio incluye entrega, instalación y retiro del equipamiento.</li>
+                                            <li>El Arrendatario se compromete a cuidar adecuadamente todos los elementos arrendados.</li>
+                                            <li>Para asegurar la reserva, el Arrendatario deberá realizar un abono del 50% del total del servicio y cancelar la diferencia al momento del montaje.</li>
+                                        </ul>
+                                        
+                                        <p className="font-bold mb-1">5. Aceptación</p>
+                                        <p>Ambas partes declaran haber leído, entendido y aceptado las condiciones establecidas en el presente contrato.</p>
+                                    </div>
+                                    <div className="p-4 bg-brand-bg flex items-center gap-3 border-t border-brand-border">
+                                        <label className="flex items-center gap-3 cursor-pointer group">
+                                            <div className="relative flex items-center justify-center">
+                                                <input 
+                                                    type="checkbox" 
+                                                    checked={acceptedTerms}
+                                                    onChange={(e) => setAcceptedTerms(e.target.checked)}
+                                                    className="peer appearance-none w-6 h-6 border-2 border-brand-border rounded-lg checked:bg-primary checked:border-primary transition-all cursor-pointer" 
+                                                />
+                                                <CheckCircle className="absolute w-4 h-4 text-white opacity-0 peer-checked:opacity-100 transition-opacity pointer-events-none" />
+                                            </div>
+                                            <span className="text-[0.85rem] font-black text-brand-text group-hover:text-primary transition-colors">He leído y acepto los términos del contrato</span>
+                                        </label>
+                                    </div>
                                 </div>
-                                <div className="p-4 bg-brand-bg flex items-center gap-3 border-t border-brand-border">
-                                    <label className="flex items-center gap-3 cursor-pointer group">
-                                        <div className="relative flex items-center justify-center">
-                                            <input 
-                                                type="checkbox" 
-                                                checked={acceptedTerms}
-                                                onChange={(e) => setAcceptedTerms(e.target.checked)}
-                                                className="peer appearance-none w-6 h-6 border-2 border-brand-border rounded-lg checked:bg-primary checked:border-primary transition-all cursor-pointer" 
-                                            />
-                                            <CheckCircle className="absolute w-4 h-4 text-white opacity-0 peer-checked:opacity-100 transition-opacity pointer-events-none" />
-                                        </div>
-                                        <span className="text-[0.85rem] font-black text-brand-text group-hover:text-primary transition-colors">He leído y acepto los términos del contrato</span>
-                                    </label>
+                            </div>
+
+                            {/* Datos bancarios comprimidos */}
+                            <div className="bg-slate-50 rounded-2xl p-6 text-[0.9rem] border border-brand-border space-y-4 relative group overflow-hidden">
+                                <p className="font-black text-brand-text flex items-center gap-2">
+                                    <span className="p-1 bg-brand-text text-white rounded-md uppercase text-[0.6rem] tracking-widest">Pago</span> Datos de Transferencia
+                                </p>
+                                <div className="grid grid-cols-2 gap-y-2 gap-x-4 border-b border-brand-border/50 pb-4">
+                                    <div><p className="text-[0.7rem] font-bold text-brand-text-muted uppercase">Banco</p><p className="font-bold">Mercado Pago</p></div>
+                                    <div><p className="text-[0.7rem] font-bold text-brand-text-muted uppercase">Tipo Cuenta</p><p className="font-bold">Vista</p></div>
+                                    <div className="col-span-2"><p className="text-[0.7rem] font-bold text-brand-text-muted uppercase">Nº Cuenta</p><p className="font-bold text-lg select-all">1098081647</p></div>
+                                    <div className="col-span-2"><p className="text-[0.7rem] font-bold text-brand-text-muted uppercase">Nombre y RUT</p><p className="font-bold">Felipe Ramírez (15.332.189-2)</p></div>
                                 </div>
+                                <button 
+                                    onClick={() => {
+                                        const text = `Banco: Mercado Pago\nCuenta Vista: 1098081647\nNombre: Felipe Ramírez\nRUT: 15.332.189-2\nE-mail: contacto@cocktailsontap.cl`;
+                                        navigator.clipboard.writeText(text);
+                                    }}
+                                    className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-brand-border rounded-xl text-[0.8rem] font-bold text-brand-text hover:border-primary hover:text-primary transition-all active:scale-95 shadow-sm"
+                                >
+                                    <Copy className="w-4 h-4" /> Copiar Datos para Transferir
+                                </button>
                             </div>
                         </div>
 
-                        {/* Datos bancarios comprimidos */}
-                        <div className="bg-slate-50 rounded-2xl p-6 mb-8 text-[0.9rem] border border-brand-border space-y-4 relative group overflow-hidden">
-                            <p className="font-black text-brand-text flex items-center gap-2">
-                                <span className="p-1 bg-brand-text text-white rounded-md uppercase text-[0.6rem] tracking-widest">Pago</span> Datos de Transferencia
-                            </p>
-                            <div className="grid grid-cols-2 gap-y-2 gap-x-4 border-b border-brand-border/50 pb-4">
-                                <div><p className="text-[0.7rem] font-bold text-brand-text-muted uppercase">Banco</p><p className="font-bold">Mercado Pago</p></div>
-                                <div><p className="text-[0.7rem] font-bold text-brand-text-muted uppercase">Tipo Cuenta</p><p className="font-bold">Vista</p></div>
-                                <div className="col-span-2"><p className="text-[0.7rem] font-bold text-brand-text-muted uppercase">Nº Cuenta</p><p className="font-bold text-lg select-all">1098081647</p></div>
-                                <div className="col-span-2"><p className="text-[0.7rem] font-bold text-brand-text-muted uppercase">Nombre y RUT</p><p className="font-bold">Felipe Ramírez (15.332.189-2)</p></div>
-                            </div>
-                            <button 
-                                onClick={() => {
-                                    const text = `Banco: Mercado Pago\nCuenta Vista: 1098081647\nNombre: Felipe Ramírez\nRUT: 15.332.189-2\nE-mail: contacto@cocktailsontap.cl`;
-                                    navigator.clipboard.writeText(text);
-                                }}
-                                className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-brand-border rounded-xl text-[0.8rem] font-bold text-brand-text hover:border-primary hover:text-primary transition-all active:scale-95 shadow-sm"
-                            >
-                                <Copy className="w-4 h-4" /> Copiar Datos para Transferir
-                            </button>
-                        </div>
+                        {/* Footer Fijo con Botones */}
+                        <div className="p-6 sm:px-10 sm:py-6 pb-8 border-t border-brand-border/50 shrink-0 bg-slate-50/30">
+                            {confirmError && (
+                                <div className="flex items-center gap-3 bg-red-50 border-2 border-red-100 text-red-700 rounded-2xl p-4 mb-6 text-[0.9rem] font-bold animate-shake">
+                                    <AlertCircle className="w-5 h-5 shrink-0" />{confirmError}
+                                </div>
+                            )}
 
-                        {confirmError && (
-                            <div className="flex items-center gap-3 bg-red-50 border-2 border-red-100 text-red-700 rounded-2xl p-4 mb-6 text-[0.9rem] font-bold animate-shake">
-                                <AlertCircle className="w-5 h-5 shrink-0" />{confirmError}
+                            <div className="flex flex-col sm:flex-row gap-4">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowConfirmModal(false)}
+                                    className="order-2 sm:order-1 flex-1 py-4 rounded-2xl border-2 border-brand-border text-brand-text-muted font-bold hover:bg-slate-50 transition-all active:scale-95"
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={handleConfirm}
+                                    disabled={isConfirming || !canConfirm || !acceptedTerms}
+                                    className="order-1 sm:order-2 flex-[2] py-4 rounded-2xl bg-primary text-white font-black text-[1.1rem] hover:bg-primary-dark transition-all disabled:opacity-50 disabled:grayscale flex items-center justify-center gap-2 shadow-lg active:scale-95"
+                                >
+                                    {isConfirming ? <><Loader2 className="w-5 h-5 animate-spin" /> Procesando...</> : '🚀 Confirmar Ahora'}
+                                </button>
                             </div>
-                        )}
-
-                        <div className="flex flex-col sm:flex-row gap-4">
-                            <button
-                                type="button"
-                                onClick={() => setShowConfirmModal(false)}
-                                className="order-2 sm:order-1 flex-1 py-4 rounded-2xl border-2 border-brand-border text-brand-text-muted font-bold hover:bg-slate-50 transition-all active:scale-95"
-                            >
-                                Cancelar
-                            </button>
-                            <button
-                                type="button"
-                                onClick={handleConfirm}
-                                disabled={isConfirming || !canConfirm || !acceptedTerms}
-                                className="order-1 sm:order-2 flex-[2] py-4 rounded-2xl bg-primary text-white font-black text-[1.1rem] hover:bg-primary-dark transition-all disabled:opacity-50 disabled:grayscale flex items-center justify-center gap-2 shadow-lg active:scale-95"
-                            >
-                                {isConfirming ? <><Loader2 className="w-5 h-5 animate-spin" /> Procesando...</> : '🚀 Confirmar Ahora'}
-                            </button>
                         </div>
                     </div>
                 </div>
