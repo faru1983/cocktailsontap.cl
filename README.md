@@ -9,6 +9,7 @@ El proyecto está construido con un enfoque en **arquitectura limpia, seguridad 
 [![Tailwind CSS](https://img.shields.io/badge/Styling-Tailwind%20CSS-38B2AC?style=flat&logo=tailwind-css)](https://tailwindcss.com/)
 [![Supabase](https://img.shields.io/badge/Database-Supabase-3ECF8E?style=flat&logo=supabase)](https://supabase.com/)
 [![Resend](https://img.shields.io/badge/Emails-Resend-000000?style=flat&logo=resend)](https://resend.com/)
+[![Zod](https://img.shields.io/badge/Validation-Zod-3068b7?style=flat&logo=zod)](https://zod.dev/)
 
 ---
 
@@ -27,9 +28,9 @@ El proyecto está construido con un enfoque en **arquitectura limpia, seguridad 
 - **Base de Datos Robusta:** Supabase gestiona productos, categorías, comunas y el historial de cotizaciones con alta integridad.
 
 ### 🛡️ Seguridad y Robustez
-- **Tokens de Acceso Únicos:** Cada cotización genera un token seguro para acceso permanente y edición.
-- **Protección de Datos:** Implementación de variables de entorno seguras para APIs críticas.
-- **Service Role Integration:** Uso de claves administrativas seguras para operaciones críticas de base de datos desde el servidor.
+- **Validación con Zod**: Esquemas estrictos para todas las entradas de datos en Server Actions, garantizando integridad y protegiendo contra inyecciones de datos corruptos.
+- **Seguridad Senior (Server-Side Recalculate)**: Los totales y costos no se aceptan directamente del cliente; el servidor recalcula todo basándose en la base de datos durante la confirmación.
+- **Naive DateTime Sync**: Sistema de sincronización horaria custom para Make.com que evita discrepancias entre el servidor (UTC) y Chile (GMT-3/-4) al calendarizar eventos.
 
 ---
 
@@ -41,7 +42,8 @@ El proyecto está construido con un enfoque en **arquitectura limpia, seguridad 
 - **Emails:** [Resend](https://resend.com/).
 - **Automatización:** [Make.com](https://make.com/) (Webhooks & Google Calendar).
 - **Iconografía:** [Lucide React](https://lucide.dev/).
-- **Validación:** [TypeScript](https://www.typescriptlang.org/).
+- **Validación:** [Zod](https://zod.dev/) & [TypeScript](https://www.typescriptlang.org/).
+- **Configuración Centralizada:** Custom `lib/config.ts` system.
 
 ---
 

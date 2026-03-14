@@ -24,6 +24,7 @@ export interface QuoteSummaryData {
     dispenserLabel: string;
     totalPrice: number;
     guests: number;
+    canHaveMuro: boolean;
 }
 
 interface Props {
@@ -31,9 +32,16 @@ interface Props {
     isEditable?: boolean;
     onUpdateQuantity?: (id: string, size: string, delta: number) => void;
     onAddProductsClick?: () => void;
+    onToggleDispenser?: () => void;
 }
 
-export default function QuoteSummaryProducts({ data, isEditable = false, onUpdateQuantity, onAddProductsClick }: Props) {
+export default function QuoteSummaryProducts({ data, isEditable = false, onUpdateQuantity, onAddProductsClick, onToggleDispenser }: Props) {
+    const isMuro = data.dispenserLabel.toLowerCase().includes('muro');
+    
+    // Solo permitimos el toggle si es editable, hay una función de toggle y 
+    // actualmente es muro O cumple los requisitos para ser muro.
+    const canToggle = isEditable && onToggleDispenser && (isMuro || data.canHaveMuro);
+
     return (
         <div className="bg-white rounded-[20px] p-8 shadow-[0_4px_20px_rgba(0,0,0,0.07)] border border-brand-border mb-6">
             {/* Products */}
@@ -170,9 +178,24 @@ export default function QuoteSummaryProducts({ data, isEditable = false, onUpdat
                         <span className={`font-bold ${data.shippingCost === 0 ? 'text-primary' : 'text-brand-text'}`}>{data.shippingLabel}</span>
                     </div>
                 )}
-                <div className="flex justify-between py-1 text-[0.95rem] font-medium text-brand-text-muted">
-                    <span>{data.dispenserLabel}</span>
-                    <span className={`font-bold ${data.installationCost === 0 ? 'text-primary' : 'text-brand-text'}`}>
+                <div 
+                    className={`flex justify-between py-2 px-3 -mx-3 rounded-xl transition-all ${
+                        canToggle 
+                        ? 'cursor-pointer hover:bg-primary/5 active:scale-[0.98] border border-transparent hover:border-primary/20' 
+                        : 'text-brand-text-muted font-medium'
+                    }`}
+                    onClick={() => canToggle && onToggleDispenser?.()}
+                    title={canToggle ? 'Click para cambiar tipo de dispensador' : ''}
+                >
+                    <div className="flex flex-col">
+                        <span className={`text-[0.95rem] ${canToggle ? 'font-black text-brand-text' : ''}`}>{data.dispenserLabel}</span>
+                        {canToggle && (
+                            <span className="text-[0.6rem] text-primary font-bold uppercase tracking-wider">
+                                Click para cambiar a {isMuro ? 'Dispensador Portátil' : 'Muro de Coctelería'}
+                            </span>
+                        )}
+                    </div>
+                    <span className={`text-[0.95rem] font-bold ${data.installationCost === 0 ? 'text-primary' : 'text-brand-text'}`}>
                         {data.installationCost === 0 ? '¡Gratis!' : formatCurrency(data.installationCost)}
                     </span>
                 </div>

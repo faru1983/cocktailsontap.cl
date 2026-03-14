@@ -3,13 +3,10 @@
 import { createServerClient } from '@/lib/supabaseServer';
 import { Resend } from 'resend';
 import { buildQuoteCreatedClientEmail, buildAdminNotificationEmail } from '@/lib/emails';
-import type { WizardState, WizardSelection, Quote, QuoteItem } from '@/lib/types';
-import type { CocktailForWizard, Comuna } from '@/lib/types';
+import { CreateQuoteSchema } from '@/lib/types';
+import type { WizardState, Quote, QuoteItem, CocktailForWizard, Comuna } from '@/lib/types';
 import { calculateSummaryData } from '@/lib/wizardLogic';
-import { SITE_URL } from '@/lib/config';
-
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? 'contacto@cocktailsontap.cl';
-const FROM_EMAIL = 'Cocktails on Tap <contacto@cocktailsontap.cl>';
+import { ADMIN_EMAIL, FROM_EMAIL } from '@/lib/config';
 
 interface CreateQuoteInput {
     state: WizardState;
@@ -24,13 +21,20 @@ interface CreateQuoteResult {
 }
 
 export async function createQuote(input: CreateQuoteInput): Promise<CreateQuoteResult> {
-    const { state, cocktails, comunas } = input;
-
     try {
+        // ─── 1. Validación de Esquema ─────────────────────────────────────────
+        const validation = CreateQuoteSchema.safeParse(input);
+        if (!validation.success) {
+            const errorMsg = validation.error.issues.map(i => `${i.path.join('.')}: ${i.message}`).join(', ');
+            console.error('Validation Error Details:', errorMsg);
+            return { success: false, error: `Datos de cotización inválidos (${errorMsg}).` };
+        }
+
+        const { state, cocktails, comunas } = input;
         const db = createServerClient();
         const data = calculateSummaryData(state, cocktails, comunas);
 
-        // ─── 0. Upsert Cliente (CRM) ──────────────────────────────────────────
+        // ─── 2. Upsert Cliente (CRM) ──────────────────────────────────────────
         let clientId: string | null = null;
         const emailTrimmed = state.contact.email.trim().toLowerCase();
 
@@ -40,7 +44,7 @@ export async function createQuote(input: CreateQuoteInput): Promise<CreateQuoteR
                 .upsert({
                     email: emailTrimmed,
                     first_name: state.contact.firstName.trim(),
-                    last_name: state.contact.lastName.trim() || null,
+                    last_name: state.contact.lastName?.trim() || null,
                     phone: state.contact.phone.trim() || null,
                 }, { onConflict: 'email' })
                 .select('id')
@@ -53,18 +57,18 @@ export async function createQuote(input: CreateQuoteInput): Promise<CreateQuoteR
             }
         }
 
-        // ─── 1. Insertar la cotización ─────────────────────────────────────────
+        // ─── 3. Insertar la cotización ─────────────────────────────────────────
         const { data: quote, error: quoteError } = await db
             .from('quotes')
             .insert({
                 status: 'draft',
-                client_id: clientId, // Vincular al cliente
+                client_id: clientId,
                 client_name: state.contact.firstName.trim(),
-                client_lastname: state.contact.lastName.trim() || null,
+                client_lastname: state.contact.lastName?.trim() || null,
                 client_email: emailTrimmed || null,
                 client_phone: state.contact.phone.trim() || null,
                 client_address: state.contact.address.trim() || null,
-                comments: state.contact.comments.trim() || null,
+                comments: state.contact.comments?.trim() || null,
 
                 event_type_id: state.eventData.type === 'Otro' ? null : state.eventData.type || null,
                 event_type_other: state.eventData.type === 'Otro' ? state.eventData.otherType : null,
@@ -95,10 +99,10 @@ export async function createQuote(input: CreateQuoteInput): Promise<CreateQuoteR
             return { success: false, error: 'No se pudo guardar la cotización. Intenta nuevamente.' };
         }
 
-        // ─── 2. Insertar los items con precios congelados ─────────────────────
+        // ─── 4. Insertar los items con precios congelados ─────────────────────
         const cocktailsById = new Map(cocktails.map((c) => [c.id, c]));
 
-        const items = state.selections.map((sel: WizardSelection) => {
+        const items = state.selections.map((sel) => {
             const cocktail = cocktailsById.get(sel.id);
             const priceData = cocktail?.prices[sel.size] ?? { price: 0, offerPrice: 0 };
             return {
@@ -116,17 +120,16 @@ export async function createQuote(input: CreateQuoteInput): Promise<CreateQuoteR
             const { error: itemsError } = await db.from('quote_items').insert(items);
             if (itemsError) {
                 console.error('Error insertando items:', itemsError);
-                // No bloqueamos el flujo, la cotización ya fue creada
             }
         }
 
-        // ─── 3. Enviar emails (si Resend está configurado) ────────────────────
+        // ─── 5. Enviar emails ─────────────────────────────────────────────────
         const resendKey = process.env.RESEND_API_KEY;
         if (resendKey && state.contact.email) {
             try {
                 const resend = new Resend(resendKey);
 
-                // Reconstruir quote completo para los emails
+                // Reconstruir objeto quote para plantillas
                 const fullQuote: Quote & { quote_items: QuoteItem[] } = {
                     id: quote.id,
                     token: quote.token,
@@ -140,7 +143,7 @@ export async function createQuote(input: CreateQuoteInput): Promise<CreateQuoteR
                     client_address: state.contact.address || null,
                     comments: state.contact.comments || null,
                     event_type_id: state.eventData.type === 'Otro' ? null : state.eventData.type || null,
-                    event_type_other: state.eventData.type === 'Otro' ? state.eventData.otherType : null,
+                    event_type_other: state.eventData.type === 'Otro' ? (state.eventData.otherType || null) : null,
                     event_date: state.eventData.date,
                     start_time: state.eventData.startTime || null,
                     pickup_date: state.eventData.pickupDate || null,
@@ -188,13 +191,12 @@ export async function createQuote(input: CreateQuoteInput): Promise<CreateQuoteR
                 ]);
             } catch (emailErr) {
                 console.error('Error enviando emails:', emailErr);
-                // No bloqueamos el flujo por fallo de email
             }
         }
 
         return { success: true, token: quote.token };
     } catch (err) {
         console.error('Error inesperado en createQuote:', err);
-        return { success: false, error: 'Error inesperado. Por favor intenta nuevamente.' };
+        return { success: false, error: 'Error inesperado. Intenta nuevamente.' };
     }
 }

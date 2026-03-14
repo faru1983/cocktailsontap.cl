@@ -1,34 +1,39 @@
 /**
- * Script para enviar datos de prueba a Make con la nueva estructura de retiro.
- * Úsalo para que Make "redetermine" la estructura de datos.
+ * Script para enviar datos de prueba a Make con fechas dinámicas.
+ * Úsalo para que Make "redetermine" la estructura de datos con información real del momento.
  */
 async function triggerMake() {
-    const MAKE_WEBHOOK_URL = process.env.MAKE_WEBHOOK_CALENDAR_URL;
+    // URL directamente del .env para este test manual
+    const MAKE_WEBHOOK_URL = "https://hook.us2.make.com/yj983lq9x7byk3p3souc2vgcwye2a3s7";
 
-    if (!MAKE_WEBHOOK_URL) {
-        console.error('❌ Error: La variable de entorno MAKE_WEBHOOK_CALENDAR_URL no está definida.');
-        process.exit(1);
-    }
-
-    const payload = {
-        title: "Cócteles - Juan Pérez 50px",
-        customerName: "Juan",
-        customerLastname: "Pérez",
-        phone: "+56912345678",
-        description: "Nombre: Juan Pérez\nEvento: Cumpleaños (50 pers.)\nRetiro: 16 de Agosto (14:00 a 16:00hrs)\nTotal: $250.000",
-        start_date: "2026-08-15T19:00:00",
-        end_date: "2026-08-15T19:00:00",
-        location: "Av. Providencia 1234, Providencia",
-        guests_email: "juan.perez@ejemplo.com",
-        guests: 50,
-        // --- Campos Nuevos para el Retiro ---
-        pickup_is_all_day: false,
-        pickup_start: "2026-08-16T14:00:00",
-        pickup_end: "2026-08-16T16:00:00",
-        pickup_title: "Retiro - Juan Pérez"
+    // Helper para formatear fechas ISO locales (sin desfase UTC)
+    const formatLiteral = (d) => {
+        const pad = (n) => String(n).padStart(2, '0');
+        return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
     };
 
-    console.log('🚀 Enviando datos de prueba a Make...');
+    const now = new Date();
+    const tomorrow = new Date();
+    tomorrow.setDate(now.getDate() + 1);
+
+    const payload = {
+        title: `Cócteles - Prueba Dinámica ${now.getHours()}:${now.getMinutes()}`,
+        customerName: "Prueba",
+        customerLastname: "Dinámica",
+        customerEmail: "soporte@cocktailsontap.cl",
+        phone: "+56912345678",
+        description: "Enviado desde script de test con fechas dinámicas",
+        start_date: formatLiteral(now),
+        end_date: formatLiteral(now),
+        location: "Calle Prueba 123, Santiago",
+        guests: 40,
+        pickup_is_all_day: true,
+        pickup_start: formatLiteral(tomorrow).split('T')[0] + "T00:00:00",
+        pickup_end: formatLiteral(tomorrow).split('T')[0] + "T23:59:59",
+        pickup_title: "Retiro - Prueba Dinámica"
+    };
+
+    console.log(`🚀 Enviando datos de prueba a Make (${formatLiteral(now)})...`);
     
     try {
         const response = await fetch(MAKE_WEBHOOK_URL, {
@@ -38,8 +43,9 @@ async function triggerMake() {
         });
 
         if (response.ok) {
-            console.log('✅ ¡Éxito! Make recibió los datos.');
-            console.log('💡 Ahora puedes mapear pickup_start, pickup_end y pickup_is_all_day en tu escenario.');
+            console.log('✅ ¡Éxito! Make recibió los datos actualizados.');
+            console.log(`📅 Evento: ${payload.start_date}`);
+            console.log(`🚚 Retiro: ${payload.pickup_start}`);
         } else {
             console.error('❌ Error en Make:', response.status, response.statusText);
         }

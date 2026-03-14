@@ -1,9 +1,11 @@
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { formatCurrency, formatPhoneNumber } from '@/lib/utils';
 import { formatEventDate, calculateMaxPickupDate, getTodayString } from '@/lib/wizardLogic';
 import { confirmQuote } from '@/app/actions/confirmQuote';
+import { MURO_INSTALLATION_COST } from '@/lib/config';
 import {
     CheckCircle, Clock, XCircle, AlertCircle, ShoppingCart,
     Calendar, Users, MapPin, User, Mail, Phone, MessageSquare, Loader2, Lock,
@@ -30,6 +32,7 @@ const STATUS_CONFIG = {
 };
 
 export default function QuoteView({ quote, comunas, availableCocktails, categories, eventTypes }: Props) {
+    const router = useRouter();
     const [showConfirmModal, setShowConfirmModal] = useState(false);
     const [showCatalog, setShowCatalog] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
@@ -47,7 +50,7 @@ export default function QuoteView({ quote, comunas, availableCocktails, categori
     const [comuna, setComuna] = useState(quote.comuna_name ?? '');
     const [comunaOther, setComunaOther] = useState(quote.comuna_other ?? '');
     const [guests, setGuests] = useState(quote.guests);
-    const [eventType, setEventType] = useState(quote.event_type_id ?? '');
+    const [eventType, setEventType] = useState(quote.event_type_id ?? (quote.event_type_other ? 'Otro' : ''));
     const [otherType, setOtherType] = useState(quote.event_type_other ?? '');
     const [items, setItems] = useState<QuoteItem[]>(quote.quote_items);
     const [dispenser, setDispenser] = useState<'portatil' | 'muro'>(quote.dispenser || 'portatil');
@@ -55,6 +58,7 @@ export default function QuoteView({ quote, comunas, availableCocktails, categori
     const [isConfirming, setIsConfirming] = useState(false);
     const [confirmError, setConfirmError] = useState('');
     const [confirmed, setConfirmed] = useState(quote.status === 'confirmed');
+    const [showSuccessScreen, setShowSuccessScreen] = useState(false);
     const [acceptedTerms, setAcceptedTerms] = useState(false);
 
     const statusCfg = STATUS_CONFIG[quote.status] ?? STATUS_CONFIG.draft;
@@ -110,7 +114,7 @@ export default function QuoteView({ quote, comunas, availableCocktails, categori
             shipping = selectedComuna.cost || 0;
         }
 
-        const installationCost = dispenser === 'muro' ? 50000 : 0;
+        const installationCost = dispenser === 'muro' ? MURO_INSTALLATION_COST : 0;
         const totalFinal = totalOffer + shipping + installationCost;
         const totalDiscount = totalNormal - totalOffer;
 
@@ -177,9 +181,10 @@ export default function QuoteView({ quote, comunas, availableCocktails, categori
             installationCost: totals.installationCost,
             dispenserLabel: dispenser === 'muro' ? 'Muro de Coctelería' : 'Dispensador Portátil',
             totalPrice: totals.totalFinal,
-            guests: guests
+            guests: guests,
+            canHaveMuro: canHaveMuro
         };
-    }, [items, totals, guests, dispenser]);
+    }, [items, totals, guests, dispenser, canHaveMuro]);
 
     const reservationData: QuoteSummaryReservationData = useMemo(() => {
         const fullName = `${quote.client_name}${quote.client_lastname ? ' ' + quote.client_lastname : ''}`;
@@ -297,6 +302,7 @@ export default function QuoteView({ quote, comunas, availableCocktails, categori
         setIsConfirming(false);
         if (result.success) {
             setConfirmed(true);
+            setShowSuccessScreen(true);
             setShowConfirmModal(false);
             setAcceptedTerms(false);
             window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -315,7 +321,7 @@ export default function QuoteView({ quote, comunas, availableCocktails, categori
 
     // ─── Pantalla de éxito post-confirmación ──────────────────────────────────
 
-    if (confirmed && quote.status !== 'confirmed') {
+    if (showSuccessScreen) {
         return (
             <div className="text-center py-16">
                 <div className="inline-flex items-center justify-center w-20 h-20 bg-green-100 rounded-full mb-6 text-green-600">
@@ -348,21 +354,39 @@ export default function QuoteView({ quote, comunas, availableCocktails, categori
                     <p className="text-[0.8rem] text-green-700 mt-4 text-center italic opacity-80 underline underline-offset-4 decoration-green-300">El 50% restante se paga el día del montaje.</p>
                 </div>
 
-                <div className="mt-12 flex flex-col sm:flex-row items-center justify-center gap-6">
-                    <button 
-                        onClick={() => setConfirmed(false)}
-                        className="inline-flex items-center gap-2 text-brand-text font-black text-sm border-b-2 border-brand-border hover:border-primary transition-all pb-1 px-2"
-                    >
-                        <ExternalLink className="w-4 h-4" /> Ver detalles de la reserva
-                    </button>
-                    <button 
-                        onClick={() => {
-                            navigator.clipboard.writeText(window.location.href);
-                        }}
-                        className="inline-flex items-center gap-2 text-brand-text-muted font-bold text-sm hover:text-primary transition-all"
-                    >
-                        <Copy className="w-4 h-4" /> Copiar enlace de comprobante
-                    </button>
+                {/* Link Card de Seguimiento */}
+                <div className="mt-12 max-w-lg mx-auto bg-slate-50 border border-brand-border rounded-3xl p-6 relative group text-left shadow-sm">
+                    <p className="text-[0.65rem] font-black text-brand-text-muted uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
+                        <Copy className="w-3 h-3" /> Tu Comprobante Digital
+                    </p>
+                    <div className="flex flex-col gap-3">
+                        <div className="flex-1 bg-white border border-brand-border rounded-xl px-4 py-3 text-[0.85rem] font-bold text-brand-text overflow-hidden text-ellipsis whitespace-nowrap shadow-inner">
+                            {typeof window !== 'undefined' ? window.location.href : ''}
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <button 
+                                onClick={() => {
+                                    navigator.clipboard.writeText(window.location.href);
+                                }}
+                                className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-3.5 rounded-xl bg-white border-2 border-brand-border text-brand-text font-black text-[0.85rem] hover:border-primary hover:text-primary transition-all active:scale-95"
+                            >
+                                <Copy className="w-4 h-4" /> Copiar
+                            </button>
+                            <button 
+                                onClick={() => {
+                                    setShowSuccessScreen(false);
+                                    setConfirmed(false);
+                                    router.refresh();
+                                }}
+                                className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-3.5 rounded-xl bg-primary text-white font-black text-[0.85rem] hover:bg-primary-dark transition-all active:scale-95 shadow-md"
+                            >
+                                <ExternalLink className="w-4 h-4" /> Ver Reserva
+                            </button>
+                        </div>
+                    </div>
+                    <p className="text-[0.7rem] text-brand-text-muted mt-4 italic font-medium">
+                        Guarda este enlace para acceder a tu comprobante en cualquier momento.
+                    </p>
                 </div>
             </div>
         );
@@ -432,6 +456,7 @@ export default function QuoteView({ quote, comunas, availableCocktails, categori
                 isEditable={isDraft}
                 onUpdateQuantity={onSummaryUpdateQuantity}
                 onAddProductsClick={() => setShowCatalog(true)}
+                onToggleDispenser={() => setDispenser(prev => prev === 'muro' ? 'portatil' : 'muro')}
             />
 
             {/* Datos de contacto y Dirección */}

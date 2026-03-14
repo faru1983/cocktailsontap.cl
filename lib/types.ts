@@ -1,3 +1,5 @@
+import { z } from 'zod';
+
 export interface SupabaseProduct {
     id: string;
     name: string;
@@ -170,3 +172,67 @@ export interface Quote {
     client_id?: string | null;
     quote_items?: QuoteItem[];
 }
+
+// ─── Esquemas de Validación (Zod) ─────────────────────────────────────────────
+
+export const CreateQuoteSchema = z.object({
+    state: z.object({
+        contact: z.object({
+            firstName: z.string().min(2, 'Nombre muy corto'),
+            lastName: z.string().min(2, 'Apellido muy corto'),
+            email: z.string().email('Email inválido'),
+            phone: z.string().nullable().optional().or(z.literal('')),
+            address: z.string().nullable().optional().or(z.literal('')),
+            comuna: z.string().min(1, 'Selecciona una comuna'),
+            otherComuna: z.string().nullable().optional().or(z.literal('')),
+            comments: z.string().nullable().optional().or(z.literal('')),
+        }),
+        eventData: z.object({
+            type: z.string(),
+            otherType: z.string().nullable().optional().or(z.literal('')),
+            date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Fecha inválida'),
+            startTime: z.string().nullable().optional().or(z.literal('')),
+            pickupDate: z.string().nullable().optional().or(z.literal('')),
+            pickupTime: z.string().nullable().optional().or(z.literal('')),
+        }),
+        consumption: z.object({
+            guests: z.number().min(1),
+            drinksPerPerson: z.number(),
+        }),
+        selections: z.array(z.object({
+            id: z.string(),
+            size: z.string(),
+            quantity: z.number().min(1),
+        })).min(1, 'Selecciona al menos un producto'),
+        dispenser: z.enum(['portatil', 'muro']),
+    }).passthrough(),
+    cocktails: z.array(z.any()).optional(),
+    comunas: z.array(z.any()).optional(),
+});
+
+export const ConfirmQuoteSchema = z.object({
+    token: z.string(),
+    client_phone: z.string().min(8, 'Teléfono inválido'),
+    client_lastname: z.string().nullable().optional(),
+    client_address: z.string().min(5, 'Dirección inválida'),
+    comuna_name: z.string().min(1, 'Comuna es obligatoria'),
+    comuna_other: z.string().nullable().optional(),
+    guests: z.number().min(10, 'Mínimo 10 invitados'),
+    event_type_id: z.string(),
+    event_type_other: z.string().nullable().optional(),
+    event_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Fecha inválida'),
+    start_time: z.string().min(4, 'Hora de inicio inválida'),
+    pickup_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Fecha de retiro inválida'),
+    pickup_time: z.string().nullable().optional(),
+    comments: z.string().nullable().optional(),
+    dispenser: z.enum(['portatil', 'muro']),
+    items: z.array(z.object({
+        id: z.string().optional(),
+        product_id: z.string().nullable(),
+        product_name: z.string(),
+        size: z.string(),
+        quantity: z.number().min(1),
+        price_at_time: z.number(),
+        offer_price_at_time: z.number(),
+    })).min(1, 'Debe haber al menos un producto'),
+});

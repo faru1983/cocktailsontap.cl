@@ -3,141 +3,101 @@
 import { createServerClient } from '@/lib/supabaseServer';
 import { Resend } from 'resend';
 import { buildQuoteConfirmedEmail, buildAdminConfirmationNotificationEmail } from '@/lib/emails';
+import { revalidatePath } from 'next/cache';
+import { ConfirmQuoteSchema } from '@/lib/types';
 import type { Quote, QuoteItem } from '@/lib/types';
-import { getSizeLiters } from '@/lib/wizardLogic';
-import { SITE_URL, MURO_INSTALLATION_COST, MURO_COMPATIBLE_SIZES, MURO_MIN_LITERS } from '@/lib/config';
+import { getSizeLiters, formatEventDate } from '@/lib/wizardLogic';
+import { 
+    SITE_URL, 
+    ADMIN_EMAIL, 
+    FROM_EMAIL, 
+    MURO_INSTALLATION_COST, 
+    MURO_COMPATIBLE_SIZES, 
+    MURO_MIN_LITERS 
+} from '@/lib/config';
 
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? 'contacto@cocktailsontap.cl';
-const FROM_EMAIL = 'Cocktails on Tap <contacto@cocktailsontap.cl>';
+/**
+ * URL del Webhook de Make.com para la sincronización con Google Calendar.
+ */
 const MAKE_WEBHOOK_URL = process.env.MAKE_WEBHOOK_CALENDAR_URL;
-
-interface ConfirmQuoteInput {
-    token: string;
-    client_phone?: string;
-    client_lastname?: string | null;
-    client_address?: string;
-    comuna_name?: string;
-    comuna_other?: string | null;
-    guests?: number;
-    event_type_id?: string;
-    event_type_other?: string | null;
-    items?: QuoteItem[];
-    event_date?: string;
-    start_time?: string;
-    pickup_date?: string | null;
-    pickup_time?: string | null;
-    comments?: string | null;
-    dispenser?: 'portatil' | 'muro';
-    installation_cost?: number;
-}
 
 interface ConfirmQuoteResult {
     success: boolean;
     error?: string;
 }
 
-export async function confirmQuote(input: ConfirmQuoteInput): Promise<ConfirmQuoteResult> {
-    const {
-        token,
-        client_phone,
-        client_lastname,
-        client_address,
-        comuna_name,
-        comuna_other,
-        guests,
-        event_type_id,
-        event_type_other,
-        items: updatedItems,
-        event_date,
-        start_time,
-        pickup_date,
-        pickup_time,
-        comments,
-        dispenser,
-        installation_cost
-    } = input;
-
+/**
+ * Acción de servidor para confirmar una cotización draft.
+ * Realiza validaciones de seguridad, recalcula totales en el servidor,
+ * actualiza los datos del cliente, dispara correos y notifica a Make.com.
+ */
+export async function confirmQuote(input: any): Promise<ConfirmQuoteResult> {
     try {
+        // ─── 1. VALIDACIÓN DE ESQUEMA (Zod) ───────────────────────────────────
+        // Asegura que los datos recibidos del cliente tengan el formato y tipos correctos.
+        const validation = ConfirmQuoteSchema.safeParse(input);
+        if (!validation.success) {
+            console.error('Validation Error:', validation.error.format());
+            return { success: false, error: 'Datos de confirmación incompletos o inválidos.' };
+        }
+
+        const data = validation.data;
         const db = createServerClient();
 
-        // ─── 1. Cargar la cotización con sus items ────────────────────────────
+        // ─── 2. CARGA DE COTIZACIÓN ───────────────────────────────────────────
         const { data: quote, error: fetchError } = await db
             .from('quotes')
             .select('*, quote_items(*)')
-            .eq('token', token)
+            .eq('token', data.token)
             .single();
 
         if (fetchError || !quote) {
             return { success: false, error: 'Cotización no encontrada.' };
         }
 
+        // Solo se pueden confirmar cotizaciones en estado 'draft'.
         if (quote.status !== 'draft') {
-            return { success: false, error: `Esta cotización ya está en estado "${quote.status}" y no se puede confirmar.` };
+            return { success: false, error: `Esta cotización ya está "${quote.status}".` };
         }
 
-        // ─── 2. Validar campos requeridos ─────────────────────────────────────
-        const finalPhone = client_phone?.trim() || quote.client_phone;
-        const finalAddress = client_address?.trim() || quote.client_address;
-        const finalEventDate = event_date || quote.event_date;
-        const finalComunaName = comuna_name || quote.comuna_name;
-        const finalComunaOther = comuna_other !== undefined ? comuna_other : quote.comuna_other;
-        const finalGuests = guests !== undefined ? guests : quote.guests;
-
-        const finalStartTime = start_time || quote.start_time;
-        const finalPickupDate = pickup_date || quote.pickup_date;
-        const finalPickupTime = pickup_time || quote.pickup_time;
-
-        const isSameDayPickup = finalPickupDate === finalEventDate;
-
-        if (!finalPhone || !finalAddress || !finalEventDate || !finalComunaName || !finalGuests || !finalStartTime || !finalPickupDate || (!isSameDayPickup && !finalPickupTime)) {
-            return { success: false, error: 'Por favor completa todos los campos (Teléfono, Dirección, Comuna, Fecha, Invitados, Horarios y Retiro).' };
-        }
-
-        if (!updatedItems || updatedItems.length === 0) {
-            return { success: false, error: 'La cotización debe tener al menos un producto.' };
-        }
-
-        // ─── 3. Procesar cambios en items y recalcular totales ────────────────
+        // ─── 3. RECALCULO DE SEGURIDAD (Server-Side) ──────────────────────────
+        // No confiamos en los totales enviados por el cliente. Recalculamos todo aquí.
         let totalNormalPrice = 0;
         let totalOfferPrice = 0;
         let totalLiters = 0;
 
-        for (const item of updatedItems) {
+        for (const item of data.items) {
             totalNormalPrice += item.price_at_time * item.quantity;
             totalOfferPrice += item.offer_price_at_time * item.quantity;
             totalLiters += getSizeLiters(item.size) * item.quantity;
         }
 
-        // Recalcular envío basado en la comuna (usando la nueva si existe)
+        // Recalcular costo de envío basado en la comuna oficial de la DB.
         let finalShippingCost = quote.shipping_cost;
-        const { data: comuna } = await db.from('comunas').select().eq('name', finalComunaName).single();
-        if (comuna && comuna.free_from !== null) {
-            if (totalLiters >= comuna.free_from) {
-                finalShippingCost = 0;
-            } else {
-                finalShippingCost = comuna.cost || 0;
-            }
+        const { data: comunaData } = await db.from('comunas').select().eq('name', data.comuna_name).single();
+        if (comunaData && comunaData.free_from !== null) {
+            finalShippingCost = (totalLiters >= comunaData.free_from) ? 0 : (comunaData.cost || 0);
         }
 
-        // Recalcular installation_cost en el servidor según el tipo de dispensador y litros totales
-        const hasIncompatibleSize = (updatedItems || []).some(i => !MURO_COMPATIBLE_SIZES.includes(getSizeLiters(i.size)));
+        // Recalcular instalación del Muro (solo si es compatible y tiene los litros mínimos).
+        const hasIncompatibleSize = data.items.some(i => !MURO_COMPATIBLE_SIZES.includes(getSizeLiters(i.size)));
         const canHaveMuro = !hasIncompatibleSize && totalLiters >= MURO_MIN_LITERS;
-        const finalDispenser = dispenser || quote.dispenser;
-        const finalInstallationCost = (finalDispenser === 'muro' && canHaveMuro) ? MURO_INSTALLATION_COST : 0;
-        const finalPrice = totalOfferPrice + finalShippingCost + finalInstallationCost;
+        const finalInstallationCost = (data.dispenser === 'muro' && canHaveMuro) ? MURO_INSTALLATION_COST : 0;
+        const finalTotalPrice = totalOfferPrice + finalShippingCost + finalInstallationCost;
 
-        // ─── 4. Sincronizar items en la base de datos ────────────────────────
-        // a) Eliminar items que ya no están
-        const currentIds = updatedItems.filter(i => !i.id?.includes('temp-')).map(i => i.id);
+        // ─── 4. PERSISTENCIA EN BASE DE DATOS ────────────────────────────────
+        
+        // a) Sincronizar Cotización Items:
+        // Borramos los que el cliente eliminó y actualizamos/insertamos los nuevos.
+        const updatedItemIds = data.items.filter(i => i.id && !i.id.includes('temp-')).map(i => i.id);
         await db.from('quote_items')
             .delete()
             .eq('quote_id', quote.id)
-            .not('id', 'in', `(${currentIds.join(',') || 'NULL'})`);
+            .not('id', 'in', `(${updatedItemIds.join(',') || 'NULL'})`);
 
-        // b) Actualizar existentes e insertar nuevos
-        for (const item of updatedItems) {
-            if (item.id?.includes('temp-')) {
-                // Nuevo item
+        for (const item of data.items) {
+            if (!item.id || item.id.includes('temp-')) {
+                // Nuevo item agregado durante la revisión del draft.
                 await db.from('quote_items').insert({
                     quote_id: quote.id,
                     product_id: item.product_id,
@@ -148,214 +108,170 @@ export async function confirmQuote(input: ConfirmQuoteInput): Promise<ConfirmQuo
                     offer_price_at_time: item.offer_price_at_time
                 });
             } else {
-                // Actualizar existente
-                await db.from('quote_items')
-                    .update({ quantity: item.quantity })
-                    .eq('id', item.id);
+                // Actualizar cantidad de item existente.
+                await db.from('quote_items').update({ quantity: item.quantity }).eq('id', item.id);
             }
         }
 
-        // ─── 4.5 Sincronizar con CRM (Clientes) ───────────────────────
+        // b) Actualizar datos maestros del Cliente (CRM).
         if (quote.client_id) {
-            await db
-                .from('clients')
-                .update({
-                    last_name: client_lastname !== undefined ? client_lastname : quote.client_lastname,
-                    phone: finalPhone
-                })
-                .eq('id', quote.client_id);
+            await db.from('clients').update({
+                last_name: data.client_lastname || null,
+                phone: data.client_phone
+            }).eq('id', quote.client_id);
         }
 
-        // ─── 5. Actualizar la Cotización ───────────────────────────────
-        const { error: updateQuoteError } = await db
-            .from('quotes')
-            .update({
-                status: 'confirmed',
-                client_phone: finalPhone,
-                client_lastname: client_lastname !== undefined ? client_lastname : quote.client_lastname,
-                client_address: finalAddress,
-                comuna_name: finalComunaName,
-                comuna_other: finalComunaOther,
-                guests: finalGuests,
-                event_type_id: event_type_id || quote.event_type_id,
-                event_type_other: event_type_other !== undefined ? event_type_other : quote.event_type_other,
-                event_date: finalEventDate,
-                start_time: start_time || quote.start_time,
-                pickup_date: pickup_date !== undefined ? pickup_date : quote.pickup_date,
-                pickup_time: pickup_time !== undefined ? pickup_time : quote.pickup_time,
-                comments: comments !== undefined ? comments : quote.comments,
-                total_normal_price: totalNormalPrice,
-                total_offer_price: totalOfferPrice,
-                total_price: finalPrice,
-                total_liters: totalLiters,
-                shipping_cost: finalShippingCost, // Guardar el nuevo costo de envío
-                dispenser: dispenser || quote.dispenser,
-                installation_cost: finalInstallationCost,
-                updated_at: new Date().toISOString()
-            })
-            .eq('token', token);
-
-        if (updateQuoteError) {
-            console.error('Error actualizando quote:', updateQuoteError);
-            return { success: false, error: 'No se pudo confirmar la reserva.' };
-        }
-
-        // ─── 6. Enviar emails y disparar webhook ───────
-        const fullQuote: Quote & { quote_items: QuoteItem[] } = {
-            ...quote,
+        // c) Finalizar actualización de la Cotización Principal.
+        const { error: updateError } = await db.from('quotes').update({
             status: 'confirmed',
-            client_phone: finalPhone,
-            client_lastname: client_lastname !== undefined ? client_lastname : quote.client_lastname,
-            client_address: finalAddress,
-            comuna_name: finalComunaName,
-            comuna_other: finalComunaOther,
-            guests: finalGuests,
-            event_type_id: event_type_id || quote.event_type_id,
-            event_type_other: event_type_other !== undefined ? event_type_other : quote.event_type_other,
-            event_date: finalEventDate,
-            start_time: start_time || quote.start_time,
-            pickup_date: pickup_date !== undefined ? pickup_date : quote.pickup_date,
-            pickup_time: pickup_time !== undefined ? pickup_time : quote.pickup_time,
-            comments: comments !== undefined ? comments : quote.comments,
+            client_phone: data.client_phone,
+            client_lastname: data.client_lastname || null,
+            client_address: data.client_address,
+            comuna_name: data.comuna_name,
+            comuna_other: data.comuna_other || null,
+            guests: data.guests,
+            event_type_id: data.event_type_id,
+            event_type_other: data.event_type_other || null,
+            event_date: data.event_date,
+            start_time: data.start_time,
+            pickup_date: data.pickup_date,
+            pickup_time: data.pickup_time || null,
+            comments: data.comments || null,
             total_normal_price: totalNormalPrice,
             total_offer_price: totalOfferPrice,
-            total_price: finalPrice,
+            total_price: finalTotalPrice,
             total_liters: totalLiters,
             shipping_cost: finalShippingCost,
-            dispenser: dispenser || quote.dispenser,
+            dispenser: data.dispenser,
             installation_cost: finalInstallationCost,
-            quote_items: updatedItems,
+            updated_at: new Date().toISOString()
+        }).eq('token', data.token);
+
+        if (updateError) throw updateError;
+
+        // ─── 5. COMUNICACIONES (Emails vía Resend) ───────────────────────────
+        
+        const fullQuote: Quote & { quote_items: QuoteItem[] } = {
+            ...quote,
+            ...data,
+            status: 'confirmed',
+            total_price: finalTotalPrice,
+            shipping_cost: finalShippingCost,
+            installation_cost: finalInstallationCost,
+            quote_items: data.items as QuoteItem[],
         };
 
         const resendKey = process.env.RESEND_API_KEY;
         if (resendKey) {
             try {
                 const resend = new Resend(resendKey);
-                const adminEmail = buildAdminConfirmationNotificationEmail(fullQuote);
                 const emailPromises = [];
 
-                // Notificación al Administrador (Siempre)
-                emailPromises.push(
-                    resend.emails.send({
-                        from: FROM_EMAIL,
-                        to: ADMIN_EMAIL,
-                        subject: adminEmail.subject,
-                        html: adminEmail.html,
-                    })
-                );
+                // Notificar al Admin de la nueva reserva.
+                emailPromises.push(resend.emails.send({
+                    from: FROM_EMAIL,
+                    to: ADMIN_EMAIL,
+                    subject: buildAdminConfirmationNotificationEmail(fullQuote).subject,
+                    html: buildAdminConfirmationNotificationEmail(fullQuote).html,
+                }));
 
-                // Confirmación al Cliente (Si tiene email)
+                // Notificar al cliente con los datos de transferencia.
                 if (fullQuote.client_email) {
-                    const confirmedEmail = buildQuoteConfirmedEmail(fullQuote);
-                    emailPromises.push(
-                        resend.emails.send({
-                            from: FROM_EMAIL,
-                            to: fullQuote.client_email,
-                            subject: confirmedEmail.subject,
-                            html: confirmedEmail.html,
-                        })
-                    );
+                    emailPromises.push(resend.emails.send({
+                        from: FROM_EMAIL,
+                        to: fullQuote.client_email,
+                        subject: buildQuoteConfirmedEmail(fullQuote).subject,
+                        html: buildQuoteConfirmedEmail(fullQuote).html,
+                    }));
                 }
-
-                const results = await Promise.allSettled(emailPromises);
-                results.forEach((result, idx) => {
-                    if (result.status === 'rejected') {
-                        console.error(`Error en email ${idx}:`, result.reason);
-                    }
-                });
-            } catch (emailErr) {
-                console.error('Error general enviando emails:', emailErr);
-            }
+                await Promise.allSettled(emailPromises);
+            } catch (err) { console.error('Email error:', err); }
         }
 
+        // ─── 6. SINCRONIZACIÓN CON CALENDARIO (Webhook Make.com) ──────────────
         if (MAKE_WEBHOOK_URL) {
             try {
-                // Helper para generar hora literal "YYYY-MM-DDTHH:mm:ss" sin zona horaria
+                /**
+                 * Helper para generar el formato ISO literal sin timezone (Naive String).
+                 * IMPORTANTE: No usar .toISOString() ya que desplaza la hora local a UTC.
+                 */
                 const formatLiteral = (d: Date) => {
                     const pad = (n: number) => String(n).padStart(2, '0');
                     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
                 };
 
-                const startTimeStr = (fullQuote.start_time && fullQuote.start_time !== '--:--') ? fullQuote.start_time : '12:00';
+                const startTimeStr = (data.start_time && data.start_time !== '--:--') ? data.start_time : '12:00';
+                const startDate = new Date(`${data.event_date}T${startTimeStr}:00`);
                 
-                // Creamos los objetos Date asumiendo que el texto es la hora local
-                const startDate = new Date(`${fullQuote.event_date}T${startTimeStr}:00`);
-                const endDate = startDate; // Duración 0
-
                 const isoStart = formatLiteral(startDate);
-                const isoEnd = formatLiteral(endDate);
+                const isoEnd = isoStart; // Duración 0 por defecto, se maneja en el calendario.
 
-                const resumeLink = `${SITE_URL}/cotizar/${fullQuote.token}`;
-                const dispenserLabel = fullQuote.dispenser === 'muro' ? 'Muro de Coctelería' : 'Dispensador Portátil';
-                const currency = new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' });
-
-                const itemsDetailed = fullQuote.quote_items
-                    .map(i => `${i.quantity}x ${i.product_name} (${i.size}) ${currency.format(i.offer_price_at_time * i.quantity)}`)
-                    .join('\n');
-
-                const pickupDateDisplay = fullQuote.pickup_date
-                    ? new Date(fullQuote.pickup_date + 'T12:00:00').toLocaleDateString('es-CL', { day: '2-digit', month: 'long', year: 'numeric' })
-                    : '';
-
-                const eventDateDisplay = fullQuote.event_date
-                    ? new Date(fullQuote.event_date + 'T12:00:00').toLocaleDateString('es-CL', { day: '2-digit', month: 'long', year: 'numeric' })
-                    : '';
-
-                const fullName = `${fullQuote.client_name}${fullQuote.client_lastname ? ' ' + fullQuote.client_lastname : ''}`;
-
-                // --- Lógica para el Segundo Evento (Retiro) ---
+                // Lógica de cálculo de tiempos para el retiro del equipo.
                 let pickupStart = null;
                 let pickupEnd = null;
                 let pickupAllDay = false;
 
-                if (fullQuote.pickup_date) {
-                    if (fullQuote.pickup_date === fullQuote.event_date) {
-                        // Mismo día: Todo el día
+                if (data.pickup_date) {
+                    if (data.pickup_date === data.event_date) {
                         pickupAllDay = true;
-                        pickupStart = `${fullQuote.pickup_date}T00:00:00`;
-                        pickupEnd = `${fullQuote.pickup_date}T23:59:59`;
-                    } else if (fullQuote.pickup_time && fullQuote.pickup_time.includes(' a ')) {
-                        // Rango de horas (ej: "14:00 a 16:00")
-                        const parts = fullQuote.pickup_time.split(' a ');
+                        pickupStart = `${data.pickup_date}T00:00:00`;
+                        pickupEnd = `${data.pickup_date}T23:59:59`;
+                    } else if (data.pickup_time?.includes(' a ')) {
+                        // Ej: "14:00 a 16:00" -> parsing de inicio y fin.
+                        const parts = data.pickup_time.split(' a ');
                         const startH = parts[0].trim();
                         const endH = parts[1].trim().replace('hrs', '').trim();
-                        pickupStart = formatLiteral(new Date(`${fullQuote.pickup_date}T${startH}:00`));
-                        pickupEnd = formatLiteral(new Date(`${fullQuote.pickup_date}T${endH}:00`));
+                        pickupStart = formatLiteral(new Date(`${data.pickup_date}T${startH}:00`));
+                        pickupEnd = formatLiteral(new Date(`${data.pickup_date}T${endH}:00`));
                     } else {
-                        // Solo fecha, sin rango claro: Todo el día por defecto
                         pickupAllDay = true;
-                        pickupStart = `${fullQuote.pickup_date}T00:00:00`;
-                        pickupEnd = `${fullQuote.pickup_date}T23:59:59`;
+                        pickupStart = `${data.pickup_date}T00:00:00`;
+                        pickupEnd = `${data.pickup_date}T23:59:59`;
                     }
                 }
 
+                const fullName = `${fullQuote.client_name}${fullQuote.client_lastname ? ' ' + fullQuote.client_lastname : ''}`;
+                const currency = new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' });
+
+                const productLines = data.items.map(item => 
+                    `${item.size} ${item.product_name} (x${item.quantity}) ${currency.format(item.offer_price_at_time * item.quantity)}`
+                ).join('\n');
+
+                const dispenserLabel = data.dispenser === 'muro' ? 'Muro de Coctelería' : 'Dispensador Portátil';
+
+                const description = [
+                    // Bloque 1: Datos del cliente y evento
+                    `Nombre: ${fullName}`,
+                    `Teléfono: ${data.client_phone}`,
+                    `Email: ${fullQuote.client_email || 'No especificado'}`,
+                    `Dirección: ${data.client_address}, ${data.comuna_name === 'Otra' ? data.comuna_other : data.comuna_name}`,
+                    `Evento: ${data.event_type_other || data.event_type_id} (${data.guests} pers.)`,                        
+                    `Fecha: ${formatEventDate(data.event_date)} (${startTimeStr}hrs)`,
+                    data.pickup_date ? `Retiro: ${formatEventDate(data.pickup_date)} (${data.pickup_time || 'Rango no especificado'})` : null,
+                    data.comments ? `Notas: ${data.comments}` : null,
+                    '',
+                    // Bloque 2: Link
+                    `Ver cotización: ${SITE_URL}/cotizar/${data.token}`,
+                    '',
+                    // Bloque 3: Productos y resumen de precios
+                    `Productos:`,
+                    productLines,
+                    `Transporte: ${currency.format(finalShippingCost)}`,
+                    `${dispenserLabel}: ${currency.format(finalInstallationCost)}`,
+                    `Total: ${currency.format(finalTotalPrice)}`,
+                ].filter(line => line !== null).join('\n');
+
                 const payload = {
-                    title: `Cócteles - ${fullName} ${fullQuote.guests}px`,
+                    title: `Cócteles - ${fullName} ${data.guests}px`,
                     customerName: fullQuote.client_name,
-                    customerLastname: fullQuote.client_lastname || '',
-                    phone: fullQuote.client_phone || '',
-                    description: [
-                        `Nombre: ${fullName}`,
-                        `Teléfono: ${fullQuote.client_phone}`,
-                        `Email: ${fullQuote.client_email}`,
-                        `Dirección: ${fullQuote.client_address}, ${fullQuote.comuna_name === 'Otra' ? fullQuote.comuna_other : fullQuote.comuna_name}`,
-                        `Evento: ${fullQuote.event_type_other || fullQuote.event_type_id} (${fullQuote.guests} pers.)`,                        
-                        `Fecha: ${eventDateDisplay} (${startTimeStr}hrs)`,
-                        fullQuote.pickup_date ? `Retiro: ${pickupDateDisplay} (${fullQuote.pickup_time || 'Rango no especificado'})` : '',
-                        fullQuote.comments ? `Notas: ${fullQuote.comments}\n` : '',
-                        `Ver cotización: ${resumeLink}\n`,
-                        `Productos:`,
-                        itemsDetailed,
-                        `Transporte: ${currency.format(fullQuote.shipping_cost)}`,
-                        `${dispenserLabel}: ${currency.format(fullQuote.installation_cost)}`,
-                        `Total: ${currency.format(fullQuote.total_price)}`,
-                    ].filter(Boolean).join('\n'),
+                    customerLastname: data.client_lastname || '',
+                    customerEmail: fullQuote.client_email,
+                    phone: data.client_phone,
+                    description: description,
                     start_date: isoStart,
                     end_date: isoEnd,
-                    location: `${fullQuote.client_address}, ${fullQuote.comuna_name}`,
-                    guests_email: fullQuote.client_email,
-                    guests: fullQuote.guests,
-                    // Campos para el Retiro
+                    location: `${data.client_address}, ${data.comuna_name}`,
+                    guests: data.guests,
                     pickup_is_all_day: pickupAllDay,
                     pickup_start: pickupStart,
                     pickup_end: pickupEnd,
@@ -367,15 +283,13 @@ export async function confirmQuote(input: ConfirmQuoteInput): Promise<ConfirmQuo
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload),
                 });
-            } catch (webhookErr) {
-                console.error('Error webhook:', webhookErr);
-            }
+            } catch (err) { console.error('Webhook error:', err); }
         }
 
+        revalidatePath(`/cotizar/${validation.data.token}`);
         return { success: true };
     } catch (err) {
-        console.error('Error inesperado en confirmQuote:', err);
+        console.error('Error in confirmQuote:', err);
         return { success: false, error: 'Error inesperado.' };
     }
 }
-
