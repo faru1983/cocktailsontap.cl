@@ -130,10 +130,6 @@ export async function syncGoogleContact(data: {
             const label = data.confirmed ? 'Evento (Confirmado)' : 'Evento';
             const linkStr = data.quoteUrl ? ` - ${data.quoteUrl}` : '';
             newNoteEntry = `${label}: ${dateFormatted}${linkStr}`;
-            
-            if (data.notes) {
-                newNoteEntry += `\nNotas: ${data.notes}`;
-            }
         }
 
         if (newNoteEntry) {

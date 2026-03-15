@@ -115,7 +115,10 @@ export const GoogleSyncService = {
 
             const dispenserLabel = quote.dispenser === 'muro' ? 'Muro' : 'Portátil';
             
-            const sharedDescription = `Celular: ${quote.client_phone || ''}\n` +
+            const commentsText = quote.comments ? `Comentarios: ${quote.comments}\n` : '';
+            
+            const sharedDescription = `${commentsText}` +
+                                      `Celular: ${quote.client_phone || ''}\n` +
                                       `Ver Cotización: ${link}\n\n` +
                                       `Productos:\n${itemsText}\n` +
                                       `Transporte: ${formatClp(quote.shipping_cost || 0)}\n` +
@@ -156,8 +159,6 @@ export const GoogleSyncService = {
             // 2. Create Pickup Event (Retiro Calendar)
             if (CALENDAR_RETIRO_ID && quote.pickup_date) {
                const pickupSummary = `Retiro - ${fullName}`;
-               
-               const pickupDescriptionWithAddress = `Dirección: ${fullLocation}\n\n${sharedDescription}`;
                 
                let pStartISO, pEndISO, pIsAllDay;
 
@@ -186,7 +187,7 @@ export const GoogleSyncService = {
                await createGoogleEvent(CALENDAR_RETIRO_ID, {
                    summary: pickupSummary,
                    location: fullLocation,
-                   description: pickupDescriptionWithAddress,
+                   description: sharedDescription,
                    startISO: pStartISO,
                    endISO: pEndISO,
                    isAllDay: pIsAllDay
