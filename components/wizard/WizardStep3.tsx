@@ -4,6 +4,8 @@ import { calculateSmartConfig } from '@/hooks/useWizard';
 import type { useWizard } from '@/hooks/useWizard';
 import { Info, Sparkles } from 'lucide-react';
 
+import InfoTooltip from '@/components/ui/InfoTooltip';
+
 type WizardHook = ReturnType<typeof useWizard>;
 
 export default function WizardStep3({ wizard }: { wizard: WizardHook }) {
@@ -19,7 +21,10 @@ export default function WizardStep3({ wizard }: { wizard: WizardHook }) {
 
             {/* Slider de Consumo */}
             <div className="mb-10 bg-white p-6 rounded-2xl border-2 border-brand-border shadow-sm">
-                <label className="block font-bold mb-1 text-brand-text text-[1rem]">Cócteles promedio por persona</label>
+                <div className="flex items-center gap-2 mb-1">
+                    <label className="block font-bold text-brand-text text-[1rem]">Cócteles promedio por persona</label>
+                    <InfoTooltip message="Recomendamos 3 a 4 cócteles para celebraciones de día y +5 para fiestas que duren toda la noche." position="right" />
+                </div>
                 <p className="text-brand-text-muted text-[0.85rem] mb-8">¿Cuántos cócteles estimas que consumirá cada invitado?</p>
 
                 <div className="flex flex-col md:flex-row items-center gap-8">
@@ -88,13 +93,6 @@ export default function WizardStep3({ wizard }: { wizard: WizardHook }) {
                         <span className="text-[0.6rem] uppercase text-brand-text-muted font-bold tracking-tighter">x Persona</span>
                     </div>
                 </div>
-            </div>
-
-            <div className="mt-8 flex items-start gap-3 bg-slate-50 p-4 rounded-xl border border-slate-200">
-                <Info className="w-5 h-5 text-primary shrink-0 mt-0.5" />
-                <p className="text-[0.85rem] text-brand-text-muted leading-relaxed italic">
-                    Tip: Recomendamos <strong>3 a 4 cócteles</strong> para celebraciones de día y <strong>+5</strong> para fiestas que duren toda la noche.
-                </p>
             </div>
         </div>
     );

@@ -2,6 +2,7 @@
 
 import { ShoppingCart, Plus } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
+import QuantitySelector from '@/components/ui/QuantitySelector';
 
 export interface QuoteSummaryItem {
     id: string; // For Wizard this is productId, for QuoteView this is QuoteItem.id
@@ -94,32 +95,12 @@ export default function QuoteSummaryProducts({ data, isEditable = false, onUpdat
                                 <div className="flex justify-between items-center pl-[40px]">
                                     <span className="text-brand-text-muted text-[0.85rem] font-bold bg-[#f1f5f9] px-2.5 py-1 rounded-md">{item.selectedSize}</span>
                                     {isEditable && onUpdateQuantity ? (
-                                        <div className="flex items-center gap-1 border border-brand-border rounded-lg p-0.5 bg-[#f8fafc]">
-                                            <button
-                                                type="button"
-                                                className="w-[28px] h-[28px] rounded-md bg-white border border-brand-border text-brand-text font-bold shadow-sm flex items-center justify-center cursor-pointer transition-colors hover:bg-primary hover:text-white hover:border-primary"
-                                                onClick={() => onUpdateQuantity(item.id, item.selectedSize, -1)}
-                                            >
-                                                −
-                                            </button>
-                                            <input
-                                                type="number"
-                                                value={item.quantity}
-                                                min={1}
-                                                className="w-8 text-center bg-transparent border-none text-brand-text font-bold text-[0.95rem] outline-none appearance-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                                                onChange={(e) => {
-                                                    const val = parseInt(e.target.value) || 1;
-                                                    onUpdateQuantity(item.id, item.selectedSize, val - item.quantity);
-                                                }}
-                                            />
-                                            <button
-                                                type="button"
-                                                className="w-[28px] h-[28px] rounded-md bg-white border border-brand-border text-brand-text font-bold shadow-sm flex items-center justify-center cursor-pointer transition-colors hover:bg-primary hover:text-white hover:border-primary"
-                                                onClick={() => onUpdateQuantity(item.id, item.selectedSize, 1)}
-                                            >
-                                                +
-                                            </button>
-                                        </div>
+                                        <QuantitySelector
+                                            compact
+                                            value={item.quantity}
+                                            onChange={(delta) => onUpdateQuantity(item.id, item.selectedSize, delta)}
+                                            min={1}
+                                        />
                                     ) : (
                                         <span className="font-medium text-brand-text">Cant: {item.quantity}</span>
                                     )}

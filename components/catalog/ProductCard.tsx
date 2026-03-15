@@ -4,6 +4,7 @@ import Image from 'next/image';
 import { useState } from 'react';
 import type { Product, ICart } from '@/lib/types';
 import { formatCurrency } from '@/lib/utils';
+import QuantitySelector from '@/components/ui/QuantitySelector';
 
 interface ProductCardProps {
     product: Product;
@@ -79,28 +80,14 @@ export default function ProductCard({ product, cart }: ProductCardProps) {
                         Agregar
                     </button>
                 ) : (
-                    <div className="flex items-center justify-between border-2 border-brand-text rounded-xl overflow-hidden h-[46px] w-full bg-white">
-                        <button
-                            type="button"
-                            className="flex-1 h-full bg-[#f1f5f9] text-brand-text border-none font-bold text-[1.2rem] transition-colors hover:bg-brand-text hover:text-white"
-                            onClick={() => cart.updateQuantity(product.id, selectedSize, quantity - 1)}
-                        >
-                            −
-                        </button>
-                        <input
-                            type="number"
+                    <div className="flex h-[46px] w-full items-center justify-center bg-white">
+                        <QuantitySelector
                             value={quantity}
+                            onChange={(delta) => cart.updateQuantity(product.id, selectedSize, quantity + delta)}
                             min={1}
-                            className="flex-1 w-12 text-center border-none font-bold text-[1rem] text-brand-text bg-transparent outline-none m-0 appearance-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                            onChange={(e) => cart.updateQuantity(product.id, selectedSize, parseInt(e.target.value) || 1)}
+                            className="w-full h-full max-w-none"
+                            compact={false}
                         />
-                        <button
-                            type="button"
-                            className="flex-1 h-full bg-[#f1f5f9] text-brand-text border-none font-bold text-[1.2rem] transition-colors hover:bg-brand-text hover:text-white"
-                            onClick={() => cart.updateQuantity(product.id, selectedSize, quantity + 1)}
-                        >
-                            +
-                        </button>
                     </div>
                 )}
             </div>
