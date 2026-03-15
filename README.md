@@ -13,7 +13,7 @@ El proyecto está construido con un enfoque en **arquitectura limpia, seguridad 
 
 ---
 
-## 🚀 Características Principales
+## 🚀 Características Principales.
 
 ### 💎 Experiencia de Usuario (Wizard)
 - **Cotizador Premium:** Flujo interactivo optimizado para conversión, con validaciones en tiempo real y persistencia en estado de aplicación.
