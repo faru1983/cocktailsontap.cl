@@ -177,7 +177,7 @@ export default function QuoteView({ quote, comunas, availableCocktails, categori
             totalOfferPrice: totals.totalOffer,
             totalDiscount: totals.totalDiscount,
             shippingCost: totals.shipping,
-            shippingLabel: totals.shipping === 0 ? '¡Gratis!' : formatCurrency(totals.shipping),
+            shippingLabel: comuna === 'Otra' ? 'Pendiente de factibilidad' : (totals.shipping === 0 ? '¡Gratis!' : formatCurrency(totals.shipping)),
             installationCost: totals.installationCost,
             dispenserLabel: dispenser === 'muro' ? 'Muro de Coctelería' : 'Dispensador Portátil',
             totalPrice: totals.totalFinal,

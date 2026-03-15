@@ -6,7 +6,8 @@ import { buildQuoteCreatedClientEmail, buildAdminNotificationEmail } from '@/lib
 import { CreateQuoteSchema } from '@/lib/types';
 import type { WizardState, Quote, QuoteItem, CocktailForWizard, Comuna } from '@/lib/types';
 import { calculateSummaryData } from '@/lib/wizardLogic';
-import { ADMIN_EMAIL, FROM_EMAIL } from '@/lib/config';
+import { ADMIN_EMAIL, FROM_EMAIL, SITE_URL } from '@/lib/config';
+import { syncGoogleContact } from '@/lib/googleSync';
 
 interface CreateQuoteInput {
     state: WizardState;
@@ -39,15 +40,24 @@ export async function createQuote(input: CreateQuoteInput): Promise<CreateQuoteR
         const emailTrimmed = state.contact.email.trim().toLowerCase();
 
         if (emailTrimmed) {
+            // Buscamos si el cliente ya existe para no pisar datos con nulos
+            const { data: existingClient } = await db
+                .from('clients')
+                .select('id, first_name, last_name, phone, google_contact_id')
+                .eq('email', emailTrimmed)
+                .single();
+
+            const clientUpdate: any = {
+                email: emailTrimmed,
+                first_name: state.contact.firstName.trim() || existingClient?.first_name,
+                last_name: state.contact.lastName?.trim() || existingClient?.last_name || null,
+                phone: state.contact.phone.trim() || existingClient?.phone || null,
+            };
+
             const { data: clientData, error: clientError } = await db
                 .from('clients')
-                .upsert({
-                    email: emailTrimmed,
-                    first_name: state.contact.firstName.trim(),
-                    last_name: state.contact.lastName?.trim() || null,
-                    phone: state.contact.phone.trim() || null,
-                }, { onConflict: 'email' })
-                .select('id')
+                .upsert(clientUpdate, { onConflict: 'email' })
+                .select('id, google_contact_id')
                 .single();
 
             if (!clientError && clientData) {
@@ -55,6 +65,8 @@ export async function createQuote(input: CreateQuoteInput): Promise<CreateQuoteR
             } else {
                 console.error('Error gestionando cliente:', clientError);
             }
+
+            // Sincronización proactiva con Google Contacts se movió después de la inserción de la cotización
         }
 
         // ─── 3. Insertar la cotización ─────────────────────────────────────────
@@ -123,7 +135,34 @@ export async function createQuote(input: CreateQuoteInput): Promise<CreateQuoteR
             }
         }
 
-        // ─── 5. Enviar emails ─────────────────────────────────────────────────
+        // ─── 5. Sincronización proactiva con Google Contacts ──────────────────
+        if (emailTrimmed && clientId) {
+            try {
+                const comunaStr = state.contact.comuna === 'Otra' ? state.contact.otherComuna : state.contact.comuna;
+                const fullAddress = [state.contact.address.trim(), comunaStr].filter(Boolean).join(', ');
+                const quoteUrl = `${SITE_URL}/cotizar/${quote.token}`;
+
+                const googleContactId = await syncGoogleContact({
+                    resourceName: (input as any).google_contact_id, // Si viniera de algún lado, pero mejor el de la DB
+                    firstName: state.contact.firstName.trim(),
+                    lastName: state.contact.lastName?.trim() || undefined,
+                    email: emailTrimmed,
+                    phone: state.contact.phone.trim() || undefined,
+                    address: state.contact.address.trim() ? fullAddress : undefined,
+                    notes: state.contact.comments?.trim() || undefined,
+                    eventDate: state.eventData.date,
+                    quoteUrl: quoteUrl
+                });
+
+                if (googleContactId) {
+                    await db.from('clients').update({ google_contact_id: googleContactId }).eq('id', clientId);
+                }
+            } catch (googleErr) {
+                console.error('Error sincronizando contacto en Google (post-insert):', googleErr);
+            }
+        }
+
+        // ─── 6. Enviar emails ─────────────────────────────────────────────────
         const resendKey = process.env.RESEND_API_KEY;
         if (resendKey && state.contact.email) {
             try {

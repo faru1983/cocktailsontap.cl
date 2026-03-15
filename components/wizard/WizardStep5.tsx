@@ -132,20 +132,6 @@ export default function WizardStep5({ wizard }: Props) {
                 ))}
             </div>
 
-            {!canHaveMuro && (
-                <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 flex gap-4 items-start animate-fade-in shadow-sm">
-                    <Info className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
-                    <div className="flex flex-col gap-1">
-                        <p className="text-[0.9rem] text-amber-900 leading-relaxed m-0 font-bold">
-                            El Muro de Coctelería no está disponible para esta selección
-                        </p>
-                        <p className="text-[0.8rem] text-amber-800/80 leading-relaxed m-0">
-                            Para habilitar el Muro, asegúrate de no elegir barriles de 5L y alcanzar un volumen total de al menos 30L.
-                            (Actualmente: {data.totalLiters}L {state.selections.some(s => s.size.includes('5L')) ? 'con barriles de 5L' : ''}).
-                        </p>
-                    </div>
-                </div>
-            )}
 
             {/* Qué incluye */}
             <div className="mt-4 pt-8 border-t border-brand-border">

@@ -104,6 +104,18 @@ function itemsTable(items: QuoteItem[]): string {
 function priceBreakdownSection(quote: Quote): string {
     const dispenserLabel = quote.dispenser === 'muro' ? 'Muro de Coctelería' : 'Dispensador Portátil';
     const hasDiscount = quote.total_normal_price > quote.total_offer_price;
+    const isOtra = quote.comuna_name === 'Otra';
+
+    let shippingLabel = formatCurrency(quote.shipping_cost);
+    let shippingColor = gray;
+
+    if (isOtra) {
+        shippingLabel = 'Pendiente de factibilidad';
+        shippingColor = brandColor;
+    } else if (quote.shipping_cost === 0) {
+        shippingLabel = '¡Gratis!';
+        shippingColor = greenColor;
+    }
 
     return `<table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 28px;border-top:2px solid ${brandColor};padding-top:12px;">
   ${hasDiscount ? `
@@ -121,7 +133,7 @@ function priceBreakdownSection(quote: Quote): string {
   </tr>`}
   <tr>
     <td style="font-size:13px;color:${gray};padding:3px 0;">Transporte</td>
-    <td style="font-size:13px;${quote.shipping_cost === 0 ? `color:${greenColor};` : `color:${gray};`}text-align:right;">${quote.shipping_cost === 0 ? '¡Gratis!' : formatCurrency(quote.shipping_cost)}</td>
+    <td style="font-size:13px;color:${shippingColor};text-align:right;">${shippingLabel}</td>
   </tr>
   <tr>
     <td style="font-size:13px;color:${gray};padding:3px 0;">${dispenserLabel}</td>
@@ -132,6 +144,34 @@ function priceBreakdownSection(quote: Quote): string {
     <td style="font-size:17px;color:${brandDark};font-weight:900;text-align:right;padding:10px 0 0;">${formatCurrency(quote.total_price)}</td>
   </tr>
 </table>`;
+}
+
+function yieldsSection(quote: Quote): string {
+    const totalLiters = quote.total_liters ?? 0;
+    const totalDrinks = totalLiters * 5;
+    const guests = Math.max(quote.guests, 1);
+    const avgDrinks = (totalDrinks / guests).toFixed(1);
+
+    return `<div style="background:${lightGray};border-radius:12px;padding:20px;margin:24px 0;border:1px solid ${borderColor};text-align:center;">
+  <p style="color:${brandDark};font-size:11px;margin:0 0 10px;text-transform:uppercase;letter-spacing:1.5px;font-weight:700;">Rendimientos Estimados</p>
+  <table width="100%" cellpadding="0" cellspacing="0">
+    <tr>
+      <td style="width:33%;padding:0 4px;">
+        <div style="font-size:18px;font-weight:900;color:${brandColor};">${totalLiters}L</div>
+        <div style="font-size:10px;color:${gray};text-transform:uppercase;font-weight:700;">Volumen Total</div>
+      </td>
+      <td style="width:34%;padding:0 4px;border-left:1px solid ${borderColor};border-right:1px solid ${borderColor};">
+        <div style="font-size:18px;font-weight:900;color:${brandColor};">${totalDrinks}</div>
+        <div style="font-size:10px;color:${gray};text-transform:uppercase;font-weight:700;">Cócteles Totales</div>
+      </td>
+      <td style="width:33%;padding:0 4px;">
+        <div style="font-size:18px;font-weight:900;color:${brandColor};">${avgDrinks}</div>
+        <div style="font-size:10px;color:${gray};text-transform:uppercase;font-weight:700;">Tragos x Persona</div>
+      </td>
+    </tr>
+  </table>
+  <p style="color:${gray};font-size:11px;margin:12px 0 0;font-style:italic;">*Rendimiento basado en vasos estándar con 200ml de cóctel.</p>
+</div>`;
 }
 
 function reservationInfoSection(quote: Quote): string {
@@ -178,6 +218,7 @@ export function buildQuoteCreatedClientEmail(quote: Quote & { quote_items: Quote
   Hola <strong>${fullName(quote)}</strong>, aquí tienes el resumen de tu solicitud para el evento del <strong>${eventDate}</strong>.
 </p>
 ${itemsTable(quote.quote_items)}
+${yieldsSection(quote)}
 ${priceBreakdownSection(quote)}
 ${reservationInfoSection(quote)}
 <div style="background:${brandColor};border-radius:14px;padding:24px;text-align:center;">
@@ -198,6 +239,7 @@ export function buildAdminNotificationEmail(quote: Quote & { quote_items: QuoteI
     const content = `
 <h2 style="color:${brandDark};margin:0 0 8px;font-size:20px;line-height:1.3;">⚡ Nueva cotización recibida</h2>
 ${itemsTable(quote.quote_items)}
+${yieldsSection(quote)}
 ${priceBreakdownSection(quote)}
 ${reservationInfoSection(quote)}
 ${quoteButton(adminLink, 'Ver cotización completa →', brandDark)}`;
@@ -230,6 +272,7 @@ export function buildQuoteConfirmedEmail(quote: Quote & { quote_items: QuoteItem
   </table>
 </div>
 ${itemsTable(quote.quote_items)}
+${yieldsSection(quote)}
 ${priceBreakdownSection(quote)}
 ${reservationInfoSection(quote)}
 ${quoteButton(resumeLink, 'Ver detalles de tu reserva →', brandDark)}
@@ -248,6 +291,7 @@ export function buildAdminConfirmationNotificationEmail(quote: Quote & { quote_i
 <h2 style="color:${greenColor};margin:0 0 8px;font-size:20px;line-height:1.3;">✅ Reserva confirmada por el cliente</h2>
 <p style="color:${gray};margin:0 0 24px;font-size:14px;"><strong>${fullName(quote)}</strong> ha confirmado su reserva para el ${eventDate}.</p>
 ${itemsTable(quote.quote_items)}
+${yieldsSection(quote)}
 ${priceBreakdownSection(quote)}
 ${reservationInfoSection(quote)}
 ${quoteButton(adminLink, 'Ver reserva confirmada →', greenColor)}`;

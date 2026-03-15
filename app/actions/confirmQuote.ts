@@ -16,10 +16,7 @@ import {
     MURO_MIN_LITERS 
 } from '@/lib/config';
 
-/**
- * URL del Webhook de Make.com para la sincronización con Google Calendar.
- */
-const MAKE_WEBHOOK_URL = process.env.MAKE_WEBHOOK_CALENDAR_URL;
+import { syncGoogleContact, createGoogleEvent, CALENDAR_RESERVA_ID, CALENDAR_RETIRO_ID } from '@/lib/googleSync';
 
 interface ConfirmQuoteResult {
     success: boolean;
@@ -47,7 +44,7 @@ export async function confirmQuote(input: any): Promise<ConfirmQuoteResult> {
         // ─── 2. CARGA DE COTIZACIÓN ───────────────────────────────────────────
         const { data: quote, error: fetchError } = await db
             .from('quotes')
-            .select('*, quote_items(*)')
+            .select('*, quote_items(*), clients(google_contact_id)')
             .eq('token', data.token)
             .single();
 
@@ -115,10 +112,13 @@ export async function confirmQuote(input: any): Promise<ConfirmQuoteResult> {
 
         // b) Actualizar datos maestros del Cliente (CRM).
         if (quote.client_id) {
-            await db.from('clients').update({
-                last_name: data.client_lastname || null,
-                phone: data.client_phone
-            }).eq('id', quote.client_id);
+            const clientUpdate: any = {};
+            if (data.client_lastname?.trim()) clientUpdate.last_name = data.client_lastname.trim();
+            if (data.client_phone?.trim()) clientUpdate.phone = data.client_phone.trim();
+
+            if (Object.keys(clientUpdate).length > 0) {
+                await db.from('clients').update(clientUpdate).eq('id', quote.client_id);
+            }
         }
 
         // c) Finalizar actualización de la Cotización Principal.
@@ -188,102 +188,105 @@ export async function confirmQuote(input: any): Promise<ConfirmQuoteResult> {
             } catch (err) { console.error('Email error:', err); }
         }
 
-        // ─── 6. SINCRONIZACIÓN CON CALENDARIO (Webhook Make.com) ──────────────
-        if (MAKE_WEBHOOK_URL) {
-            try {
-                /**
-                 * Helper para generar el formato ISO literal sin timezone (Naive String).
-                 * IMPORTANTE: No usar .toISOString() ya que desplaza la hora local a UTC.
-                 */
-                const formatLiteral = (d: Date) => {
-                    const pad = (n: number) => String(n).padStart(2, '0');
-                    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
-                };
+        // ─── 6. SINCRONIZACIÓN CON GOOGLE (Calendar y Contacts) ─────────────
+        try {
+            const fullName = `${fullQuote.client_name}${fullQuote.client_lastname ? ' ' + fullQuote.client_lastname : ''}`;
+            const currency = new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' });
 
-                const startTimeStr = (data.start_time && data.start_time !== '--:--') ? data.start_time : '12:00';
-                const startDate = new Date(`${data.event_date}T${startTimeStr}:00`);
-                
-                const isoStart = formatLiteral(startDate);
-                const isoEnd = isoStart; // Duración 0 por defecto, se maneja en el calendario.
+            const productLines = data.items.map(item => 
+                `${item.size} ${item.product_name} (x${item.quantity}) ${currency.format(item.offer_price_at_time * item.quantity)}`
+            ).join('\n');
 
-                // Lógica de cálculo de tiempos para el retiro del equipo.
-                let pickupStart = null;
-                let pickupEnd = null;
-                let pickupAllDay = false;
+            const dispenserLabel = data.dispenser === 'muro' ? 'Muro de Coctelería' : 'Dispensador Portátil';
 
-                if (data.pickup_date) {
-                    if (data.pickup_date === data.event_date) {
-                        pickupAllDay = true;
-                        pickupStart = `${data.pickup_date}T00:00:00`;
-                        pickupEnd = `${data.pickup_date}T23:59:59`;
-                    } else if (data.pickup_time?.includes(' a ')) {
-                        // Ej: "14:00 a 16:00" -> parsing de inicio y fin.
-                        const parts = data.pickup_time.split(' a ');
-                        const startH = parts[0].trim();
-                        const endH = parts[1].trim().replace('hrs', '').trim();
-                        pickupStart = formatLiteral(new Date(`${data.pickup_date}T${startH}:00`));
-                        pickupEnd = formatLiteral(new Date(`${data.pickup_date}T${endH}:00`));
-                    } else {
-                        pickupAllDay = true;
-                        pickupStart = `${data.pickup_date}T00:00:00`;
-                        pickupEnd = `${data.pickup_date}T23:59:59`;
-                    }
+            const description = [
+                `Nombre: ${fullName}`,
+                `Teléfono: ${data.client_phone}`,
+                `Email: ${fullQuote.client_email || 'No especificado'}`,
+                `Dirección: ${data.client_address}, ${data.comuna_name === 'Otra' ? data.comuna_other : data.comuna_name}`,
+                `Evento: ${data.event_type_other || data.event_type_id} (${data.guests} pers.)`,                        
+                `Fecha: ${formatEventDate(data.event_date)} (${data.start_time}hrs)`,
+                data.pickup_date ? `Retiro: ${formatEventDate(data.pickup_date)} (${data.pickup_time || 'Rango no especificado'})` : null,
+                data.comments ? `Notas: ${data.comments}` : null,
+                '',
+                `Ver cotización: ${SITE_URL}/cotizar/${data.token}`,
+                '',
+                `Productos:`,
+                productLines,
+                `Transporte: ${currency.format(finalShippingCost)}`,
+                `${dispenserLabel}: ${currency.format(finalInstallationCost)}`,
+                `Total: ${currency.format(finalTotalPrice)}`,
+            ].filter(line => line !== null).join('\n');
+
+            const comunaLocation = data.comuna_name === 'Otra' ? data.comuna_other : data.comuna_name;
+            const fullLocation = `${data.client_address || ''}, ${comunaLocation || ''}`.replace(/^, /, '');
+
+            // a) Sincronizar Contacto
+            if (fullQuote.client_email) {
+                const googleContactId = await syncGoogleContact({
+                    resourceName: (quote as any).clients?.google_contact_id || undefined,
+                    firstName: fullQuote.client_name,
+                    lastName: data.client_lastname || undefined,
+                    email: fullQuote.client_email,
+                    phone: data.client_phone,
+                    address: data.client_address.trim() ? fullLocation : undefined,
+                    notes: data.comments || undefined,
+                    eventDate: data.event_date,
+                    quoteUrl: `${SITE_URL}/cotizar/${data.token}`,
+                    confirmed: true
+                }).catch(err => {
+                    console.error('Error syncing contact:', err);
+                    return null;
+                });
+
+                if (googleContactId && quote.client_id && googleContactId !== (quote as any).clients?.google_contact_id) {
+                    await db.from('clients').update({ google_contact_id: googleContactId }).eq('id', quote.client_id);
+                }
+            }
+
+            // b) Crear Evento de Reserva (Montaje)
+            const startTimeStr = (data.start_time && data.start_time !== '--:--') ? data.start_time : '12:00';
+            const isoStart = `${data.event_date}T${startTimeStr}:00`;
+
+            await createGoogleEvent(CALENDAR_RESERVA_ID, {
+                summary: `Cócteles - ${fullName} ${data.guests}px`,
+                location: fullLocation,
+                description: description,
+                startISO: isoStart,
+                endISO: isoStart, // El calendario lo maneja o podemos sumar X horas
+            }).catch(err => console.error('Error creating reserva event:', err));
+
+            // c) Crear Evento de Retiro
+            if (data.pickup_date) {
+                let pickupStart = `${data.pickup_date}T00:00:00`;
+                let pickupEnd = `${data.pickup_date}T23:59:59`;
+                let isAllDay = false;
+
+                if (data.pickup_date === data.event_date) {
+                    isAllDay = true;
+                } else if (data.pickup_time?.includes(' a ')) {
+                    const parts = data.pickup_time.split(' a ');
+                    const startH = parts[0].trim();
+                    const endH = parts[1].trim().replace('hrs', '').trim();
+                    pickupStart = `${data.pickup_date}T${startH}:00`;
+                    pickupEnd = `${data.pickup_date}T${endH}:00`;
+                    isAllDay = false;
+                } else {
+                    isAllDay = true;
                 }
 
-                const fullName = `${fullQuote.client_name}${fullQuote.client_lastname ? ' ' + fullQuote.client_lastname : ''}`;
-                const currency = new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' });
-
-                const productLines = data.items.map(item => 
-                    `${item.size} ${item.product_name} (x${item.quantity}) ${currency.format(item.offer_price_at_time * item.quantity)}`
-                ).join('\n');
-
-                const dispenserLabel = data.dispenser === 'muro' ? 'Muro de Coctelería' : 'Dispensador Portátil';
-
-                const description = [
-                    // Bloque 1: Datos del cliente y evento
-                    `Nombre: ${fullName}`,
-                    `Teléfono: ${data.client_phone}`,
-                    `Email: ${fullQuote.client_email || 'No especificado'}`,
-                    `Dirección: ${data.client_address}, ${data.comuna_name === 'Otra' ? data.comuna_other : data.comuna_name}`,
-                    `Evento: ${data.event_type_other || data.event_type_id} (${data.guests} pers.)`,                        
-                    `Fecha: ${formatEventDate(data.event_date)} (${startTimeStr}hrs)`,
-                    data.pickup_date ? `Retiro: ${formatEventDate(data.pickup_date)} (${data.pickup_time || 'Rango no especificado'})` : null,
-                    data.comments ? `Notas: ${data.comments}` : null,
-                    '',
-                    // Bloque 2: Link
-                    `Ver cotización: ${SITE_URL}/cotizar/${data.token}`,
-                    '',
-                    // Bloque 3: Productos y resumen de precios
-                    `Productos:`,
-                    productLines,
-                    `Transporte: ${currency.format(finalShippingCost)}`,
-                    `${dispenserLabel}: ${currency.format(finalInstallationCost)}`,
-                    `Total: ${currency.format(finalTotalPrice)}`,
-                ].filter(line => line !== null).join('\n');
-
-                const payload = {
-                    title: `Cócteles - ${fullName} ${data.guests}px`,
-                    customerName: fullQuote.client_name,
-                    customerLastname: data.client_lastname || '',
-                    customerEmail: fullQuote.client_email,
-                    phone: data.client_phone,
+                await createGoogleEvent(CALENDAR_RETIRO_ID, {
+                    summary: `Retiro - ${fullName}`,
+                    location: fullLocation,
                     description: description,
-                    start_date: isoStart,
-                    end_date: isoEnd,
-                    location: `${data.client_address}, ${data.comuna_name}`,
-                    guests: data.guests,
-                    pickup_is_all_day: pickupAllDay,
-                    pickup_start: pickupStart,
-                    pickup_end: pickupEnd,
-                    pickup_title: `Retiro - ${fullName}`
-                };
+                    startISO: pickupStart,
+                    endISO: pickupEnd,
+                    isAllDay: isAllDay
+                }).catch(err => console.error('Error creating retiro event:', err));
+            }
 
-                await fetch(MAKE_WEBHOOK_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload),
-                });
-            } catch (err) { console.error('Webhook error:', err); }
+        } catch (err) {
+            console.error('Google Sync Error:', err);
         }
 
         revalidatePath(`/cotizar/${validation.data.token}`);

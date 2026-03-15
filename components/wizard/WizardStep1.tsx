@@ -81,7 +81,7 @@ export default function WizardStep1({ wizard, eventTypes }: Props) {
                     <button
                         type="button"
                         className="w-14 h-14 flex items-center justify-center bg-slate-50 text-brand-text hover:bg-primary/10 hover:text-primary transition-colors font-black text-2xl border-r-2 border-brand-border"
-                        onClick={() => updateConsumption('guests', Math.max(0, state.consumption.guests - 10))}
+                        onClick={() => updateConsumption('guests', Math.max(0, (state.consumption.guests || 0) - 10))}
                     >
                         −
                     </button>
@@ -99,7 +99,7 @@ export default function WizardStep1({ wizard, eventTypes }: Props) {
                     <button
                         type="button"
                         className="w-14 h-14 flex items-center justify-center bg-slate-50 text-brand-text hover:bg-primary/10 hover:text-primary transition-colors font-black text-2xl border-l-2 border-brand-border"
-                        onClick={() => updateConsumption('guests', state.consumption.guests + 10)}
+                        onClick={() => updateConsumption('guests', (state.consumption.guests || 0) + 10)}
                     >
                         +
                     </button>
