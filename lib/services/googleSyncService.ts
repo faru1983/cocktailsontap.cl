@@ -130,68 +130,76 @@ export const GoogleSyncService = {
             const hasPickupTime = quote.pickup_time && quote.pickup_time !== '--:--';
 
             // 1. Create Service Event (Reserva Calendar)
-            if (CALENDAR_RESERVA_ID && quote.event_date) {
-                const serviceSummary = `Cócteles - ${fullName} ${quote.guests}px`;
-                
-                let startISO, endISO, isAllDay;
+            try {
+                if (CALENDAR_RESERVA_ID && quote.event_date) {
+                    const serviceSummary = `Cócteles - ${fullName} ${quote.guests}px`;
+                    
+                    let startISO, endISO, isAllDay;
 
-                if (hasStartTime) {
-                     startISO = formatLiteral(quote.event_date, quote.start_time as string);
-                     // USER REQUEST: Duración del evento de reserva = 0.
-                     endISO = startISO;
-                     isAllDay = false;
-                } else {
-                     startISO = `${quote.event_date}`;
-                     endISO = startISO;
-                     isAllDay = true;
+                    if (hasStartTime) {
+                        startISO = formatLiteral(quote.event_date, quote.start_time as string);
+                        // USER REQUEST: Duración del evento de reserva = 0.
+                        endISO = startISO;
+                        isAllDay = false;
+                    } else {
+                        startISO = `${quote.event_date}`;
+                        endISO = startISO;
+                        isAllDay = true;
+                    }
+
+                    await createGoogleEvent(CALENDAR_RESERVA_ID, {
+                        summary: serviceSummary,
+                        location: fullLocation,
+                        description: sharedDescription,
+                        startISO,
+                        endISO,
+                        isAllDay
+                    });
                 }
-
-                await createGoogleEvent(CALENDAR_RESERVA_ID, {
-                    summary: serviceSummary,
-                    location: fullLocation,
-                    description: sharedDescription,
-                    startISO,
-                    endISO,
-                    isAllDay
-                });
+            } catch (err) {
+                console.error('GoogleSyncService - Error creating Reserva event:', err);
             }
 
             // 2. Create Pickup Event (Retiro Calendar)
-            if (CALENDAR_RETIRO_ID && quote.pickup_date) {
-               const pickupSummary = `Retiro - ${fullName}`;
-                
-               let pStartISO, pEndISO, pIsAllDay;
-
-               if (hasPickupTime) {
-                    const timeValue = (quote.pickup_time as string);
+            try {
+                if (CALENDAR_RETIRO_ID && quote.pickup_date) {
+                    const pickupSummary = `Retiro - ${fullName}`;
                     
-                    if (timeValue.includes(' a ')) {
-                        // USER REQUEST: Si es un rango (12:00 a 14:00), inicio 12:00, fin 14:00
-                        const [startPart, endPart] = timeValue.split(' a ');
-                        pStartISO = formatLiteral(quote.pickup_date, startPart.trim());
-                        pEndISO = formatLiteral(quote.pickup_date, endPart.trim());
-                    } else {
-                        // Lógica original de fallback por si no es un rango
-                        pStartISO = formatLiteral(quote.pickup_date, timeValue);
-                        const pickupStartObj = new Date(pStartISO);
-                        pickupStartObj.setHours(pickupStartObj.getHours() + 1); 
-                        pEndISO = new Date(pickupStartObj.getTime() - (pickupStartObj.getTimezoneOffset() * 60000)).toISOString().slice(0, 19);
-                    }
-                    pIsAllDay = false;
-               } else {
-                    pStartISO = `${quote.pickup_date}`;
-                    pEndISO = pStartISO; // All day
-                    pIsAllDay = true;
-               }
+                    let pStartISO, pEndISO, pIsAllDay;
 
-               await createGoogleEvent(CALENDAR_RETIRO_ID, {
-                   summary: pickupSummary,
-                   location: fullLocation,
-                   description: sharedDescription,
-                   startISO: pStartISO,
-                   endISO: pEndISO,
-                   isAllDay: pIsAllDay
-               });
+                    if (hasPickupTime) {
+                        const timeValue = (quote.pickup_time as string);
+                        
+                        if (timeValue.includes(' a ')) {
+                            // USER REQUEST: Si es un rango (12:00 a 14:00), inicio 12:00, fin 14:00
+                            const [startPart, endPart] = timeValue.split(' a ');
+                            pStartISO = formatLiteral(quote.pickup_date, startPart.trim());
+                            pEndISO = formatLiteral(quote.pickup_date, endPart.trim());
+                        } else {
+                            // Lógica original de fallback por si no es un rango
+                            pStartISO = formatLiteral(quote.pickup_date, timeValue);
+                            const pickupStartObj = new Date(pStartISO);
+                            pickupStartObj.setHours(pickupStartObj.getHours() + 1); 
+                            pEndISO = new Date(pickupStartObj.getTime() - (pickupStartObj.getTimezoneOffset() * 60000)).toISOString().slice(0, 19);
+                        }
+                        pIsAllDay = false;
+                    } else {
+                        pStartISO = `${quote.pickup_date}`;
+                        pEndISO = pStartISO; // All day
+                        pIsAllDay = true;
+                    }
+
+                    await createGoogleEvent(CALENDAR_RETIRO_ID, {
+                        summary: pickupSummary,
+                        location: fullLocation,
+                        description: sharedDescription,
+                        startISO: pStartISO,
+                        endISO: pEndISO,
+                        isAllDay: pIsAllDay
+                    });
+                }
+            } catch (err) {
+                console.error('GoogleSyncService - Error creating Retiro event:', err);
             }
 
         } catch (error) {

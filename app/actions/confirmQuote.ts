@@ -148,7 +148,7 @@ export async function confirmQuote(input: any): Promise<ConfirmQuoteResult> {
                 await GoogleSyncService.scheduleCalendarEvents(fullQuote);
              } catch(e) { console.error('Non-blocking Google Sync failed:', e); }
         };
-        runGoogleSync();
+        await runGoogleSync();
 
         // ─── 6. COMUNICACIONES (Emails vía Resend Non-blocking) ──────────────
         const resendKey = process.env.RESEND_API_KEY;
