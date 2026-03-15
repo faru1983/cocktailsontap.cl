@@ -163,10 +163,15 @@ export async function confirmQuote(input: any): Promise<ConfirmQuoteResult> {
                 const adminHtml = await render(React.createElement(ConfirmationEmailComponent, { quote: fullQuote, isAdmin: true }));
                 const clientHtml = await render(React.createElement(ConfirmationEmailComponent, { quote: fullQuote, isAdmin: false }));
 
+                const eventDate = fullQuote.event_date
+                    ? new Date(fullQuote.event_date + 'T12:00:00').toLocaleDateString('es-CL', { day: '2-digit', month: 'long', year: 'numeric' })
+                    : '';
+                const fullName = `${fullQuote.client_name} ${fullQuote.client_lastname || ''}`.trim();
+
                 emailPromises.push(resend.emails.send({
                     from: FROM_EMAIL,
                     to: ADMIN_EMAIL,
-                    subject: `✅ Cotización Confirmada: ${fullQuote.client_name}`,
+                    subject: `✅ [Reserva Confirmada] ${fullName} – ${eventDate}`,
                     html: adminHtml,
                 }));
 
@@ -174,7 +179,7 @@ export async function confirmQuote(input: any): Promise<ConfirmQuoteResult> {
                     emailPromises.push(resend.emails.send({
                         from: FROM_EMAIL,
                         to: fullQuote.client_email,
-                        subject: '¡Tu Reserva está Confirmada!',
+                        subject: `✅ Reserva confirmada – ${eventDate}`,
                         html: clientHtml,
                     }));
                 }

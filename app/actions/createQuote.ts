@@ -66,17 +66,22 @@ export async function createQuote(input: CreateQuoteInput): Promise<CreateQuoteR
                 const clientHtml = await render(React.createElement(QuoteEmailComponent, { quote: fullQuote, isAdmin: false }));
                 const adminHtml = await render(React.createElement(QuoteEmailComponent, { quote: fullQuote, isAdmin: true }));
 
+                const eventDate = fullQuote.event_date
+                    ? new Date(fullQuote.event_date + 'T12:00:00').toLocaleDateString('es-CL', { day: '2-digit', month: 'long', year: 'numeric' })
+                    : '';
+                const fullName = `${fullQuote.client_name} ${fullQuote.client_lastname || ''}`.trim();
+
                 Promise.allSettled([
                     resend.emails.send({
                         from: FROM_EMAIL,
                         to: state.contact.email,
-                        subject: `Cotización Cócteles on Tap - ${state.contact.firstName}`,
+                        subject: `🍸 Tu cotización – ${eventDate}`,
                         html: clientHtml,
                     }),
                     resend.emails.send({
                         from: FROM_EMAIL,
                         to: ADMIN_EMAIL,
-                        subject: `🚨 Nueva Cotización: ${state.contact.firstName}`,
+                        subject: `[Nueva Cotización] ${fullName} – ${eventDate}`,
                         html: adminHtml,
                     }),
                 ]).catch(e => console.error('Non-blocking Resend failed:', e));
