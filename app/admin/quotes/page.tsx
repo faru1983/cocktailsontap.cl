@@ -84,6 +84,7 @@ export default async function QuotesPage({ searchParams }: { searchParams: Searc
                 }
                 .qp-card:hover { border-color: rgba(226,160,73,0.35); }
                 .qp-card-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; gap: 8px; }
+                .qp-card-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
                 .qp-card-name { color: #f1f5f9; font-size: 15px; font-weight: 700; }
                 .qp-card-meta { display: flex; gap: 14px; flex-wrap: wrap; }
                 .qp-card-meta-item { display: flex; flex-direction: column; gap: 1px; }
@@ -139,12 +140,15 @@ export default async function QuotesPage({ searchParams }: { searchParams: Searc
                 ) : quotes.map((q: any) => {
                     const badge = statusBadge[q.status] || statusBadge.draft;
                     return (
-                        <Link key={q.id} href={`/admin/quotes/${q.id}`} className="qp-card">
+                        <div key={q.id} className="qp-card" style={{ position: 'relative' }}>
+                            <Link href={`/admin/quotes/${q.id}`} style={{ textDecoration: 'none', display: 'block' }}>
                             <div className="qp-card-top">
                                 <span className="qp-card-name">{q.client_name} {q.client_lastname || ''}</span>
-                                <span style={{ display: 'inline-block', padding: '3px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 700, color: badge.color, background: badge.bg, flexShrink: 0 }}>
-                                    {badge.label}
-                                </span>
+                                <div className="qp-card-actions">
+                                    <span style={{ display: 'inline-block', padding: '3px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 700, color: badge.color, background: badge.bg }}>
+                                        {badge.label}
+                                    </span>
+                                </div>
                             </div>
                             <div className="qp-card-meta">
                                 <div className="qp-card-meta-item">
@@ -164,7 +168,16 @@ export default async function QuotesPage({ searchParams }: { searchParams: Searc
                                     <span className="qp-card-meta-value">{new Date(q.created_at).toLocaleDateString('es-CL')}</span>
                                 </div>
                             </div>
-                        </Link>
+                            </Link>
+                            {q.token && (
+                                <a href={`https://cocktailsontap.cl/cotizar/${q.token}`} target="_blank" rel="noopener noreferrer"
+                                    onClick={e => e.stopPropagation()}
+                                    style={{ position: 'absolute', top: '14px', right: '14px', fontSize: '16px', textDecoration: 'none', opacity: 0.6 }}
+                                    title="Ver cotización pública">
+                                    🔗
+                                </a>
+                            )}
+                        </div>
                     );
                 })}
             </div>
