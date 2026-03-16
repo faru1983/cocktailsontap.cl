@@ -45,6 +45,7 @@ export default async function QuotesPage({ searchParams }: { searchParams: Searc
         { label: 'Cliente', field: 'client_name' },
         { label: 'Email', field: 'client_email' },
         { label: 'Fecha Evento', field: 'event_date' },
+        { label: 'Creación', field: 'created_at' },
         { label: 'Comuna', field: 'comuna_name' },
         { label: 'Total', field: 'total_price' },
         { label: 'Estado', field: 'status' },
@@ -143,6 +144,9 @@ export default async function QuotesPage({ searchParams }: { searchParams: Searc
                                         <td style={{ padding: '14px 20px', color: '#64748b', fontSize: '13px' }}>{q.client_email || '—'}</td>
                                         <td style={{ padding: '14px 20px', color: '#94a3b8', fontSize: '13px', whiteSpace: 'nowrap' }}>
                                             {q.event_date ? new Date(q.event_date + 'T12:00:00').toLocaleDateString('es-CL') : '—'}
+                                        </td>
+                                        <td style={{ padding: '14px 20px', color: '#64748b', fontSize: '12px', whiteSpace: 'nowrap' }}>
+                                            {new Date(q.created_at).toLocaleDateString('es-CL')}
                                         </td>
                                         <td style={{ padding: '14px 20px', color: '#64748b', fontSize: '13px' }}>{q.comuna_name || '—'}</td>
                                         <td style={{ padding: '14px 20px', color: '#E2A049', fontSize: '14px', fontWeight: 700, whiteSpace: 'nowrap' }}>

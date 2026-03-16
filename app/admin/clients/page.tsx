@@ -22,7 +22,8 @@ export default async function ClientsPage({ searchParams }: { searchParams: Sear
         { label: 'Nombre', field: 'first_name' },
         { label: 'Email', field: 'email' },
         { label: 'Teléfono', field: 'phone' },
-        { label: 'Google Sync', field: 'google_contact_id' }
+        { label: 'Google Sync', field: 'google_contact_id' },
+        { label: 'Creación', field: 'created_at' },
     ];
 
     const getSortLink = (field: string) => {
@@ -84,6 +85,9 @@ export default async function ClientsPage({ searchParams }: { searchParams: Sear
                                         <span style={{ fontSize: '12px', color: c.google_contact_id ? '#34d399' : '#94a3b8' }}>
                                             {c.google_contact_id ? '✅ Sincronizado' : '— Sin sync'}
                                         </span>
+                                    </td>
+                                    <td style={{ padding: '14px 20px', color: '#64748b', fontSize: '12px', whiteSpace: 'nowrap' }}>
+                                        {new Date(c.created_at).toLocaleDateString('es-CL')}
                                     </td>
                                     <td style={{ padding: '14px 20px' }}>
                                         <Link href={`/admin/clients/${c.id}`} style={{ color: '#E2A049', fontSize: '12px', textDecoration: 'none', fontWeight: 700, padding: '6px 12px', borderRadius: '8px', border: '1px solid rgba(226,160,73,0.3)', whiteSpace: 'nowrap' }}>
