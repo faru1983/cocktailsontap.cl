@@ -10,7 +10,12 @@ export const metadata: Metadata = {
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
     const isValid = await validateSession();
-    if (!isValid) redirect('/admin/login');
+
+    // Si no está validado, dejamos que el middleware maneje la redirección
+    // y solo renderizamos el contenido (que será el login) sin el sidebar.
+    if (!isValid) {
+        return <>{children}</>;
+    }
 
     return (
         <div style={{
