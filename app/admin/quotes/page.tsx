@@ -174,7 +174,7 @@ export default async function QuotesPage({ searchParams }: { searchParams: Searc
                                                     padding: '6px 12px', borderRadius: '8px', border: '1px solid rgba(96,165,250,0.25)',
                                                     whiteSpace: 'nowrap',
                                                 }}>
-                                                    🔗 Ver
+                                                    🔗
                                                 </a>
                                             )}
                                         </td>
