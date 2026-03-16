@@ -125,6 +125,7 @@ export default async function QuotesPage({ searchParams }: { searchParams: Searc
                                     </th>
                                 ))}
                                 <th style={{ padding: '14px 20px' }}></th>
+                                <th align="left" style={{ padding: '14px 20px', color: '#475569', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.8px' }}>Link</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -164,6 +165,18 @@ export default async function QuotesPage({ searchParams }: { searchParams: Searc
                                                 padding: '6px 12px', borderRadius: '8px', border: '1px solid rgba(226,160,73,0.3)',
                                                 whiteSpace: 'nowrap',
                                             }}>Ver / Editar →</Link>
+                                        </td>
+                                        <td style={{ padding: '14px 20px' }}>
+                                            {q.token && (
+                                                <a href={`https://cocktailsontap.cl/cotizar/${q.token}`} target="_blank" rel="noopener noreferrer" title="Abrir cotización pública" style={{
+                                                    display: 'inline-flex', alignItems: 'center', gap: '4px',
+                                                    color: '#60a5fa', fontSize: '12px', textDecoration: 'none', fontWeight: 700,
+                                                    padding: '6px 12px', borderRadius: '8px', border: '1px solid rgba(96,165,250,0.25)',
+                                                    whiteSpace: 'nowrap',
+                                                }}>
+                                                    🔗 Ver
+                                                </a>
+                                            )}
                                         </td>
                                     </tr>
                                 );
