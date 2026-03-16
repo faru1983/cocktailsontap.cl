@@ -71,7 +71,7 @@ export async function createQuote(input: CreateQuoteInput): Promise<CreateQuoteR
                     : '';
                 const fullName = `${fullQuote.client_name} ${fullQuote.client_lastname || ''}`.trim();
 
-                Promise.allSettled([
+                await Promise.allSettled([
                     resend.emails.send({
                         from: FROM_EMAIL,
                         to: state.contact.email,
@@ -84,7 +84,7 @@ export async function createQuote(input: CreateQuoteInput): Promise<CreateQuoteR
                         subject: `[Nueva Cotización] ${fullName} – ${eventDate}`,
                         html: adminHtml,
                     }),
-                ]).catch(e => console.error('Non-blocking Resend failed:', e));
+                ]);
             } catch (emailErr) {
                 console.error('Error enviando emails:', emailErr);
             }

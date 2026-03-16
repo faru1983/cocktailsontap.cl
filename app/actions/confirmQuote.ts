@@ -183,7 +183,7 @@ export async function confirmQuote(input: any): Promise<ConfirmQuoteResult> {
                         html: clientHtml,
                     }));
                 }
-                Promise.allSettled(emailPromises).catch(e => console.error('Non-blocking Resend failed:', e));
+                await Promise.allSettled(emailPromises);
             } catch (err) { console.error('Email error:', err); }
         }
 
