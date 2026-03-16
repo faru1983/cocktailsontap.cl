@@ -1,6 +1,5 @@
 import type { Metadata } from 'next';
 import { validateSession } from '@/lib/adminAuth';
-import { redirect } from 'next/navigation';
 import AdminSidebar from './AdminSidebar';
 
 export const metadata: Metadata = {
@@ -11,8 +10,7 @@ export const metadata: Metadata = {
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
     const isValid = await validateSession();
 
-    // Si no está validado, dejamos que el middleware maneje la redirección
-    // y solo renderizamos el contenido (que será el login) sin el sidebar.
+    // Si no está validado renderizamos solo el login (sin sidebar ni estructura de panel)
     if (!isValid) {
         return <>{children}</>;
     }
@@ -21,18 +19,21 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         <div style={{
             minHeight: '100vh',
             background: '#0d1117',
-            display: 'flex',
             fontFamily: "'Outfit', -apple-system, sans-serif",
             color: '#e2e8f0',
         }}>
+            {/* Sidebar como drawer fixed — no ocupa espacio en el flujo */}
             <AdminSidebar />
+
+            {/* Contenido principal: padding superior para dejar espacio al botón hamburguesa */}
             <main style={{
-                flex: 1,
-                overflow: 'auto',
-                padding: '32px',
                 minHeight: '100vh',
+                padding: '64px 16px 32px',     /* top: espacio para el hamburger */
             }}>
-                {children}
+                {/* Contenedor con max-width para pantallas grandes */}
+                <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
+                    {children}
+                </div>
             </main>
         </div>
     );
