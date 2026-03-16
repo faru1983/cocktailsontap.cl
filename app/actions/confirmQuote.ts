@@ -143,9 +143,16 @@ export async function confirmQuote(input: any): Promise<ConfirmQuoteResult> {
         // Google Sync Orchestration
         const runGoogleSync = async () => {
              try {
-                // Not ideal but we pass fullQuote which now has updated fields
                 await GoogleSyncService.updateContactConfirmedStatus(fullQuote);
-                await GoogleSyncService.scheduleCalendarEvents(fullQuote);
+                const { eventId, pickupEventId } = await GoogleSyncService.scheduleCalendarEvents(fullQuote);
+                // Save Google Calendar event IDs for future edits (Editor Maestro)
+                if (eventId || pickupEventId) {
+                    const db = createServerClient();
+                    await db.from('quotes').update({
+                        ...(eventId && { google_event_id: eventId }),
+                        ...(pickupEventId && { google_pickup_event_id: pickupEventId }),
+                    }).eq('id', fullQuote.id);
+                }
              } catch(e) { console.error('Non-blocking Google Sync failed:', e); }
         };
         await runGoogleSync();

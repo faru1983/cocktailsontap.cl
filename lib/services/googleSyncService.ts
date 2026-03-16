@@ -96,8 +96,9 @@ export const GoogleSyncService = {
 
     /**
      * Creates Google Calendar events for a confirmed quote.
+     * Returns the created event IDs for persistence in the database.
      */
-    async scheduleCalendarEvents(quote: Quote): Promise<void> {
+    async scheduleCalendarEvents(quote: Quote, options?: { updateEventId?: string; updatePickupEventId?: string }): Promise<{ eventId?: string; pickupEventId?: string }> {
         try {
             const fullName = `${quote.client_name} ${quote.client_lastname || ''}`.trim();
             const comunaStr = quote.comuna_name === 'Otra' ? quote.comuna_other : quote.comuna_name;
@@ -129,6 +130,9 @@ export const GoogleSyncService = {
             const hasStartTime = quote.start_time && quote.start_time !== '--:--';
             const hasPickupTime = quote.pickup_time && quote.pickup_time !== '--:--';
 
+            let eventId: string | undefined;
+            let pickupEventId: string | undefined;
+
             // 1. Create Service Event (Reserva Calendar)
             try {
                 if (CALENDAR_RESERVA_ID && quote.event_date) {
@@ -147,7 +151,7 @@ export const GoogleSyncService = {
                         isAllDay = true;
                     }
 
-                    await createGoogleEvent(CALENDAR_RESERVA_ID, {
+                    const created = await createGoogleEvent(CALENDAR_RESERVA_ID, {
                         summary: serviceSummary,
                         location: fullLocation,
                         description: sharedDescription,
@@ -155,6 +159,7 @@ export const GoogleSyncService = {
                         endISO,
                         isAllDay
                     });
+                    eventId = created?.id || undefined;
                 }
             } catch (err) {
                 console.error('GoogleSyncService - Error creating Reserva event:', err);
@@ -189,7 +194,7 @@ export const GoogleSyncService = {
                         pIsAllDay = true;
                     }
 
-                    await createGoogleEvent(CALENDAR_RETIRO_ID, {
+                    const createdPickup = await createGoogleEvent(CALENDAR_RETIRO_ID, {
                         summary: pickupSummary,
                         location: fullLocation,
                         description: sharedDescription,
@@ -197,13 +202,17 @@ export const GoogleSyncService = {
                         endISO: pEndISO,
                         isAllDay: pIsAllDay
                     });
+                    pickupEventId = createdPickup?.id || undefined;
                 }
             } catch (err) {
                 console.error('GoogleSyncService - Error creating Retiro event:', err);
             }
 
+            return { eventId, pickupEventId };
+
         } catch (error) {
             console.error('GoogleSyncService - Error in scheduleCalendarEvents:', error);
+            return {};
         }
     }
 }
