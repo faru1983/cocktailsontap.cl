@@ -11,25 +11,26 @@ const statusBadge: Record<string, { label: string; color: string; bg: string }> 
 
 const formatCLP = (n: number) => new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0 }).format(n);
 
-type SearchParams = Promise<{ status?: string; q?: string }>;
+type SearchParams = Promise<{ status?: string; q?: string; sort?: string; order?: string }>;
 
-async function getQuotes(status?: string, search?: string) {
+async function getQuotes(status?: string, search?: string, sort: string = 'created_at', order: string = 'desc') {
     const db = createServerClient();
     let query = db
         .from('quotes')
-        .select('id, token, status, client_name, client_lastname, client_email, event_date, total_price, created_at, comuna_name')
-        .order('created_at', { ascending: false });
+        .select('id, token, status, client_name, client_lastname, client_email, event_date, total_price, created_at, comuna_name');
 
     if (status && status !== 'all') query = query.eq('status', status);
     if (search) query = query.or(`client_name.ilike.%${search}%,client_email.ilike.%${search}%,client_lastname.ilike.%${search}%`);
+
+    query = query.order(sort, { ascending: order === 'asc' });
 
     const { data } = await query;
     return data || [];
 }
 
 export default async function QuotesPage({ searchParams }: { searchParams: SearchParams }) {
-    const { status, q } = await searchParams;
-    const quotes = await getQuotes(status, q);
+    const { status, q, sort = 'created_at', order = 'desc' } = await searchParams;
+    const quotes = await getQuotes(status, q, sort, order);
 
     const filters = [
         { value: 'all', label: 'Todas' },
@@ -37,8 +38,28 @@ export default async function QuotesPage({ searchParams }: { searchParams: Searc
         { value: 'confirmed', label: 'Confirmadas' },
         { value: 'deposit_paid', label: 'Abono Recibido' },
         { value: 'completed', label: 'Completadas' },
-        { value: 'cancelled', label: 'Canceladas' },
+        { value: 'cancelled', label: 'Cancelada' },
     ];
+
+    const sortFields = [
+        { label: 'Cliente', field: 'client_name' },
+        { label: 'Email', field: 'client_email' },
+        { label: 'Fecha Evento', field: 'event_date' },
+        { label: 'Comuna', field: 'comuna_name' },
+        { label: 'Total', field: 'total_price' },
+        { label: 'Estado', field: 'status' },
+    ];
+
+    const getSortLink = (field: string) => {
+        const isCurrent = sort === field;
+        const nextOrder = isCurrent && order === 'desc' ? 'asc' : 'desc';
+        const params = new URLSearchParams();
+        if (status) params.set('status', status);
+        if (q) params.set('q', q);
+        params.set('sort', field);
+        params.set('order', nextOrder);
+        return `/admin/quotes?${params.toString()}`;
+    };
 
     return (
         <div>
@@ -52,7 +73,7 @@ export default async function QuotesPage({ searchParams }: { searchParams: Searc
                 {filters.map(f => {
                     const active = (status || 'all') === f.value;
                     return (
-                        <Link key={f.value} href={`/admin/quotes?status=${f.value}${q ? `&q=${q}` : ''}`} style={{
+                        <Link key={f.value} href={`/admin/quotes?status=${f.value}${q ? `&q=${q}` : ''}${sort ? `&sort=${sort}` : ''}${order ? `&order=${order}` : ''}`} style={{
                             padding: '7px 14px',
                             borderRadius: '20px',
                             fontSize: '12px',
@@ -67,6 +88,8 @@ export default async function QuotesPage({ searchParams }: { searchParams: Searc
                 })}
                 <form method="GET" action="/admin/quotes" style={{ marginLeft: 'auto' }}>
                     {status && <input type="hidden" name="status" value={status} />}
+                    {sort && <input type="hidden" name="sort" value={sort} />}
+                    {order && <input type="hidden" name="order" value={order} />}
                     <input
                         name="q"
                         defaultValue={q || ''}
@@ -92,9 +115,15 @@ export default async function QuotesPage({ searchParams }: { searchParams: Searc
                     <table width="100%" style={{ borderCollapse: 'collapse' }}>
                         <thead>
                             <tr style={{ background: 'rgba(255,255,255,0.02)' }}>
-                                {['Cliente', 'Email', 'Fecha Evento', 'Comuna', 'Total', 'Estado', ''].map(h => (
-                                    <th key={h} align="left" style={{ padding: '14px 20px', color: '#475569', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.8px', whiteSpace: 'nowrap' }}>{h}</th>
+                                {sortFields.map((h) => (
+                                    <th key={h.field} align="left" style={{ padding: '14px 20px', color: '#475569', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.8px', whiteSpace: 'nowrap' }}>
+                                        <Link href={getSortLink(h.field)} style={{ textDecoration: 'none', color: sort === h.field ? '#E2A049' : 'inherit', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                            {h.label}
+                                            {sort === h.field && (order === 'asc' ? ' 🔼' : ' 🔽')}
+                                        </Link>
+                                    </th>
                                 ))}
+                                <th style={{ padding: '14px 20px' }}></th>
                             </tr>
                         </thead>
                         <tbody>

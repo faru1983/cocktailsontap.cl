@@ -1,11 +1,12 @@
 import { createServerClient } from '@/lib/supabaseServer';
 import RetryButton from './RetryButton';
+import Link from 'next/link';
 
-async function getSyncLogs() {
+async function getSyncLogs(sort: string = 'created_at', order: string = 'desc') {
     const db = createServerClient();
     const { data } = await db.from('sync_logs')
         .select('*, quotes(client_name, client_lastname)')
-        .order('created_at', { ascending: false })
+        .order(sort, { ascending: order === 'asc' })
         .limit(100);
     return data || [];
 }
@@ -18,9 +19,25 @@ const typeLabels: Record<string, string> = {
     google_contact: '👤 Google Contact',
 };
 
-export default async function LogsPage() {
-    const logs = await getSyncLogs();
+type SearchParams = Promise<{ sort?: string; order?: string }>;
+
+export default async function LogsPage({ searchParams }: { searchParams: SearchParams }) {
+    const { sort = 'created_at', order = 'desc' } = await searchParams;
+    const logs = await getSyncLogs(sort, order);
     const failed = logs.filter((l: any) => l.status === 'failed');
+
+    const sortFields = [
+        { label: 'Fecha', field: 'created_at' },
+        { label: 'Cliente', field: 'quote_id' }, // Simplified: sort by quote association
+        { label: 'Tipo', field: 'type' },
+        { label: 'Estado', field: 'status' }
+    ];
+
+    const getSortLink = (field: string) => {
+        const isCurrent = sort === field;
+        const nextOrder = isCurrent && order === 'desc' ? 'asc' : 'desc';
+        return `/admin/logs?sort=${field}&order=${nextOrder}`;
+    };
 
     return (
         <div>
@@ -42,9 +59,16 @@ export default async function LogsPage() {
                     <table width="100%" style={{ borderCollapse: 'collapse' }}>
                         <thead>
                             <tr style={{ background: 'rgba(255,255,255,0.02)' }}>
-                                {['Fecha', 'Cliente', 'Tipo', 'Estado', 'Error', ''].map(h => (
-                                    <th key={h} align="left" style={{ padding: '14px 20px', color: '#475569', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.8px' }}>{h}</th>
+                                {sortFields.map(h => (
+                                    <th key={h.field} align="left" style={{ padding: '14px 20px', color: '#475569', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.8px' }}>
+                                        <Link href={getSortLink(h.field)} style={{ textDecoration: 'none', color: sort === h.field ? '#E2A049' : 'inherit', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                            {h.label}
+                                            {sort === h.field && (order === 'asc' ? ' 🔼' : ' 🔽')}
+                                        </Link>
+                                    </th>
                                 ))}
+                                <th style={{ padding: '14px 20px', color: '#475569', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase' }}>Error</th>
+                                <th style={{ padding: '14px 20px' }}></th>
                             </tr>
                         </thead>
                         <tbody>
