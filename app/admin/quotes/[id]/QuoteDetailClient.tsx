@@ -76,7 +76,11 @@ export default function QuoteDetailClient({ quote: initial }: { quote: any }) {
             <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '28px', flexWrap: 'wrap' }}>
                 <Link href="/admin/quotes" style={{ color: '#E2A049', fontSize: '13px', textDecoration: 'none', whiteSpace: 'nowrap' }}>← Cotizaciones</Link>
                 <h1 style={{ color: '#f1f5f9', fontSize: '20px', fontWeight: 900, margin: 0 }}>
-                    {quote.client_name} {quote.client_lastname || ''}
+                    <Link href={`/admin/clients/${quote.client_id}`} style={{ color: 'inherit', textDecoration: 'none', borderBottom: '1px solid transparent', transition: 'border-color 0.15s' }} 
+                        onMouseEnter={e => e.currentTarget.style.borderColor = 'rgba(226,160,73,0.5)'}
+                        onMouseLeave={e => e.currentTarget.style.borderColor = 'transparent'}>
+                        {quote.client_name} {quote.client_lastname || ''}
+                    </Link>
                 </h1>
                 <span style={{ display: 'inline-block', padding: '5px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: 700, color: badge.color, background: badge.bg }}>
                     {badge.label}
@@ -114,16 +118,24 @@ export default function QuoteDetailClient({ quote: initial }: { quote: any }) {
             </div>
 
             {/* Tabs */}
-            <div style={{ display: 'flex', gap: '4px', marginBottom: '16px' }}>
+            <div style={{ display: 'flex', gap: '4px', marginBottom: '16px', flexWrap: 'wrap' }}>
                 {(['info', 'email', 'review'] as const).map(t => (
                     <button key={t} onClick={() => setTab(t)} style={{
                         padding: '8px 16px', borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', border: 'none',
                         background: tab === t ? '#E2A049' : 'rgba(255,255,255,0.05)',
                         color: tab === t ? '#1a1a2e' : '#64748b',
                     }}>
-                        {t === 'info' ? '📋 Detalle' : t === 'email' ? '✉️ Email Directo' : '📊 Cotización'}
+                        {t === 'info' ? '📋 Detalle' : t === 'email' ? '✉️ Email' : '📊 Cotización'}
                     </button>
                 ))}
+                {quote.token && (
+                    <a href={`https://cocktailsontap.cl/cotizar/${quote.token}`} target="_blank" rel="noopener noreferrer" style={{
+                        padding: '8px 12px', borderRadius: '8px', fontSize: '16px', cursor: 'pointer', textDecoration: 'none',
+                        background: 'rgba(96,165,250,0.1)', border: '1px solid rgba(96,165,250,0.2)', color: '#60a5fa', display: 'flex', alignItems: 'center', justifyContent: 'center'
+                    }} title="Ver cotización pública">
+                        🔗
+                    </a>
+                )}
             </div>
 
             <div style={{ background: '#1e2433', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.06)', padding: '24px' }}>
