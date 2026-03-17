@@ -66,23 +66,20 @@ export default async function AdminDashboardPage() {
                 .admin-kpi-grid {
                     display: grid;
                     grid-template-columns: repeat(2, 1fr);
-                    gap: 14px;
-                    margin-bottom: 32px;
-                }
-                @media (min-width: 640px) {
-                    .admin-kpi-grid { grid-template-columns: repeat(2, 1fr); }
+                    gap: 12px;
+                    margin-bottom: 28px;
                 }
                 @media (min-width: 900px) {
-                    .admin-kpi-grid { grid-template-columns: repeat(4, 1fr); }
+                    .admin-kpi-grid { grid-template-columns: repeat(4, 1fr); gap: 16px; }
                 }
                 .admin-kpi-card {
                     background: #1e2433;
                     border: 1px solid rgba(255,255,255,0.06);
                     border-radius: 14px;
-                    padding: 18px;
+                    padding: 16px;
                 }
                 .admin-kpi-value {
-                    font-size: 22px;
+                    font-size: 20px;
                     font-weight: 900;
                     margin-bottom: 2px;
                     word-break: break-all;
@@ -90,18 +87,32 @@ export default async function AdminDashboardPage() {
                 @media (min-width: 480px) {
                     .admin-kpi-value { font-size: 26px; }
                 }
-                .admin-recent-table th, .admin-recent-table td {
-                    padding: 12px 14px;
+
+                /* ── Recent Quotes Dual View ── */
+                .admin-recent-wrap { background: #1e2433; border-radius: 16px; border: 1px solid rgba(255,255,255,0.06); overflow: hidden; }
+                .admin-recent-table-view { display: none; }
+                .admin-recent-cards-view { display: flex; flex-direction: column; }
+                
+                @media (min-width: 768px) {
+                    .admin-recent-table-view { display: block; overflow-x: auto; }
+                    .admin-recent-cards-view { display: none; }
                 }
-                @media (min-width: 640px) {
-                    .admin-recent-table th, .admin-recent-table td {
-                        padding: 14px 20px;
-                    }
+
+                .dashboard-quote-card {
+                    padding: 14px 16px;
+                    border-top: 1px solid rgba(255,255,255,0.05);
+                    text-decoration: none;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    gap: 12px;
                 }
+                .dashboard-quote-card:first-child { border-top: none; }
+                .dashboard-quote-card:hover { background: rgba(255,255,255,0.02); }
             `}</style>
 
             {/* Header */}
-            <div style={{ marginBottom: '28px' }}>
+            <div style={{ marginBottom: '24px' }}>
                 <h1 style={{ color: '#f1f5f9', fontSize: '24px', fontWeight: 900, margin: '0 0 4px' }}>
                     Dashboard
                 </h1>
@@ -114,17 +125,17 @@ export default async function AdminDashboardPage() {
             <div className="admin-kpi-grid">
                 {kpis.map((kpi) => (
                     <div key={kpi.label} className="admin-kpi-card" style={{ borderTop: `3px solid ${kpi.color}` }}>
-                        <div style={{ fontSize: '22px', marginBottom: '10px' }}>{kpi.icon}</div>
+                        <div style={{ fontSize: '20px', marginBottom: '8px' }}>{kpi.icon}</div>
                         <div className="admin-kpi-value" style={{ color: kpi.color }}>{kpi.value}</div>
-                        <div style={{ color: '#f1f5f9', fontSize: '13px', fontWeight: 600, marginBottom: '4px' }}>{kpi.label}</div>
-                        <div style={{ color: '#475569', fontSize: '12px' }}>{kpi.sub}</div>
+                        <div style={{ color: '#f1f5f9', fontSize: '12px', fontWeight: 600, marginBottom: '2px' }}>{kpi.label}</div>
+                        <div style={{ color: '#475569', fontSize: '11px' }}>{kpi.sub}</div>
                     </div>
                 ))}
             </div>
 
             {/* Recent Quotes */}
-            <div style={{ background: '#1e2433', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.06)', overflow: 'hidden' }}>
-                <div style={{ padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+            <div className="admin-recent-wrap">
+                <div style={{ padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
                     <h2 style={{ color: '#f1f5f9', fontSize: '15px', fontWeight: 700, margin: 0 }}>
                         Cotizaciones Recientes
                     </h2>
@@ -132,12 +143,37 @@ export default async function AdminDashboardPage() {
                         Ver todas →
                     </Link>
                 </div>
-                <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-                    <table className="admin-recent-table" width="100%" style={{ borderCollapse: 'collapse', minWidth: '520px' }}>
+
+                {/* ── MOBILE: Cards ── */}
+                <div className="admin-recent-cards-view">
+                    {data.recentQuotes.map((q: any) => {
+                        const badge = statusBadge[q.status] || statusBadge.draft;
+                        return (
+                            <Link key={q.id} href={`/admin/quotes/${q.id}`} className="dashboard-quote-card">
+                                <div style={{ minWidth: 0 }}>
+                                    <div style={{ color: '#f1f5f9', fontSize: '14px', fontWeight: 700, marginBottom: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                        {q.client_name} {q.client_lastname || ''}
+                                    </div>
+                                    <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                                        <span style={{ color: '#E2A049', fontWeight: 700, fontSize: '13px' }}>{formatCLP(Number(q.total_price))}</span>
+                                        <span style={{ color: '#475569', fontSize: '11px' }}>{q.event_date ? new Date(q.event_date + 'T12:00:00').toLocaleDateString('es-CL') : '—'}</span>
+                                    </div>
+                                </div>
+                                <span style={{ display: 'inline-block', padding: '3px 9px', borderRadius: '20px', fontSize: '10px', fontWeight: 700, color: badge.color, background: badge.bg, flexShrink: 0 }}>
+                                    {badge.label}
+                                </span>
+                            </Link>
+                        );
+                    })}
+                </div>
+
+                {/* ── DESKTOP: Table ── */}
+                <div className="admin-recent-table-view">
+                    <table width="100%" style={{ borderCollapse: 'collapse' }}>
                         <thead>
                             <tr style={{ background: 'rgba(255,255,255,0.02)' }}>
-                                {['Cliente', 'Fecha Evento', 'Total', 'Estado', ''].map(h => (
-                                    <th key={h} align="left" style={{ padding: '12px 14px', color: '#475569', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.8px', whiteSpace: 'nowrap' }}>{h}</th>
+                                {['Cliente', 'Fecha Evento', 'Total', 'Estado'].map(h => (
+                                    <th key={h} align="left" style={{ padding: '14px 20px', color: '#475569', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.8px', whiteSpace: 'nowrap' }}>{h}</th>
                                 ))}
                             </tr>
                         </thead>
@@ -146,28 +182,21 @@ export default async function AdminDashboardPage() {
                                 const badge = statusBadge[q.status] || statusBadge.draft;
                                 return (
                                     <tr key={q.id} style={{ borderTop: '1px solid rgba(255,255,255,0.04)' }}>
-                                        <td style={{ padding: '13px 14px', color: '#f1f5f9', fontSize: '14px', fontWeight: 600, whiteSpace: 'nowrap' }}>
-                                            {q.client_name} {q.client_lastname || ''}
+                                        <td style={{ padding: '14px 20px', whiteSpace: 'nowrap' }}>
+                                            <Link href={`/admin/quotes/${q.id}`} style={{ color: '#f1f5f9', fontSize: '14px', fontWeight: 600, textDecoration: 'none' }}>
+                                                {q.client_name} {q.client_lastname || ''} →
+                                            </Link>
                                         </td>
-                                        <td style={{ padding: '13px 14px', color: '#94a3b8', fontSize: '13px', whiteSpace: 'nowrap' }}>
+                                        <td style={{ padding: '14px 20px', color: '#94a3b8', fontSize: '13px', whiteSpace: 'nowrap' }}>
                                             {q.event_date ? new Date(q.event_date + 'T12:00:00').toLocaleDateString('es-CL') : '—'}
                                         </td>
-                                        <td style={{ padding: '13px 14px', color: '#E2A049', fontSize: '14px', fontWeight: 700, whiteSpace: 'nowrap' }}>
+                                        <td style={{ padding: '14px 20px', color: '#E2A049', fontSize: '14px', fontWeight: 700, whiteSpace: 'nowrap' }}>
                                             {formatCLP(Number(q.total_price))}
                                         </td>
-                                        <td style={{ padding: '13px 14px' }}>
-                                            <span style={{
-                                                display: 'inline-block', padding: '4px 10px', borderRadius: '20px',
-                                                fontSize: '11px', fontWeight: 700, color: badge.color, background: badge.bg,
-                                                whiteSpace: 'nowrap',
-                                            }}>{badge.label}</span>
-                                        </td>
-                                        <td style={{ padding: '13px 14px' }}>
-                                            <Link href={`/admin/quotes/${q.id}`} style={{
-                                                color: '#64748b', fontSize: '12px', textDecoration: 'none',
-                                                padding: '5px 10px', borderRadius: '6px',
-                                                border: '1px solid rgba(255,255,255,0.08)', whiteSpace: 'nowrap',
-                                            }}>Ver →</Link>
+                                        <td style={{ padding: '14px 20px', whiteSpace: 'nowrap' }}>
+                                            <span style={{ display: 'inline-block', padding: '4px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 700, color: badge.color, background: badge.bg }}>
+                                                {badge.label}
+                                            </span>
                                         </td>
                                     </tr>
                                 );

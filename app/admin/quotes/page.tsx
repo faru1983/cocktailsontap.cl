@@ -83,8 +83,9 @@ export default async function QuotesPage({ searchParams }: { searchParams: Searc
                     transition: border-color 0.15s;
                 }
                 .qp-card:hover { border-color: rgba(226,160,73,0.35); }
-                .qp-card-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; gap: 8px; }
+                .qp-card-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; gap: 8px; }
                 .qp-card-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+                .qp-card-meta-row { display: flex; justify-content: space-between; align-items: flex-end; }
                 .qp-card-name { color: #f1f5f9; font-size: 15px; font-weight: 700; }
                 .qp-card-meta { display: flex; gap: 14px; flex-wrap: wrap; }
                 .qp-card-meta-item { display: flex; flex-direction: column; gap: 1px; }
@@ -142,37 +143,49 @@ export default async function QuotesPage({ searchParams }: { searchParams: Searc
                     return (
                         <div key={q.id} className="qp-card" style={{ position: 'relative' }}>
                             <Link href={`/admin/quotes/${q.id}`} style={{ textDecoration: 'none', display: 'block' }}>
-                            <div className="qp-card-top">
-                                <span className="qp-card-name">{q.client_name} {q.client_lastname || ''}</span>
-                                <div className="qp-card-actions">
-                                    <span style={{ display: 'inline-block', padding: '3px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 700, color: badge.color, background: badge.bg }}>
+                                <div className="qp-card-top">
+                                    <span className="qp-card-name">{q.client_name} {q.client_lastname || ''}</span>
+                                    <span style={{ display: 'inline-block', padding: '3px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 700, color: badge.color, background: badge.bg, flexShrink: 0 }}>
                                         {badge.label}
                                     </span>
                                 </div>
-                            </div>
-                            <div className="qp-card-meta">
-                                <div className="qp-card-meta-item">
-                                    <span className="qp-card-meta-label">Total</span>
-                                    <span className="qp-card-price">{formatCLP(Number(q.total_price))}</span>
+                                <div className="qp-card-meta-row">
+                                    <div className="qp-card-meta">
+                                        <div className="qp-card-meta-item">
+                                            <span className="qp-card-meta-label">Total</span>
+                                            <span className="qp-card-price">{formatCLP(Number(q.total_price))}</span>
+                                        </div>
+                                        <div className="qp-card-meta-item">
+                                            <span className="qp-card-meta-label">Evento</span>
+                                            <span className="qp-card-meta-value">{q.event_date ? new Date(q.event_date + 'T12:00:00').toLocaleDateString('es-CL') : '—'}</span>
+                                        </div>
+                                        <div className="qp-card-meta-item">
+                                            <span className="qp-card-meta-label">Comuna</span>
+                                            <span className="qp-card-meta-value">{q.comuna_name || '—'}</span>
+                                        </div>
+                                        <div className="qp-card-meta-item">
+                                            <span className="qp-card-meta-label">Creación</span>
+                                            <span className="qp-card-meta-value">{new Date(q.created_at).toLocaleDateString('es-CL')}</span>
+                                        </div>
+                                    </div>
+                                    {/* Placeholder to reserve space in the layout */}
+                                    <div style={{ width: '24px', flexShrink: 0 }} />
                                 </div>
-                                <div className="qp-card-meta-item">
-                                    <span className="qp-card-meta-label">Evento</span>
-                                    <span className="qp-card-meta-value">{q.event_date ? new Date(q.event_date + 'T12:00:00').toLocaleDateString('es-CL') : '—'}</span>
-                                </div>
-                                <div className="qp-card-meta-item">
-                                    <span className="qp-card-meta-label">Comuna</span>
-                                    <span className="qp-card-meta-value">{q.comuna_name || '—'}</span>
-                                </div>
-                                <div className="qp-card-meta-item">
-                                    <span className="qp-card-meta-label">Creación</span>
-                                    <span className="qp-card-meta-value">{new Date(q.created_at).toLocaleDateString('es-CL')}</span>
-                                </div>
-                            </div>
                             </Link>
+
+                            {/* Public Link - Outside the main Link to avoid <a> inside <a> error */}
                             {q.token && (
                                 <a href={`https://cocktailsontap.cl/cotizar/${q.token}`} target="_blank" rel="noopener noreferrer"
-                                    onClick={e => e.stopPropagation()}
-                                    style={{ position: 'absolute', top: '14px', right: '14px', fontSize: '16px', textDecoration: 'none', opacity: 0.6 }}
+                                    style={{ 
+                                        position: 'absolute', 
+                                        right: '16px', 
+                                        bottom: '14px',
+                                        fontSize: '18px', 
+                                        textDecoration: 'none', 
+                                        opacity: 0.55, 
+                                        zIndex: 5,
+                                        padding: '4px' 
+                                    }}
                                     title="Ver cotización pública">
                                     🔗
                                 </a>
