@@ -134,17 +134,45 @@ export default function QuoteDetailClient({ quote: initial }: { quote: any }) {
                 )}
             </div>
 
-            {/* Tabs */}
-            <div style={{ display: 'flex', gap: '4px', marginBottom: '16px', flexWrap: 'wrap' }}>
-                {(['info', 'email', 'review'] as const).map(t => (
-                    <button key={t} onClick={() => setTab(t)} style={{
-                        padding: '8px 16px', borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', border: 'none',
-                        background: tab === t ? '#E2A049' : 'rgba(255,255,255,0.05)',
-                        color: tab === t ? '#1a1a2e' : '#64748b',
-                    }}>
-                        {t === 'info' ? '📋 Detalle' : t === 'email' ? '✉️ Email' : '📊 Cotización'}
-                    </button>
-                ))}
+            {/* Tabs & Quick Actions */}
+            <div style={{ display: 'flex', gap: '6px', marginBottom: '16px', flexWrap: 'wrap', alignItems: 'center' }}>
+                {/* Main Content Tabs */}
+                <button onClick={() => setTab('info')} style={{
+                    padding: '8px 16px', borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', border: 'none',
+                    background: tab === 'info' ? '#E2A049' : 'rgba(255,255,255,0.05)', color: tab === 'info' ? '#1a1a2e' : '#64748b',
+                }}>📋 Detalle</button>
+                
+                <button onClick={() => setTab('review')} style={{
+                    padding: '8px 16px', borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', border: 'none',
+                    background: tab === 'review' ? '#E2A049' : 'rgba(255,255,255,0.05)', color: tab === 'review' ? '#1a1a2e' : '#64748b',
+                }}>📊 Cotización</button>
+
+                {/* Icon-only Email Tab */}
+                <button onClick={() => setTab('email')} title="Enviar Email" style={{
+                    padding: '8px 12px', borderRadius: '8px', fontSize: '16px', cursor: 'pointer', border: 'none',
+                    background: tab === 'email' ? '#E2A049' : 'rgba(255,255,255,0.05)', color: tab === 'email' ? '#1a1a2e' : '#64748b',
+                }}>✉️</button>
+
+                {/* WhatsApp Link - Direct Action */}
+                {(() => {
+                    const phone = quote.client_phone?.replace(/\D/g, '');
+                    const waUrl = phone ? `https://wa.me/${phone.startsWith('56') ? phone : '56' + phone}` : null;
+                    return (
+                        <a href={waUrl || '#'} target={waUrl ? "_blank" : "_self"} rel="noopener noreferrer" 
+                            style={{
+                                padding: '8px 12px', borderRadius: '8px', fontSize: '16px', cursor: waUrl ? 'pointer' : 'not-allowed', textDecoration: 'none',
+                                background: waUrl ? 'rgba(37,211,102,0.1)' : 'rgba(255,255,255,0.03)', 
+                                border: `1px solid ${waUrl ? 'rgba(37,211,102,0.2)' : 'rgba(255,255,255,0.05)'}`,
+                                color: waUrl ? '#25D366' : '#475569', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                opacity: waUrl ? 1 : 0.4
+                            }} title={waUrl ? "Chat por WhatsApp" : "Sin teléfono registrado"}>
+                            {/* Simple WhatsApp-colored icon or emoji */}
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.038 3.284l-.569 2.1c-.123.454.28.855.73.726l2.124-.609c1.048.589 2.123.915 3.313.915 3.14-.04 5.77-2.612 5.77-5.77 0-3.18-2.587-5.761-5.767-5.761zm3.336 8.356c-.113.318-.654.582-.911.62-.257.038-.501.066-1.556-.35a5.53 5.53 0 0 1-2.42-2.128c-.066-.094-.523-.695-.523-1.327 0-.632.33-.941.449-1.065.118-.124.257-.156.344-.156s.174.001.249.005c.08.004.188-.03.294.223.113.272.387.942.422 1.012.035.071.058.151.011.246-.046.094-.07.151-.139.231-.07.081-.144.179-.211.24-.075.071-.154.146-.064.301.091.156.401.66.862 1.07.593.527 1.091.69 1.246.763.156.075.246.061.34-.046.094-.108.401-.468.509-.627.108-.159.217-.133.363-.078.146.056.923.435 1.083.514.16.08.267.118.305.18.038.061.038.353-.075.671z"/></svg>
+                        </a>
+                    );
+                })()}
+
+                {/* Public Link - Direct Action */}
                 {quote.token && (
                     <a href={`https://cocktailsontap.cl/cotizar/${quote.token}`} target="_blank" rel="noopener noreferrer" style={{
                         padding: '8px 12px', borderRadius: '8px', fontSize: '16px', cursor: 'pointer', textDecoration: 'none',
