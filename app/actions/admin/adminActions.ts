@@ -232,6 +232,80 @@ export async function syncClientToGoogle(clientId: string): Promise<{ success: b
     }
 }
 
+// ── Reminder Templates CRUD ──────────────────────────────────────────
+export async function saveReminderTemplate(data: { id?: string; name: string; subject?: string; content: string; type: string }): Promise<{ success: boolean; error?: string }> {
+    const db = createServerClient();
+    const { error } = await db.from('reminder_templates').upsert(data).select();
+    if (error) return { success: false, error: error.message };
+    revalidatePath('/admin/reminders');
+    return { success: true };
+}
+
+export async function deleteReminderTemplate(id: string): Promise<{ success: boolean; error?: string }> {
+    const db = createServerClient();
+    const { error } = await db.from('reminder_templates').delete().eq('id', id);
+    if (error) return { success: false, error: error.message };
+    revalidatePath('/admin/reminders');
+    return { success: true };
+}
+
+// ── Batch Send Email Reminders ──────────────────────────────────────────
+export async function sendBatchReminders(quoteIds: string[], templateId: string): Promise<{ success: boolean; results?: any; error?: string }> {
+    const db = createServerClient();
+    
+    // 1. Fetch template
+    const { data: template } = await db.from('reminder_templates').select('*').eq('id', templateId).single();
+    if (!template) return { success: false, error: 'Plantilla no encontrada.' };
+
+    // 2. Fetch quotes
+    const { data: quotes } = await db.from('quotes').select('*, quote_items(*)').in('id', quoteIds);
+    if (!quotes || quotes.length === 0) return { success: false, error: 'No se encontraron las cotizaciones.' };
+
+    const resend = new Resend(process.env.RESEND_API_KEY);
+    const results = [];
+
+    for (const quote of quotes) {
+        if (!quote.client_email) {
+            results.push({ quoteId: quote.id, success: false, error: 'Sin email' });
+            continue;
+        }
+
+        // Reemplazar variables básicas
+        const eventDateStr = quote.event_date 
+            ? new Date(quote.event_date + 'T12:00:00').toLocaleDateString('es-CL', { day: '2-digit', month: 'long', year: 'numeric' }) 
+            : 'por confirmar';
+        const totalStr = new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0 }).format(quote.total_price);
+        
+        let content = template.content
+            .replace(/\\n/g, '\n') // Fix literal \n
+            .replace(/{nombre}/g, `<strong>${quote.client_name}</strong>`)
+            .replace(/{fecha}/g, `<strong>${eventDateStr}</strong>`)
+            .replace(/{total}/g, `<strong>${totalStr}</strong>`)
+            .replace(/{link}/g, `<a href="https://cocktailsontap.cl/cotizar/${quote.token}" style="color: #E2A049; font-weight: 700;">https://cocktailsontap.cl/cotizar/${quote.token}</a>`);
+
+        // Simple HTML layout for reminders
+        const html = `<div style="font-family: -apple-system, sans-serif; max-width: 600px; margin: auto; padding: 32px; background: #fff; border-radius: 12px; color: #1e293b;">
+            <div style="font-size: 16px; line-height: 1.6; white-space: pre-wrap;">${content}</div>
+            <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 24px 0;" />
+            <p style="font-size: 12px; color: #94a3b8; text-align: center;">Cocktails on Tap — <a href="${SITE_URL}" style="color: #E2A049;">cocktailsontap.cl</a></p>
+        </div>`;
+
+        try {
+            const { error } = await resend.emails.send({
+                from: FROM_EMAIL,
+                to: quote.client_email,
+                subject: template.subject.replace(/{fecha}/g, eventDateStr).replace(/{nombre}/g, quote.client_name),
+                html,
+            });
+            results.push({ quoteId: quote.id, success: !error, error: error?.message });
+        } catch (e: any) {
+            results.push({ quoteId: quote.id, success: false, error: e.message });
+        }
+    }
+
+    return { success: true, results };
+}
+
 // Helper: auto-send review if setting is 'auto'
 async function maybeAutoSendReview(quoteId: string, db: any) {
     const { data } = await db.from('admin_settings').select('value').eq('key', 'review_mode').single();
