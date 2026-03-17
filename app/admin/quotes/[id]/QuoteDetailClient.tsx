@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react';
 import Link from 'next/link';
 import {
-    updateQuoteStatus, markDepositPaid, sendDirectEmail, sendReviewEmail, updateQuoteAdmin
+    updateQuoteStatus, markDepositPaid, sendDirectEmail, sendReviewEmail, updateQuoteAdmin, resendOrderEmail
 } from '@/app/actions/admin/adminActions';
 
 const statusFlow = ['draft', 'confirmed', 'deposit_paid', 'completed', 'cancelled'];
@@ -53,6 +53,15 @@ export default function QuoteDetailClient({ quote: initial }: { quote: any }) {
         });
     };
 
+    const handleResendOrder = () => {
+        if (!confirm('¿Deseas reenviar el correo oficial de cotización al cliente?')) return;
+        startTransition(async () => {
+            const res = await resendOrderEmail(quote.id);
+            if (res.success) showToast('Orden reenviada correctamente ✉️');
+            else showToast(res.error || 'Error al reenviar', false);
+        });
+    };
+
     const badge = statusBadge[quote.status] || statusBadge.draft;
 
     return (
@@ -85,6 +94,14 @@ export default function QuoteDetailClient({ quote: initial }: { quote: any }) {
                 <span style={{ display: 'inline-block', padding: '5px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: 700, color: badge.color, background: badge.bg }}>
                     {badge.label}
                 </span>
+                <button onClick={handleResendOrder} disabled={isPending} style={{
+                    marginLeft: 'auto', padding: '6px 14px', borderRadius: '10px', fontSize: '12px', fontWeight: 700,
+                    background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
+                    color: '#94a3b8', cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s',
+                    opacity: isPending ? 0.5 : 1,
+                }}>
+                    ✉️ Reenvío Orden
+                </button>
             </div>
 
             {/* Status Actions */}

@@ -2,6 +2,7 @@
 
 import { createServerClient } from '@/lib/supabaseServer';
 import { Resend } from 'resend';
+import * as React from 'react';
 import { revalidatePath } from 'next/cache';
 import { FROM_EMAIL, SITE_URL } from '@/lib/config';
 import { GoogleSyncService } from '@/lib/services/googleSyncService';
@@ -138,6 +139,39 @@ export async function sendReviewEmail(quoteId: string): Promise<{ success: boole
     await db.from('quotes').update({ review_email_sent: true }).eq('id', quoteId);
     revalidatePath(`/admin/quotes/${quoteId}`);
     return { success: true };
+}
+
+// ── Resend Original Order Email ──────────────────────────────────────────
+export async function resendOrderEmail(quoteId: string): Promise<{ success: boolean; error?: string }> {
+    const db = createServerClient();
+    const { data: quote, error: fetchErr } = await db.from('quotes').select('*, quote_items(*)').eq('id', quoteId).single();
+    if (fetchErr || !quote) return { success: false, error: 'Cotización no encontrada.' };
+    if (!quote.client_email) return { success: false, error: 'El cliente no tiene email registrado.' };
+
+    try {
+        const resend = new Resend(process.env.RESEND_API_KEY);
+        const { render } = await import('@react-email/components');
+        const QuoteEmailComponent = (await import('@/components/emails/QuoteEmail')).default;
+
+        const clientHtml = await render(React.createElement(QuoteEmailComponent, { quote, isAdmin: false }));
+        
+        const eventDate = quote.event_date
+            ? new Date(quote.event_date + 'T12:00:00').toLocaleDateString('es-CL', { day: '2-digit', month: 'long', year: 'numeric' })
+            : '';
+
+        const { error } = await resend.emails.send({
+            from: FROM_EMAIL,
+            to: quote.client_email,
+            subject: `🍸 Tu cotización – ${eventDate}`,
+            html: clientHtml,
+        });
+
+        if (error) return { success: false, error: error.message };
+        return { success: true };
+    } catch (e: any) {
+        console.error('Error reenviando email:', e);
+        return { success: false, error: e.message };
+    }
 }
 
 // ── Save Admin Settings ──────────────────────────────────────────────────
