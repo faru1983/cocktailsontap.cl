@@ -76,6 +76,14 @@ export default async function ClientsPage({ searchParams }: { searchParams: Sear
                     .cp-table-wrap { display: block; }
                 }
                 .cp-table-wrap table { border-collapse: collapse; width: 100%; }
+                .cp-row { position: relative; transition: background 0.15s; cursor: pointer; border-top: 1px solid rgba(255,255,255,0.04); }
+                .cp-row:hover { background: rgba(255,255,255,0.02) !important; }
+                .cp-row-link::after {
+                    position: absolute;
+                    top: 0; right: 0; bottom: 0; left: 0;
+                    z-index: 1;
+                    content: "";
+                }
             `}</style>
 
             {/* Header */}
@@ -131,18 +139,21 @@ export default async function ClientsPage({ searchParams }: { searchParams: Sear
                                         </Link>
                                     </th>
                                 ))}
-                                <th style={{ padding: '14px 20px' }}></th>
                             </tr>
                         </thead>
                         <tbody>
                             {clients.map((c: any) => (
-                                <tr key={c.id} style={{ borderTop: '1px solid rgba(255,255,255,0.04)' }}>
+                                <tr key={c.id} className="cp-row">
                                     <td style={{ padding: '14px 20px' }}>
                                         <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'linear-gradient(135deg, #E2A049, #c8872e)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#1a1a2e', fontWeight: 900, fontSize: '14px' }}>
                                             {c.first_name?.[0]?.toUpperCase()}
                                         </div>
                                     </td>
-                                    <td style={{ padding: '14px 20px', color: '#f1f5f9', fontSize: '14px', fontWeight: 600, whiteSpace: 'nowrap' }}>{c.first_name} {c.last_name || ''}</td>
+                                    <td style={{ padding: '14px 20px', color: '#f1f5f9', fontSize: '14px', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                                        <Link href={`/admin/clients/${c.id}`} className="cp-row-link" style={{ color: 'inherit', textDecoration: 'none' }}>
+                                            {c.first_name} {c.last_name || ''}
+                                        </Link>
+                                    </td>
                                     <td style={{ padding: '14px 20px', color: '#64748b', fontSize: '13px' }}>{c.email}</td>
                                     <td style={{ padding: '14px 20px', color: '#64748b', fontSize: '13px', whiteSpace: 'nowrap' }}>{c.phone || '—'}</td>
                                     <td style={{ padding: '14px 20px' }}>
@@ -151,11 +162,6 @@ export default async function ClientsPage({ searchParams }: { searchParams: Sear
                                         </span>
                                     </td>
                                     <td style={{ padding: '14px 20px', color: '#64748b', fontSize: '12px', whiteSpace: 'nowrap' }}>{new Date(c.created_at).toLocaleDateString('es-CL')}</td>
-                                    <td style={{ padding: '14px 20px' }}>
-                                        <Link href={`/admin/clients/${c.id}`} style={{ color: '#E2A049', fontSize: '12px', textDecoration: 'none', fontWeight: 700, padding: '6px 12px', borderRadius: '8px', border: '1px solid rgba(226,160,73,0.3)', whiteSpace: 'nowrap' }}>
-                                            Ver ficha →
-                                        </Link>
-                                    </td>
                                 </tr>
                             ))}
                         </tbody>

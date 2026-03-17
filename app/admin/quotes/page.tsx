@@ -99,6 +99,32 @@ export default async function QuotesPage({ searchParams }: { searchParams: Searc
                     .qp-cards    { display: none; }
                     .qp-table-wrap { display: block; }
                 }
+                .qp-row { position: relative; transition: background 0.15s; cursor: pointer; border-top: 1px solid rgba(255,255,255,0.04); }
+                .qp-row:hover { background: rgba(255,255,255,0.02) !important; }
+                .qp-row-link::after {
+                    position: absolute;
+                    top: 0; right: 0; bottom: 0; left: 0;
+                    z-index: 1;
+                    content: "";
+                }
+                .qp-public-link {
+                    position: relative;
+                    z-index: 2;
+                    display: inline-flex;
+                    align-items: center;
+                    color: #60a5fa;
+                    font-size: 12px;
+                    text-decoration: none;
+                    font-weight: 700;
+                    padding: 6px 12px;
+                    border-radius: 8px;
+                    border: 1px solid rgba(96,165,250,0.25);
+                    transition: all 0.15s;
+                }
+                .qp-public-link:hover {
+                    background: rgba(96,165,250,0.1);
+                    border-color: rgba(96,165,250,0.4);
+                }
                 .qp-table-wrap table { border-collapse: collapse; width: 100%; }
                 .qp-table-wrap th, .qp-table-wrap td { white-space: nowrap; }
             `}</style>
@@ -208,8 +234,7 @@ export default async function QuotesPage({ searchParams }: { searchParams: Searc
                                         </Link>
                                     </th>
                                 ))}
-                                <th style={{ padding: '13px 20px' }}></th>
-                                <th align="left" style={{ padding: '13px 20px', color: '#475569', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.8px' }}>Link</th>
+                                <th align="left" style={{ padding: '13px 20px', color: '#475569', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.8px' }}>Púb.</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -218,8 +243,12 @@ export default async function QuotesPage({ searchParams }: { searchParams: Searc
                             ) : quotes.map((q: any) => {
                                 const badge = statusBadge[q.status] || statusBadge.draft;
                                 return (
-                                    <tr key={q.id} style={{ borderTop: '1px solid rgba(255,255,255,0.04)' }}>
-                                        <td style={{ padding: '14px 20px', color: '#f1f5f9', fontSize: '14px', fontWeight: 600 }}>{q.client_name} {q.client_lastname || ''}</td>
+                                    <tr key={q.id} className="qp-row">
+                                        <td style={{ padding: '14px 20px', color: '#f1f5f9', fontSize: '14px', fontWeight: 600 }}>
+                                            <Link href={`/admin/quotes/${q.id}`} className="qp-row-link" style={{ color: 'inherit', textDecoration: 'none' }}>
+                                                {q.client_name} {q.client_lastname || ''}
+                                            </Link>
+                                        </td>
                                         <td style={{ padding: '14px 20px', color: '#64748b', fontSize: '13px' }}>{q.client_email || '—'}</td>
                                         <td style={{ padding: '14px 20px', color: '#94a3b8', fontSize: '13px' }}>
                                             {q.event_date ? new Date(q.event_date + 'T12:00:00').toLocaleDateString('es-CL') : '—'}
@@ -231,14 +260,9 @@ export default async function QuotesPage({ searchParams }: { searchParams: Searc
                                             <span style={{ display: 'inline-block', padding: '4px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 700, color: badge.color, background: badge.bg }}>{badge.label}</span>
                                         </td>
                                         <td style={{ padding: '14px 20px' }}>
-                                            <Link href={`/admin/quotes/${q.id}`} style={{ color: '#E2A049', fontSize: '12px', textDecoration: 'none', fontWeight: 700, padding: '6px 12px', borderRadius: '8px', border: '1px solid rgba(226,160,73,0.3)' }}>
-                                                Ver / Editar →
-                                            </Link>
-                                        </td>
-                                        <td style={{ padding: '14px 20px' }}>
                                             {q.token && (
                                                 <a href={`https://cocktailsontap.cl/cotizar/${q.token}`} target="_blank" rel="noopener noreferrer"
-                                                    style={{ display: 'inline-flex', alignItems: 'center', color: '#60a5fa', fontSize: '12px', textDecoration: 'none', fontWeight: 700, padding: '6px 12px', borderRadius: '8px', border: '1px solid rgba(96,165,250,0.25)' }}>
+                                                    className="qp-public-link" title="Ver cotización pública">
                                                     🔗
                                                 </a>
                                             )}
