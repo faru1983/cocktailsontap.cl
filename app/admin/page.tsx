@@ -28,7 +28,7 @@ async function getDashboardData() {
             .order('created_at', { ascending: false })
             .limit(5),
         db.from('quotes')
-            .select('id, client_name, client_lastname, event_date, start_time, total_price, guests, status')
+            .select('id, client_name, client_lastname, event_date, start_time, total_price, guests, status, comuna_name, comuna_other')
             .in('status', ['confirmed', 'completed'])
             .gte('event_date', startOfMonthSQL)
             .lte('event_date', endOfMonthSQL)
@@ -174,7 +174,7 @@ export default async function AdminDashboardPage() {
                                             </div>
                                             <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
                                                 <span style={{ color: '#34d399', fontWeight: 700, fontSize: '12px' }}>{event.event_date ? new Date(event.event_date + 'T12:00:00').toLocaleDateString('es-CL', { day: '2-digit', month: 'short' }) : '—'}</span>
-                                                <span style={{ color: '#475569', fontSize: '11px' }}>{event.guests} pax • {event.start_time || '--:--'}</span>
+                                                <span style={{ color: '#475569', fontSize: '11px' }}>{event.guests} pax • {event.start_time || '--:--'} • {event.comuna_name === 'Otra' ? event.comuna_other : event.comuna_name}</span>
                                             </div>
                                         </div>
                                         <div style={{ color: '#E2A049', fontWeight: 700, fontSize: '13px' }}>{formatCLP(Number(event.total_price))}</div>
@@ -187,7 +187,7 @@ export default async function AdminDashboardPage() {
                                 <table width="100%" style={{ borderCollapse: 'collapse' }}>
                                     <thead>
                                         <tr style={{ background: 'rgba(52,211,153,0.03)' }}>
-                                            {['Fecha', 'Cliente', 'Hora', 'Invitados', 'Total'].map(h => (
+                                            {['Fecha', 'Cliente', 'Hora', 'Comuna', 'Invitados', 'Total'].map(h => (
                                                 <th key={h} align="left" style={{ padding: '14px 20px', color: '#475569', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.8px', whiteSpace: 'nowrap' }}>{h}</th>
                                             ))}
                                         </tr>
@@ -210,6 +210,9 @@ export default async function AdminDashboardPage() {
                                                 </td>
                                                 <td style={{ padding: '14px 20px', color: '#94a3b8', fontSize: '13px', whiteSpace: 'nowrap' }}>
                                                     {event.start_time || '—'}
+                                                </td>
+                                                <td style={{ padding: '14px 20px', color: '#94a3b8', fontSize: '13px', whiteSpace: 'nowrap' }}>
+                                                    {event.comuna_name === 'Otra' ? event.comuna_other : event.comuna_name}
                                                 </td>
                                                 <td style={{ padding: '14px 20px', color: '#94a3b8', fontSize: '13px', whiteSpace: 'nowrap' }}>
                                                     {event.guests} pax
