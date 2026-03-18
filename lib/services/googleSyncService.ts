@@ -32,6 +32,8 @@ export const GoogleSyncService = {
 
              const rawPhone = state.contact.phone.trim();
              const phoneToSend = (rawPhone === '+569' || rawPhone === '+56 9' || rawPhone === '') ? undefined : rawPhone;
+             const street = state.contact.address.trim();
+             const isAddressComplete = street.length > 0 && /[a-zA-Z]/.test(street);
 
              const googleContactId = await syncGoogleContact({
                  resourceName: clientData?.google_contact_id || undefined, // USAR ID EXISTENTE SI DISPONIBLE
@@ -39,7 +41,7 @@ export const GoogleSyncService = {
                  lastName: state.contact.lastName?.trim() || undefined,
                  email: emailTrimmed,
                  phone: phoneToSend,
-                 address: state.contact.address.trim() ? fullAddress : undefined,
+                 address: isAddressComplete ? fullAddress : undefined,
                  notes: state.contact.comments?.trim() || undefined,
                  eventDate: state.eventData.date,
                  quoteUrl: quoteUrl,
@@ -72,13 +74,16 @@ export const GoogleSyncService = {
                  googleId = data?.google_contact_id;
              }
 
+             const street = quote.client_address?.trim() || '';
+             const isAddressComplete = street.length > 0 && /[a-zA-Z]/.test(street);
+
              const googleContactId = await syncGoogleContact({
                  resourceName: googleId || undefined,
                  firstName: quote.client_name,
                  lastName: quote.client_lastname || undefined,
                  email: quote.client_email,
                  phone: quote.client_phone || undefined,
-                 address: fullAddress,
+                 address: isAddressComplete ? fullAddress : undefined,
                  notes: quote.comments || undefined,
                  eventDate: quote.event_date,
                  quoteUrl: quoteUrl,

@@ -43,11 +43,13 @@ export async function createQuote(input: CreateQuoteInput): Promise<CreateQuoteR
              return { success: false, error: createResult.error || 'No se pudo guardar la cotización.' };
         }
 
-        // ─── 5. Sincronización proactiva con Google Contacts (Non-blocking) ───
-        // We do not await this heavily to avoid blocking the client response.
-        GoogleSyncService.syncContactForQuote(state, createResult.token, clientId ?? undefined).catch(e => 
-            console.error('Non-blocking Google Sync failed:', e)
-        );
+        // ─── 5. Sincronización proactiva con Google Contacts ─────────────────
+        // We await this to ensure it completes before the function finishes.
+        try {
+            await GoogleSyncService.syncContactForQuote(state, createResult.token, clientId ?? undefined);
+        } catch (e) {
+            console.error('Google Sync failed:', e);
+        }
 
         // ─── 6. Enviar emails (Non-blocking) ──────────────────────────────────
         const resendKey = process.env.RESEND_API_KEY;

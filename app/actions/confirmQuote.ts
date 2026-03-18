@@ -138,24 +138,21 @@ export async function confirmQuote(input: any): Promise<ConfirmQuoteResult> {
             quote_items: data.items as QuoteItem[],
         };
 
-        // ─── 5. SINCRONIZACIÓN ASÍNCRONA (Non-blocking) ──────────────────────
-        
-        // Google Sync Orchestration
-        const runGoogleSync = async () => {
-             try {
-                await GoogleSyncService.updateContactConfirmedStatus(fullQuote);
-                const { eventId, pickupEventId } = await GoogleSyncService.scheduleCalendarEvents(fullQuote);
-                // Save Google Calendar event IDs for future edits (Editor Maestro)
-                if (eventId || pickupEventId) {
-                    const db = createServerClient();
-                    await db.from('quotes').update({
-                        ...(eventId && { google_event_id: eventId }),
-                        ...(pickupEventId && { google_pickup_event_id: pickupEventId }),
-                    }).eq('id', fullQuote.id);
-                }
-             } catch(e) { console.error('Non-blocking Google Sync failed:', e); }
-        };
-        await runGoogleSync();
+        // ─── 5. SINCRONIZACIÓN (Google Sync Orchestration) ───────────────────
+        try {
+            await GoogleSyncService.updateContactConfirmedStatus(fullQuote);
+            const { eventId, pickupEventId } = await GoogleSyncService.scheduleCalendarEvents(fullQuote);
+            // Save Google Calendar event IDs for future edits (Editor Maestro)
+            if (eventId || pickupEventId) {
+                const db = createServerClient();
+                await db.from('quotes').update({
+                    ...(eventId && { google_event_id: eventId }),
+                    ...(pickupEventId && { google_pickup_event_id: pickupEventId }),
+                }).eq('id', fullQuote.id);
+            }
+        } catch(e) { 
+            console.error('Google Sync failed in confirmQuote:', e);
+        }
 
         // ─── 6. COMUNICACIONES (Emails vía Resend Non-blocking) ──────────────
         const resendKey = process.env.RESEND_API_KEY;

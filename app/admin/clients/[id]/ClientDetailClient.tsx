@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react';
 import Link from 'next/link';
 import { formatCurrency, formatPhoneNumber } from '@/lib/utils';
-import { updateClientAdmin } from '@/app/actions/admin/adminActions';
+import { updateClientAdmin, syncClientWithGoogle } from '@/app/actions/admin/adminActions';
 import { useRouter } from 'next/navigation';
 
 interface Client {
@@ -55,6 +55,19 @@ export default function ClientDetailClient({ client: initialClient, quotes: init
     const showToast = (msg: string, ok = true) => {
         setToast({ msg, ok });
         setTimeout(() => setToast(null), 3000);
+    };
+
+    const handleSyncGoogle = async () => {
+        if (!confirm('¿Deseas sincronizar manualmente este cliente con Google Contacts?')) return;
+        startTransition(async () => {
+            const res = await syncClientWithGoogle(client.id);
+            if (res.success) {
+                showToast('Sincronizado con éxito ✅');
+                router.refresh();
+            } else {
+                showToast('Error al sincronizar: ' + res.error, false);
+            }
+        });
     };
 
     const handleSave = () => {
@@ -131,6 +144,22 @@ export default function ClientDetailClient({ client: initialClient, quotes: init
                                     <div style={{ color: '#34d399', fontSize: '18px', fontWeight: 900 }}>{formatCLP(totalSpent)}</div>
                                     <div style={{ color: '#475569', fontSize: '11px', marginTop: '2px' }}>Total gastado (confirmadas)</div>
                                 </div>
+                            </div>
+
+                            {/* Botón de Sincronización Manual */}
+                            <div style={{ marginTop: '16px' }}>
+                                <button 
+                                    onClick={handleSyncGoogle}
+                                    disabled={isPending}
+                                    style={{ 
+                                        width: '100%', padding: '10px', background: 'rgba(226,160,73,0.1)', 
+                                        border: '1px solid #E2A049', borderRadius: '10px', color: '#E2A049', 
+                                        fontSize: '12px', fontWeight: 700, cursor: 'pointer',
+                                        opacity: isPending ? 0.6 : 1
+                                    }}
+                                >
+                                    {isPending ? 'Sincronizando...' : '🔄 Sincronizar con Google'}
+                                </button>
                             </div>
                         </>
                     ) : (

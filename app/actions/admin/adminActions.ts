@@ -288,6 +288,59 @@ export async function updateClientAdmin(clientId: string, data: { first_name: st
     return { success: true };
 }
 
+// ── Sync Client With Google ─────────────────────────────────────────────
+export async function syncClientWithGoogle(clientId: string): Promise<{ success: boolean; error?: string }> {
+    const db = createServerClient();
+    try {
+        const { data: client } = await db.from('clients')
+            .select('id, first_name, last_name, email, phone, google_contact_id')
+            .eq('id', clientId)
+            .single();
+
+        if (!client) return { success: false, error: 'Cliente no encontrado.' };
+
+        // Fetch their latest quote for context (address, etc)
+        const { data: latestQuote } = await db.from('quotes')
+            .select('client_address, comuna_name, comuna_other, event_date, token')
+            .eq('client_id', clientId)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .single();
+
+        const { syncGoogleContact } = await import('@/lib/googleSync');
+
+        const comunaDisplay = latestQuote?.comuna_name === 'Otra' ? latestQuote?.comuna_other : latestQuote?.comuna_name;
+        const fullAddress = latestQuote ? [latestQuote.client_address, comunaDisplay].filter(Boolean).join(', ') : undefined;
+        const quoteUrl = latestQuote ? `${SITE_URL}/cotizar/${latestQuote.token}` : undefined;
+
+        const clientAddress = latestQuote?.client_address?.trim() || '';
+        // Rule: Only sync if address is not empty and contains at least one letter (avoiding just ZIP codes or numbers)
+        const isAddressComplete = clientAddress.length > 0 && /[a-zA-Z]/.test(clientAddress);
+
+        const googleId = await syncGoogleContact({
+            resourceName: client.google_contact_id || undefined,
+            firstName: client.first_name,
+            lastName: client.last_name || '',
+            email: client.email,
+            phone: client.phone || '',
+            address: isAddressComplete ? fullAddress : undefined,
+            eventDate: latestQuote?.event_date,
+            quoteUrl: quoteUrl,
+            confirmed: false
+        });
+
+        if (googleId && googleId !== client.google_contact_id) {
+            await db.from('clients').update({ google_contact_id: googleId }).eq('id', clientId);
+        }
+
+        revalidatePath(`/admin/clients/${clientId}`);
+        return { success: true };
+    } catch (e: any) {
+        console.error('Error in syncClientWithGoogle:', e);
+        return { success: false, error: e.message };
+    }
+}
+
 // ── Send Direct Email ────────────────────────────────────────────────────
 export async function sendDirectEmail(quoteId: string, formData: FormData): Promise<{ success: boolean; error?: string }> {
     const subject = formData.get('subject') as string;
