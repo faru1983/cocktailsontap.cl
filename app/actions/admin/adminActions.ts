@@ -173,8 +173,12 @@ export async function updateQuoteAdmin(quoteId: string, data: Record<string, any
         // Skip objects/arrays unless it's the payments JSONB field
         if (typeof v === 'object' && v !== null && k !== 'payments') continue;
 
-        if (clientMap.includes(k)) clientFields[k] = v;
-        else quoteFields[k] = v;
+        if (clientMap.includes(k)) {
+            clientFields[k] = v;
+            quoteFields[k] = v; // Field exists in both tables
+        } else {
+            quoteFields[k] = v;
+        }
     }
 
     const { data: quote, error: fetchErr } = await db.from('quotes').select('client_id, google_event_id, google_pickup_event_id').eq('id', quoteId).single();
@@ -184,9 +188,37 @@ export async function updateQuoteAdmin(quoteId: string, data: Record<string, any
     const { error } = await db.from('quotes').update(quoteFields).eq('id', quoteId);
     if (error) return { success: false, error: error.message };
 
-    // Update client
+    // Update client and Google Contact
     if (quote.client_id && Object.keys(clientFields).length > 0) {
-        await db.from('clients').update(clientFields).eq('id', quote.client_id);
+        // Map quote fields to clients table fields
+        const clientsUpdate: Record<string, any> = {};
+        if (clientFields.client_name !== undefined) clientsUpdate.first_name = clientFields.client_name;
+        if (clientFields.client_lastname !== undefined) clientsUpdate.last_name = clientFields.client_lastname;
+        if (clientFields.client_email !== undefined) clientsUpdate.email = clientFields.client_email;
+        if (clientFields.client_phone !== undefined) clientsUpdate.phone = clientFields.client_phone;
+
+        // Note: No updated_at in clients table. We select specific fields to avoid schema cache issues.
+        const { data: updatedClient } = await db.from('clients')
+            .update(clientsUpdate)
+            .eq('id', quote.client_id)
+            .select('id, first_name, last_name, email, phone, google_contact_id')
+            .single();
+        
+        // Trigger Google Contact Sync
+        if (updatedClient) {
+            try {
+                const { syncGoogleContact } = await import('@/lib/googleSync');
+                await syncGoogleContact({
+                    resourceName: updatedClient.google_contact_id || undefined,
+                    firstName: updatedClient.first_name,
+                    lastName: updatedClient.last_name || '',
+                    email: updatedClient.email,
+                    phone: updatedClient.phone || '',
+                });
+            } catch (e) {
+                console.error('Error syncing Google Contact in updateQuoteAdmin:', e);
+            }
+        }
     }
 
     // Sync Google Calendar if event IDs exist
@@ -206,6 +238,53 @@ export async function updateQuoteAdmin(quoteId: string, data: Record<string, any
 
     revalidatePath('/admin/quotes');
     revalidatePath(`/admin/quotes/${quoteId}`);
+    return { success: true };
+}
+
+// ── Update Client Admin ──────────────────────────────────────────────────
+export async function updateClientAdmin(clientId: string, data: { first_name: string; last_name?: string; email: string; phone?: string }): Promise<{ success: boolean; error?: string }> {
+    const db = createServerClient();
+
+    // 1. Update Client Table (removed updated_at as it doesn't exist)
+    const { error: clientErr } = await db.from('clients').update(data).eq('id', clientId);
+    if (clientErr) return { success: false, error: clientErr.message };
+
+    // 2. Proactive Sync: Update client info in ALL quotes with this client_id
+    // This addresses the user's request for "entrelazamiento"
+    await db.from('quotes').update({
+        client_name: data.first_name,
+        client_lastname: data.last_name || '',
+        client_email: data.email,
+        client_phone: data.phone || '',
+        updated_at: new Date().toISOString()
+    }).eq('client_id', clientId);
+
+    // 3. Sync Google Contact
+    try {
+        const { syncGoogleContact } = await import('@/lib/googleSync');
+        const { data: fullClient } = await db.from('clients')
+            .select('id, first_name, last_name, email, phone, google_contact_id')
+            .eq('id', clientId)
+            .single();
+
+        if (fullClient) {
+            await syncGoogleContact({
+                resourceName: fullClient.google_contact_id || undefined,
+                firstName: fullClient.first_name,
+                lastName: fullClient.last_name || '',
+                email: fullClient.email,
+                phone: fullClient.phone || '',
+            });
+        }
+    } catch (e) {
+        console.error('Error syncing Google contact after client edit:', e);
+    }
+
+    revalidatePath('/admin/clients');
+    revalidatePath(`/admin/clients/${clientId}`);
+    // Also revalidate quotes since they might be affected
+    revalidatePath('/admin/quotes'); 
+    
     return { success: true };
 }
 

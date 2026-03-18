@@ -8,6 +8,7 @@ import {
 } from '@/app/actions/admin/adminActions';
 import { SITE_URL } from '@/lib/config';
 import type { QuoteItem, Product } from '@/lib/types';
+import { formatPhoneNumber } from '@/lib/utils';
 
 const statusFlow = ['draft', 'confirmed', 'completed', 'cancelled'];
 const statusBadge: Record<string, { label: string; color: string; bg: string }> = {
@@ -397,7 +398,10 @@ export default function QuoteDetailClient({ quote: initial, allProducts, eventTy
                                             {isEditingInfo ? (
                                                 <input 
                                                     value={editInfo[field.key] || ''} 
-                                                    onChange={(e) => setEditInfo((prev: any) => ({ ...prev, [field.key]: e.target.value }))}
+                                                    onChange={(e) => {
+                                                        const val = field.key === 'client_phone' ? formatPhoneNumber(e.target.value) : e.target.value;
+                                                        setEditInfo((prev: any) => ({ ...prev, [field.key]: val }));
+                                                    }}
                                                     className="q-input" 
                                                 />
                                             ) : (
