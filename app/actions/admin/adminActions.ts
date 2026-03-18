@@ -165,7 +165,14 @@ export async function updateQuoteAdmin(quoteId: string, data: Record<string, any
     const quoteFields: Record<string, any> = { updated_at: new Date().toISOString() };
 
     const clientMap = ['client_name', 'client_lastname', 'client_email', 'client_phone'];
+    const excludeFields = ['event_types', 'quote_items', 'id', 'created_at', 'client_id'];
+
     for (const [k, v] of Object.entries(data)) {
+        if (excludeFields.includes(k)) continue;
+        
+        // Skip objects/arrays unless it's the payments JSONB field
+        if (typeof v === 'object' && v !== null && k !== 'payments') continue;
+
         if (clientMap.includes(k)) clientFields[k] = v;
         else quoteFields[k] = v;
     }
