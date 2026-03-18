@@ -18,7 +18,7 @@ const statusBadge: Record<string, { label: string; color: string; bg: string }> 
 };
 const formatCLP = (n: number) => new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0 }).format(n);
 
-export default function QuoteDetailClient({ quote: initial, allProducts }: { quote: any, allProducts: Product[] }) {
+export default function QuoteDetailClient({ quote: initial, allProducts, eventTypes }: { quote: any, allProducts: Product[], eventTypes: any[] }) {
     const [quote, setQuote] = useState(initial);
     const [isPending, startTransition] = useTransition();
     const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
@@ -421,17 +421,7 @@ export default function QuoteDetailClient({ quote: initial, allProducts }: { quo
                                 {[
                                     { label: 'Dirección', key: 'client_address' },
                                     { label: 'Comuna', key: 'comuna_name' },
-                                    { 
-                                        label: 'Temática', 
-                                        key: 'event_type_other', 
-                                        render: () => {
-                                            const type = quote.event_types?.name;
-                                            const other = quote.event_type_other;
-                                            if (!type && !other) return '—';
-                                            if (type && other) return `${type} (${other})`;
-                                            return type || other;
-                                        }
-                                    },
+                                    { label: 'Temática', key: 'event_type_id', special: 'theme' },
                                     { label: 'N° Invitados', key: 'guests', type: 'number' },
                                     { label: 'Fecha Evento', key: 'event_date', type: 'date' },
                                     { label: 'Hora Inicio', key: 'start_time', type: 'time' },
@@ -441,15 +431,42 @@ export default function QuoteDetailClient({ quote: initial, allProducts }: { quo
                                     <div key={field.key} style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                                         <label className="q-label" style={{ color: '#64748b', fontSize: '11px' }}>{field.label}</label>
                                         {isEditingInfo ? (
-                                            <input 
-                                                type={field.type || 'text'}
-                                                value={editInfo[field.key] || ''} 
-                                                onChange={(e) => setEditInfo((prev: any) => ({ ...prev, [field.key]: e.target.value }))}
-                                                className="q-input" 
-                                            />
+                                            field.special === 'theme' ? (
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                                    <select 
+                                                        value={editInfo.event_type_id || ''} 
+                                                        onChange={(e) => setEditInfo((prev: any) => ({ ...prev, event_type_id: e.target.value }))}
+                                                        className="q-input"
+                                                    >
+                                                        <option value="">Selecciona temática...</option>
+                                                        {eventTypes.map((et: any) => (
+                                                            <option key={et.id} value={et.id}>{et.name}</option>
+                                                        ))}
+                                                    </select>
+                                                    <input 
+                                                        placeholder="Especificar temática si es 'Otro'..."
+                                                        value={editInfo.event_type_other || ''} 
+                                                        onChange={(e) => setEditInfo((prev: any) => ({ ...prev, event_type_other: e.target.value }))}
+                                                        className="q-input" 
+                                                    />
+                                                </div>
+                                            ) : (
+                                                <input 
+                                                    type={field.type || 'text'}
+                                                    value={editInfo[field.key] || ''} 
+                                                    onChange={(e) => setEditInfo((prev: any) => ({ ...prev, [field.key]: e.target.value }))}
+                                                    className="q-input" 
+                                                />
+                                            )
                                         ) : (
                                             <div style={{ color: '#f1f5f9', fontSize: '15px', fontWeight: 600, padding: '4px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                                                {field.render ? field.render() : (quote[field.key] || '—')}
+                                                {field.special === 'theme' ? (() => {
+                                                    const type = quote.event_types?.name;
+                                                    const other = quote.event_type_other;
+                                                    if (!type && !other) return '—';
+                                                    if (type && other) return `${type} (${other})`;
+                                                    return type || other;
+                                                })() : (quote[field.key] || '—')}
                                             </div>
                                         )}
                                     </div>

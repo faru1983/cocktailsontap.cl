@@ -16,8 +16,9 @@ export default async function QuoteDetailPage({ params }: { params: Params }) {
 
     if (!quote) notFound();
 
+    const { data: eventTypes } = await db.from('event_types').select('*');
     const { fetchAllProductData } = await import('@/lib/serverData');
     const { products } = await fetchAllProductData();
 
-    return <QuoteDetailClient quote={quote} allProducts={products} />;
+    return <QuoteDetailClient quote={quote} allProducts={products} eventTypes={eventTypes || []} />;
 }
