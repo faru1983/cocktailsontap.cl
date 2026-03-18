@@ -1,6 +1,7 @@
 import Image from 'next/image';
 import { ChevronRight, Mail, Globe, Instagram, Facebook } from 'lucide-react';
 import { WhatsappIcon } from '@/components/icons';
+import { SITE_URL, WHATSAPP_URL, WHATSAPP_LABEL } from '@/lib/config';
 
 
 export default function Footer() {
@@ -54,12 +55,12 @@ export default function Footer() {
                                 <span className="group-hover:text-primary transition-colors">contacto@cocktailsontap.cl</span>
                             </a>
                             <a
-                                href="https://wa.me/56929672978?text=Hola,%20estoy%20escribiendo%20desde%20su%20pagina%20web!"
+                                href={`${WHATSAPP_URL}?text=Hola,%20estoy%20escribiendo%20desde%20su%20pagina%20web!`}
                                 target="_blank" rel="noopener noreferrer"
                                 className="flex items-center justify-center md:justify-start gap-3 text-white/60 text-[0.95rem] transition-colors duration-200 hover:text-white group"
                             >
                                 <WhatsappIcon className="text-primary w-[20px] h-[20px] shrink-0" />
-                                <span className="group-hover:text-primary transition-colors">+569 2967 2978</span>
+                                <span className="group-hover:text-primary transition-colors">{WHATSAPP_LABEL}</span>
                             </a>
                         </div>
                     </div>
@@ -74,7 +75,7 @@ export default function Footer() {
                             <a href="https://facebook.com/profile.php?id=61573553396238" className="w-12 h-12 rounded-[12px] bg-white/5 border border-white/10 flex flex-col items-center justify-center text-white/80 transition-all duration-300 hover:bg-primary hover:border-primary hover:text-white hover:-translate-y-[3px] hover:shadow-[0_4px_12px_rgba(226,160,73,0.3)]" target="_blank" rel="noopener noreferrer" aria-label="Facebook">
                                 <Facebook className="w-5 h-5" />
                             </a>
-                            <a href="https://cocktailsontap.cl/" className="w-12 h-12 rounded-[12px] bg-white/5 border border-white/10 flex flex-col items-center justify-center text-white/80 transition-all duration-300 hover:bg-primary hover:border-primary hover:text-white hover:-translate-y-[3px] hover:shadow-[0_4px_12px_rgba(226,160,73,0.3)]" target="_blank" rel="noopener noreferrer" aria-label="Sitio web">
+                            <a href={`${SITE_URL}/`} className="w-12 h-12 rounded-[12px] bg-white/5 border border-white/10 flex flex-col items-center justify-center text-white/80 transition-all duration-300 hover:bg-primary hover:border-primary hover:text-white hover:-translate-y-[3px] hover:shadow-[0_4px_12px_rgba(226,160,73,0.3)]" target="_blank" rel="noopener noreferrer" aria-label="Sitio web">
                                 <Globe className="w-5 h-5" />
                             </a>
                         </div>

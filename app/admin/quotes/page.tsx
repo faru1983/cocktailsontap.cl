@@ -1,10 +1,10 @@
 import { createServerClient } from '@/lib/supabaseServer';
+import { SITE_URL } from '@/lib/config';
 import Link from 'next/link';
 
 const statusBadge: Record<string, { label: string; color: string; bg: string }> = {
     draft:        { label: 'Borrador',       color: '#94a3b8', bg: 'rgba(148,163,184,0.12)' },
     confirmed:    { label: 'Confirmada',     color: '#34d399', bg: 'rgba(52,211,153,0.12)' },
-    deposit_paid: { label: 'Abono Recibido', color: '#60a5fa', bg: 'rgba(96,165,250,0.12)' },
     completed:    { label: 'Completada',     color: '#a78bfa', bg: 'rgba(167,139,250,0.12)' },
     cancelled:    { label: 'Cancelada',      color: '#f87171', bg: 'rgba(248,113,113,0.12)' },
 };
@@ -32,7 +32,6 @@ export default async function QuotesPage({ searchParams }: { searchParams: Searc
         { value: 'all', label: 'Todas' },
         { value: 'draft', label: 'Borradores' },
         { value: 'confirmed', label: 'Confirmadas' },
-        { value: 'deposit_paid', label: 'Abono' },
         { value: 'completed', label: 'Completadas' },
         { value: 'cancelled', label: 'Canceladas' },
     ];
@@ -201,7 +200,7 @@ export default async function QuotesPage({ searchParams }: { searchParams: Searc
 
                             {/* Public Link - Outside the main Link to avoid <a> inside <a> error */}
                             {q.token && (
-                                <a href={`https://cocktailsontap.cl/cotizar/${q.token}`} target="_blank" rel="noopener noreferrer"
+                                <a href={`${SITE_URL}/cotizar/${q.token}`} target="_blank" rel="noopener noreferrer"
                                     style={{ 
                                         position: 'absolute', 
                                         right: '16px', 
@@ -261,7 +260,7 @@ export default async function QuotesPage({ searchParams }: { searchParams: Searc
                                         </td>
                                         <td style={{ padding: '14px 20px' }}>
                                             {q.token && (
-                                                <a href={`https://cocktailsontap.cl/cotizar/${q.token}`} target="_blank" rel="noopener noreferrer"
+                                                <a href={`${SITE_URL}/cotizar/${q.token}`} target="_blank" rel="noopener noreferrer"
                                                     className="qp-public-link" title="Ver cotización pública">
                                                     🔗
                                                 </a>

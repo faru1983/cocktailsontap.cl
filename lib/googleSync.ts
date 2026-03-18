@@ -195,15 +195,17 @@ export async function syncGoogleContact(data: {
 }
 
 /**
- * Crea un evento en un calendario específico.
+ * Crea o actualiza un evento en un calendario específico.
  */
-export async function createGoogleEvent(calendarId: string, event: {
+export async function syncGoogleEvent(calendarId: string, event: {
+    eventId?: string; // Si viene, se actualiza en lugar de crear
     summary: string;
     location: string;
     description: string;
     startISO: string;
     endISO: string;
     isAllDay?: boolean;
+    attendees?: string[]; // Lista de emails de invitados
 }) {
     try {
         const requestBody: any = {
@@ -216,16 +218,29 @@ export async function createGoogleEvent(calendarId: string, event: {
             end: event.isAllDay 
                 ? { date: event.endISO.split('T')[0] } 
                 : { dateTime: event.endISO, timeZone: PROJECT_TIMEZONE },
+            attendees: event.attendees ? event.attendees.map(email => ({ email })) : [],
         };
 
-        const response = await calendar.events.insert({
-            calendarId: calendarId,
-            requestBody: requestBody,
-        });
-
-        return response.data;
+        if (event.eventId) {
+            // Actualizar evento existente
+            console.log(`Actualizando evento ${event.eventId} en calendario ${calendarId}`);
+            const response = await calendar.events.update({
+                calendarId: calendarId,
+                eventId: event.eventId,
+                requestBody: requestBody,
+            });
+            return response.data;
+        } else {
+            // Crear nuevo evento
+            console.log(`Creando nuevo evento en calendario ${calendarId}`);
+            const response = await calendar.events.insert({
+                calendarId: calendarId,
+                requestBody: requestBody,
+            });
+            return response.data;
+        }
     } catch (error) {
-        console.error(`Error creating event in calendar ${calendarId}:`, error);
+        console.error(`Error syncing event in calendar ${calendarId}:`, error);
         throw error;
     }
 }

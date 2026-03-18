@@ -20,7 +20,8 @@ export const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? 'contacto@cocktailsontap.c
 export const FROM_EMAIL = 'Cocktails on Tap <contacto@cocktailsontap.cl>';
 
 /** WhatsApp Business */
-export const WHATSAPP_URL = 'https://wa.me/56929672978';
+export const WHATSAPP_NUMBER = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER ?? '56929672978';
+export const WHATSAPP_URL = `https://wa.me/${WHATSAPP_NUMBER}`;
 export const WHATSAPP_LABEL = '+56 9 2967 2978';
 
 /** Costo de instalación del Muro de Coctelería (en CLP) */

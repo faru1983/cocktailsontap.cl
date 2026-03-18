@@ -3,6 +3,7 @@
 import React from 'react';
 import { CheckCircle, ArrowRight, Mail, MessageSquare, RefreshCw, Copy, ExternalLink } from 'lucide-react';
 import { WhatsappIcon } from '@/components/icons';
+import { SITE_URL } from '@/lib/config';
 
 interface WizardSuccessProps {
     token: string;
@@ -11,7 +12,6 @@ interface WizardSuccessProps {
 }
 
 export default function WizardSuccess({ token, clientEmail, onReset }: WizardSuccessProps) {
-    const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://cocktailsontap.cl';
     const quoteLink = `${SITE_URL}/cotizar/${token}`;
 
     const copyToClipboard = () => {

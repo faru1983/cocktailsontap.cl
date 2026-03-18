@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { 
     saveReminderTemplate, deleteReminderTemplate, sendBatchReminders 
 } from '@/app/actions/admin/adminActions';
+import { SITE_URL } from '@/lib/config';
 
 const formatCLP = (n: number) => new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0 }).format(n);
 
@@ -160,7 +161,7 @@ export default function RemindersClient({ initialQuotes, initialTemplates }: { i
             .replace(/{nombre}/g, `*${quote.client_name}*`)
             .replace(/{fecha}/g, `*${eventDateStr}*`)
             .replace(/{total}/g, `*${totalStr}*`)
-            .replace(/{link}/g, quote.token ? `https://cocktailsontap.cl/cotizar/${quote.token}` : '');
+            .replace(/{link}/g, quote.token ? `${SITE_URL}/cotizar/${quote.token}` : '');
 
         const base = phone.startsWith('56') ? phone : '56' + phone;
         return `https://wa.me/${base}?text=${encodeURIComponent(msg)}`;

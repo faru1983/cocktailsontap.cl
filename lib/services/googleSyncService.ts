@@ -1,4 +1,4 @@
-import { syncGoogleContact, createGoogleEvent, CALENDAR_RESERVA_ID, CALENDAR_RETIRO_ID } from '@/lib/googleSync';
+import { syncGoogleContact, syncGoogleEvent, CALENDAR_RESERVA_ID, CALENDAR_RETIRO_ID } from '@/lib/googleSync';
 import { SITE_URL } from '@/lib/config';
 import type { WizardState, Quote } from '@/lib/types';
 import { QuoteService } from './quoteService';
@@ -110,28 +110,40 @@ export const GoogleSyncService = {
                 new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(amount);
 
             // Generar la lista limpia de productos y totales para ambas descripciones
-            let itemsText = quote.quote_items?.map(item => 
+            const itemsText = quote.quote_items?.map(item => 
                 `${item.size} ${item.product_name} (x${item.quantity}) ${formatClp(item.offer_price_at_time * item.quantity)}`
             ).join('\n') || 'Sin productos';
 
             const dispenserLabel = quote.dispenser === 'muro' ? 'Muro' : 'Portátil';
             
             const commentsText = quote.comments ? `Comentarios: ${quote.comments}\n` : '';
+
+            // Resumen de pagos
+            const payments = Array.isArray(quote.payments) ? quote.payments : [];
+            const totalPaid = payments.reduce((sum: number, p: any) => sum + (Number(p.amount) || 0), 0);
+            const totalPending = Number(quote.total_price) - totalPaid;
+
+            const paymentsSummary = payments.length > 0 
+                ? `\nREGISTRO DE PAGOS:\n` + 
+                  payments.map((p: any) => `- ${new Date(p.date + 'T12:00:00').toLocaleDateString('es-CL')}: ${formatClp(p.amount)} (${p.note || 'Pago'})`).join('\n') +
+                  `\nSaldo Pendiente: ${formatClp(totalPending < 0 ? 0 : totalPending)}`
+                : `\nREGISTRO DE PAGOS:\nSaldo Pendiente: ${formatClp(quote.total_price || 0)}`;
             
             const sharedDescription = `${commentsText}` +
                                       `Celular: ${quote.client_phone || ''}\n` +
                                       `Ver Cotización: ${link}\n\n` +
-                                      `Productos:\n${itemsText}\n` +
+                                      `PRODUCTOS:\n${itemsText}\n` +
                                       `Transporte: ${formatClp(quote.shipping_cost || 0)}\n` +
-                                      `Dispensador ${dispenserLabel}: ${formatClp(quote.installation_cost || 0)}\n` +
-                                      `Total: ${formatClp(quote.total_price || 0)}`;
+                                      `Instalación (${dispenserLabel}): ${formatClp(quote.installation_cost || 0)}\n` +
+                                      `Total: ${formatClp(quote.total_price || 0)}\n` +
+                                      `${paymentsSummary}`;
 
             // Determine if times are provided, else fallback to ALL DAY events.
             const hasStartTime = quote.start_time && quote.start_time !== '--:--';
             const hasPickupTime = quote.pickup_time && quote.pickup_time !== '--:--';
 
-            let eventId: string | undefined;
-            let pickupEventId: string | undefined;
+            let eventId = options?.updateEventId || (quote as any).google_event_id;
+            let pickupEventId = options?.updatePickupEventId || (quote as any).google_pickup_event_id;
 
             // 1. Create Service Event (Reserva Calendar)
             try {
@@ -151,13 +163,15 @@ export const GoogleSyncService = {
                         isAllDay = true;
                     }
 
-                    const created = await createGoogleEvent(CALENDAR_RESERVA_ID, {
+                    const created = await syncGoogleEvent(CALENDAR_RESERVA_ID, {
+                        eventId: eventId, 
                         summary: serviceSummary,
                         location: fullLocation,
                         description: sharedDescription,
                         startISO,
                         endISO,
-                        isAllDay
+                        isAllDay,
+                        attendees: quote.client_email ? [quote.client_email] : []
                     });
                     eventId = created?.id || undefined;
                 }
@@ -194,7 +208,8 @@ export const GoogleSyncService = {
                         pIsAllDay = true;
                     }
 
-                    const createdPickup = await createGoogleEvent(CALENDAR_RETIRO_ID, {
+                    const createdPickup = await syncGoogleEvent(CALENDAR_RETIRO_ID, {
+                        eventId: pickupEventId,
                         summary: pickupSummary,
                         location: fullLocation,
                         description: sharedDescription,

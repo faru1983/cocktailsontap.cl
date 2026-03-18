@@ -122,6 +122,8 @@ export default function QuoteView({ quote, comunas, availableCocktails, categori
     };
 
     const totals = calculateTotals();
+    const totalPaid = (quote.payments || []).reduce((sum: number, p: any) => sum + (Number(p.amount) || 0), 0);
+    const balance = totals.totalFinal - totalPaid;
     const halfAmount = totals.totalFinal / 2;
     const isSameDayPickup = pickupDate === eventDate;
 
@@ -449,6 +451,80 @@ export default function QuoteView({ quote, comunas, availableCocktails, categori
                     </p>
                 </div>
             </div>
+
+            {/* Resumen de Pagos (Solo si no es Borrador) */}
+            {!isDraft && (
+                <div className="bg-white rounded-[1.5rem] border border-brand-border p-5 sm:p-7 shadow-sm overflow-hidden relative">
+                    <div className="flex items-center justify-between mb-6 pb-2 border-b border-brand-border/50">
+                        <h2 className="text-[0.65rem] font-black text-primary uppercase tracking-[0.2em] flex items-center gap-2">
+                             <Tag className="w-3.5 h-3.5" /> Estado de Cuenta
+                        </h2>
+                        {balance <= 0 && (
+                            <span className="text-[0.6rem] font-black text-green-700 bg-green-50 px-2 py-0.5 rounded border border-green-100 uppercase">Pagado 👌</span>
+                        )}
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 mb-8">
+                        <div className="bg-slate-50 p-5 rounded-2xl border border-brand-border/50">
+                            <p className="text-[0.6rem] font-black text-brand-text-muted uppercase tracking-widest mb-1">Total Cotizado</p>
+                            <p className="text-xl font-black text-brand-text">{formatCurrency(totals.totalFinal)}</p>
+                        </div>
+                        <div className="bg-green-50 p-5 rounded-2xl border border-green-100">
+                            <p className="text-[0.6rem] font-black text-green-700 uppercase tracking-widest mb-1">Total Pagado</p>
+                            <p className="text-xl font-black text-green-600">{formatCurrency(totalPaid)}</p>
+                        </div>
+                        <div className={`p-5 rounded-2xl border ${balance > 0 ? 'bg-amber-50 border-amber-100' : 'bg-blue-50 border-blue-100'}`}>
+                            <p className={`text-[0.6rem] font-black uppercase tracking-widest mb-1 ${balance > 0 ? 'text-amber-700' : 'text-blue-700'}`}>
+                                {balance > 0 ? 'Saldo Pendiente' : 'Saldo en $0'}
+                            </p>
+                            <p className={`text-xl font-black ${balance > 0 ? 'text-amber-600' : 'text-blue-600'}`}>
+                                {formatCurrency(Math.max(0, balance))}
+                            </p>
+                        </div>
+                    </div>
+
+                    {quote.payments && quote.payments.length > 0 && (
+                        <div className="space-y-3">
+                            <h3 className="text-[0.7rem] font-black text-brand-text mb-4 uppercase tracking-widest px-1">Historial de Pagos</h3>
+                            {quote.payments.map((p, idx) => (
+                                <div key={idx} className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-brand-border/30">
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center text-green-600 font-black text-xs">
+                                            $
+                                        </div>
+                                        <div>
+                                            <p className="text-[0.9rem] font-black text-brand-text">{formatCurrency(p.amount)}</p>
+                                            <p className="text-[0.7rem] text-brand-text-muted font-bold">
+                                                {new Date(p.date + 'T12:00:00').toLocaleDateString('es-CL')} — {p.note}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div className="px-3 py-1 bg-white border border-brand-border rounded-lg text-[0.65rem] font-black text-brand-text-muted uppercase tracking-tighter shrink-0">
+                                        Recibido
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                    
+                    {balance > 0 && (
+                        <div className="mt-8 p-6 bg-amber-50 rounded-[1.5rem] border-2 border-dashed border-amber-200 text-center">
+                            <p className="text-[0.8rem] text-amber-800 font-bold mb-4">
+                                Recuerda que para asegurar tu reserva debes haber abonado al menos el 50% ({formatCurrency(totals.totalFinal / 2)}).
+                            </p>
+                            <button 
+                                onClick={() => {
+                                    const text = `Banco: Mercado Pago\nCuenta Vista: 1098081647\nNombre: Felipe Ramírez\nRUT: 15.332.189-2\nE-mail: contacto@cocktailsontap.cl`;
+                                    navigator.clipboard.writeText(text);
+                                }}
+                                className="inline-flex items-center gap-2 px-6 py-3 bg-white border border-amber-200 rounded-xl text-[0.85rem] font-black text-amber-700 hover:border-amber-400 transition-all active:scale-95 shadow-sm"
+                            >
+                                <Copy className="w-4 h-4" /> Copiar Datos para Transferir
+                            </button>
+                        </div>
+                    )}
+                </div>
+            )}
 
             {/* Productos (Editables si es draft) */}
             <QuoteSummaryProducts

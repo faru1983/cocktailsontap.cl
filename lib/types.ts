@@ -171,6 +171,7 @@ export interface Quote {
     // Items y Relaciones
     client_id?: string | null;
     quote_items?: QuoteItem[];
+    payments?: { date: string; amount: number; note: string }[];
 }
 
 // ─── Esquemas de Validación (Zod) ─────────────────────────────────────────────

@@ -6,6 +6,7 @@ import { AlertCircle, ArrowLeft, ArrowRight, Loader2 } from 'lucide-react';
 import { WhatsappIcon } from '@/components/icons';
 import type { CocktailForWizard, EventType, Comuna } from '@/lib/types';
 import { createQuote } from '@/app/actions/createQuote';
+import { SITE_URL } from '@/lib/config';
 import WizardStep1 from './WizardStep1';
 import WizardStep2 from './WizardStep2';
 import WizardStep3 from './WizardStep3';
@@ -93,7 +94,6 @@ export default function WizardShell({ cocktails, eventTypes, comunas, categories
         }
     };
 
-    const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://cocktailsontap.cl';
 
     return (
         <div className="flex flex-col min-h-[600px]">

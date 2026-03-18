@@ -9,7 +9,7 @@ async function getDashboardData() {
     const [confirmed, drafts, allClients, recentQuotes] = await Promise.all([
         db.from('quotes')
             .select('total_price, created_at')
-            .in('status', ['confirmed', 'deposit_paid', 'completed'])
+            .in('status', ['confirmed', 'completed'])
             .gte('created_at', startOfMonth),
         db.from('quotes')
             .select('total_price')
@@ -44,7 +44,6 @@ const formatCLP = (n: number) => new Intl.NumberFormat('es-CL', { style: 'curren
 const statusBadge: Record<string, { label: string; color: string; bg: string }> = {
     draft:        { label: 'Borrador',       color: '#94a3b8', bg: 'rgba(148,163,184,0.1)' },
     confirmed:    { label: 'Confirmada',     color: '#34d399', bg: 'rgba(52,211,153,0.1)' },
-    deposit_paid: { label: 'Abono Recibido', color: '#60a5fa', bg: 'rgba(96,165,250,0.1)' },
     completed:    { label: 'Completada',     color: '#a78bfa', bg: 'rgba(167,139,250,0.1)' },
     cancelled:    { label: 'Cancelada',      color: '#f87171', bg: 'rgba(248,113,113,0.1)' },
 };

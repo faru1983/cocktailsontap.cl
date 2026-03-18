@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Home, Layers, Wine, ClipboardList, Star, Calculator, X, Menu, Instagram } from 'lucide-react';
 import { WhatsappIcon } from '@/components/icons';
+import { WHATSAPP_URL } from '@/lib/config';
 
 const NAV_LINKS = [
     { href: '/#inicio', icon: Home, label: 'Inicio' },
@@ -13,7 +14,7 @@ const NAV_LINKS = [
     { href: '/#nuestros-cocteles', icon: Star, label: 'Cócteles' },
     { href: '/cotizar', icon: Calculator, label: 'Cotizar' },
     {
-        href: 'https://wa.me/56929672978?text=Hola,%20estoy%20escribiendo%20desde%20su%20pagina%20web!',
+        href: `${WHATSAPP_URL}?text=Hola,%20estoy%20escribiendo%20desde%20su%20pagina%20web!`,
         icon: WhatsappIcon,
         label: 'WhatsApp',
         external: true,

@@ -6,7 +6,6 @@ type Params = Promise<{ id: string }>;
 const statusBadge: Record<string, { label: string; color: string; bg: string }> = {
     draft:        { label: 'Borrador',       color: '#94a3b8', bg: 'rgba(148,163,184,0.1)' },
     confirmed:    { label: 'Confirmada',     color: '#34d399', bg: 'rgba(52,211,153,0.1)' },
-    deposit_paid: { label: 'Abono Recibido', color: '#60a5fa', bg: 'rgba(96,165,250,0.1)' },
     completed:    { label: 'Completada',     color: '#a78bfa', bg: 'rgba(167,139,250,0.1)' },
     cancelled:    { label: 'Cancelada',      color: '#f87171', bg: 'rgba(248,113,113,0.1)' },
 };
@@ -31,7 +30,7 @@ export default async function ClientDetailPage({ params }: { params: Params }) {
     const client = clientRes.data;
     const quotes = quotesRes.data || [];
     const totalSpent = quotes
-        .filter((q: any) => ['confirmed', 'deposit_paid', 'completed'].includes(q.status))
+        .filter((q: any) => ['confirmed', 'completed'].includes(q.status))
         .reduce((s: number, q: any) => s + Number(q.total_price), 0);
 
     return (
@@ -210,7 +209,7 @@ export default async function ClientDetailPage({ params }: { params: Params }) {
 
                     <div className="cd-actions">
                         {client.phone && (
-                            <a href={`https://wa.me/${client.phone.replace(/\D/g, '')}`} target="_blank" rel="noopener"
+                            <a href={`https://wa.me/${client.phone.replace(/\D/g, '').startsWith('56') ? client.phone.replace(/\D/g, '') : '56' + client.phone.replace(/\D/g, '')}`} target="_blank" rel="noopener"
                                 style={{ flex: 1, display: 'block', padding: '10px', background: 'rgba(37,211,102,0.1)', border: '1px solid rgba(37,211,102,0.3)', borderRadius: '10px', color: '#4ade80', fontSize: '13px', fontWeight: 700, textDecoration: 'none', textAlign: 'center' }}>
                                 💬 WhatsApp
                             </a>

@@ -3,6 +3,7 @@
 import { useState, useCallback, useMemo } from 'react';
 import type { CocktailForWizard, Comuna, WizardState, WizardSelection } from '@/lib/types';
 import { calculateSmartConfig, calculateSummaryData, buildWhatsAppMessage } from '@/lib/wizardLogic';
+import { WHATSAPP_NUMBER } from '@/lib/config';
 
 export { calculateSmartConfig };
 
@@ -128,8 +129,7 @@ export function useWizard(cocktails: CocktailForWizard[], comunas: Comuna[], cat
     function sendWhatsAppQuote(token?: string) {
         const data = calculateSummaryData(state, cocktails, comunas);
         const msg = buildWhatsAppMessage(state, data, token);
-        const whatsappNumber = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER ?? '56929672978';
-        window.open(`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(msg)}`, '_blank');
+        window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`, '_blank');
     }
 
     return {

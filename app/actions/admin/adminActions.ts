@@ -23,9 +23,61 @@ export async function updateQuoteStatus(quoteId: string, status: string): Promis
     return { success: true };
 }
 
-// ── Mark Deposit Paid ──────────────────────────────────────────────────────
-export async function markDepositPaid(quoteId: string): Promise<{ success: boolean; error?: string }> {
-    return updateQuoteStatus(quoteId, 'deposit_paid');
+// ── Manage Payments ────────────────────────────────────────────────────────
+export async function addQuotePayment(quoteId: string, payment: { date: string; amount: number; note: string }): Promise<{ success: boolean; error?: string }> {
+    const db = createServerClient();
+    const { data: quote, error: fetchErr } = await db.from('quotes').select('payments, google_event_id, google_pickup_event_id').eq('id', quoteId).single();
+    if (fetchErr || !quote) return { success: false, error: 'Cotización no encontrada.' };
+
+    const currentPayments = Array.isArray(quote.payments) ? quote.payments : [];
+    const newPayments = [...currentPayments, payment];
+
+    const { error } = await db.from('quotes').update({ payments: newPayments }).eq('id', quoteId);
+    if (error) return { success: false, error: error.message };
+
+    // Sync Calendar if event IDs exist
+    if (quote.google_event_id || quote.google_pickup_event_id) {
+        try {
+            const { data: fullQuote } = await db.from('quotes').select('*, quote_items(*)').eq('id', quoteId).single();
+            if (fullQuote) {
+                await GoogleSyncService.scheduleCalendarEvents(fullQuote, {
+                    updateEventId: quote.google_event_id,
+                    updatePickupEventId: quote.google_pickup_event_id,
+                });
+            }
+        } catch (e) { console.error('Error syncing calendar after payment', e); }
+    }
+
+    revalidatePath(`/admin/quotes/${quoteId}`);
+    return { success: true };
+}
+
+export async function deleteQuotePayment(quoteId: string, index: number): Promise<{ success: boolean; error?: string }> {
+    const db = createServerClient();
+    const { data: quote, error: fetchErr } = await db.from('quotes').select('payments, google_event_id, google_pickup_event_id').eq('id', quoteId).single();
+    if (fetchErr || !quote) return { success: false, error: 'Cotización no encontrada.' };
+
+    const currentPayments = Array.isArray(quote.payments) ? [...quote.payments] : [];
+    currentPayments.splice(index, 1);
+
+    const { error } = await db.from('quotes').update({ payments: currentPayments }).eq('id', quoteId);
+    if (error) return { success: false, error: error.message };
+
+    // Sync Calendar
+    if (quote.google_event_id || quote.google_pickup_event_id) {
+        try {
+            const { data: fullQuote } = await db.from('quotes').select('*, quote_items(*)').eq('id', quoteId).single();
+            if (fullQuote) {
+                await GoogleSyncService.scheduleCalendarEvents(fullQuote, {
+                    updateEventId: quote.google_event_id,
+                    updatePickupEventId: quote.google_pickup_event_id,
+                });
+            }
+        } catch (e) { console.error('Error syncing calendar after del-payment', e); }
+    }
+
+    revalidatePath(`/admin/quotes/${quoteId}`);
+    return { success: true };
 }
 
 // ── Update Quote (Master Editor) ──────────────────────────────────────────
