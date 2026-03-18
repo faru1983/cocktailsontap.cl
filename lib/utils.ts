@@ -13,7 +13,7 @@ export function formatPhoneNumber(value: string): string {
     if (!value) return '';
 
     // Solo extraemos los números
-    let numbers = value.replace(/[^\d]/g, '');
+    const numbers = value.replace(/[^\d]/g, '');
 
     // Si no hay números pero había algo (ej: el usuario escribió '+'), devolvemos '+'
     if (numbers.length === 0) return '+';

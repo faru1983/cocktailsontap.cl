@@ -61,6 +61,8 @@ export default function QuoteView({ quote, comunas, availableCocktails, categori
     const [showSuccessScreen, setShowSuccessScreen] = useState(false);
     const [acceptedTerms, setAcceptedTerms] = useState(false);
 
+    const isDraft = quote.status === 'draft' && !confirmed;
+
     const statusCfg = STATUS_CONFIG[quote.status] ?? STATUS_CONFIG.draft;
     const StatusIcon = statusCfg.icon;
 
@@ -115,7 +117,7 @@ export default function QuoteView({ quote, comunas, availableCocktails, categori
         }
 
         const installationCost = dispenser === 'muro' ? MURO_INSTALLATION_COST : 0;
-        const totalFinal = totalOffer + shipping + installationCost;
+        const totalFinal = totalOffer + shipping + (isDraft ? installationCost : quote.installation_cost) - (quote.manual_discount || 0);
         const totalDiscount = totalNormal - totalOffer;
 
         return { totalNormal, totalOffer, totalFinal, totalLiters, shipping, totalDiscount, installationCost };
@@ -180,8 +182,9 @@ export default function QuoteView({ quote, comunas, availableCocktails, categori
             totalDiscount: totals.totalDiscount,
             shippingCost: totals.shipping,
             shippingLabel: comuna === 'Otra' ? 'Pendiente de factibilidad' : (totals.shipping === 0 ? '¡Gratis!' : formatCurrency(totals.shipping)),
-            installationCost: totals.installationCost,
+            installationCost: isDraft ? totals.installationCost : quote.installation_cost,
             dispenserLabel: dispenser === 'muro' ? 'Muro de Coctelería' : 'Dispensador Portátil',
+            manualDiscount: quote.manual_discount || 0,
             totalPrice: totals.totalFinal,
             guests: guests,
             canHaveMuro: canHaveMuro
@@ -393,8 +396,6 @@ export default function QuoteView({ quote, comunas, availableCocktails, categori
             </div>
         );
     }
-
-    const isDraft = quote.status === 'draft' && !confirmed;
 
     return (
         <div className="flex flex-col gap-4 sm:gap-6">

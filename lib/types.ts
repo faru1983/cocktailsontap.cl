@@ -165,6 +165,7 @@ export interface Quote {
     total_offer_price: number;
     shipping_cost: number;
     installation_cost: number;
+    manual_discount: number;
     total_price: number;
     total_liters: number | null;
 

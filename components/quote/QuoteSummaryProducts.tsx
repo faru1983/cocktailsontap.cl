@@ -23,6 +23,7 @@ export interface QuoteSummaryData {
     shippingLabel: string;
     installationCost: number;
     dispenserLabel: string;
+    manualDiscount: number;
     totalPrice: number;
     guests: number;
     canHaveMuro: boolean;
@@ -151,6 +152,12 @@ export default function QuoteSummaryProducts({ data, isEditable = false, onUpdat
                     <div className="flex justify-between py-1 text-[0.95rem] font-bold text-[#16a34a]">
                         <span>Descuento</span>
                         <span>-{formatCurrency(data.totalDiscount)}</span>
+                    </div>
+                )}
+                {data.manualDiscount > 0 && (
+                    <div className="flex justify-between py-1 text-[0.95rem] font-bold text-[#f87171]">
+                        <span>Descuento Extra</span>
+                        <span>-{formatCurrency(data.manualDiscount)}</span>
                     </div>
                 )}
                 {data.shippingLabel && (

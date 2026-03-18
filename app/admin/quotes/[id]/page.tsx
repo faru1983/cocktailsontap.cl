@@ -10,11 +10,14 @@ export default async function QuoteDetailPage({ params }: { params: Params }) {
 
     const { data: quote } = await db
         .from('quotes')
-        .select('*, quote_items(*)')
+        .select('*, quote_items(*), event_types(name)')
         .eq('id', id)
         .single();
 
     if (!quote) notFound();
 
-    return <QuoteDetailClient quote={quote} />;
+    const { fetchAllProductData } = await import('@/lib/serverData');
+    const { products } = await fetchAllProductData();
+
+    return <QuoteDetailClient quote={quote} allProducts={products} />;
 }

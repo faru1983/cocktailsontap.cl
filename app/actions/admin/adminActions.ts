@@ -23,6 +23,82 @@ export async function updateQuoteStatus(quoteId: string, status: string): Promis
     return { success: true };
 }
 
+// ── Update Items, Prices & Costs ───────────────────────────────────────────
+export async function updateQuoteItemsAdmin(
+    quoteId: string,
+    data: {
+        items: {
+            id?: string;
+            product_id: string | null;
+            product_name: string;
+            size: string;
+            quantity: number;
+            price_at_time: number;
+            offer_price_at_time: number;
+        }[];
+        manual_discount: number;
+        shipping_cost: number;
+        installation_cost: number;
+    }
+): Promise<{ success: boolean; error?: string }> {
+    const db = createServerClient();
+
+    try {
+        // 1. Get current items to find which ones to delete
+        const { data: existingItems } = await db.from('quote_items').select('id').eq('quote_id', quoteId);
+        const existingIds = existingItems?.map(i => i.id) || [];
+        const incomingIds = data.items.map(i => i.id).filter(Boolean);
+        const idsToDelete = existingIds.filter(id => !incomingIds.includes(id));
+
+        // 2. Perform DB operations in parallel
+        const subtotal = data.items.reduce((acc, item) => acc + (item.offer_price_at_time * item.quantity), 0);
+        const newTotal = subtotal + Number(data.shipping_cost) + Number(data.installation_cost) - Number(data.manual_discount);
+
+        const promises: Promise<any>[] = [];
+
+        // Deletions
+        if (idsToDelete.length > 0) {
+            promises.push(db.from('quote_items').delete().in('id', idsToDelete) as any);
+        }
+
+        // Upserts (Inserts/Updates)
+        data.items.forEach(item => {
+            const itemData = {
+                ...item,
+                quote_id: quoteId,
+            };
+            promises.push(db.from('quote_items').upsert(itemData) as any);
+        });
+
+        // Update Quote Total and Costs
+        promises.push(db.from('quotes').update({
+            total_price: newTotal,
+            manual_discount: data.manual_discount,
+            shipping_cost: data.shipping_cost,
+            installation_cost: data.installation_cost,
+            updated_at: new Date().toISOString()
+        }).eq('id', quoteId) as any);
+
+        await Promise.all(promises);
+
+        // 3. Sync Calendar
+        const { data: quote } = await db.from('quotes').select('*, quote_items(*)').eq('id', quoteId).single();
+        if (quote && (quote.google_event_id || quote.google_pickup_event_id)) {
+            await GoogleSyncService.scheduleCalendarEvents(quote, {
+                updateEventId: quote.google_event_id,
+                updatePickupEventId: quote.google_pickup_event_id,
+            });
+        }
+
+        revalidatePath(`/admin/quotes/${quoteId}`);
+        return { success: true };
+
+    } catch (e: any) {
+        console.error('Error updating items admin:', e);
+        return { success: false, error: e.message };
+    }
+}
+
 // ── Manage Payments ────────────────────────────────────────────────────────
 export async function addQuotePayment(quoteId: string, payment: { date: string; amount: number; note: string }): Promise<{ success: boolean; error?: string }> {
     const db = createServerClient();

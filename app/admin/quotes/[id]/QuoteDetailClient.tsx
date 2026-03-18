@@ -4,9 +4,10 @@ import { useState, useTransition } from 'react';
 import Link from 'next/link';
 import { 
     updateQuoteStatus, sendDirectEmail, sendReviewEmail, updateQuoteAdmin, resendOrderEmail,
-    addQuotePayment, deleteQuotePayment
+    addQuotePayment, deleteQuotePayment, updateQuoteItemsAdmin
 } from '@/app/actions/admin/adminActions';
 import { SITE_URL } from '@/lib/config';
+import type { QuoteItem, Product } from '@/lib/types';
 
 const statusFlow = ['draft', 'confirmed', 'completed', 'cancelled'];
 const statusBadge: Record<string, { label: string; color: string; bg: string }> = {
@@ -17,12 +18,26 @@ const statusBadge: Record<string, { label: string; color: string; bg: string }> 
 };
 const formatCLP = (n: number) => new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0 }).format(n);
 
-export default function QuoteDetailClient({ quote: initial }: { quote: any }) {
+export default function QuoteDetailClient({ quote: initial, allProducts }: { quote: any, allProducts: Product[] }) {
     const [quote, setQuote] = useState(initial);
     const [isPending, startTransition] = useTransition();
     const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
     const [tab, setTab] = useState<'info' | 'email' | 'review' | 'payments'>('info');
     const [emailForm, setEmailForm] = useState({ subject: '', body: '' });
+
+    // Item Editing State
+    const [isEditingItems, setIsEditingItems] = useState(false);
+    const [editItems, setEditItems] = useState<QuoteItem[]>([]);
+    const [editCosts, setEditCosts] = useState({ 
+        manual_discount: initial.manual_discount || 0,
+        shipping_cost: initial.shipping_cost || 0,
+        installation_cost: initial.installation_cost || 0
+    });
+    const [searchTerm, setSearchTerm] = useState('');
+
+    // Info Editing State
+    const [isEditingInfo, setIsEditingInfo] = useState(false);
+    const [editInfo, setEditInfo] = useState<any>({});
 
     // Payment Modal State
     const [showPayModal, setShowPayModal] = useState(false);
@@ -87,6 +102,80 @@ export default function QuoteDetailClient({ quote: initial }: { quote: any }) {
         });
     };
 
+    const handleEditItemsStart = () => {
+        setEditItems([...(quote.quote_items || [])]);
+        setEditCosts({
+            manual_discount: quote.manual_discount || 0,
+            shipping_cost: quote.shipping_cost || 0,
+            installation_cost: quote.installation_cost || 0
+        });
+        setIsEditingItems(true);
+    };
+
+    const handleEditInfoStart = () => {
+        setEditInfo({ ...quote });
+        setIsEditingInfo(true);
+    };
+
+    const handleEditInfoSave = () => {
+        startTransition(async () => {
+            const res = await updateQuoteAdmin(quote.id, editInfo);
+            if (res.success) {
+                setQuote((q: any) => ({ ...q, ...editInfo }));
+                showToast('Información actualizada');
+                setIsEditingInfo(false);
+            } else {
+                showToast(res.error || 'Error al guardar', false);
+            }
+        });
+    };
+
+    const handleEditItemsSave = () => {
+        if (editItems.length === 0) return alert('La cotización no puede quedar sin productos.');
+        
+        startTransition(async () => {
+            const res = await updateQuoteItemsAdmin(quote.id, {
+                items: editItems,
+                manual_discount: Number(editCosts.manual_discount),
+                shipping_cost: Number(editCosts.shipping_cost),
+                installation_cost: Number(editCosts.installation_cost)
+            });
+
+            if (res.success) {
+                window.location.reload(); 
+                showToast('Pedido actualizado y sincronizado');
+                setIsEditingItems(false);
+            } else {
+                showToast(res.error || 'Error al guardar cambios', false);
+            }
+        });
+    };
+
+    const handleAddItem = (p: Product, size: string, price: number, offer: number) => {
+        const newItem: any = {
+            product_id: p.id,
+            product_name: p.name,
+            size: size,
+            quantity: 1,
+            price_at_time: price,
+            offer_price_at_time: offer
+        };
+        setEditItems(prev => [...prev, newItem]);
+        setSearchTerm('');
+    };
+
+    const handleRemoveItem = (idx: number) => {
+        setEditItems(prev => prev.filter((_, i) => i !== idx));
+    };
+
+    const updateItem = (idx: number, field: keyof QuoteItem, val: any) => {
+        setEditItems(prev => {
+            const copy = [...prev];
+            copy[idx] = { ...copy[idx], [field]: val };
+            return copy;
+        });
+    };
+
     const handleDeletePayment = (index: number) => {
         if (!confirm('¿Eliminar este registro de pago?')) return;
         startTransition(async () => {
@@ -143,6 +232,30 @@ export default function QuoteDetailClient({ quote: initial }: { quote: any }) {
                 .q-form-group { margin-bottom: 16px; }
                 .q-label { display: block; color: #64748b; font-size: 11px; font-weight: 700; text-transform: uppercase; margin-bottom: 6px; }
                 .q-input { width: 100%; padding: 12px; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; color: #fff; outline: none; box-sizing: border-box; font-family: inherit; }
+
+                .q-section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; gap: 16px; flex-wrap: wrap; }
+                .q-btn-group { display: flex; gap: 8px; flex-wrap: wrap; }
+                
+                .q-action-btn {
+                    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+                    padding: 10px 20px; border-radius: 12px; font-size: 13px; font-weight: 700; cursor: pointer; border: none; 
+                    transition: all 0.2s; white-space: nowrap; font-family: inherit;
+                }
+                .q-action-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+                .q-action-btn-primary { background: #E2A049; color: #1a1a2e; box-shadow: 0 4px 15px rgba(226,160,73,0.3); }
+                .q-action-btn-primary:hover { background: #f0b05b; transform: translateY(-1px); }
+                .q-action-btn-secondary { background: rgba(255,255,255,0.05); color: #94a3b8; border: 1px solid rgba(255,255,255,0.1); }
+                .q-action-btn-secondary:hover { background: rgba(255,255,255,0.08); color: #f1f5f9; }
+                .q-action-btn-outline { background: rgba(226,160,73,0.1); color: #E2A049; border: 1px solid rgba(226,160,73,0.2); }
+                .q-action-btn-outline:hover { background: rgba(226,160,73,0.15); border-color: rgba(226,160,73,0.4); }
+
+                @media(max-width: 640px) {
+                    .q-section-header { flex-direction: column; align-items: stretch; gap: 16px; }
+                    .q-btn-group { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+                    .q-btn-group-single { display: block; }
+                    .q-action-btn { width: 100%; padding: 12px; font-size: 14px; }
+                    .q-btn-group-edit { grid-template-columns: 1fr 1fr; }
+                }
             `}</style>
 
             {/* Header */}
@@ -236,49 +349,258 @@ export default function QuoteDetailClient({ quote: initial }: { quote: any }) {
 
             <div style={{ background: '#1e2433', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.06)', padding: '24px' }}>
                 {tab === 'info' && (
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '24px' }}>
-                        {[
-                            { label: 'Nombre', key: 'client_name', value: quote.client_name },
-                            { label: 'Apellido', key: 'client_lastname', value: quote.client_lastname },
-                            { label: 'Email', key: 'client_email', value: quote.client_email },
-                            { label: 'Teléfono', key: 'client_phone', value: quote.client_phone },
-                            { label: 'Dirección', key: 'client_address', value: quote.client_address },
-                            { label: 'Comuna', key: 'comuna_name', value: quote.comuna_name },
-                            { label: 'Fecha Evento', key: 'event_date', value: quote.event_date },
-                            { label: 'Hora Inicio', key: 'start_time', value: quote.start_time },
-                            { label: 'Fecha Retiro', key: 'pickup_date', value: quote.pickup_date },
-                            { label: 'Horario Retiro', key: 'pickup_time', value: quote.pickup_time },
-                            { label: 'Invitados', key: 'guests', value: quote.guests },
-                        ].map(field => (
-                            <div key={field.key}>
-                                <label className="q-label">{field.label}</label>
-                                <input defaultValue={field.value || ''} onBlur={async (e) => {
-                                    if (e.target.value !== (field.value || '')) {
-                                        const res = await updateQuoteAdmin(quote.id, { [field.key]: e.target.value });
-                                        if (res.success) showToast('Guardado'); else showToast(res.error || 'Error', false);
-                                    }
-                                }} className="q-input" />
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '40px' }}>
+                        <div className="q-section-header">
+                            <div>
+                                <h3 style={{ color: '#f1f5f9', fontSize: '18px', fontWeight: 800, margin: 0 }}>Detalles de la Cotización</h3>
+                                <p style={{ color: '#64748b', fontSize: '13px', margin: '4px 0 0' }}>Gestión de datos del cliente y logística del evento</p>
                             </div>
-                        ))}
+                            <div className="q-btn-group">
+                                {!isEditingInfo ? (
+                                    <div className="q-btn-group q-btn-group-single">
+                                        <button onClick={handleEditInfoStart} className="q-action-btn q-action-btn-outline">
+                                            ✏️ Editar
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <div className="q-btn-group q-btn-group-edit">
+                                        <button onClick={() => setIsEditingInfo(false)} className="q-action-btn q-action-btn-secondary">Cancelar</button>
+                                        <button onClick={handleEditInfoSave} disabled={isPending} className="q-action-btn q-action-btn-primary">
+                                            {isPending ? '...' : '✅ Guardar'}
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* SECCIÓN CLIENTE */}
+                        <div>
+                            <h4 style={{ color: '#E2A049', fontSize: '14px', fontWeight: 800, textTransform: 'uppercase', marginBottom: '20px', letterSpacing: '1px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <span style={{ width: '24px', height: '1px', background: 'rgba(226,160,73,0.3)' }}></span>
+                                Cliente
+                            </h4>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(1, 1fr)', gap: '24px 32px' }}>
+                                <style>{`
+                                    .q-details-grid { display: grid; gap: 24px 32px; grid-template-columns: repeat(1, 1fr); }
+                                    @media(min-width: 640px) { .q-details-grid { grid-template-columns: repeat(2, 1fr); } }
+                                    @media(min-width: 1024px) { .q-details-grid { grid-template-columns: repeat(4, 1fr); } }
+                                `}</style>
+                                <div className="q-details-grid">
+                                    {[
+                                        { label: 'Nombre', key: 'client_name' },
+                                        { label: 'Apellido', key: 'client_lastname' },
+                                        { label: 'Email', key: 'client_email' },
+                                        { label: 'Celular', key: 'client_phone' },
+                                    ].map(field => (
+                                        <div key={field.key} style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                            <label className="q-label" style={{ color: '#64748b', fontSize: '11px' }}>{field.label}</label>
+                                            {isEditingInfo ? (
+                                                <input 
+                                                    value={editInfo[field.key] || ''} 
+                                                    onChange={(e) => setEditInfo((prev: any) => ({ ...prev, [field.key]: e.target.value }))}
+                                                    className="q-input" 
+                                                />
+                                            ) : (
+                                                <div style={{ color: '#f1f5f9', fontSize: '15px', fontWeight: 600, padding: '4px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                                                    {quote[field.key] || '—'}
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* SECCIÓN EVENTO */}
+                        <div>
+                            <h4 style={{ color: '#E2A049', fontSize: '14px', fontWeight: 800, textTransform: 'uppercase', marginBottom: '20px', letterSpacing: '1px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <span style={{ width: '24px', height: '1px', background: 'rgba(226,160,73,0.3)' }}></span>
+                                Evento
+                            </h4>
+                            <div className="q-details-grid">
+                                {[
+                                    { label: 'Dirección', key: 'client_address' },
+                                    { label: 'Comuna', key: 'comuna_name' },
+                                    { 
+                                        label: 'Temática', 
+                                        key: 'event_type_other', 
+                                        render: () => {
+                                            const type = quote.event_types?.name;
+                                            const other = quote.event_type_other;
+                                            if (!type && !other) return '—';
+                                            if (type && other) return `${type} (${other})`;
+                                            return type || other;
+                                        }
+                                    },
+                                    { label: 'N° Invitados', key: 'guests', type: 'number' },
+                                    { label: 'Fecha Evento', key: 'event_date', type: 'date' },
+                                    { label: 'Hora Inicio', key: 'start_time', type: 'time' },
+                                    { label: 'Fecha Retiro', key: 'pickup_date', type: 'date' },
+                                    { label: 'Horario Retiro', key: 'pickup_time' },
+                                ].map(field => (
+                                    <div key={field.key} style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                        <label className="q-label" style={{ color: '#64748b', fontSize: '11px' }}>{field.label}</label>
+                                        {isEditingInfo ? (
+                                            <input 
+                                                type={field.type || 'text'}
+                                                value={editInfo[field.key] || ''} 
+                                                onChange={(e) => setEditInfo((prev: any) => ({ ...prev, [field.key]: e.target.value }))}
+                                                className="q-input" 
+                                            />
+                                        ) : (
+                                            <div style={{ color: '#f1f5f9', fontSize: '15px', fontWeight: 600, padding: '4px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                                                {field.render ? field.render() : (quote[field.key] || '—')}
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* SECCIÓN COMENTARIOS */}
+                        <div>
+                            <h4 style={{ color: '#E2A049', fontSize: '14px', fontWeight: 800, textTransform: 'uppercase', marginBottom: '20px', letterSpacing: '1px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <span style={{ width: '24px', height: '1px', background: 'rgba(226,160,73,0.3)' }}></span>
+                                Comentarios
+                            </h4>
+                            {isEditingInfo ? (
+                                <textarea 
+                                    value={editInfo.comments || ''} 
+                                    onChange={(e) => setEditInfo((prev: any) => ({ ...prev, comments: e.target.value }))}
+                                    className="q-input" 
+                                    rows={4}
+                                    style={{ resize: 'vertical' }}
+                                />
+                            ) : (
+                                <div style={{ color: '#94a3b8', fontSize: '14px', lineHeight: '1.6', padding: '16px', background: 'rgba(255,255,255,0.02)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)', minHeight: '60px' }}>
+                                    {quote.comments || <span style={{ fontStyle: 'italic', opacity: 0.5 }}>Sin comentarios adicionales</span>}
+                                </div>
+                            )}
+                        </div>
                     </div>
                 )}
 
                 {tab === 'review' && (
                     <div>
-                        <p style={{ color: '#64748b', fontSize: '13px', marginBottom: '16px' }}>Resumen de productos</p>
-                        <div style={{ display: 'grid', gap: '8px' }}>
-                            {(quote.quote_items || []).map((item: any) => (
-                                <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 16px', background: 'rgba(255,255,255,0.04)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.02)' }}>
-                                    <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                        <span style={{ color: '#f1f5f9', fontSize: '14px', fontWeight: 700 }}>{item.product_name}</span>
-                                        <span style={{ color: '#64748b', fontSize: '12px' }}>{item.size} x {item.quantity}</span>
+                        <div className="q-section-header">
+                            <div>
+                                <h3 style={{ color: '#f1f5f9', fontSize: '16px', margin: 0 }}>Gestión de Productos</h3>
+                                <p style={{ color: '#64748b', fontSize: '13px', margin: '4px 0 0' }}>Edición manual de ítems y costos</p>
+                            </div>
+                            <div className="q-btn-group">
+                                {!isEditingItems ? (
+                                    <div className="q-btn-group q-btn-group-single">
+                                        <button onClick={handleEditItemsStart} className="q-action-btn q-action-btn-outline">
+                                            ✏️ Editar
+                                        </button>
                                     </div>
-                                    <span style={{ color: '#E2A049', fontWeight: 800, fontSize: '15px' }}>{formatCLP(item.offer_price_at_time * item.quantity)}</span>
+                                ) : (
+                                    <div className="q-btn-group q-btn-group-edit">
+                                        <button onClick={() => setIsEditingItems(false)} className="q-action-btn q-action-btn-secondary">Cancelar</button>
+                                        <button onClick={handleEditItemsSave} disabled={isPending} className="q-action-btn q-action-btn-primary">
+                                            {isPending ? '...' : '✅ Guardar'}
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        {isEditingItems && (
+                            <div style={{ marginBottom: '20px', position: 'relative' }}>
+                                <label className="q-label">Añadir Producto</label>
+                                <input 
+                                    className="q-input" 
+                                    placeholder="Buscar producto por nombre..." 
+                                    value={searchTerm}
+                                    onChange={e => setSearchTerm(e.target.value)}
+                                />
+                                {searchTerm.length > 1 && (
+                                    <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: '#1e2433', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', zIndex: 10, marginTop: '4px', maxHeight: '200px', overflowY: 'auto', boxShadow: '0 10px 40px rgba(0,0,0,0.5)' }}>
+                                        {allProducts
+                                            .filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()))
+                                            .map(p => (
+                                                <div key={p.id} style={{ padding: '8px 12px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                                                    <div style={{ color: '#f1f5f9', fontWeight: 700, fontSize: '13px', marginBottom: '4px' }}>{p.name}</div>
+                                                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                                                        {p.sizes.map(s => (
+                                                            <button key={s.size} onClick={() => handleAddItem(p, s.size, s.price, s.offerPrice)} style={{ padding: '4px 8px', borderRadius: '6px', background: 'rgba(226,160,73,0.1)', color: '#E2A049', border: 'none', fontSize: '11px', cursor: 'pointer', fontWeight: 700 }}>
+                                                                + {s.size} ({formatCLP(s.offerPrice)})
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        <div style={{ display: 'grid', gap: '12px' }}>
+                            {(!isEditingItems ? (quote.quote_items || []) : editItems).map((item: any, idx: number) => (
+                                <div key={item.id || idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 18px', background: 'rgba(255,255,255,0.04)', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.02)' }}>
+                                    <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
+                                        <span style={{ color: '#f1f5f9', fontSize: '14px', fontWeight: 700 }}>{item.product_name}</span>
+                                        <span style={{ color: '#64748b', fontSize: '12px' }}>{item.size}</span>
+                                    </div>
+                                    
+                                    <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                                        {isEditingItems ? (
+                                            <>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                    <label className="q-label" style={{ margin: 0 }}>Cant.</label>
+                                                    <input type="number" value={item.quantity} onChange={e => updateItem(idx, 'quantity', Number(e.target.value))} className="q-input" style={{ width: '60px', padding: '6px' }} />
+                                                </div>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                    <label className="q-label" style={{ margin: 0 }}>Precio</label>
+                                                    <input type="number" value={item.offer_price_at_time} onChange={e => updateItem(idx, 'offer_price_at_time', Number(e.target.value))} className="q-input" style={{ width: '90px', padding: '6px' }} />
+                                                </div>
+                                                <button onClick={() => handleRemoveItem(idx)} style={{ background: 'rgba(248,113,113,0.1)', border: 'none', color: '#f87171', padding: '8px', borderRadius: '8px', cursor: 'pointer' }}>🗑️</button>
+                                            </>
+                                        ) : (
+                                            <div style={{ textAlign: 'right' }}>
+                                                <div style={{ color: '#E2A049', fontWeight: 800, fontSize: '15px' }}>{formatCLP(item.offer_price_at_time * item.quantity)}</div>
+                                                <div style={{ color: '#475569', fontSize: '11px' }}>{item.quantity} un. x {formatCLP(item.offer_price_at_time)}</div>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                             ))}
-                            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '16px 4px', borderTop: '1px solid rgba(255,255,255,0.08)', marginTop: '8px' }}>
-                                <span style={{ color: '#94a3b8', fontSize: '15px', fontWeight: 800 }}>TOTAL</span>
-                                <span style={{ color: '#f1f5f9', fontSize: '18px', fontWeight: 900 }}>{formatCLP(Number(quote.total_price))}</span>
+
+                            {/* Additional Costs Section */}
+                            <div style={{ marginTop: '12px', padding: '16px', borderTop: '1px solid rgba(255,255,255,0.06)', display: 'grid', gap: '12px' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <span style={{ color: '#94a3b8', fontSize: '13px' }}>Transporte</span>
+                                    {isEditingItems ? (
+                                        <input type="number" value={editCosts.shipping_cost} onChange={e => setEditCosts(prev => ({ ...prev, shipping_cost: Number(e.target.value) }))} className="q-input" style={{ width: '120px', textAlign: 'right' }} />
+                                    ) : (
+                                        <span style={{ color: '#f1f5f9', fontWeight: 700 }}>{formatCLP(quote.shipping_cost)}</span>
+                                    )}
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <span style={{ color: '#94a3b8', fontSize: '13px' }}>Instalación ({quote.dispenser})</span>
+                                    {isEditingItems ? (
+                                        <input type="number" value={editCosts.installation_cost} onChange={e => setEditCosts(prev => ({ ...prev, installation_cost: Number(e.target.value) }))} className="q-input" style={{ width: '120px', textAlign: 'right' }} />
+                                    ) : (
+                                        <span style={{ color: '#f1f5f9', fontWeight: 700 }}>{formatCLP(quote.installation_cost)}</span>
+                                    )}
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <span style={{ color: '#f87171', fontSize: '13px', fontWeight: 700 }}>Descuento Extra</span>
+                                    {isEditingItems ? (
+                                        <input type="number" value={editCosts.manual_discount} onChange={e => setEditCosts(prev => ({ ...prev, manual_discount: Number(e.target.value) }))} className="q-input" style={{ width: '120px', textAlign: 'right', color: '#f87171' }} />
+                                    ) : (
+                                        <span style={{ color: '#f87171', fontWeight: 700 }}>-{formatCLP(quote.manual_discount || 0)}</span>
+                                    )}
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '16px 0', borderTop: '1px solid rgba(255,255,255,0.08)', marginTop: '8px' }}>
+                                    <span style={{ color: '#f1f5f9', fontSize: '16px', fontWeight: 900 }}>TOTAL FINAL</span>
+                                    <span style={{ color: '#E2A049', fontSize: '22px', fontWeight: 900 }}>
+                                        {formatCLP(isEditingItems 
+                                            ? editItems.reduce((s, i) => s + (i.offer_price_at_time * i.quantity), 0) + editCosts.shipping_cost + editCosts.installation_cost - editCosts.manual_discount
+                                            : Number(quote.total_price)
+                                        )}
+                                    </span>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -363,8 +685,8 @@ export default function QuoteDetailClient({ quote: initial }: { quote: any }) {
                             <input name="note" className="q-input" placeholder="Abono inicial, Saldo, etc." />
                         </div>
                         <div style={{ display: 'flex', gap: '10px', marginTop: '24px' }}>
-                            <button type="button" className="q-tab" style={{ flex: 1 }} onClick={() => setShowPayModal(false)}>Cancelar</button>
-                            <button type="submit" disabled={isPending} className="q-tab q-tab-active" style={{ flex: 1 }}>{isPending ? 'Guardando...' : 'Guardar Pago'}</button>
+                            <button type="button" className="q-action-btn q-action-btn-secondary" style={{ flex: 1 }} onClick={() => setShowPayModal(false)}>Cancelar</button>
+                            <button type="submit" disabled={isPending} className="q-action-btn q-action-btn-primary" style={{ flex: 1 }}>{isPending ? '...' : 'Guardar Pago'}</button>
                         </div>
                     </form>
                 </div>
