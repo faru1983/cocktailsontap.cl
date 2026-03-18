@@ -110,6 +110,7 @@ export interface SummaryData {
     formattedDate: string;
     formattedPickupDate: string;
     canHaveMuro: boolean;
+    manualDiscount: number;
 }
 
 export function calculateSummaryData(
@@ -178,7 +179,8 @@ export function calculateSummaryData(
         dispenserLabel,
         formattedDate: formatEventDate(state.eventData.date),
         formattedPickupDate: formatEventDate(state.eventData.pickupDate),
-        canHaveMuro
+        canHaveMuro,
+        manualDiscount: 0
     };
 }
 

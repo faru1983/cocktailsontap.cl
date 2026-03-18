@@ -1,29 +1,43 @@
+import { DashboardRow } from './DashboardRow';
 import { createServerClient } from '@/lib/supabaseServer';
 import Link from 'next/link';
+import type { Quote } from '@/lib/types';
 
 async function getDashboardData() {
     const db = createServerClient();
     const now = new Date();
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
 
-    const [confirmed, drafts, allClients, recentQuotes] = await Promise.all([
+    const startOfMonthISO = startOfMonth.toISOString();
+    const startOfMonthSQL = startOfMonth.toISOString().split('T')[0];
+    const endOfMonthSQL = endOfMonth.toISOString().split('T')[0];
+
+    const [confirmed, drafts, allClients, recentQuotes, upcomingEvents] = await Promise.all([
         db.from('quotes')
             .select('total_price, created_at')
             .in('status', ['confirmed', 'completed'])
-            .gte('created_at', startOfMonth),
+            .gte('created_at', startOfMonthISO),
         db.from('quotes')
             .select('total_price')
             .eq('status', 'draft')
-            .gte('created_at', startOfMonth),
+            .gte('created_at', startOfMonthISO),
         db.from('clients').select('id', { count: 'exact', head: true }),
         db.from('quotes')
             .select('id, token, status, client_name, client_lastname, event_date, total_price, created_at')
             .order('created_at', { ascending: false })
             .limit(5),
+        db.from('quotes')
+            .select('id, client_name, client_lastname, event_date, start_time, total_price, guests, status')
+            .in('status', ['confirmed', 'completed'])
+            .gte('event_date', startOfMonthSQL)
+            .lte('event_date', endOfMonthSQL)
+            .order('event_date', { ascending: true })
+            .order('start_time', { ascending: true })
     ]);
 
-    const monthlyRevenue = (confirmed.data || []).reduce((s, q) => s + Number(q.total_price), 0);
-    const projectedRevenue = (drafts.data || []).reduce((s, q) => s + Number(q.total_price), 0);
+    const monthlyRevenue = (confirmed.data || []).reduce((s: number, q: any) => s + Number(q.total_price), 0);
+    const projectedRevenue = (drafts.data || []).reduce((s: number, q: any) => s + Number(q.total_price), 0);
     const conversionRate = ((confirmed.data?.length || 0) + (drafts.data?.length || 0)) > 0
         ? Math.round(((confirmed.data?.length || 0) / ((confirmed.data?.length || 0) + (drafts.data?.length || 0))) * 100)
         : 0;
@@ -36,6 +50,8 @@ async function getDashboardData() {
         totalClients: allClients.count || 0,
         conversionRate,
         recentQuotes: recentQuotes.data || [],
+        upcomingEvents: upcomingEvents.data || [],
+        currentMonthName: now.toLocaleDateString('es-CL', { month: 'long' }),
     };
 }
 
@@ -132,6 +148,89 @@ export default async function AdminDashboardPage() {
                 ))}
             </div>
 
+            {/* Upcoming Events of the Month */}
+            <div style={{ marginBottom: '32px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+                    <div style={{ background: '#34d399', width: '4px', height: '20px', borderRadius: '4px' }}></div>
+                    <h2 style={{ color: '#f1f5f9', fontSize: '18px', fontWeight: 800, margin: 0, textTransform: 'capitalize' }}>
+                        Próximos Eventos de {data.currentMonthName}
+                    </h2>
+                </div>
+
+                <div className="admin-recent-wrap">
+                    {data.upcomingEvents.length === 0 ? (
+                        <div style={{ padding: '32px', textAlign: 'center', color: '#64748b', fontSize: '14px' }}>
+                            No hay eventos confirmados para este mes todavía.
+                        </div>
+                    ) : (
+                        <>
+                            {/* ── MOBILE: Cards ── */}
+                            <div className="admin-recent-cards-view">
+                                {data.upcomingEvents.map((event: any) => (
+                                    <Link key={event.id} href={`/admin/quotes/${event.id}`} className="dashboard-quote-card">
+                                        <div style={{ minWidth: 0 }}>
+                                            <div style={{ color: '#f1f5f9', fontSize: '14px', fontWeight: 700, marginBottom: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                {event.client_name} {event.client_lastname || ''}
+                                            </div>
+                                            <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                                                <span style={{ color: '#34d399', fontWeight: 700, fontSize: '12px' }}>{event.event_date ? new Date(event.event_date + 'T12:00:00').toLocaleDateString('es-CL', { day: '2-digit', month: 'short' }) : '—'}</span>
+                                                <span style={{ color: '#475569', fontSize: '11px' }}>{event.guests} pax • {event.start_time || '--:--'}</span>
+                                            </div>
+                                        </div>
+                                        <div style={{ color: '#E2A049', fontWeight: 700, fontSize: '13px' }}>{formatCLP(Number(event.total_price))}</div>
+                                    </Link>
+                                ))}
+                            </div>
+
+                            {/* ── DESKTOP: Table ── */}
+                            <div className="admin-recent-table-view">
+                                <table width="100%" style={{ borderCollapse: 'collapse' }}>
+                                    <thead>
+                                        <tr style={{ background: 'rgba(52,211,153,0.03)' }}>
+                                            {['Fecha', 'Cliente', 'Hora', 'Invitados', 'Total'].map(h => (
+                                                <th key={h} align="left" style={{ padding: '14px 20px', color: '#475569', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.8px', whiteSpace: 'nowrap' }}>{h}</th>
+                                            ))}
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {data.upcomingEvents.map((event: any) => (
+                                            <DashboardRow 
+                                                key={event.id} 
+                                                href={`/admin/quotes/${event.id}`}
+                                                style={{ borderTop: '1px solid rgba(255,255,255,0.04)' }}
+                                                className="dashboard-row-hover"
+                                            >
+                                                <td style={{ padding: '14px 20px', color: '#34d399', fontSize: '13px', fontWeight: 700, whiteSpace: 'nowrap' }}>
+                                                    {event.event_date ? new Date(event.event_date + 'T12:00:00').toLocaleDateString('es-CL', { day: '2-digit', month: 'long' }) : '—'}
+                                                </td>
+                                                <td style={{ padding: '14px 20px', whiteSpace: 'nowrap' }}>
+                                                    <span style={{ color: '#f1f5f9', fontSize: '14px', fontWeight: 600 }}>
+                                                        {event.client_name} {event.client_lastname || ''} →
+                                                    </span>
+                                                </td>
+                                                <td style={{ padding: '14px 20px', color: '#94a3b8', fontSize: '13px', whiteSpace: 'nowrap' }}>
+                                                    {event.start_time || '—'}
+                                                </td>
+                                                <td style={{ padding: '14px 20px', color: '#94a3b8', fontSize: '13px', whiteSpace: 'nowrap' }}>
+                                                    {event.guests} pax
+                                                </td>
+                                                <td style={{ padding: '14px 20px', color: '#E2A049', fontSize: '14px', fontWeight: 700, whiteSpace: 'nowrap' }}>
+                                                    {formatCLP(Number(event.total_price))}
+                                                </td>
+                                            </DashboardRow>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </>
+                    )}
+                </div>
+            </div>
+
+            <style>{`
+                .dashboard-row-hover:hover { background: rgba(255,255,255,0.03) !important; }
+            `}</style>
+
             {/* Recent Quotes */}
             <div className="admin-recent-wrap">
                 <div style={{ padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
@@ -180,11 +279,16 @@ export default async function AdminDashboardPage() {
                             {data.recentQuotes.map((q: any) => {
                                 const badge = statusBadge[q.status] || statusBadge.draft;
                                 return (
-                                    <tr key={q.id} style={{ borderTop: '1px solid rgba(255,255,255,0.04)' }}>
+                                    <DashboardRow 
+                                        key={q.id} 
+                                        href={`/admin/quotes/${q.id}`}
+                                        style={{ borderTop: '1px solid rgba(255,255,255,0.04)' }}
+                                        className="dashboard-row-hover"
+                                    >
                                         <td style={{ padding: '14px 20px', whiteSpace: 'nowrap' }}>
-                                            <Link href={`/admin/quotes/${q.id}`} style={{ color: '#f1f5f9', fontSize: '14px', fontWeight: 600, textDecoration: 'none' }}>
+                                            <span style={{ color: '#f1f5f9', fontSize: '14px', fontWeight: 600, textDecoration: 'none' }}>
                                                 {q.client_name} {q.client_lastname || ''} →
-                                            </Link>
+                                            </span>
                                         </td>
                                         <td style={{ padding: '14px 20px', color: '#94a3b8', fontSize: '13px', whiteSpace: 'nowrap' }}>
                                             {q.event_date ? new Date(q.event_date + 'T12:00:00').toLocaleDateString('es-CL') : '—'}
@@ -197,7 +301,7 @@ export default async function AdminDashboardPage() {
                                                 {badge.label}
                                             </span>
                                         </td>
-                                    </tr>
+                                    </DashboardRow>
                                 );
                             })}
                         </tbody>
