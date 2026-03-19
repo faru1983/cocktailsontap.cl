@@ -185,28 +185,46 @@ export default async function AdminDashboardPage() {
                 {data.upcomingEvents.length === 0 ? (
                     <div style={{ padding: '32px', textAlign: 'center', color: '#64748b', fontSize: '14px' }}>No hay eventos próximos confirmados.</div>
                 ) : (
-                    <div className="admin-recent-table-view">
-                        <table width="100%" style={{ borderCollapse: 'collapse' }}>
-                            <thead>
-                                <tr style={{ background: 'rgba(52,211,153,0.03)' }}>
-                                    {['Fecha', 'Cliente', 'Comuna', 'Invitados', 'Monto'].map(h => (
-                                        <th key={h} align="left" style={{ padding: '14px 20px', color: '#475569', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase' }}>{h}</th>
+                    <>
+                        <div className="admin-recent-table-view">
+                            <table width="100%" style={{ borderCollapse: 'collapse' }}>
+                                <thead>
+                                    <tr style={{ background: 'rgba(52,211,153,0.03)' }}>
+                                        {['Fecha', 'Cliente', 'Comuna', 'Invitados', 'Monto'].map(h => (
+                                            <th key={h} align="left" style={{ padding: '14px 20px', color: '#475569', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase' }}>{h}</th>
+                                        ))}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {data.upcomingEvents.map((event: any) => (
+                                        <DashboardRow key={event.id} href={`/admin/quotes/${event.id}`} className="dashboard-row-hover" style={{ borderTop: '1px solid rgba(255,255,255,0.04)' }}>
+                                            <td style={{ padding: '14px 20px', color: '#34d399', fontSize: '13px', fontWeight: 700 }}>{new Date(event.event_date + 'T12:00:00').toLocaleDateString('es-CL', { day: '2-digit', month: 'short' })}</td>
+                                            <td style={{ padding: '14px 20px', color: '#f1f5f9', fontSize: '13px' }}>{event.client_name} {event.client_lastname}</td>
+                                            <td style={{ padding: '14px 20px', color: '#94a3b8', fontSize: '13px' }}>{event.comuna_name === 'Otra' ? event.comuna_other : event.comuna_name}</td>
+                                            <td style={{ padding: '14px 20px', color: '#94a3b8', fontSize: '13px' }}>{event.guests} pax</td>
+                                            <td style={{ padding: '14px 20px', color: '#E2A049', fontSize: '13px', fontWeight: 700 }}>{formatCLP(Number(event.total_price))}</td>
+                                        </DashboardRow>
                                     ))}
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {data.upcomingEvents.map((event: any) => (
-                                    <DashboardRow key={event.id} href={`/admin/quotes/${event.id}`} className="dashboard-row-hover" style={{ borderTop: '1px solid rgba(255,255,255,0.04)' }}>
-                                        <td style={{ padding: '14px 20px', color: '#34d399', fontSize: '13px', fontWeight: 700 }}>{new Date(event.event_date + 'T12:00:00').toLocaleDateString('es-CL', { day: '2-digit', month: 'short' })}</td>
-                                        <td style={{ padding: '14px 20px', color: '#f1f5f9', fontSize: '13px' }}>{event.client_name} {event.client_lastname}</td>
-                                        <td style={{ padding: '14px 20px', color: '#94a3b8', fontSize: '13px' }}>{event.comuna_name === 'Otra' ? event.comuna_other : event.comuna_name}</td>
-                                        <td style={{ padding: '14px 20px', color: '#94a3b8', fontSize: '13px' }}>{event.guests} pax</td>
-                                        <td style={{ padding: '14px 20px', color: '#E2A049', fontSize: '13px', fontWeight: 700 }}>{formatCLP(Number(event.total_price))}</td>
-                                    </DashboardRow>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div className="admin-recent-cards-view">
+                            {data.upcomingEvents.map((event: any) => (
+                                <Link key={event.id} href={`/admin/quotes/${event.id}`} className="dashboard-quote-card">
+                                    <div style={{ minWidth: 0 }}>
+                                        <div style={{ color: '#f1f5f9', fontSize: '14px', fontWeight: 700, marginBottom: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                            {event.client_name} {event.client_lastname || ''}
+                                        </div>
+                                        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                                            <span style={{ color: '#34d399', fontWeight: 700, fontSize: '12px' }}>{event.event_date ? new Date(event.event_date + 'T12:00:00').toLocaleDateString('es-CL', { day: '2-digit', month: 'short' }) : '—'}</span>
+                                            <span style={{ color: '#475569', fontSize: '11px' }}>{event.guests} pax • {event.comuna_name === 'Otra' ? event.comuna_other : event.comuna_name}</span>
+                                        </div>
+                                    </div>
+                                    <div style={{ color: '#E2A049', fontWeight: 700, fontSize: '13px' }}>{formatCLP(Number(event.total_price))}</div>
+                                </Link>
+                            ))}
+                        </div>
+                    </>
                 )}
             </div>
 
@@ -287,6 +305,27 @@ export default async function AdminDashboardPage() {
                             })}
                         </tbody>
                     </table>
+                </div>
+                <div className="admin-recent-cards-view">
+                    {data.recentQuotes.map((q: any) => {
+                        const badge = statusBadge[q.status] || statusBadge.draft;
+                        return (
+                            <Link key={q.id} href={`/admin/quotes/${q.id}`} className="dashboard-quote-card">
+                                <div style={{ minWidth: 0 }}>
+                                    <div style={{ color: '#f1f5f9', fontSize: '14px', fontWeight: 700, marginBottom: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                        {q.client_name} {q.client_lastname || ''}
+                                    </div>
+                                    <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                                        <span style={{ color: '#E2A049', fontWeight: 700, fontSize: '13px' }}>{formatCLP(Number(q.total_price))}</span>
+                                        <span style={{ color: '#475569', fontSize: '11px' }}>{new Date(q.created_at).toLocaleDateString('es-CL')}</span>
+                                    </div>
+                                </div>
+                                <span style={{ display: 'inline-block', padding: '3px 9px', borderRadius: '20px', fontSize: '10px', fontWeight: 700, color: badge.color, background: badge.bg, flexShrink: 0 }}>
+                                    {badge.label}
+                                </span>
+                            </Link>
+                        );
+                    })}
                 </div>
             </div>
         </div>
