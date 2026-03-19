@@ -11,17 +11,24 @@ async function getDashboardData() {
 
     const startOfMonthISO = startOfMonth.toISOString();
     const startOfMonthSQL = startOfMonth.toISOString().split('T')[0];
+    const todaySQL = now.toISOString().split('T')[0];
     const endOfMonthSQL = endOfMonth.toISOString().split('T')[0];
+    const startOfYearSQL = `${now.getFullYear()}-01-01`;
+    const endOfYearSQL = `${now.getFullYear()}-12-31`;
+    const startOfLastYearSQL = `${now.getFullYear() - 1}-01-01`;
+    const endOfLastYearSQL = `${now.getFullYear() - 1}-12-31`;
 
-    const [confirmed, drafts, allClients, recentQuotes, upcomingEvents] = await Promise.all([
+    const [confirmed, drafts, allClients, recentQuotes, upcomingEvents, historicalAll, yearlyAll, lastYearAll] = await Promise.all([
         db.from('quotes')
-            .select('total_price, created_at')
+            .select('total_price, event_date')
             .in('status', ['confirmed', 'completed'])
-            .gte('created_at', startOfMonthISO),
+            .gte('event_date', startOfMonthSQL)
+            .lte('event_date', endOfMonthSQL),
         db.from('quotes')
-            .select('total_price')
+            .select('total_price, event_date')
             .eq('status', 'draft')
-            .gte('created_at', startOfMonthISO),
+            .gte('event_date', startOfMonthSQL)
+            .lte('event_date', endOfMonthSQL),
         db.from('clients').select('id', { count: 'exact', head: true }),
         db.from('quotes')
             .select('id, token, status, client_name, client_lastname, event_date, total_price, created_at')
@@ -30,14 +37,31 @@ async function getDashboardData() {
         db.from('quotes')
             .select('id, client_name, client_lastname, event_date, start_time, total_price, guests, status, comuna_name, comuna_other')
             .in('status', ['confirmed', 'completed'])
-            .gte('event_date', startOfMonthSQL)
+            .gte('event_date', todaySQL)
             .lte('event_date', endOfMonthSQL)
             .order('event_date', { ascending: true })
-            .order('start_time', { ascending: true })
+            .order('start_time', { ascending: true }),
+        db.from('quotes')
+            .select('total_price')
+            .in('status', ['confirmed', 'completed']),
+        db.from('quotes')
+            .select('total_price')
+            .in('status', ['confirmed', 'completed'])
+            .gte('event_date', startOfYearSQL)
+            .lte('event_date', endOfYearSQL),
+        db.from('quotes')
+            .select('total_price')
+            .in('status', ['confirmed', 'completed'])
+            .gte('event_date', startOfLastYearSQL)
+            .lte('event_date', endOfLastYearSQL)
     ]);
 
     const monthlyRevenue = (confirmed.data || []).reduce((s: number, q: any) => s + Number(q.total_price), 0);
     const projectedRevenue = (drafts.data || []).reduce((s: number, q: any) => s + Number(q.total_price), 0);
+    const historicalRevenue = (historicalAll.data || []).reduce((s: number, q: any) => s + Number(q.total_price), 0);
+    const yearlyRevenue = (yearlyAll.data || []).reduce((s: number, q: any) => s + Number(q.total_price), 0);
+    const lastYearRevenue = (lastYearAll.data || []).reduce((s: number, q: any) => s + Number(q.total_price), 0);
+    
     const conversionRate = ((confirmed.data?.length || 0) + (drafts.data?.length || 0)) > 0
         ? Math.round(((confirmed.data?.length || 0) / ((confirmed.data?.length || 0) + (drafts.data?.length || 0))) * 100)
         : 0;
@@ -45,13 +69,19 @@ async function getDashboardData() {
     return {
         monthlyRevenue,
         projectedRevenue,
+        historicalRevenue,
+        yearlyRevenue,
+        lastYearRevenue,
         confirmedCount: confirmed.data?.length || 0,
         draftCount: drafts.data?.length || 0,
+        totalHistoricalCount: historicalAll.data?.length || 0,
         totalClients: allClients.count || 0,
         conversionRate,
         recentQuotes: recentQuotes.data || [],
         upcomingEvents: upcomingEvents.data || [],
         currentMonthName: now.toLocaleDateString('es-CL', { month: 'long' }),
+        currentYear: now.getFullYear(),
+        lastYear: now.getFullYear() - 1
     };
 }
 
@@ -69,9 +99,12 @@ export default async function AdminDashboardPage() {
 
     const kpis = [
         { label: 'Ingresos del Mes',       value: formatCLP(data.monthlyRevenue),   icon: '💰', sub: `${data.confirmedCount} reservas confirmadas`, color: '#34d399' },
-        { label: 'Proyección (Borradores)', value: formatCLP(data.projectedRevenue), icon: '🔮', sub: `${data.draftCount} cotizaciones pendientes`,  color: '#60a5fa' },
-        { label: 'Tasa de Conversión',      value: `${data.conversionRate}%`,        icon: '📈', sub: 'Draft → Confirmada',                           color: '#E2A049' },
+        { label: `Ventas ${data.currentYear}`, value: formatCLP(data.yearlyRevenue), icon: '📈', sub: 'Eventos del año actual', color: '#60a5fa' },
+        { label: `Ventas ${data.lastYear}`,   value: formatCLP(data.lastYearRevenue), icon: '📉', sub: 'Comparativa año anterior', color: '#94a3b8' },
+        { label: 'Ingresos Históricos',     value: formatCLP(data.historicalRevenue), icon: '🏆', sub: `${data.totalHistoricalCount} ventas históricas`, color: '#FFD700' },
         { label: 'Total Clientes',          value: data.totalClients.toString(),     icon: '👥', sub: 'Registrados en CRM',                           color: '#a78bfa' },
+        { label: 'Tasa de Conversión',      value: `${data.conversionRate}%`,        icon: '📈', sub: 'Draft → Confirmada',                           color: '#E2A049' },
+        { label: 'Proyección (Borradores)', value: formatCLP(data.projectedRevenue), icon: '🔮', sub: `${data.draftCount} cotizaciones mensuales`, color: '#f472b6' },
     ];
 
     return (

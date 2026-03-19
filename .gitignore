@@ -44,3 +44,11 @@ next-env.d.ts
 # scratch files
 /tmp
 
+# Private Scripts and Data Migration
+/scripts/
+*.csv
+*.xlsx
+*.xls
+# (Note: we allow important config JSONs but ignore the ones in scripts/)
+scripts/**/*.json
+
