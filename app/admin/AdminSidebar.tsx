@@ -7,6 +7,7 @@ import { adminLogout } from '@/app/actions/admin/authActions';
 
 const navItems = [
     { href: '/admin', label: 'Dashboard', icon: '📊' },
+    { href: '/admin/gastos', label: 'Gastos', icon: '💸' },
     { href: '/admin/quotes', label: 'Cotizaciones', icon: '📋' },
     { href: '/admin/clients', label: 'Clientes', icon: '👥' },
     { href: '/admin/estadisticas', label: 'Estadísticas', icon: '📈' },
