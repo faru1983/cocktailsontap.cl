@@ -96,11 +96,18 @@ export default function ClientDetailClient({ client: initialClient, quotes: init
                 .cd-name-block h2 { color: #f1f5f9; font-size: 17px; font-weight: 800; margin: 0 0 2px; }
                 .cd-name-block p { color: #475569; font-size: 12px; margin: 0; word-break: break-all; }
                 .cd-meta { display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; padding-top: 14px; border-top: 1px solid rgba(255,255,255,0.05); }
-                .cd-actions { display: flex; gap: 8px; }
-                @media (min-width: 768px) { .cd-actions { flex-direction: column; } }
+                .cd-actions { display: flex; flex-direction: column; gap: 10px; margin-top: 16px; }
                 .cd-quotes { background: #1e2433; border: 1px solid rgba(255,255,255,0.06); border-radius: 16px; overflow: hidden; }
                 .cd-quote-table { display: none; }
-                @media (min-width: 600px) { .cd-quote-table { display: block; overflow-x: auto; } .cd-quote-table table { border-collapse: collapse; width: 100%; } }
+                .cd-quote-cards { display: flex; flex-direction: column; }
+                .cd-quote-card { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 16px 20px; border-bottom: 1px solid rgba(255,255,255,0.04); text-decoration: none; }
+                .cd-quote-card:last-child { border-bottom: none; }
+                .cd-quote-card:hover { background: rgba(255,255,255,0.02); }
+                @media (min-width: 600px) { 
+                    .cd-quote-cards { display: none; }
+                    .cd-quote-table { display: block; overflow-x: auto; } 
+                    .cd-quote-table table { border-collapse: collapse; width: 100%; } 
+                }
                 .q-input { background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 8px 12px; color: #fff; font-size: 13px; width: 100%; outline: none; transition: border 0.2s; }
                 .q-input:focus { border-color: #E2A049; }
                 .q-label { color: #64748b; font-size: 11px; margin-bottom: 4px; display: block; }
@@ -145,22 +152,6 @@ export default function ClientDetailClient({ client: initialClient, quotes: init
                                     <div style={{ color: '#475569', fontSize: '11px', marginTop: '2px' }}>Total gastado (confirmadas)</div>
                                 </div>
                             </div>
-
-                            {/* Botón de Sincronización Manual */}
-                            <div style={{ marginTop: '16px' }}>
-                                <button 
-                                    onClick={handleSyncGoogle}
-                                    disabled={isPending}
-                                    style={{ 
-                                        width: '100%', padding: '10px', background: 'rgba(226,160,73,0.1)', 
-                                        border: '1px solid #E2A049', borderRadius: '10px', color: '#E2A049', 
-                                        fontSize: '12px', fontWeight: 700, cursor: 'pointer',
-                                        opacity: isPending ? 0.6 : 1
-                                    }}
-                                >
-                                    {isPending ? 'Sincronizando...' : '🔄 Sincronizar con Google'}
-                                </button>
-                            </div>
                         </>
                     ) : (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -192,15 +183,27 @@ export default function ClientDetailClient({ client: initialClient, quotes: init
                     
                     {!isEditing && (
                         <div className="cd-actions">
+                            <button 
+                                onClick={handleSyncGoogle}
+                                disabled={isPending}
+                                style={{ 
+                                    width: '100%', padding: '10px', background: 'rgba(226,160,73,0.1)', 
+                                    border: '1px solid #E2A049', borderRadius: '10px', color: '#E2A049', 
+                                    fontSize: '13px', fontWeight: 700, cursor: 'pointer',
+                                    opacity: isPending ? 0.6 : 1
+                                }}
+                            >
+                                {isPending ? 'Sincronizando...' : '🔄 Sincronizar a Google'}
+                            </button>
                             {client.phone && (
                                 <a href={`https://wa.me/${client.phone.replace(/\D/g, '').startsWith('56') ? client.phone.replace(/\D/g, '') : '56' + client.phone.replace(/\D/g, '')}`} target="_blank" rel="noopener"
                                     style={{ display: 'block', padding: '10px', background: 'rgba(37,211,102,0.1)', border: '1px solid rgba(37,211,102,0.3)', borderRadius: '10px', color: '#4ade80', fontSize: '13px', fontWeight: 700, textDecoration: 'none', textAlign: 'center' }}>
-                                    💬 WhatsApp
+                                    💬 Escribir al WhatsApp
                                 </a>
                             )}
                             <a href={`mailto:${client.email}`}
                                 style={{ display: 'block', padding: '10px', background: 'rgba(226,160,73,0.1)', border: '1px solid rgba(226,160,73,0.3)', borderRadius: '10px', color: '#E2A049', fontSize: '13px', fontWeight: 700, textDecoration: 'none', textAlign: 'center' }}>
-                                ✉️ Email
+                                ✉️ Enviar un Email
                             </a>
                         </div>
                     )}
@@ -217,43 +220,65 @@ export default function ClientDetailClient({ client: initialClient, quotes: init
                     {initialQuotes.length === 0 ? (
                         <div style={{ padding: '40px 20px', textAlign: 'center', color: '#475569', fontSize: '14px' }}>Sin cotizaciones registradas.</div>
                     ) : (
-                        <div className="cd-quote-table">
-                            <table>
-                                <thead>
-                                    <tr style={{ background: 'rgba(255,255,255,0.02)' }}>
-                                        {['Fecha Evento', 'Creación', 'Total', 'Estado', ''].map(h => (
-                                            <th key={h} align="left" style={{ padding: '12px 20px', color: '#475569', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.8px', whiteSpace: 'nowrap' }}>{h}</th>
-                                        ))}
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {initialQuotes.map((q: any) => {
-                                        const badge = statusBadge[q.status] || statusBadge.draft;
-                                        return (
-                                            <tr key={q.id} style={{ borderTop: '1px solid rgba(255,255,255,0.04)' }}>
-                                                <td style={{ padding: '14px 20px', color: '#94a3b8', fontSize: '13px', whiteSpace: 'nowrap' }}>
-                                                    {q.event_date ? new Date(q.event_date).toLocaleDateString('es-CL') : '—'}
-                                                </td>
-                                                <td style={{ padding: '14px 20px', color: '#64748b', fontSize: '12px', whiteSpace: 'nowrap' }}>
-                                                    {new Date(q.created_at).toLocaleDateString('es-CL')}
-                                                </td>
-                                                <td style={{ padding: '14px 20px', color: '#E2A049', fontWeight: 700, fontSize: '14px', whiteSpace: 'nowrap' }}>
-                                                    {formatCLP(Number(q.total_price))}
-                                                </td>
-                                                <td style={{ padding: '14px 20px' }}>
-                                                    <span style={{ display: 'inline-block', padding: '4px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 700, color: badge.color, background: badge.bg, whiteSpace: 'nowrap' }}>
-                                                        {badge.label}
-                                                    </span>
-                                                </td>
-                                                <td style={{ padding: '14px 20px' }}>
-                                                    <Link href={`/admin/quotes/${q.id}`} style={{ color: '#E2A049', fontSize: '12px', textDecoration: 'none', fontWeight: 700, whiteSpace: 'nowrap' }}>Ver →</Link>
-                                                </td>
-                                            </tr>
-                                        );
-                                    })}
-                                </tbody>
-                            </table>
-                        </div>
+                        <>
+                            <div className="cd-quote-cards">
+                                {initialQuotes.map((q: any) => {
+                                    const badge = statusBadge[q.status] || statusBadge.draft;
+                                    return (
+                                        <Link key={q.id} href={`/admin/quotes/${q.id}`} className="cd-quote-card">
+                                            <div>
+                                                <div style={{ color: '#E2A049', fontSize: '14px', fontWeight: 700, marginBottom: '2px' }}>{formatCLP(Number(q.total_price))}</div>
+                                                <div style={{ color: '#94a3b8', fontSize: '12px' }}>{q.event_date ? new Date(q.event_date).toLocaleDateString('es-CL') : '—'}</div>
+                                            </div>
+                                            <div style={{ textAlign: 'right' }}>
+                                                <span style={{ display: 'inline-block', padding: '4px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 700, color: badge.color, background: badge.bg, marginBottom: '4px' }}>
+                                                    {badge.label}
+                                                </span>
+                                                <div style={{ color: '#64748b', fontSize: '11px' }}>Creada: {new Date(q.created_at).toLocaleDateString('es-CL')}</div>
+                                            </div>
+                                        </Link>
+                                    );
+                                })}
+                            </div>
+
+                            <div className="cd-quote-table">
+                                <table>
+                                    <thead>
+                                        <tr style={{ background: 'rgba(255,255,255,0.02)' }}>
+                                            {['Fecha Evento', 'Creación', 'Total', 'Estado', ''].map(h => (
+                                                <th key={h} align="left" style={{ padding: '12px 20px', color: '#475569', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.8px', whiteSpace: 'nowrap' }}>{h}</th>
+                                            ))}
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {initialQuotes.map((q: any) => {
+                                            const badge = statusBadge[q.status] || statusBadge.draft;
+                                            return (
+                                                <tr key={q.id} style={{ borderTop: '1px solid rgba(255,255,255,0.04)' }}>
+                                                    <td style={{ padding: '14px 20px', color: '#94a3b8', fontSize: '13px', whiteSpace: 'nowrap' }}>
+                                                        {q.event_date ? new Date(q.event_date).toLocaleDateString('es-CL') : '—'}
+                                                    </td>
+                                                    <td style={{ padding: '14px 20px', color: '#64748b', fontSize: '12px', whiteSpace: 'nowrap' }}>
+                                                        {new Date(q.created_at).toLocaleDateString('es-CL')}
+                                                    </td>
+                                                    <td style={{ padding: '14px 20px', color: '#E2A049', fontWeight: 700, fontSize: '14px', whiteSpace: 'nowrap' }}>
+                                                        {formatCLP(Number(q.total_price))}
+                                                    </td>
+                                                    <td style={{ padding: '14px 20px' }}>
+                                                        <span style={{ display: 'inline-block', padding: '4px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 700, color: badge.color, background: badge.bg, whiteSpace: 'nowrap' }}>
+                                                            {badge.label}
+                                                        </span>
+                                                    </td>
+                                                    <td style={{ padding: '14px 20px' }}>
+                                                        <Link href={`/admin/quotes/${q.id}`} style={{ color: '#E2A049', fontSize: '12px', textDecoration: 'none', fontWeight: 700, whiteSpace: 'nowrap' }}>Ver →</Link>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </>
                     )}
                 </div>
             </div>

@@ -21,10 +21,14 @@ const NAV_LINKS = [
     },
 ];
 
+import { usePathname } from 'next/navigation';
 
 export default function Navbar() {
+    const pathname = usePathname();
     const [open, setOpen] = useState(false);
     const [scrolled, setScrolled] = useState(false);
+
+    if (pathname?.startsWith('/admin')) return null;
 
     useEffect(() => {
         let timeoutId: ReturnType<typeof setTimeout>;

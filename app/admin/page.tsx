@@ -113,7 +113,6 @@ export default async function AdminDashboardPage() {
         { label: `Ventas ${data.currentYear}`, value: formatCLP(data.yearlyRevenue), icon: '📈', sub: 'Eventos del año actual', color: '#60a5fa' },
         { label: `Ventas ${data.lastYear}`,   value: formatCLP(data.lastYearRevenue), icon: '📉', sub: 'Comparativa año anterior', color: '#94a3b8' },
         { label: 'Ingresos Históricos',     value: formatCLP(data.historicalRevenue), icon: '🏆', sub: `${data.totalHistoricalCount} ventas históricas`, color: '#FFD700' },
-        { label: 'Total Clientes',          value: data.totalClients.toString(),     icon: '👥', sub: 'Registrados en CRM',                           color: '#a78bfa' },
         { label: 'Tasa de Conversión',      value: `${data.conversionRate}%`,        icon: '📈', sub: 'Draft → Confirmada',                           color: '#E2A049' },
         { label: 'Proyección (Borradores)', value: formatCLP(data.projectedRevenue), icon: '🔮', sub: `${data.draftCount} cotizaciones mensuales`, color: '#f472b6' },
     ];
@@ -228,58 +227,7 @@ export default async function AdminDashboardPage() {
                 )}
             </div>
 
-            {/* 3. SECCION: INTELIGENCIA DE NEGOCIOS (BI) */}
-            <div className="dashboard-section-wrap">
-                <div className="dashboard-accent" style={{ background: '#a78bfa' }}></div>
-                <h2 className="dashboard-section-title">Análisis Estratégico Historico</h2>
-            </div>
 
-            <div className="bi-grid">
-                {/* Top Clients */}
-                <div className="bi-card">
-                    <div className="bi-header">
-                        <div style={{ color: '#f1f5f9', fontSize: '14px', fontWeight: 700 }}>🏆 Clientes VIP</div>
-                        <div style={{ color: '#475569', fontSize: '11px' }}>Ranking por inversión total</div>
-                    </div>
-                    {data.topClients.map((c, i) => (
-                        <Link key={i} href={c.id ? `/admin/clients/${c.id}` : '#'} className="bi-item bi-item-link">
-                            <div>
-                                <div style={{ color: '#f1f5f9', fontSize: '13px', fontWeight: 600 }}>{c.name} {c.id ? '→' : ''}</div>
-                                <div style={{ color: '#475569', fontSize: '10px' }}>{c.count} eventos realizados</div>
-                            </div>
-                            <div style={{ color: '#34d399', fontSize: '13px', fontWeight: 700 }}>{formatCLP(c.total)}</div>
-                        </Link>
-                    ))}
-                </div>
-
-                {/* Top Products */}
-                <div className="bi-card">
-                    <div className="bi-header">
-                        <div style={{ color: '#f1f5f9', fontSize: '14px', fontWeight: 700 }}>🍸 Cocktails más Pedidos</div>
-                        <div style={{ color: '#475569', fontSize: '11px' }}>Ranking por volumen (unidades)</div>
-                    </div>
-                    {data.topProducts.map((p, i) => (
-                        <div key={i} className="bi-item">
-                            <div style={{ color: '#f1f5f9', fontSize: '13px', fontWeight: 600 }}>{p[0]}</div>
-                            <div style={{ background: 'rgba(125,211,252,0.1)', color: '#38bdf8', padding: '2px 8px', borderRadius: '12px', fontSize: '11px', fontWeight: 700 }}>{p[1]} uds</div>
-                        </div>
-                    ))}
-                </div>
-
-                {/* Top Comunas */}
-                <div className="bi-card">
-                    <div className="bi-header">
-                        <div style={{ color: '#f1f5f9', fontSize: '14px', fontWeight: 700 }}>📍 Zonas de Mayor Alcance</div>
-                        <div style={{ color: '#475569', fontSize: '11px' }}>Top comunas por frecuencia</div>
-                    </div>
-                    {data.topComunas.map((c, i) => (
-                        <div key={i} className="bi-item">
-                            <div style={{ color: '#f1f5f9', fontSize: '13px', fontWeight: 600 }}>{c[0]}</div>
-                            <div style={{ color: '#94a3b8', fontSize: '12px' }}>{c[1]} eventos</div>
-                        </div>
-                    ))}
-                </div>
-            </div>
 
             {/* Recientes (Footer) */}
             <div className="dashboard-section-wrap" style={{ marginTop: '50px' }}>

@@ -122,7 +122,14 @@ export default function QuoteDetailClient({ quote: initial, allProducts, eventTy
         startTransition(async () => {
             const res = await updateQuoteAdmin(quote.id, editInfo);
             if (res.success) {
-                setQuote((q: any) => ({ ...q, ...editInfo }));
+                const updatedInfo = { ...editInfo };
+                if (updatedInfo.event_type_id) {
+                    const foundTheme = eventTypes.find((t: any) => t.id === updatedInfo.event_type_id);
+                    if (foundTheme) {
+                        updatedInfo.event_types = { ...quote.event_types, name: foundTheme.name };
+                    }
+                }
+                setQuote((q: any) => ({ ...q, ...updatedInfo }));
                 showToast('Información actualizada');
                 setIsEditingInfo(false);
             } else {
@@ -415,68 +422,146 @@ export default function QuoteDetailClient({ quote: initial, allProducts, eventTy
                             </div>
                         </div>
 
-                        {/* SECCIÓN EVENTO */}
-                        <div>
-                            <h4 style={{ color: '#E2A049', fontSize: '14px', fontWeight: 800, textTransform: 'uppercase', marginBottom: '20px', letterSpacing: '1px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <span style={{ width: '24px', height: '1px', background: 'rgba(226,160,73,0.3)' }}></span>
-                                Evento
-                            </h4>
-                            <div className="q-details-grid">
-                                {[
+                        {/* SECCIONES: EVENTO Y LOGÍSTICA */}
+                        {[
+                            {
+                                title: 'Detalles del Evento',
+                                fields: [
                                     { label: 'Dirección', key: 'client_address' },
-                                    { label: 'Comuna', key: 'comuna_name' },
+                                    { label: 'Comuna', key: 'comuna_name', special: 'comuna' },
                                     { label: 'Temática', key: 'event_type_id', special: 'theme' },
                                     { label: 'N° Invitados', key: 'guests', type: 'number' },
+                                ]
+                            },
+                            {
+                                title: 'Logística y Horarios',
+                                fields: [
                                     { label: 'Fecha Evento', key: 'event_date', type: 'date' },
                                     { label: 'Hora Inicio', key: 'start_time', type: 'time' },
                                     { label: 'Fecha Retiro', key: 'pickup_date', type: 'date' },
-                                    { label: 'Horario Retiro', key: 'pickup_time' },
-                                ].map(field => (
-                                    <div key={field.key} style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                                        <label className="q-label" style={{ color: '#64748b', fontSize: '11px' }}>{field.label}</label>
-                                        {isEditingInfo ? (
-                                            field.special === 'theme' ? (
-                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                                                    <select 
-                                                        value={editInfo.event_type_id || ''} 
-                                                        onChange={(e) => setEditInfo((prev: any) => ({ ...prev, event_type_id: e.target.value }))}
-                                                        className="q-input"
-                                                    >
-                                                        <option value="">Selecciona temática...</option>
-                                                        {eventTypes.map((et: any) => (
-                                                            <option key={et.id} value={et.id}>{et.name}</option>
-                                                        ))}
-                                                    </select>
+                                    { label: 'Horario Retiro', key: 'pickup_time', special: 'pickup_time' },
+                                ]
+                            }
+                        ].map((section, sidx) => (
+                            <div key={sidx} style={{ marginBottom: sidx === 0 ? '40px' : '0' }}>
+                                <h4 style={{ color: '#E2A049', fontSize: '14px', fontWeight: 800, textTransform: 'uppercase', marginBottom: '20px', letterSpacing: '1px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <span style={{ width: '24px', height: '1px', background: 'rgba(226,160,73,0.3)' }}></span>
+                                    {section.title}
+                                </h4>
+                                <div className="q-details-grid">
+                                    {section.fields.map(field => (
+                                        <div key={field.key} style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                            <label className="q-label" style={{ color: '#64748b', fontSize: '11px' }}>{field.label}</label>
+                                            {isEditingInfo ? (
+                                                field.special === 'theme' ? (
+                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                                        <select 
+                                                            value={editInfo.event_type_id || ''} 
+                                                            onChange={(e) => setEditInfo((prev: any) => ({ ...prev, event_type_id: e.target.value }))}
+                                                            className="q-input"
+                                                        >
+                                                            <option value="">Selecciona temática...</option>
+                                                            {eventTypes.map((et: any) => (
+                                                                <option key={et.id} value={et.id}>{et.name}</option>
+                                                            ))}
+                                                        </select>
+                                                        {editInfo.event_type_id === 'Otro' && (
+                                                            <input 
+                                                                placeholder="Especificar temática si es 'Otro'..."
+                                                                value={editInfo.event_type_other || ''} 
+                                                                onChange={(e) => setEditInfo((prev: any) => ({ ...prev, event_type_other: e.target.value }))}
+                                                                className="q-input" 
+                                                            />
+                                                        )}
+                                                    </div>
+                                                ) : field.special === 'comuna' ? (
+                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                                        <input 
+                                                            value={editInfo.comuna_name || ''} 
+                                                            onChange={(e) => setEditInfo((prev: any) => ({ ...prev, comuna_name: e.target.value }))}
+                                                            className="q-input" 
+                                                        />
+                                                        {editInfo.comuna_name === 'Otra' && (
+                                                            <input 
+                                                                placeholder="Especificar comuna..."
+                                                                value={editInfo.comuna_other || ''} 
+                                                                onChange={(e) => setEditInfo((prev: any) => ({ ...prev, comuna_other: e.target.value }))}
+                                                                className="q-input" 
+                                                            />
+                                                        )}
+                                                    </div>
+                                                ) : field.special === 'pickup_time' ? (() => {
+                                                    const val = editInfo.pickup_time || '';
+                                                    const isAllDay = val === '--:--';
+                                                    const isRange = val.includes(' a ');
+                                                    const startVal = isRange ? val.split(' a ')[0] : (isAllDay ? '' : val);
+                                                    const endVal = isRange ? val.split(' a ')[1] : '';
+
+                                                    return (
+                                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                                            <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', color: '#f1f5f9', cursor: 'pointer' }}>
+                                                                <input type="checkbox" checked={isAllDay} onChange={(e) => {
+                                                                    setEditInfo((prev: any) => ({ ...prev, pickup_time: e.target.checked ? '--:--' : '' }));
+                                                                }} />
+                                                                <span style={{ paddingTop: '1px' }}>Todo el día</span>
+                                                            </label>
+                                                            {!isAllDay && (
+                                                                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                                                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                                                        <span style={{ fontSize: '10px', color: '#64748b', textTransform: 'uppercase', fontWeight: 600 }}>Inicio</span>
+                                                                        <input type="time" value={startVal} onChange={e => {
+                                                                            let s = e.target.value;
+                                                                            let eVal = endVal;
+                                                                            if (eVal && s && eVal < s) eVal = s;
+                                                                            setEditInfo((prev: any) => ({ ...prev, pickup_time: (s && eVal) ? `${s} a ${eVal}` : (s || eVal || '') }));
+                                                                        }} className="q-input" style={{ padding: '8px' }} />
+                                                                    </div>
+                                                                    <span style={{ color: '#64748b', alignSelf: 'flex-end', paddingBottom: '8px' }}>-</span>
+                                                                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                                                        <span style={{ fontSize: '10px', color: '#64748b', textTransform: 'uppercase', fontWeight: 600 }}>Fin</span>
+                                                                        <input type="time" value={endVal} min={startVal} onChange={e => {
+                                                                            let eVal = e.target.value;
+                                                                            let s = startVal;
+                                                                            if (eVal && s && eVal < s) eVal = s;
+                                                                            setEditInfo((prev: any) => ({ ...prev, pickup_time: (s && eVal) ? `${s} a ${eVal}` : (eVal || s || '') }));
+                                                                        }} className="q-input" style={{ padding: '8px' }} />
+                                                                    </div>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    );
+                                                })() : (
                                                     <input 
-                                                        placeholder="Especificar temática si es 'Otro'..."
-                                                        value={editInfo.event_type_other || ''} 
-                                                        onChange={(e) => setEditInfo((prev: any) => ({ ...prev, event_type_other: e.target.value }))}
+                                                        type={field.type || 'text'}
+                                                        value={editInfo[field.key] || ''} 
+                                                        onChange={(e) => setEditInfo((prev: any) => ({ ...prev, [field.key]: e.target.value }))}
                                                         className="q-input" 
                                                     />
-                                                </div>
+                                                )
                                             ) : (
-                                                <input 
-                                                    type={field.type || 'text'}
-                                                    value={editInfo[field.key] || ''} 
-                                                    onChange={(e) => setEditInfo((prev: any) => ({ ...prev, [field.key]: e.target.value }))}
-                                                    className="q-input" 
-                                                />
-                                            )
-                                        ) : (
-                                            <div style={{ color: '#f1f5f9', fontSize: '15px', fontWeight: 600, padding: '4px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                                                {field.special === 'theme' ? (() => {
-                                                    const type = quote.event_types?.name;
-                                                    const other = quote.event_type_other;
-                                                    if (!type && !other) return '—';
-                                                    if (type && other) return `${type} (${other})`;
-                                                    return type || other;
-                                                })() : (quote[field.key] || '—')}
-                                            </div>
-                                        )}
-                                    </div>
-                                ))}
+                                                <div style={{ color: '#f1f5f9', fontSize: '15px', fontWeight: 600, padding: '4px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                                                    {field.special === 'theme' ? (() => {
+                                                        const type = quote.event_types?.name;
+                                                        const other = quote.event_type_other;
+                                                        if (!type && !other) return '—';
+                                                        if (type && other) return `${type} (${other})`;
+                                                        return type || other;
+                                                    })() : field.special === 'comuna' ? (() => {
+                                                        const c = quote.comuna_name;
+                                                        const o = quote.comuna_other;
+                                                        return c === 'Otra' && o ? `${c} (${o})` : (c || '—');
+                                                    })() : field.special === 'pickup_time' ? (() => {
+                                                        const p = quote.pickup_time;
+                                                        if (p === '--:--') return 'Todo el día';
+                                                        return p || '—';
+                                                    })() : (quote[field.key] || '—')}
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
-                        </div>
+                        ))}
 
                         {/* SECCIÓN COMENTARIOS */}
                         <div>

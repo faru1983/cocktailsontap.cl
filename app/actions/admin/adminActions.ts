@@ -181,7 +181,7 @@ export async function updateQuoteAdmin(quoteId: string, data: Record<string, any
         }
     }
 
-    const { data: quote, error: fetchErr } = await db.from('quotes').select('client_id, google_event_id, google_pickup_event_id').eq('id', quoteId).single();
+    const { data: quote, error: fetchErr } = await db.from('quotes').select('client_id, google_event_id, google_pickup_event_id, status').eq('id', quoteId).single();
     if (fetchErr || !quote) return { success: false, error: 'Cotización no encontrada.' };
 
     // Update quote
@@ -221,15 +221,29 @@ export async function updateQuoteAdmin(quoteId: string, data: Record<string, any
         }
     }
 
-    // Sync Google Calendar if event IDs exist
-    if (quote.google_event_id || quote.google_pickup_event_id) {
+    // Sync Google Calendar if quote is confirmed OR if it already has event IDs
+    if (quote.status === 'confirmed' || quote.google_event_id || quote.google_pickup_event_id) {
         try {
             const { data: fullQuote } = await db.from('quotes').select('*, quote_items(*)').eq('id', quoteId).single();
             if (fullQuote) {
-                await GoogleSyncService.scheduleCalendarEvents(fullQuote, {
-                    updateEventId: quote.google_event_id,
-                    updatePickupEventId: quote.google_pickup_event_id,
+                const { GoogleSyncService } = await import('@/lib/services/googleSyncService');
+                const result = await GoogleSyncService.scheduleCalendarEvents(fullQuote, {
+                    updateEventId: quote.google_event_id || undefined,
+                    updatePickupEventId: quote.google_pickup_event_id || undefined,
                 });
+                
+                // Save new IDs if they were just created
+                const dbUpdates: any = {};
+                if (result.eventId && result.eventId !== quote.google_event_id) {
+                    dbUpdates.google_event_id = result.eventId;
+                }
+                if (result.pickupEventId && result.pickupEventId !== quote.google_pickup_event_id) {
+                    dbUpdates.google_pickup_event_id = result.pickupEventId;
+                }
+                
+                if (Object.keys(dbUpdates).length > 0) {
+                    await db.from('quotes').update(dbUpdates).eq('id', quoteId);
+                }
             }
         } catch (e) {
             console.error('Admin: Error syncing calendar after update', e);

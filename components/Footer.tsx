@@ -1,10 +1,16 @@
+'use client';
+
 import Image from 'next/image';
+import { usePathname } from 'next/navigation';
 import { ChevronRight, Mail, Globe, Instagram, Facebook } from 'lucide-react';
 import { WhatsappIcon } from '@/components/icons';
 import { SITE_URL, WHATSAPP_URL, WHATSAPP_LABEL } from '@/lib/config';
 
 
 export default function Footer() {
+    const pathname = usePathname();
+    if (pathname?.startsWith('/admin')) return null;
+
     return (
         <footer className="bg-[#0d1117] text-white/80 pt-20">
             <div className="max-w-[1200px] mx-auto px-6">

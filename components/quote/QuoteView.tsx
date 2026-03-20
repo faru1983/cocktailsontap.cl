@@ -106,14 +106,12 @@ export default function QuoteView({ quote, comunas, availableCocktails, categori
         // Recalcular envío gratis si aplica (basado en comuna seleccionada)
         let shipping = quote.shipping_cost;
         const selectedComuna = comunas.find(c => c.name === comuna);
-        if (selectedComuna && selectedComuna.freeFrom !== null) {
-            if (totalLiters >= selectedComuna.freeFrom) {
+        if (selectedComuna && selectedComuna.name !== 'Otra') {
+            if (selectedComuna.freeFrom !== null && totalLiters >= selectedComuna.freeFrom) {
                 shipping = 0;
             } else {
                 shipping = selectedComuna.cost || 0;
             }
-        } else if (selectedComuna) {
-            shipping = selectedComuna.cost || 0;
         }
 
         const installationCost = dispenser === 'muro' ? MURO_INSTALLATION_COST : 0;
@@ -181,7 +179,7 @@ export default function QuoteView({ quote, comunas, availableCocktails, categori
             totalOfferPrice: totals.totalOffer,
             totalDiscount: totals.totalDiscount,
             shippingCost: totals.shipping,
-            shippingLabel: comuna === 'Otra' ? 'Pendiente de factibilidad' : (totals.shipping === 0 ? '¡Gratis!' : formatCurrency(totals.shipping)),
+            shippingLabel: comuna === 'Otra' && totals.shipping === 0 ? 'Pendiente de factibilidad' : (totals.shipping === 0 ? '¡Gratis!' : formatCurrency(totals.shipping)),
             installationCost: isDraft ? totals.installationCost : quote.installation_cost,
             dispenserLabel: dispenser === 'muro' ? 'Muro de Coctelería' : 'Dispensador Portátil',
             manualDiscount: quote.manual_discount || 0,
