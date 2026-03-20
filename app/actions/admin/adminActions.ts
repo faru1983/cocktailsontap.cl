@@ -39,6 +39,7 @@ export async function updateQuoteItemsAdmin(
         manual_discount: number;
         shipping_cost: number;
         installation_cost: number;
+        dispenser: string;
     }
 ): Promise<{ success: boolean; error?: string }> {
     const db = createServerClient();
@@ -76,6 +77,7 @@ export async function updateQuoteItemsAdmin(
             manual_discount: data.manual_discount,
             shipping_cost: data.shipping_cost,
             installation_cost: data.installation_cost,
+            dispenser: data.dispenser,
             updated_at: new Date().toISOString()
         }).eq('id', quoteId) as any);
 

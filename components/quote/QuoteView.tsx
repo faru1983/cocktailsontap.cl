@@ -83,12 +83,12 @@ export default function QuoteView({ quote, comunas, availableCocktails, categori
         return totalLiters >= 30 && !has5L;
     }, [items]);
 
-    // Auto-ajuste de dispensador
+    // Auto-ajuste de dispensador (Solo en borrador para validación del cliente)
     useEffect(() => {
-        if (!canHaveMuro && dispenser === 'muro') {
+        if (isDraft && !canHaveMuro && dispenser === 'muro') {
             setDispenser('portatil');
         }
-    }, [canHaveMuro, dispenser]);
+    }, [canHaveMuro, dispenser, isDraft]);
 
     // ─── Cálculos dinámicos ──────────────────────────────────────────────────
 

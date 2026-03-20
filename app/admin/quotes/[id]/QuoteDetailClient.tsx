@@ -32,7 +32,8 @@ export default function QuoteDetailClient({ quote: initial, allProducts, eventTy
     const [editCosts, setEditCosts] = useState({ 
         manual_discount: initial.manual_discount || 0,
         shipping_cost: initial.shipping_cost || 0,
-        installation_cost: initial.installation_cost || 0
+        installation_cost: initial.installation_cost || 0,
+        dispenser: initial.dispenser || 'portatil'
     });
     const [searchTerm, setSearchTerm] = useState('');
 
@@ -108,7 +109,8 @@ export default function QuoteDetailClient({ quote: initial, allProducts, eventTy
         setEditCosts({
             manual_discount: quote.manual_discount || 0,
             shipping_cost: quote.shipping_cost || 0,
-            installation_cost: quote.installation_cost || 0
+            installation_cost: quote.installation_cost || 0,
+            dispenser: quote.dispenser || 'portatil'
         });
         setIsEditingItems(true);
     };
@@ -146,7 +148,8 @@ export default function QuoteDetailClient({ quote: initial, allProducts, eventTy
                 items: editItems,
                 manual_discount: Number(editCosts.manual_discount),
                 shipping_cost: Number(editCosts.shipping_cost),
-                installation_cost: Number(editCosts.installation_cost)
+                installation_cost: Number(editCosts.installation_cost),
+                dispenser: editCosts.dispenser
             });
 
             if (res.success) {
@@ -683,11 +686,26 @@ export default function QuoteDetailClient({ quote: initial, allProducts, eventTy
                                     )}
                                 </div>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    <span style={{ color: '#94a3b8', fontSize: '13px' }}>Instalación ({quote.dispenser})</span>
                                     {isEditingItems ? (
-                                        <input type="number" value={editCosts.installation_cost} onChange={e => setEditCosts(prev => ({ ...prev, installation_cost: Number(e.target.value) }))} className="q-input" style={{ width: '120px', textAlign: 'right' }} />
+                                        <>
+                                            <select 
+                                                value={editCosts.dispenser} 
+                                                onChange={e => setEditCosts(prev => ({ ...prev, dispenser: e.target.value }))}
+                                                className="q-input"
+                                                style={{ width: 'auto', fontSize: '13px', padding: '6px 10px' }}
+                                            >
+                                                <option value="portatil">Dispensador Portátil</option>
+                                                <option value="muro">Muro de Cócteleria</option>
+                                            </select>
+                                            <input type="number" value={editCosts.installation_cost} onChange={e => setEditCosts(prev => ({ ...prev, installation_cost: Number(e.target.value) }))} className="q-input" style={{ width: '120px', textAlign: 'right' }} />
+                                        </>
                                     ) : (
-                                        <span style={{ color: '#f1f5f9', fontWeight: 700 }}>{formatCLP(quote.installation_cost)}</span>
+                                        <>
+                                            <span style={{ color: '#94a3b8', fontSize: '13px' }}>
+                                                {quote.dispenser === 'muro' ? 'Muro de Cócteleria' : 'Dispensador Portátil'}
+                                            </span>
+                                            <span style={{ color: '#f1f5f9', fontWeight: 700 }}>{formatCLP(quote.installation_cost)}</span>
+                                        </>
                                     )}
                                 </div>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
