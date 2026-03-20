@@ -25,7 +25,7 @@ async function getQuotes(status?: string, search?: string, sort = 'created_at', 
 }
 
 export default async function QuotesPage({ searchParams }: { searchParams: SearchParams }) {
-    const { status, q, sort = 'created_at', order = 'desc' } = await searchParams;
+    const { status = 'confirmed', q, sort = 'created_at', order = 'desc' } = await searchParams;
     const quotes = await getQuotes(status, q, sort, order);
 
     const filters = [

@@ -201,7 +201,7 @@ export default function StatsClient({ allQuotes, allQuoteItems }: StatsClientPro
             </div>
 
             {/* Content Grid */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: '20px', '@media (max-width: 768px)': { gridTemplateColumns: '1fr' } } as any}>
+            <div className="stats-grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: '20px' }}>
                 
                 {/* Top Cocktails */}
                 <div style={{ background: '#1e2433', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '16px', padding: '24px' }}>
@@ -301,7 +301,12 @@ export default function StatsClient({ allQuotes, allQuoteItems }: StatsClientPro
             </div>
             
             <style>{`
+                .stats-grid { 
+                    display: grid; 
+                    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+                }
                 @media (max-width: 768px) {
+                    .stats-grid { grid-template-columns: 1fr !important; }
                     .hide-scrollbar::-webkit-scrollbar { display: none; }
                     .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
                 }
