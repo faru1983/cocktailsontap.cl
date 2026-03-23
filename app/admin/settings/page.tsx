@@ -6,10 +6,14 @@ async function getSettings() {
     const { data } = await db.from('admin_settings').select('key, value');
     const map: Record<string, string> = {};
     (data || []).forEach((r: any) => { map[r.key] = r.value; });
-    return { reviewMode: map['review_mode'] || 'manual', reviewTemplate: map['review_template'] || '' };
+    return { 
+        reviewMode: map['review_mode'] || 'manual', 
+        reviewTemplate: map['review_template'] || '',
+        reviewLink: map['review_link'] || 'https://cocktailsontap.cl/google'
+    };
 }
 
 export default async function SettingsPage() {
-    const { reviewMode, reviewTemplate } = await getSettings();
-    return <SettingsClient reviewMode={reviewMode} reviewTemplate={reviewTemplate} />;
+    const { reviewMode, reviewTemplate, reviewLink } = await getSettings();
+    return <SettingsClient reviewMode={reviewMode} reviewTemplate={reviewTemplate} reviewLink={reviewLink} />;
 }

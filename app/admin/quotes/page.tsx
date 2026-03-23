@@ -13,7 +13,7 @@ const formatCLP = (n: number) => new Intl.NumberFormat('es-CL', { style: 'curren
 
 type SearchParams = Promise<{ status?: string; q?: string; sort?: string; order?: string }>;
 
-async function getQuotes(status?: string, search?: string, sort = 'created_at', order = 'desc') {
+async function getQuotes(status?: string, search?: string, sort = 'event_date', order = 'asc') {
     const db = createServerClient();
     let query = db.from('quotes')
         .select('id, token, status, client_name, client_lastname, client_email, event_date, total_price, created_at, comuna_name');
@@ -25,7 +25,7 @@ async function getQuotes(status?: string, search?: string, sort = 'created_at', 
 }
 
 export default async function QuotesPage({ searchParams }: { searchParams: SearchParams }) {
-    const { status = 'confirmed', q, sort = 'created_at', order = 'desc' } = await searchParams;
+    const { status = 'confirmed', q, sort = 'event_date', order = 'asc' } = await searchParams;
     const quotes = await getQuotes(status, q, sort, order);
 
     const filters = [

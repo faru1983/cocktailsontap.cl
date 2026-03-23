@@ -5,10 +5,9 @@ import { SpeedInsights } from "@vercel/speed-insights/next";
 import './globals.css';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
-
+import { SITE_URL, LOGO_URL } from '@/lib/config';
 
 const outfit = Outfit({ subsets: ['latin'], weight: ['300', '400', '600', '700', '800'], variable: '--font-outfit' });
-
 
 export const metadata: Metadata = {
   title: 'Cocktails on Tap Chile - Barra Móvil Autoservicio de Cócteles',
@@ -19,9 +18,9 @@ export const metadata: Metadata = {
   openGraph: {
     title: 'Cocktails on Tap Chile - Barra Móvil Autoservicio',
     description: 'Barra móvil autoservicio de cócteles premium para tus eventos.',
-    url: 'https://cocktailsontap.cl/',
+    url: SITE_URL,
     type: 'website',
-    images: [{ url: 'https://cocktailsontap.cl/assets/logo2.webp' }],
+    images: [{ url: LOGO_URL }],
   },
 };
 

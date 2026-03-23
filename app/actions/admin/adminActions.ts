@@ -390,20 +390,22 @@ export async function sendDirectEmail(quoteId: string, formData: FormData): Prom
 // ── Send Review Email ────────────────────────────────────────────────────
 export async function sendReviewEmail(quoteId: string): Promise<{ success: boolean; error?: string }> {
     const db = createServerClient();
-    const [quoteRes, templateRes] = await Promise.all([
+    const [quoteRes, templateRes, linkRes] = await Promise.all([
         db.from('quotes').select('client_email, client_name, client_lastname, review_email_sent').eq('id', quoteId).single(),
         db.from('admin_settings').select('value').eq('key', 'review_template').single(),
+        db.from('admin_settings').select('value').eq('key', 'review_link').single(),
     ]);
 
     if (!quoteRes.data?.client_email) return { success: false, error: 'Sin email de cliente.' };
     if (quoteRes.data.review_email_sent) return { success: false, error: 'El email de review ya fue enviado.' };
 
+    const reviewLink = linkRes.data?.value || `${SITE_URL}/google`;
     const fullName = `${quoteRes.data.client_name} ${quoteRes.data.client_lastname || ''}`.trim();
     const template = (templateRes.data?.value || '').replace('{nombre}', fullName);
     const html = `<div style="font-family: -apple-system, sans-serif; max-width: 600px; margin: auto; padding: 32px; background: #fff; border-radius: 12px;">
         <p style="font-size: 15px; line-height: 1.7; color: #334155;">${template.replace(/\n/g, '<br/>')}</p>
         <div style="text-align: center; margin: 28px 0;">
-          <a href="https://cocktailsontap.cl/google" style="background: #E2A049; color: #fff; padding: 14px 28px; border-radius: 10px; text-decoration: none; font-weight: 800; font-size: 15px;">⭐ Dejar reseña en Google</a>
+          <a href="${reviewLink}" style="background: #E2A049; color: #fff; padding: 14px 28px; border-radius: 10px; text-decoration: none; font-weight: 800; font-size: 15px;">⭐ Dejar reseña</a>
         </div>
         <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 24px 0;" />
         <p style="font-size: 12px; color: #94a3b8;">Cocktails on Tap — <a href="${SITE_URL}" style="color: #E2A049;">cocktailsontap.cl</a></p>
@@ -421,6 +423,34 @@ export async function sendReviewEmail(quoteId: string): Promise<{ success: boole
 
     await db.from('quotes').update({ review_email_sent: true }).eq('id', quoteId);
     revalidatePath(`/admin/quotes/${quoteId}`);
+    return { success: true };
+}
+
+// ── Send Test Review Email ───────────────────────────────────────────────
+export async function sendTestReviewEmail(toEmail: string, template: string, reviewLink: string): Promise<{ success: boolean; error?: string }> {
+    if (!toEmail) return { success: false, error: 'Email de prueba es obligatorio.' };
+    
+    const fullName = 'Nombre del Cliente (Prueba)';
+    const processedTemplate = (template || '').replace('{nombre}', fullName);
+    const html = `<div style="font-family: -apple-system, sans-serif; max-width: 600px; margin: auto; padding: 32px; background: #fff; border-radius: 12px;">
+        <p style="font-size: 15px; line-height: 1.7; color: #334155;"><strong>[EMAIL DE PRUEBA]</strong></p>
+        <p style="font-size: 15px; line-height: 1.7; color: #334155;">${processedTemplate.replace(/\n/g, '<br/>')}</p>
+        <div style="text-align: center; margin: 28px 0;">
+          <a href="${reviewLink || SITE_URL + '/google'}" style="background: #E2A049; color: #fff; padding: 14px 28px; border-radius: 10px; text-decoration: none; font-weight: 800; font-size: 15px;">⭐ Dejar reseña</a>
+        </div>
+        <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 24px 0;" />
+        <p style="font-size: 12px; color: #94a3b8;">Cocktails on Tap — <a href="${SITE_URL}" style="color: #E2A049;">cocktailsontap.cl</a></p>
+    </div>`;
+
+    const resend = new Resend(process.env.RESEND_API_KEY);
+    const { error } = await resend.emails.send({
+        from: FROM_EMAIL,
+        to: toEmail,
+        subject: '¡Gracias por elegirnos! Deja tu opinión 🌟 (Prueba)',
+        html,
+    });
+
+    if (error) return { success: false, error: error.message };
     return { success: true };
 }
 
@@ -462,10 +492,12 @@ export async function saveAdminSettings(formData: FormData): Promise<{ success: 
     const db = createServerClient();
     const reviewMode = formData.get('review_mode') as string;
     const reviewTemplate = formData.get('review_template') as string;
+    const reviewLink = formData.get('review_link') as string;
 
     await Promise.all([
         db.from('admin_settings').upsert({ key: 'review_mode', value: reviewMode }),
         db.from('admin_settings').upsert({ key: 'review_template', value: reviewTemplate }),
+        db.from('admin_settings').upsert({ key: 'review_link', value: reviewLink }),
     ]);
     revalidatePath('/admin/settings');
     return { success: true };
@@ -564,7 +596,7 @@ export async function sendBatchReminders(quoteIds: string[], templateId: string)
             .replace(/{nombre}/g, `<strong>${quote.client_name}</strong>`)
             .replace(/{fecha}/g, `<strong>${eventDateStr}</strong>`)
             .replace(/{total}/g, `<strong>${totalStr}</strong>`)
-            .replace(/{link}/g, `<a href="https://cocktailsontap.cl/cotizar/${quote.token}" style="color: #E2A049; font-weight: 700;">https://cocktailsontap.cl/cotizar/${quote.token}</a>`);
+            .replace(/{link}/g, `<a href="${SITE_URL}/cotizar/${quote.token}" style="color: #E2A049; font-weight: 700;">${SITE_URL}/cotizar/${quote.token}</a>`);
 
         // Simple HTML layout for reminders
         const html = `<div style="font-family: -apple-system, sans-serif; max-width: 600px; margin: auto; padding: 32px; background: #fff; border-radius: 12px; color: #1e293b;">
@@ -587,6 +619,43 @@ export async function sendBatchReminders(quoteIds: string[], templateId: string)
     }
 
     return { success: true, results };
+}
+
+// ── Send Test Reminder Email ──────────────────────────────────────────
+export async function sendTestReminderEmail(toEmail: string, template: { subject: string, content: string }): Promise<{ success: boolean; error?: string }> {
+    if (!toEmail) return { success: false, error: 'Email de prueba es obligatorio.' };
+    
+    const resend = new Resend(process.env.RESEND_API_KEY);
+    
+    // Test data
+    const eventDateStr = new Date().toLocaleDateString('es-CL', { day: '2-digit', month: 'long', year: 'numeric' });
+    const totalStr = new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0 }).format(150000);
+    const testLink = `${SITE_URL}/cotizar/test-token`;
+    const testName = 'Cliente de Prueba';
+
+    let content = template.content
+        .replace(/\\n/g, '\n')
+        .replace(/{nombre}/g, `<strong>${testName}</strong>`)
+        .replace(/{fecha}/g, `<strong>${eventDateStr}</strong>`)
+        .replace(/{total}/g, `<strong>${totalStr}</strong>`)
+        .replace(/{link}/g, `<a href="${testLink}" style="color: #E2A049; font-weight: 700;">${testLink}</a>`);
+
+    const html = `<div style="font-family: -apple-system, sans-serif; max-width: 600px; margin: auto; padding: 32px; background: #fff; border-radius: 12px; color: #1e293b;">
+        <p style="font-size: 14px; color: #94a3b8; margin-bottom: 20px;"><strong>[EMAIL DE PRUEBA]</strong></p>
+        <div style="font-size: 16px; line-height: 1.6; white-space: pre-wrap;">${content}</div>
+        <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 24px 0;" />
+        <p style="font-size: 12px; color: #94a3b8; text-align: center;">Cocktails on Tap — <a href="${SITE_URL}" style="color: #E2A049;">cocktailsontap.cl</a></p>
+    </div>`;
+
+    const { error } = await resend.emails.send({
+        from: FROM_EMAIL,
+        to: toEmail,
+        subject: `[PRUEBA] ${template.subject.replace(/{fecha}/g, eventDateStr).replace(/{nombre}/g, testName)}`,
+        html,
+    });
+
+    if (error) return { success: false, error: error.message };
+    return { success: true };
 }
 
 // Helper: auto-send review if setting is 'auto'

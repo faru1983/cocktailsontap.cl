@@ -3,7 +3,7 @@
 import { useState, useTransition, useMemo } from 'react';
 import Link from 'next/link';
 import { 
-    saveReminderTemplate, deleteReminderTemplate, sendBatchReminders 
+    saveReminderTemplate, deleteReminderTemplate, sendBatchReminders, sendTestReminderEmail 
 } from '@/app/actions/admin/adminActions';
 import { SITE_URL } from '@/lib/config';
 
@@ -22,6 +22,7 @@ export default function RemindersClient({ initialQuotes, initialTemplates }: { i
     const [templates, setTemplates] = useState(initialTemplates);
     const [tab, setTab] = useState<'list' | 'templates'>('list');
     const [isPending, startTransition] = useTransition();
+    const [isTesting, setIsTesting] = useState(false);
     const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
 
     // Filter state
@@ -34,6 +35,8 @@ export default function RemindersClient({ initialQuotes, initialTemplates }: { i
     // Modals state
     const [batchModal, setBatchModal] = useState<{ show: boolean, templateId: string }>({ show: false, templateId: '' });
     const [waModal, setWaModal] = useState<{ show: boolean, quote: any, templateId: string }>({ show: false, quote: null, templateId: '' });
+    const [testModal, setTestModal] = useState<{ show: boolean, template: Template | null }>({ show: false, template: null });
+    const [testInp, setTestInp] = useState({ email: '', phone: '' });
 
     const showToast = (msg: string, ok = true) => {
         setToast({ msg, ok });
@@ -111,6 +114,34 @@ export default function RemindersClient({ initialQuotes, initialTemplates }: { i
             if (res.success) showToast('Plantilla eliminada');
             else showToast(res.error || 'Error', false);
         });
+    };
+
+    const handleTestReminder = async (type: 'email' | 'wa') => {
+        if (!testModal.template) return;
+        setIsTesting(true);
+        try {
+            if (type === 'email') {
+                if (!testInp.email) return showToast('Ingresa un email', false);
+                const res = await sendTestReminderEmail(testInp.email, { 
+                    subject: testModal.template.subject || 'Recordatorio de tu evento 🍸', 
+                    content: testModal.template.content 
+                });
+                if (res.success) showToast('Email de prueba enviado');
+                else showToast(res.error || 'Error', false);
+            } else {
+                if (!testInp.phone) return showToast('Ingresa un teléfono', false);
+                const testQuote = {
+                    client_name: 'Cliente Prueba',
+                    client_phone: testInp.phone,
+                    event_date: new Date().toISOString().split('T')[0],
+                    total_price: 150000,
+                    token: 'test-token'
+                };
+                const url = getWhatsAppUrl(testQuote, testModal.template);
+                if (url) window.open(url, '_blank');
+            }
+        } catch (e) { showToast('Error al procesar prueba', false); }
+        finally { setIsTesting(false); }
     };
 
     // ── Email Batch Sending ──
@@ -229,7 +260,7 @@ export default function RemindersClient({ initialQuotes, initialTemplates }: { i
                 .rem-modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 1000; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(4px); padding: 20px; }
                 .rem-modal { background: #1e2433; border: 1px solid rgba(255,255,255,0.1); border-radius: 20px; width: 100%; max-width: 500px; padding: 28px; box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
                 
-                .rem-temp-card { background: #1e2433; border: 1px solid rgba(255,255,255,0.06); border-radius: 14px; padding: 20px; margin-bottom: 12px; }
+                .rem-temp-card { background: #1e2433; border: 1px solid rgba(255,255,255,0.06); border-radius: 14px; padding: 20px; margin-bottom: 12px; text-align: left; }
                 .rem-tag { font-family: monospace; background: rgba(226,160,73,0.1); color: #E2A049; padding: 2px 4px; border-radius: 4px; font-size: 12px; }
             `}</style>
 
@@ -344,17 +375,75 @@ export default function RemindersClient({ initialQuotes, initialTemplates }: { i
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: '16px' }}>
                         {templates.map(t => (
                             <div key={t.id} className="rem-temp-card">
-                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
-                                    <h3 style={{ margin: 0, color: '#f1f5f9', fontSize: '15px' }}>{t.name}</h3>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', alignItems: 'flex-start' }}>
+                                    <div style={{ flex: 1 }}>
+                                        <h3 style={{ margin: 0, color: '#f1f5f9', fontSize: '15px' }}>{t.name}</h3>
+                                        <span style={{ fontSize: '10px', color: '#475569', fontWeight: 600, textTransform: 'uppercase' }}>Canal: {t.type}</span>
+                                    </div>
                                     <div style={{ display: 'flex', gap: '6px' }}>
+                                        <button className="rem-btn rem-btn-outline" style={{ padding: '4px 8px' }} onClick={() => setTestModal({ show: true, template: t })} title="Probar envío">🧪</button>
                                         <button className="rem-btn rem-btn-outline" style={{ padding: '4px 8px' }} onClick={() => setEditingTemplate(t)}>✏️</button>
-                                        <button className="rem-btn rem-btn-outline" style={{ padding: '4px 8px', borderColor: '#f87171' }} onClick={() => handleDeleteTemplate(t.id)}>🗑️</button>
+                                        <button className="rem-btn rem-btn-outline" style={{ padding: '4px 8px', borderColor: 'rgba(248,113,113,0.3)' }} onClick={() => handleDeleteTemplate(t.id)}>🗑️</button>
                                     </div>
                                 </div>
-                                <div style={{ color: '#64748b', fontSize: '12px', marginBottom: '8px' }}>Asunto: {t.subject || '—'}</div>
-                                <div style={{ color: '#94a3b8', fontSize: '13px', whiteSpace: 'pre-wrap', maxHeight: '100px', overflowY: 'auto', background: 'rgba(0,0,0,0.1)', padding: '10px', borderRadius: '8px' }}>{t.content}</div>
+                                <div style={{ color: '#64748b', fontSize: '12px', marginBottom: '8px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Asunto: {t.subject || '—'}</div>
+                                <div style={{ color: '#94a3b8', fontSize: '13px', whiteSpace: 'pre-wrap', maxHeight: '100px', overflowY: 'auto', background: 'rgba(0,0,0,0.1)', padding: '10px', borderRadius: '8px', lineHeight: 1.5 }}>{t.content}</div>
                             </div>
                         ))}
+                    </div>
+                </div>
+            )}
+
+            {/* Test Reminder Modal */}
+            {testModal.show && testModal.template && (
+                <div className="rem-modal-overlay">
+                    <div className="rem-modal">
+                        <h2 style={{ color: '#f1f5f9', fontSize: '18px', margin: '0 0 10px', textAlign: 'left' }}>🧪 Probar Plantilla</h2>
+                        <p style={{ color: '#64748b', fontSize: '13px', marginBottom: '24px', textAlign: 'left' }}>Prueba cómo se ve tu recordatorio: "{testModal.template.name}"</p>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                            {/* Email Test */}
+                            {(testModal.template.type === 'both' || testModal.template.type === 'email') && (
+                                <div style={{ background: 'rgba(255,255,255,0.02)', padding: '16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)', textAlign: 'left' }}>
+                                    <label style={{ display: 'block', color: '#94a3b8', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', marginBottom: '8px' }}>Probar por EMAIL</label>
+                                    <div style={{ display: 'flex', gap: '8px' }}>
+                                        <input 
+                                            type="email" 
+                                            className="rem-select" 
+                                            placeholder="correo@ejemplo.com" 
+                                            style={{ flex: 1 }} 
+                                            value={testInp.email} 
+                                            onChange={e => setTestInp(prev => ({ ...prev, email: e.target.value }))}
+                                        />
+                                        <button className="rem-btn rem-btn-primary" onClick={() => handleTestReminder('email')} disabled={isTesting || !testInp.email}>
+                                            {isTesting ? '…' : 'Enviar'}
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* WA Test */}
+                            {(testModal.template.type === 'both' || testModal.template.type === 'whatsapp') && (
+                                <div style={{ background: 'rgba(37,211,102,0.05)', padding: '16px', borderRadius: '12px', border: '1px solid rgba(37,211,102,0.1)', textAlign: 'left' }}>
+                                    <label style={{ display: 'block', color: '#25D366', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', marginBottom: '8px' }}>Probar por WHATSAPP</label>
+                                    <div style={{ display: 'flex', gap: '8px' }}>
+                                        <input 
+                                            type="tel" 
+                                            className="rem-select" 
+                                            placeholder="56912345678" 
+                                            style={{ flex: 1 }} 
+                                            value={testInp.phone} 
+                                            onChange={e => setTestInp(prev => ({ ...prev, phone: e.target.value }))}
+                                        />
+                                        <button className="rem-btn" style={{ background: '#25D366', color: '#fff' }} onClick={() => handleTestReminder('wa')} disabled={!testInp.phone}>
+                                            WhatsApp
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        <button className="rem-btn rem-btn-outline" style={{ width: '100%', marginTop: '24px' }} onClick={() => setTestModal({ show: false, template: null })}>Cerrar</button>
                     </div>
                 </div>
             )}
@@ -363,8 +452,8 @@ export default function RemindersClient({ initialQuotes, initialTemplates }: { i
             {editingTemplate && (
                 <div className="rem-modal-overlay">
                     <form className="rem-modal" onSubmit={handleSaveTemplate}>
-                        <h2 style={{ color: '#f1f5f9', fontSize: '18px', margin: '0 0 20px' }}>{editingTemplate.id ? 'Editar Plantilla' : 'Nueva Plantilla'}</h2>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                        <h2 style={{ color: '#f1f5f9', fontSize: '18px', margin: '0 0 20px', textAlign: 'left' }}>{editingTemplate.id ? 'Editar Plantilla' : 'Nueva Plantilla'}</h2>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', textAlign: 'left' }}>
                             <div>
                                 <label style={{ display: 'block', color: '#64748b', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', marginBottom: '6px' }}>Nombre</label>
                                 <input name="name" defaultValue={editingTemplate.name} required className="rem-select" style={{ width: '100%', boxSizing: 'border-box' }} />
@@ -398,13 +487,15 @@ export default function RemindersClient({ initialQuotes, initialTemplates }: { i
             {batchModal.show && (
                 <div className="rem-modal-overlay">
                     <div className="rem-modal">
-                        <h2 style={{ color: '#f1f5f9', fontSize: '18px', margin: '0 0 10px' }}>Enviar Recordatorio Masivo</h2>
-                        <p style={{ color: '#64748b', fontSize: '14px', marginBottom: '20px' }}>Seleccionaste <strong style={{ color: '#f1f5f9' }}>{selectedIds.length}</strong> cotizaciones para enviar por Email.</p>
+                        <h2 style={{ color: '#f1f5f9', fontSize: '18px', margin: '0 0 10px', textAlign: 'left' }}>Enviar Recordatorio Masivo</h2>
+                        <p style={{ color: '#64748b', fontSize: '14px', marginBottom: '20px', textAlign: 'left' }}>Seleccionaste <strong style={{ color: '#f1f5f9' }}>{selectedIds.length}</strong> cotizaciones para enviar por Email.</p>
                         
-                        <label style={{ display: 'block', color: '#64748b', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', marginBottom: '6px' }}>Selecciona Plantilla</label>
-                        <select className="rem-select" style={{ width: '100%', marginBottom: '24px' }} value={batchModal.templateId} onChange={e => setBatchModal(m => ({ ...m, templateId: e.target.value }))}>
-                            {templates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                        </select>
+                        <div style={{ textAlign: 'left' }}>
+                            <label style={{ display: 'block', color: '#64748b', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', marginBottom: '6px' }}>Selecciona Plantilla</label>
+                            <select className="rem-select" style={{ width: '100%', marginBottom: '24px' }} value={batchModal.templateId} onChange={e => setBatchModal(m => ({ ...m, templateId: e.target.value }))}>
+                                {templates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                            </select>
+                        </div>
 
                         <div style={{ display: 'flex', gap: '10px' }}>
                             <button className="rem-btn rem-btn-outline" style={{ flex: 1 }} onClick={() => setBatchModal({ show: false, templateId: '' })}>Cancelar</button>
@@ -420,13 +511,15 @@ export default function RemindersClient({ initialQuotes, initialTemplates }: { i
             {waModal.show && (
                 <div className="rem-modal-overlay">
                     <div className="rem-modal">
-                        <h2 style={{ color: '#f1f5f9', fontSize: '18px', margin: '0 0 10px' }}>Contactar por WhatsApp</h2>
-                        <p style={{ color: '#64748b', fontSize: '14px', marginBottom: '20px' }}>Vas a enviar un recordatorio a <strong style={{ color: '#f1f5f9' }}>{waModal.quote.client_name}</strong>.</p>
+                        <h2 style={{ color: '#f1f5f9', fontSize: '18px', margin: '0 0 10px', textAlign: 'left' }}>Contactar por WhatsApp</h2>
+                        <p style={{ color: '#64748b', fontSize: '14px', marginBottom: '20px', textAlign: 'left' }}>Vas a enviar un recordatorio a <strong style={{ color: '#f1f5f9' }}>{waModal.quote.client_name}</strong>.</p>
                         
-                        <label style={{ display: 'block', color: '#64748b', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', marginBottom: '6px' }}>Selecciona Plantilla</label>
-                        <select className="rem-select" style={{ width: '100%', marginBottom: '24px' }} value={waModal.templateId} onChange={e => setWaModal(m => ({ ...m, templateId: e.target.value }))}>
-                            {templates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                        </select>
+                        <div style={{ textAlign: 'left' }}>
+                            <label style={{ display: 'block', color: '#64748b', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', marginBottom: '6px' }}>Selecciona Plantilla</label>
+                            <select className="rem-select" style={{ width: '100%', marginBottom: '24px' }} value={waModal.templateId} onChange={e => setWaModal(m => ({ ...m, templateId: e.target.value }))}>
+                                {templates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                            </select>
+                        </div>
 
                         <div style={{ display: 'flex', gap: '10px' }}>
                             <button className="rem-btn rem-btn-outline" style={{ flex: 1 }} onClick={() => setWaModal({ show: false, quote: null, templateId: '' })}>Cancelar</button>
