@@ -14,6 +14,12 @@ async function getDashboardData() {
     const startOfMonthSQL = startOfMonth.toISOString().split('T')[0];
     const todaySQL = now.toISOString().split('T')[0];
     const endOfMonthSQL = endOfMonth.toISOString().split('T')[0];
+    
+    const startOfNextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    const endOfNextMonth = new Date(now.getFullYear(), now.getMonth() + 2, 0);
+    const startOfNextMonthSQL = startOfNextMonth.toISOString().split('T')[0];
+    const endOfNextMonthSQL = endOfNextMonth.toISOString().split('T')[0];
+
     const startOfYearSQL = `${now.getFullYear()}-01-01`;
     const endOfYearSQL = `${now.getFullYear()}-12-31`;
     const startOfLastYearSQL = `${now.getFullYear() - 1}-01-01`;
@@ -29,7 +35,8 @@ async function getDashboardData() {
         historicalAll, 
         yearlyAll, 
         lastYearAll,
-        allQuoteItems
+        allQuoteItems,
+        nextMonthResults
     ] = await Promise.all([
         db.from('quotes').select('total_price').in('status', ['confirmed', 'completed']).gte('event_date', startOfMonthSQL).lte('event_date', endOfMonthSQL),
         db.from('quotes').select('total_price').eq('status', 'draft').gte('event_date', startOfMonthSQL).lte('event_date', endOfMonthSQL),
@@ -39,7 +46,8 @@ async function getDashboardData() {
         db.from('quotes').select('total_price, client_id, client_name, client_lastname, comuna_name, comuna_other').in('status', ['confirmed', 'completed']),
         db.from('quotes').select('total_price').in('status', ['confirmed', 'completed']).gte('event_date', startOfYearSQL).lte('event_date', endOfYearSQL),
         db.from('quotes').select('total_price').in('status', ['confirmed', 'completed']).gte('event_date', startOfLastYearSQL).lte('event_date', endOfLastYearSQL),
-        db.from('quote_items').select('product_name, quantity, quote_id').order('quantity', { ascending: false })
+        db.from('quote_items').select('product_name, quantity, quote_id').order('quantity', { ascending: false }),
+        db.from('quotes').select('id, client_name, client_lastname, event_date, start_time, total_price, guests, status, comuna_name, comuna_other').in('status', ['confirmed', 'completed']).gte('event_date', startOfNextMonthSQL).lte('event_date', endOfNextMonthSQL).order('event_date', { ascending: true }).limit(8),
     ]);
 
     // 3. Simple Sums
@@ -87,10 +95,12 @@ async function getDashboardData() {
         conversionRate,
         recentQuotes: recentQuotes.data || [],
         upcomingEvents: upcomingEvents.data || [],
+        nextMonthEvents: nextMonthResults.data || [],
         topClients,
         topProducts,
         topComunas,
         currentMonthName: now.toLocaleDateString('es-CL', { month: 'long' }),
+        nextMonthName: startOfNextMonth.toLocaleDateString('es-CL', { month: 'long' }),
         currentYear: now.getFullYear(),
         lastYear: now.getFullYear() - 1
     };
@@ -216,6 +226,59 @@ export default async function AdminDashboardPage() {
                                         </div>
                                         <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
                                             <span style={{ color: '#34d399', fontWeight: 700, fontSize: '12px' }}>{event.event_date ? new Date(event.event_date + 'T12:00:00').toLocaleDateString('es-CL', { day: '2-digit', month: 'short' }) : '—'}</span>
+                                            <span style={{ color: '#475569', fontSize: '11px' }}>{event.guests} pax • {event.comuna_name === 'Otra' ? event.comuna_other : event.comuna_name}</span>
+                                        </div>
+                                    </div>
+                                    <div style={{ color: '#E2A049', fontWeight: 700, fontSize: '13px' }}>{formatCLP(Number(event.total_price))}</div>
+                                </Link>
+                            ))}
+                        </div>
+                    </>
+                )}
+            </div>
+
+            {/* 3. SECCION: PROXIMO MES */}
+            <div className="dashboard-section-wrap" style={{ marginTop: '50px' }}>
+                <div className="dashboard-accent" style={{ background: '#a78bfa' }}></div>
+                <h2 className="dashboard-section-title">Próximos Eventos de {data.nextMonthName}</h2>
+            </div>
+            
+            <div className="admin-recent-wrap">
+                {data.nextMonthEvents.length === 0 ? (
+                    <div style={{ padding: '32px', textAlign: 'center', color: '#64748b', fontSize: '14px' }}>No hay eventos confirmados para el próximo mes todavía.</div>
+                ) : (
+                    <>
+                        <div className="admin-recent-table-view">
+                            <table width="100%" style={{ borderCollapse: 'collapse' }}>
+                                <thead>
+                                    <tr style={{ background: 'rgba(167,139,250,0.03)' }}>
+                                        {['Fecha', 'Cliente', 'Comuna', 'Invitados', 'Monto'].map(h => (
+                                            <th key={h} align="left" style={{ padding: '14px 20px', color: '#475569', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase' }}>{h}</th>
+                                        ))}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {data.nextMonthEvents.map((event: any) => (
+                                        <DashboardRow key={event.id} href={`/admin/quotes/${event.id}`} className="dashboard-row-hover" style={{ borderTop: '1px solid rgba(255,255,255,0.04)' }}>
+                                            <td style={{ padding: '14px 20px', color: '#a78bfa', fontSize: '13px', fontWeight: 700 }}>{new Date(event.event_date + 'T12:00:00').toLocaleDateString('es-CL', { day: '2-digit', month: 'short' })}</td>
+                                            <td style={{ padding: '14px 20px', color: '#f1f5f9', fontSize: '13px' }}>{event.client_name} {event.client_lastname}</td>
+                                            <td style={{ padding: '14px 20px', color: '#94a3b8', fontSize: '13px' }}>{event.comuna_name === 'Otra' ? event.comuna_other : event.comuna_name}</td>
+                                            <td style={{ padding: '14px 20px', color: '#94a3b8', fontSize: '13px' }}>{event.guests} pax</td>
+                                            <td style={{ padding: '14px 20px', color: '#E2A049', fontSize: '13px', fontWeight: 700 }}>{formatCLP(Number(event.total_price))}</td>
+                                        </DashboardRow>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                        <div className="admin-recent-cards-view">
+                            {data.nextMonthEvents.map((event: any) => (
+                                <Link key={event.id} href={`/admin/quotes/${event.id}`} className="dashboard-quote-card">
+                                    <div style={{ minWidth: 0 }}>
+                                        <div style={{ color: '#f1f5f9', fontSize: '14px', fontWeight: 700, marginBottom: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                            {event.client_name} {event.client_lastname || ''}
+                                        </div>
+                                        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                                            <span style={{ color: '#a78bfa', fontWeight: 700, fontSize: '12px' }}>{event.event_date ? new Date(event.event_date + 'T12:00:00').toLocaleDateString('es-CL', { day: '2-digit', month: 'short' }) : '—'}</span>
                                             <span style={{ color: '#475569', fontSize: '11px' }}>{event.guests} pax • {event.comuna_name === 'Otra' ? event.comuna_other : event.comuna_name}</span>
                                         </div>
                                     </div>
