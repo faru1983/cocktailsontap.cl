@@ -7,7 +7,7 @@ export default async function RemindersPage() {
     // Fetch draft quotes with future event dates
     const { data: quotes } = await db
         .from('quotes')
-        .select('*')
+        .select('*, reminder_logs(sent_at, template_id, channel)')
         .eq('status', 'draft')
         .not('event_date', 'is', null)
         .order('event_date', { ascending: true });

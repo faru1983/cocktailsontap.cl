@@ -3,7 +3,7 @@
 import { useState, useTransition, useMemo } from 'react';
 import Link from 'next/link';
 import { 
-    saveReminderTemplate, deleteReminderTemplate, sendBatchReminders, sendTestReminderEmail 
+    saveReminderTemplate, deleteReminderTemplate, sendBatchReminders, sendTestReminderEmail, logReminderSend 
 } from '@/app/actions/admin/adminActions';
 import { SITE_URL } from '@/lib/config';
 
@@ -174,6 +174,10 @@ export default function RemindersClient({ initialQuotes, initialTemplates }: { i
         const url = getWhatsAppUrl(waModal.quote, template);
         if (url) {
             window.open(url, '_blank');
+            // Log the send
+            startTransition(async () => {
+                await logReminderSend(waModal.quote.id, template.id, 'whatsapp');
+            });
             setWaModal({ show: false, quote: null, templateId: '' });
         }
     };
@@ -315,6 +319,15 @@ export default function RemindersClient({ initialQuotes, initialTemplates }: { i
                                         <span className="rem-meta-label">Total</span>
                                         <span className="rem-card-price">{formatCLP(q.total_price)}</span>
                                     </div>
+                                    {q.reminder_logs?.[0] && (
+                                        <div className="rem-meta-item" style={{ marginLeft: 'auto', textAlign: 'right' }}>
+                                            <span className="rem-meta-label">Últ. Envío</span>
+                                            <span style={{ color: '#34d399', fontSize: '11px', fontWeight: 700 }}>
+                                                {new Date(q.reminder_logs[0].sent_at).toLocaleDateString('es-CL', { day: '2-digit', month: 'short' })}
+                                                ({q.reminder_logs[0].channel === 'email' ? '📧' : '💬'})
+                                            </span>
+                                        </div>
+                                    )}
                                 </div>
                                 <div className="rem-card-actions">
                                     <button disabled={!q.client_phone} onClick={() => handleWaClick(q)} 
@@ -336,6 +349,7 @@ export default function RemindersClient({ initialQuotes, initialTemplates }: { i
                                     <th>Cliente</th>
                                     <th>Fecha Evento</th>
                                     <th>Total</th>
+                                    <th>Último Envío</th>
                                     <th>Acción WhatsApp</th>
                                     <th></th>
                                 </tr>
@@ -349,6 +363,21 @@ export default function RemindersClient({ initialQuotes, initialTemplates }: { i
                                         <td style={{ fontWeight: 700, color: '#f1f5f9' }}>{q.client_name} {q.client_lastname}</td>
                                         <td>{new Date(q.event_date + 'T12:00:00').toLocaleDateString('es-CL')}</td>
                                         <td style={{ color: '#E2A049', fontWeight: 800 }}>{formatCLP(q.total_price)}</td>
+                                        <td style={{ fontSize: '12px' }}>
+                                            {q.reminder_logs?.[0] ? (
+                                                <div style={{ color: '#34d399', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                                    <span style={{ fontWeight: 700 }}>
+                                                        {new Date(q.reminder_logs[0].sent_at).toLocaleDateString('es-CL')} 
+                                                        {q.reminder_logs[0].channel === 'email' ? ' 📧' : ' 💬'}
+                                                    </span>
+                                                    <span style={{ fontSize: '10px', color: '#475569' }}>
+                                                        {templates.find(t => t.id === q.reminder_logs[0].template_id)?.name || 'Plantilla borrada'}
+                                                    </span>
+                                                </div>
+                                            ) : (
+                                                <span style={{ color: '#475569' }}>—</span>
+                                            )}
+                                        </td>
                                         <td>
                                             <button disabled={!q.client_phone} onClick={() => handleWaClick(q)} 
                                                 className="rem-btn rem-btn-wa" style={{ padding: '6px 14px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px', opacity: q.client_phone ? 1 : 0.4 }}>

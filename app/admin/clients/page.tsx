@@ -1,5 +1,6 @@
 import { createServerClient } from '@/lib/supabaseServer';
 import Link from 'next/link';
+import SortSelect from '@/components/admin/SortSelect';
 
 async function getClients(search?: string, sort = 'created_at', order = 'desc') {
     const db = createServerClient();
@@ -13,11 +14,20 @@ async function getClients(search?: string, sort = 'created_at', order = 'desc') 
 type SearchParams = Promise<{ q?: string; sort?: string; order?: string }>;
 
 export default async function ClientsPage({ searchParams }: { searchParams: SearchParams }) {
-    const { q, sort = 'created_at', order = 'desc' } = await searchParams;
+    const rawParams = await searchParams;
+    let { q, sort = 'created_at', order = 'desc', sort_order } = rawParams as any;
+
+    if (sort_order) {
+        const [s, o] = sort_order.split('-');
+        sort = s;
+        order = o;
+    }
+
     const clients = await getClients(q, sort, order);
 
     const sortFields = [
         { label: 'Nombre',      field: 'first_name' },
+        { label: 'Apellido',    field: 'last_name' },
         { label: 'Email',       field: 'email' },
         { label: 'Teléfono',    field: 'phone' },
         { label: 'Google Sync', field: 'google_contact_id' },
@@ -40,6 +50,7 @@ export default async function ClientsPage({ searchParams }: { searchParams: Sear
                 .cp-header { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 12px; margin-bottom: 20px; }
                 .cp-search { width: 100%; }
                 @media(min-width: 600px) { .cp-search { width: 220px; } }
+                .cp-sort-select { padding: 9px 12px; background: #1e2433; border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; color: #f1f5f9; font-size: 13px; outline: none; cursor: pointer; }
 
                 /* ── Mobile cards ── */
                 .cp-cards { display: flex; flex-direction: column; gap: 10px; }
@@ -92,11 +103,15 @@ export default async function ClientsPage({ searchParams }: { searchParams: Sear
                     <h1 style={{ color: '#f1f5f9', fontSize: '24px', fontWeight: 900, margin: '0 0 3px' }}>Clientes</h1>
                     <p style={{ color: '#475569', fontSize: '13px', margin: 0 }}>{clients.length} registrados en CRM</p>
                 </div>
-                <form method="GET" action="/admin/clients">
-                    {sort && <input type="hidden" name="sort" value={sort} />}
-                    {order && <input type="hidden" name="order" value={order} />}
+                <form method="GET" action="/admin/clients" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', width: '100%', maxWidth: 'max-content' }}>
                     <input name="q" defaultValue={q || ''} placeholder="Buscar cliente…" className="cp-search"
                         style={{ padding: '9px 14px', background: '#1e2433', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px', color: '#f1f5f9', fontSize: '13px', outline: 'none', fontFamily: 'inherit' }} />
+                    <SortSelect name="sort_order" className="cp-sort-select" defaultValue={`${sort}-${order}`}>
+                        <option value="created_at-desc">Recientes primero</option>
+                        <option value="first_name-asc">Nombre (A-Z)</option>
+                        <option value="last_name-asc">Apellido (A-Z)</option>
+                        <option value="email-asc">Email (A-Z)</option>
+                    </SortSelect>
                 </form>
             </div>
 
@@ -151,9 +166,10 @@ export default async function ClientsPage({ searchParams }: { searchParams: Sear
                                     </td>
                                     <td style={{ padding: '14px 20px', color: '#f1f5f9', fontSize: '14px', fontWeight: 600, whiteSpace: 'nowrap' }}>
                                         <Link href={`/admin/clients/${c.id}`} className="cp-row-link" style={{ color: 'inherit', textDecoration: 'none' }}>
-                                            {c.first_name} {c.last_name || ''}
+                                            {c.first_name}
                                         </Link>
                                     </td>
+                                    <td style={{ padding: '14px 20px', color: '#f1f5f9', fontSize: '14px', fontWeight: 600, whiteSpace: 'nowrap' }}>{c.last_name || '—'}</td>
                                     <td style={{ padding: '14px 20px', color: '#64748b', fontSize: '13px' }}>{c.email}</td>
                                     <td style={{ padding: '14px 20px', color: '#64748b', fontSize: '13px', whiteSpace: 'nowrap' }}>{c.phone || '—'}</td>
                                     <td style={{ padding: '14px 20px' }}>

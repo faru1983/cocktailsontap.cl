@@ -1,6 +1,7 @@
 import { createServerClient } from '@/lib/supabaseServer';
 import { SITE_URL } from '@/lib/config';
 import Link from 'next/link';
+import SortSelect from '@/components/admin/SortSelect';
 
 const statusBadge: Record<string, { label: string; color: string; bg: string }> = {
     draft:        { label: 'Borrador',       color: '#94a3b8', bg: 'rgba(148,163,184,0.12)' },
@@ -25,7 +26,16 @@ async function getQuotes(status?: string, search?: string, sort = 'event_date', 
 }
 
 export default async function QuotesPage({ searchParams }: { searchParams: SearchParams }) {
-    const { status = 'confirmed', q, sort = 'event_date', order = 'asc' } = await searchParams;
+    const rawParams = await searchParams;
+    let { status = 'confirmed', q, sort = 'event_date', order = 'asc', sort_order } = rawParams as any;
+    
+    // Handle the combined sort-order param if present
+    if (sort_order) {
+        const [s, o] = sort_order.split('-');
+        sort = s;
+        order = o;
+    }
+
     const quotes = await getQuotes(status, q, sort, order);
 
     const filters = [
@@ -66,6 +76,7 @@ export default async function QuotesPage({ searchParams }: { searchParams: Searc
                 .qp-header { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 12px; margin-bottom: 20px; }
                 .qp-search { width: 100%; }
                 @media(min-width: 600px) { .qp-search { width: 220px; } }
+                .qp-sort-select { padding: 9px 12px; background: #1e2433; border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; color: #f1f5f9; fontSize: 13px; outline: none; cursor: pointer; }
 
                 /* ── Filters ── */
                 .qp-filters { display: flex; gap: 7px; flex-wrap: wrap; margin-bottom: 18px; }
@@ -134,12 +145,17 @@ export default async function QuotesPage({ searchParams }: { searchParams: Searc
                     <h1 style={{ color: '#f1f5f9', fontSize: '24px', fontWeight: 900, margin: '0 0 3px' }}>Cotizaciones</h1>
                     <p style={{ color: '#475569', fontSize: '13px', margin: 0 }}>{quotes.length} resultado(s)</p>
                 </div>
-                <form method="GET" action="/admin/quotes">
+                <form method="GET" action="/admin/quotes" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', width: '100%', maxWidth: 'max-content' }}>
                     {status && <input type="hidden" name="status" value={status} />}
-                    {sort && <input type="hidden" name="sort" value={sort} />}
-                    {order && <input type="hidden" name="order" value={order} />}
-                    <input name="q" defaultValue={q || ''} placeholder="Buscar cliente o email…" className="qp-search"
+                    <input name="q" defaultValue={q || ''} placeholder="Buscar por nombre o email…" className="qp-search"
                         style={{ padding: '9px 14px', background: '#1e2433', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px', color: '#f1f5f9', fontSize: '13px', outline: 'none', fontFamily: 'inherit' }} />
+                    <SortSelect name="sort_order" className="qp-sort-select" defaultValue={`${sort}-${order}`}>
+                        <option value="event_date-asc">Evento (más antiguos)</option>
+                        <option value="event_date-desc">Evento (más cercanos)</option>
+                        <option value="created_at-desc">Recientes primero</option>
+                        <option value="total_price-desc">Precio (Mayor)</option>
+                        <option value="client_name-asc">Cliente (A-Z)</option>
+                    </SortSelect>
                 </form>
             </div>
 

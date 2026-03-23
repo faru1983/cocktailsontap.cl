@@ -612,6 +612,15 @@ export async function sendBatchReminders(quoteIds: string[], templateId: string)
                 subject: template.subject.replace(/{fecha}/g, eventDateStr).replace(/{nombre}/g, quote.client_name),
                 html,
             });
+            
+            if (!error) {
+                // Log the send
+                await db.from('reminder_logs').insert({
+                    quote_id: quote.id,
+                    template_id: template.id,
+                    channel: 'email'
+                });
+            }
             results.push({ quoteId: quote.id, success: !error, error: error?.message });
         } catch (e: any) {
             results.push({ quoteId: quote.id, success: false, error: e.message });
@@ -654,6 +663,18 @@ export async function sendTestReminderEmail(toEmail: string, template: { subject
         html,
     });
 
+    if (error) return { success: false, error: error.message };
+    return { success: true };
+}
+
+// ── Log Reminder Send ────────────────────────────────────────────────────
+export async function logReminderSend(quoteId: string, templateId: string, channel: 'email' | 'whatsapp') {
+    const db = createServerClient();
+    const { error } = await db.from('reminder_logs').insert({
+        quote_id: quoteId,
+        template_id: templateId,
+        channel
+    });
     if (error) return { success: false, error: error.message };
     return { success: true };
 }
