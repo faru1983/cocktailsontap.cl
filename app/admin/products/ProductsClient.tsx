@@ -307,7 +307,9 @@ export default function ProductsClient({ products, categories }: { products: any
                                     <img src={p.image_url || DEFAULT_IMG} className="pp-card-img" alt="" />
                                     <div style={{ flex: 1 }}>
                                         <div style={{ fontWeight: 700, fontSize: '14px', color: '#f1f5f9' }}>{p.name}</div>
-                                        <div style={{ fontSize: '11px', color: '#64748b' }}>{p.categories?.name} • {formatPrice(p.product_prices?.[0]?.price || 0)}</div>
+                                        <div style={{ fontSize: '11px', color: '#64748b', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                            {p.categories?.name}
+                                        </div>
                                     </div>
                                     <span onClick={(e) => { e.stopPropagation(); toggleStatus(p.id, 'prod', p.is_active); }} className={`badge ${p.is_active ? 'badge-active' : 'badge-inactive'}`}>
                                         {p.is_active ? '✅' : '⚪'}
@@ -327,7 +329,6 @@ export default function ProductsClient({ products, categories }: { products: any
                                         <th>Imagen</th>
                                         <th onClick={() => toggleSortProd('name')}>Nombre {sortProd.key === 'name' && (sortProd.dir === 'asc' ? '↑' : '↓')}</th>
                                         <th onClick={() => toggleSortProd('category')}>Categoría {sortProd.key === 'category' && (sortProd.dir === 'asc' ? '↑' : '↓')}</th>
-                                        <th onClick={() => toggleSortProd('price')}>Precio {sortProd.key === 'price' && (sortProd.dir === 'asc' ? '↑' : '↓')}</th>
                                         <th onClick={() => toggleSortProd('is_active')}>Estado {sortProd.key === 'is_active' && (sortProd.dir === 'asc' ? '↑' : '↓')}</th>
                                         <th style={{ textAlign: 'right' }}>Acciones</th>
                                     </tr>
@@ -353,7 +354,6 @@ export default function ProductsClient({ products, categories }: { products: any
                                             <td><img src={p.image_url || DEFAULT_IMG} style={{ width: '36px', height: '36px', borderRadius: '8px', objectFit: 'contain', background: '#0d1117' }} alt="" /></td>
                                             <td style={{ fontWeight: 700 }}>{p.name}</td>
                                             <td><span style={{ fontSize: '12px', background: 'rgba(255,255,255,0.05)', padding: '3px 8px', borderRadius: '4px' }}>{p.categories?.name}</span></td>
-                                            <td style={{ color: '#E2A049', fontWeight: 800 }}>{formatPrice(p.product_prices?.[0]?.price || 0)}</td>
                                             <td>
                                                 <span onClick={() => toggleStatus(p.id, 'prod', p.is_active)} className={`badge ${p.is_active ? 'badge-active' : 'badge-inactive'}`} style={{ cursor: 'pointer' }}>
                                                     {p.is_active ? 'Activo' : 'Inactivo'}
