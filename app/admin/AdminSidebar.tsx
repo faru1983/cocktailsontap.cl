@@ -10,6 +10,7 @@ const navItems = [
     { href: '/admin/gastos', label: 'Gastos', icon: '💸' },
     { href: '/admin/quotes', label: 'Cotizaciones', icon: '📋' },
     { href: '/admin/clients', label: 'Clientes', icon: '👥' },
+    { href: '/admin/products', label: 'Productos', icon: '🍸' },
     { href: '/admin/estadisticas', label: 'Estadísticas', icon: '📈' },
     { href: '/admin/reminders', label: 'Recordatorios', icon: '🔔' },
     { href: '/admin/logs', label: 'Sincronización', icon: '🔧' },

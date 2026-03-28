@@ -6,7 +6,7 @@ import type { Product, CocktailForWizard, EventType, Comuna, SupabaseProduct } f
 
 const STORAGE_BASE_URL =
     (process.env.NEXT_PUBLIC_SUPABASE_URL ?? '') + '/storage/v1/object/public/product-images/';
-const DEFAULT_IMAGE = STORAGE_BASE_URL + 'barril_sin_imagen.webp';
+const DEFAULT_IMAGE = '/assets/barril_sin_imagen.webp';
 
 function resolveImage(imageUrl: string | null): string {
     if (!imageUrl || imageUrl.trim() === '') return DEFAULT_IMAGE;
@@ -33,14 +33,14 @@ export const fetchAllProductData = unstable_cache(
             { data: comunasData, error: comunasError },
             { data: productsData, error: productsError },
         ] = await Promise.all([
-            supabase.from('categories').select('name').order('display_order', { ascending: true }),
+            supabase.from('categories').select('name').eq('is_active', true).order('display_order', { ascending: true }),
             supabase.from('event_types').select('id, name, icon').order('display_order', { ascending: true }),
             supabase.from('comunas').select('name, cost, free_from').order('display_order', { ascending: true }),
             supabase.from('products').select(`
                 id, name, description, image_url,
                 categories ( name ),
                 product_prices ( size, price, offer_price )
-            `).order('display_order', { ascending: true }),
+            `).eq('is_active', true).order('display_order', { ascending: true }),
         ]);
 
         if (catError) throw new Error(`categories: ${catError.message}`);
