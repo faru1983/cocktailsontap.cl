@@ -2,10 +2,17 @@
 
 import { createServerClient } from '@/lib/supabaseServer';
 import { revalidatePath } from 'next/cache';
+import { validateSession } from '@/lib/adminAuth';
 
-export async function saveCategory(category: { id?: string; name: string; display_order: number; is_active: boolean }) {
+async function checkAuth() {
+    const isAuth = await validateSession();
+    if (!isAuth) throw new Error('No autorizado. Sesión inválida.');
+}
+
+export async function saveCategory(category: any) {
+    await checkAuth();
     const db = createServerClient();
-    const { id, ...data } = category;
+    const { id, _idx, ...data } = category;
     
     if (id) {
         const { error } = await db.from('categories').update(data).eq('id', id);
@@ -18,17 +25,16 @@ export async function saveCategory(category: { id?: string; name: string; displa
 }
 
 export async function toggleCategoryStatus(id: string, current: boolean) {
+    await checkAuth();
     const db = createServerClient();
     await db.from('categories').update({ is_active: !current }).eq('id', id);
     revalidatePath('/admin/products');
 }
 
-export async function saveProduct(
-    product: { id?: string; name: string; description: string; image_url: string; display_order: number; category_id: string; is_active: boolean },
-    prices: { id?: string; size: string; price: number; offer_price: number | null }[]
-) {
+export async function saveProduct(product: any, prices: any[]) {
+    await checkAuth();
     const db = createServerClient();
-    const { id, ...pData } = product;
+    const { id, _idx, categories, product_prices, ...pData } = product;
     
     let productId = id;
     if (id) {
@@ -41,41 +47,45 @@ export async function saveProduct(
     }
     
     if (productId) {
-        // We handle prices: upsert functionality
-        // 1. Get existing price IDs for this product
+        // Handle prices: 1. Get existing to delete ones not in 'prices'
         const { data: existingPrices } = await db.from('product_prices').select('id').eq('product_id', productId);
         const existingIds = (existingPrices || []).map(p => p.id);
         const currentIds = prices.filter(p => !!p.id).map(p => p.id as string);
         
-        // 2. Delete prices that are no longer in the list
         const toDelete = existingIds.filter(id => !currentIds.includes(id));
         if (toDelete.length > 0) {
             await db.from('product_prices').delete().in('id', toDelete);
         }
 
-        // 3. Upsert current prices
-        for (const pr of prices) {
-            const { id: priceId, ...prData } = pr;
-            if (priceId) {
-                await db.from('product_prices').update(prData).eq('id', priceId);
-            } else {
-                await db.from('product_prices').insert({ ...prData, product_id: productId });
-            }
+        // 2. Optimized Batch Upsert for all current prices
+        const priceUpdates = prices.map(pr => ({
+            ...pr,
+            product_id: productId
+        }));
+        
+        if (priceUpdates.length > 0) {
+            const { error: priceErr } = await db.from('product_prices').upsert(priceUpdates);
+            if (priceErr) throw new Error('Error al guardar precios: ' + priceErr.message);
         }
     }
     revalidatePath('/admin/products');
 }
 
 export async function toggleProductStatus(id: string, current: boolean) {
+    await checkAuth();
     const db = createServerClient();
     await db.from('products').update({ is_active: !current }).eq('id', id);
     revalidatePath('/admin/products');
 }
 
 export async function reorderItems(type: 'products' | 'categories', updates: { id: string; display_order: number }[]) {
+    await checkAuth();
     const db = createServerClient();
-    for (const item of updates) {
-        await db.from(type).update({ display_order: item.display_order }).eq('id', item.id);
-    }
+    
+    // Optimized: Batch mass update using upsert
+    // Supabase upsert with IDs will update existing rows
+    const { error } = await db.from(type).upsert(updates);
+    
+    if (error) throw new Error('Error al reordenar: ' + error.message);
     revalidatePath('/admin/products');
 }

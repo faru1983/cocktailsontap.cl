@@ -6,9 +6,16 @@ import * as React from 'react';
 import { revalidatePath } from 'next/cache';
 import { FROM_EMAIL, SITE_URL } from '@/lib/config';
 import { GoogleSyncService } from '@/lib/services/googleSyncService';
+import { validateSession } from '@/lib/adminAuth';
+
+async function checkAuth() {
+    const isAuth = await validateSession();
+    if (!isAuth) throw new Error('No autorizado. Sesión inválida.');
+}
 
 // ── Update Quote Status ──────────────────────────────────────────────────────
 export async function updateQuoteStatus(quoteId: string, status: string): Promise<{ success: boolean; error?: string }> {
+    await checkAuth();
     const db = createServerClient();
     const { error } = await db.from('quotes').update({ status, updated_at: new Date().toISOString() }).eq('id', quoteId);
     if (error) return { success: false, error: error.message };
@@ -42,6 +49,7 @@ export async function updateQuoteItemsAdmin(
         dispenser: string;
     }
 ): Promise<{ success: boolean; error?: string }> {
+    await checkAuth();
     const db = createServerClient();
 
     try {
@@ -103,6 +111,7 @@ export async function updateQuoteItemsAdmin(
 
 // ── Manage Payments ────────────────────────────────────────────────────────
 export async function addQuotePayment(quoteId: string, payment: { date: string; amount: number; note: string }): Promise<{ success: boolean; error?: string }> {
+    await checkAuth();
     const db = createServerClient();
     const { data: quote, error: fetchErr } = await db.from('quotes').select('payments, google_event_id, google_pickup_event_id').eq('id', quoteId).single();
     if (fetchErr || !quote) return { success: false, error: 'Cotización no encontrada.' };
@@ -131,6 +140,7 @@ export async function addQuotePayment(quoteId: string, payment: { date: string; 
 }
 
 export async function deleteQuotePayment(quoteId: string, index: number): Promise<{ success: boolean; error?: string }> {
+    await checkAuth();
     const db = createServerClient();
     const { data: quote, error: fetchErr } = await db.from('quotes').select('payments, google_event_id, google_pickup_event_id').eq('id', quoteId).single();
     if (fetchErr || !quote) return { success: false, error: 'Cotización no encontrada.' };
@@ -160,6 +170,7 @@ export async function deleteQuotePayment(quoteId: string, index: number): Promis
 
 // ── Update Quote (Master Editor) ──────────────────────────────────────────
 export async function updateQuoteAdmin(quoteId: string, data: Record<string, any>): Promise<{ success: boolean; error?: string }> {
+    await checkAuth();
     const db = createServerClient();
 
     // Separate client fields
@@ -259,6 +270,7 @@ export async function updateQuoteAdmin(quoteId: string, data: Record<string, any
 
 // ── Update Client Admin ──────────────────────────────────────────────────
 export async function updateClientAdmin(clientId: string, data: { first_name: string; last_name?: string; email: string; phone?: string }): Promise<{ success: boolean; error?: string }> {
+    await checkAuth();
     const db = createServerClient();
 
     // 1. Update Client Table (removed updated_at as it doesn't exist)
@@ -306,6 +318,7 @@ export async function updateClientAdmin(clientId: string, data: { first_name: st
 
 // ── Sync Client With Google ─────────────────────────────────────────────
 export async function syncClientWithGoogle(clientId: string): Promise<{ success: boolean; error?: string }> {
+    await checkAuth();
     const db = createServerClient();
     try {
         const { data: client } = await db.from('clients')
@@ -359,6 +372,7 @@ export async function syncClientWithGoogle(clientId: string): Promise<{ success:
 
 // ── Send Direct Email ────────────────────────────────────────────────────
 export async function sendDirectEmail(quoteId: string, formData: FormData): Promise<{ success: boolean; error?: string }> {
+    await checkAuth();
     const subject = formData.get('subject') as string;
     const body = formData.get('body') as string;
 
@@ -389,6 +403,7 @@ export async function sendDirectEmail(quoteId: string, formData: FormData): Prom
 
 // ── Send Review Email ────────────────────────────────────────────────────
 export async function sendReviewEmail(quoteId: string): Promise<{ success: boolean; error?: string }> {
+    await checkAuth();
     const db = createServerClient();
     const [quoteRes, templateRes, linkRes] = await Promise.all([
         db.from('quotes').select('client_email, client_name, client_lastname, review_email_sent').eq('id', quoteId).single(),
@@ -428,6 +443,7 @@ export async function sendReviewEmail(quoteId: string): Promise<{ success: boole
 
 // ── Send Test Review Email ───────────────────────────────────────────────
 export async function sendTestReviewEmail(toEmail: string, template: string, reviewLink: string): Promise<{ success: boolean; error?: string }> {
+    await checkAuth();
     if (!toEmail) return { success: false, error: 'Email de prueba es obligatorio.' };
     
     const fullName = 'Nombre del Cliente (Prueba)';
@@ -456,6 +472,7 @@ export async function sendTestReviewEmail(toEmail: string, template: string, rev
 
 // ── Resend Original Order Email ──────────────────────────────────────────
 export async function resendOrderEmail(quoteId: string): Promise<{ success: boolean; error?: string }> {
+    await checkAuth();
     const db = createServerClient();
     const { data: quote, error: fetchErr } = await db.from('quotes').select('*, quote_items(*)').eq('id', quoteId).single();
     if (fetchErr || !quote) return { success: false, error: 'Cotización no encontrada.' };
@@ -489,6 +506,7 @@ export async function resendOrderEmail(quoteId: string): Promise<{ success: bool
 
 // ── Save Admin Settings ──────────────────────────────────────────────────
 export async function saveAdminSettings(formData: FormData): Promise<{ success: boolean; error?: string }> {
+    await checkAuth();
     const db = createServerClient();
     const reviewMode = formData.get('review_mode') as string;
     const reviewTemplate = formData.get('review_template') as string;
@@ -505,6 +523,7 @@ export async function saveAdminSettings(formData: FormData): Promise<{ success: 
 
 // ── Retry Sync Log ───────────────────────────────────────────────────────
 export async function retrySyncLog(logId: string): Promise<{ success: boolean; error?: string }> {
+    await checkAuth();
     const db = createServerClient();
     const { data: log } = await db.from('sync_logs').select('quote_id, type').eq('id', logId).single();
     if (!log) return { success: false, error: 'Log no encontrado.' };
@@ -528,6 +547,7 @@ export async function retrySyncLog(logId: string): Promise<{ success: boolean; e
 
 // ── Sync Client to Google ─────────────────────────────────────────────────
 export async function syncClientToGoogle(clientId: string): Promise<{ success: boolean; error?: string }> {
+    await checkAuth();
     const db = createServerClient();
     const { data: client } = await db.from('clients').select('*').eq('id', clientId).single();
     if (!client) return { success: false, error: 'Cliente no encontrado.' };
@@ -549,6 +569,7 @@ export async function syncClientToGoogle(clientId: string): Promise<{ success: b
 
 // ── Reminder Templates CRUD ──────────────────────────────────────────
 export async function saveReminderTemplate(data: { id?: string; name: string; subject?: string; content: string; type: string }): Promise<{ success: boolean; error?: string }> {
+    await checkAuth();
     const db = createServerClient();
     const { error } = await db.from('reminder_templates').upsert(data).select();
     if (error) return { success: false, error: error.message };
@@ -557,6 +578,7 @@ export async function saveReminderTemplate(data: { id?: string; name: string; su
 }
 
 export async function deleteReminderTemplate(id: string): Promise<{ success: boolean; error?: string }> {
+    await checkAuth();
     const db = createServerClient();
     const { error } = await db.from('reminder_templates').delete().eq('id', id);
     if (error) return { success: false, error: error.message };
@@ -566,6 +588,7 @@ export async function deleteReminderTemplate(id: string): Promise<{ success: boo
 
 // ── Batch Send Email Reminders ──────────────────────────────────────────
 export async function sendBatchReminders(quoteIds: string[], templateId: string): Promise<{ success: boolean; results?: any; error?: string }> {
+    await checkAuth();
     const db = createServerClient();
     
     // 1. Fetch template
@@ -632,6 +655,7 @@ export async function sendBatchReminders(quoteIds: string[], templateId: string)
 
 // ── Send Test Reminder Email ──────────────────────────────────────────
 export async function sendTestReminderEmail(toEmail: string, template: { subject: string, content: string }): Promise<{ success: boolean; error?: string }> {
+    await checkAuth();
     if (!toEmail) return { success: false, error: 'Email de prueba es obligatorio.' };
     
     const resend = new Resend(process.env.RESEND_API_KEY);
@@ -669,6 +693,7 @@ export async function sendTestReminderEmail(toEmail: string, template: { subject
 
 // ── Log Reminder Send ────────────────────────────────────────────────────
 export async function logReminderSend(quoteId: string, templateId: string, channel: 'email' | 'whatsapp') {
+    await checkAuth();
     const db = createServerClient();
     const { error } = await db.from('reminder_logs').insert({
         quote_id: quoteId,
@@ -676,6 +701,44 @@ export async function logReminderSend(quoteId: string, templateId: string, chann
         channel
     });
     if (error) return { success: false, error: error.message };
+    return { success: true };
+}
+
+// ── Event Types Management ──────────────────────────────────────────────
+export async function saveEventType(data: any) {
+    await checkAuth();
+    const db = createServerClient();
+    const { error } = await db.from('event_types').upsert(data);
+    if (error) throw new Error(error.message);
+    revalidatePath('/admin/settings');
+    return { success: true };
+}
+
+export async function deleteEventType(id: string) {
+    await checkAuth();
+    const db = createServerClient();
+    const { error } = await db.from('event_types').delete().eq('id', id);
+    if (error) throw new Error(error.message);
+    revalidatePath('/admin/settings');
+    return { success: true };
+}
+
+// ── Comunas Management ──────────────────────────────────────────────────
+export async function saveComuna(data: any) {
+    await checkAuth();
+    const db = createServerClient();
+    const { error } = await db.from('comunas').upsert(data);
+    if (error) throw new Error(error.message);
+    revalidatePath('/admin/settings');
+    return { success: true };
+}
+
+export async function deleteComuna(id: string) {
+    await checkAuth();
+    const db = createServerClient();
+    const { error } = await db.from('comunas').delete().eq('id', id);
+    if (error) throw new Error(error.message);
+    revalidatePath('/admin/settings');
     return { success: true };
 }
 

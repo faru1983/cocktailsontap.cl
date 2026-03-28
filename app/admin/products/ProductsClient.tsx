@@ -105,11 +105,22 @@ export default function ProductsClient({ products, categories }: { products: any
     // ─── Gallery Data ────────────────────────────────────────────────────────
     const [galleryImages, setGalleryImages] = useState<any[]>([]);
     const [loadingGallery, setLoadingGallery] = useState(false);
+    const [galleryLoadedAt, setGalleryLoadedAt] = useState<number | null>(null);
 
-    const fetchGallery = async () => {
+    const fetchGallery = async (force = false) => {
+        // Cache: Only fetch if empty or forced, or if last load was more than 5 minutes ago
+        const now = Date.now();
+        if (!force && galleryImages.length > 0 && galleryLoadedAt && (now - galleryLoadedAt < 300000)) return;
+
         setLoadingGallery(true);
-        const { data, error } = await supabase.storage.from('product-images').list('', { sortBy: { column: 'created_at', order: 'desc' } });
-        if (data) setGalleryImages(data);
+        const { data, error } = await supabase.storage.from('product-images').list('', { 
+            sortBy: { column: 'created_at', order: 'desc' },
+            limit: 100 // Safety limit to avoid huge fetches
+        });
+        if (data) {
+            setGalleryImages(data);
+            setGalleryLoadedAt(now);
+        }
         setLoadingGallery(false);
     }
 
@@ -117,7 +128,7 @@ export default function ProductsClient({ products, categories }: { products: any
         if (!confirm('¿Eliminar esta imagen permanentemente de la nube?')) return;
         setLoadingGallery(true);
         await supabase.storage.from('product-images').remove([name]);
-        await fetchGallery();
+        await fetchGallery(true);
     }
 
     const openCategoryModal = (cat: any = null) => {
@@ -436,8 +447,14 @@ export default function ProductsClient({ products, categories }: { products: any
                                 + Subir Nueva
                                 <input type="file" style={{ display: 'none' }} onChange={(e) => handleUpload(e, false)} />
                             </label>
+                            <button 
+                                onClick={() => fetchGallery(true)}
+                                style={{ background: 'none', border: '1px solid rgba(255,255,255,0.1)', color: '#64748b', padding: '8px 14px', borderRadius: '10px', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}
+                            >
+                                {loadingGallery ? '...' : '🔄 Refrescar'}
+                            </button>
                         </div>
-                        {loadingGallery ? <p style={{ color: '#64748b' }}>Cargando galería...</p> : (
+                        {loadingGallery && galleryImages.length === 0 ? <p style={{ color: '#64748b' }}>Cargando galería...</p> : (
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: '16px' }}>
                                 {galleryImages.map(img => {
                                     const { data: { publicUrl } } = supabase.storage.from('product-images').getPublicUrl(img.name);
@@ -485,7 +502,7 @@ export default function ProductsClient({ products, categories }: { products: any
                     <div style={{ display: 'flex', gap: '15px', alignItems: 'center', marginBottom: '15px' }}>
                         <img src={modalProduct.data?.image_url || DEFAULT_IMG} style={{ width: '80px', height: '80px', borderRadius: '12px', objectFit: 'contain', background: '#0d1117', border: '2px solid rgba(226,160,73,0.3)' }} alt="" />
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                            <button type="button" onClick={() => { fetchGallery(); setModalGallery({ isOpen: true, onSelect: (url) => setModalProduct({ ...modalProduct, data: { ...modalProduct.data, image_url: url } }) }); }} style={{ background: '#1e2433', color: '#E2A049', border: '1px solid #E2A049', padding: '6px 12px', borderRadius: '8px', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}>🎞️ Galería</button>
+                            <button type="button" onClick={() => { fetchGallery(false); setModalGallery({ isOpen: true, onSelect: (url) => setModalProduct({ ...modalProduct, data: { ...modalProduct.data, image_url: url } }) }); }} style={{ background: '#1e2433', color: '#E2A049', border: '1px solid #E2A049', padding: '6px 12px', borderRadius: '8px', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}>🎞️ Galería</button>
                             <button type="button" onClick={() => setModalProduct({ ...modalProduct, data: { ...modalProduct.data, image_url: '' } })} style={{ background: 'rgba(244,63,94,0.1)', color: '#f43f5e', border: 'none', padding: '6px 12px', borderRadius: '8px', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}>🗑️ Quitar</button>
                         </div>
                     </div>

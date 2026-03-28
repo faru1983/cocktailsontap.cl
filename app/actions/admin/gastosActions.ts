@@ -2,6 +2,12 @@
 
 import { createServerClient } from '@/lib/supabaseServer';
 import { revalidatePath } from 'next/cache';
+import { validateSession } from '@/lib/adminAuth';
+
+async function checkAuth() {
+    const isAuth = await validateSession();
+    if (!isAuth) throw new Error('No autorizado. Sesión inválida.');
+}
 
 export async function addExpense(data: {
     amount: number;
@@ -11,6 +17,7 @@ export async function addExpense(data: {
     subcategory_id: string;
     notes?: string;
 }) {
+    await checkAuth();
     const db = createServerClient();
     
     // Using service key implicitly via createServerClient bypasses RLS
@@ -34,6 +41,7 @@ export async function addExpense(data: {
 }
 
 export async function deleteExpense(id: string) {
+    await checkAuth();
     const db = createServerClient();
     const { error } = await db.from('expenses').delete().eq('id', id);
     
