@@ -27,15 +27,15 @@ async function getDashboardData() {
 
     // 2. Fetch Data in Parallel
     const [
-        monthlyConfirmed, 
+        monthlyResults, 
         monthlyDrafts, 
         allClients, 
         recentQuotes, 
         upcomingEvents, 
-        historicalAll, 
-        yearlyAll, 
-        lastYearAll,
-        allQuoteItems,
+        historicalRevData, 
+        yearlyResults, 
+        lastYearResults,
+        topQuoteItems,
         nextMonthResults
     ] = await Promise.all([
         db.from('quotes').select('total_price').in('status', ['confirmed', 'completed']).gte('event_date', startOfMonthSQL).lte('event_date', endOfMonthSQL),
@@ -46,24 +46,24 @@ async function getDashboardData() {
         db.from('quotes').select('total_price, client_id, client_name, client_lastname, comuna_name, comuna_other').in('status', ['confirmed', 'completed']),
         db.from('quotes').select('total_price').in('status', ['confirmed', 'completed']).gte('event_date', startOfYearSQL).lte('event_date', endOfYearSQL),
         db.from('quotes').select('total_price').in('status', ['confirmed', 'completed']).gte('event_date', startOfLastYearSQL).lte('event_date', endOfLastYearSQL),
-        db.from('quote_items').select('product_name, quantity, quote_id').order('quantity', { ascending: false }),
+        db.from('quote_items').select('product_name, quantity').order('quantity', { ascending: false }).limit(200),
         db.from('quotes').select('id, client_name, client_lastname, event_date, start_time, total_price, guests, status, comuna_name, comuna_other').in('status', ['confirmed', 'completed']).gte('event_date', startOfNextMonthSQL).lte('event_date', endOfNextMonthSQL).order('event_date', { ascending: true }).limit(8),
     ]);
 
     // 3. Simple Sums
-    const monthlyRevenue = (monthlyConfirmed.data || []).reduce((s: number, q: any) => s + Number(q.total_price), 0);
+    const monthlyRevenue = (monthlyResults.data || []).reduce((s: number, q: any) => s + Number(q.total_price), 0);
     const projectedRevenue = (monthlyDrafts.data || []).reduce((s: number, q: any) => s + Number(q.total_price), 0);
-    const historicalRevenue = (historicalAll.data || []).reduce((s: number, q: any) => s + Number(q.total_price), 0);
-    const yearlyRevenue = (yearlyAll.data || []).reduce((s: number, q: any) => s + Number(q.total_price), 0);
-    const lastYearRevenue = (lastYearAll.data || []).reduce((s: number, q: any) => s + Number(q.total_price), 0);
-    const conversionRate = (monthlyConfirmed.data?.length || 0) + (monthlyDrafts.data?.length || 0) > 0
-        ? Math.round(((monthlyConfirmed.data?.length || 0) / ((monthlyConfirmed.data?.length || 0) + (monthlyDrafts.data?.length || 0))) * 100)
+    const historicalRevenue = (historicalRevData.data || []).reduce((s: number, q: any) => s + Number(q.total_price), 0);
+    const yearlyRevenue = (yearlyResults.data || []).reduce((s: number, q: any) => s + Number(q.total_price), 0);
+    const lastYearRevenue = (lastYearResults.data || []).reduce((s: number, q: any) => s + Number(q.total_price), 0);
+    const conversionRate = (monthlyResults.data?.length || 0) + (monthlyDrafts.data?.length || 0) > 0
+        ? Math.round(((monthlyResults.data?.length || 0) / ((monthlyResults.data?.length || 0) + (monthlyDrafts.data?.length || 0))) * 100)
         : 0;
 
     // 4. BI Aggregations (Top Clients, Products, Comunas)
     const clientStats: Record<string, { id: string; name: string; total: number; count: number }> = {};
     const comunaStats: Record<string, number> = {};
-    (historicalAll.data || []).forEach((q: any) => {
+    (historicalRevData.data || []).forEach((q: any) => {
         const key = q.client_id || q.client_name;
         if (!clientStats[key]) clientStats[key] = { id: q.client_id, name: `${q.client_name} ${q.client_lastname || ''}`, total: 0, count: 0 };
         clientStats[key].total += Number(q.total_price);
@@ -74,7 +74,7 @@ async function getDashboardData() {
     });
     
     const productStats: Record<string, number> = {};
-    (allQuoteItems.data || []).forEach((item: any) => {
+    (topQuoteItems.data || []).forEach((item: any) => {
         productStats[item.product_name] = (productStats[item.product_name] || 0) + (item.quantity || 0);
     });
 
@@ -88,9 +88,9 @@ async function getDashboardData() {
         historicalRevenue,
         yearlyRevenue,
         lastYearRevenue,
-        confirmedCount: monthlyConfirmed.data?.length || 0,
+        confirmedCount: monthlyResults.data?.length || 0,
         draftCount: monthlyDrafts.data?.length || 0,
-        totalHistoricalCount: historicalAll.data?.length || 0,
+        totalHistoricalCount: historicalRevData.data?.length || 0,
         totalClients: allClients.count || 0,
         conversionRate,
         recentQuotes: recentQuotes.data || [],
