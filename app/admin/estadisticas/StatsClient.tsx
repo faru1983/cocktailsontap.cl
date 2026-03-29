@@ -35,12 +35,33 @@ interface StatsClientProps {
 }
 
 export default function StatsClient({ allQuotes, allQuoteItems }: StatsClientProps) {
-    const [dateRange, setDateRange] = useState<'this_month' | 'last_month' | 'last_3_months' | 'this_year' | 'last_year' | 'all'>('this_month');
+    const [dateRange, setDateRange] = useState<'this_month' | 'last_month' | 'last_3_months' | 'this_year' | 'last_year' | 'all' | 'custom' | 'specific_month'>('this_month');
+    const [customStart, setCustomStart] = useState('');
+    const [customEnd, setCustomEnd] = useState('');
+    const [specMonth, setSpecMonth] = useState(new Date().getMonth() + 1);
+    const [specYear, setSpecYear] = useState(new Date().getFullYear());
     const [clientSortBy, setClientSortBy] = useState<'total' | 'events'>('total');
     
     // 1. Date Filtering
     const { startDate, endDate } = useMemo(() => {
+        if (dateRange === 'custom') {
+            return { 
+                startDate: customStart || '2000-01-01', 
+                endDate: customEnd || '2099-12-31' 
+            };
+        }
+
         const now = new Date();
+
+        if (dateRange === 'specific_month') {
+            const start = new Date(specYear, specMonth - 1, 1);
+            const end = new Date(specYear, specMonth, 0);
+            return { 
+                startDate: start.toISOString().split('T')[0], 
+                endDate: end.toISOString().split('T')[0] 
+            };
+        }
+
         const start = new Date(now.getFullYear(), now.getMonth(), 1);
         const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
 
@@ -62,7 +83,7 @@ export default function StatsClient({ allQuotes, allQuoteItems }: StatsClientPro
             default:
                 return { startDate: '2000-01-01', endDate: '2099-12-31' };
         }
-    }, [dateRange]);
+    }, [dateRange, customStart, customEnd, specMonth, specYear]);
 
     // 2. Filter Quotes
     const filteredQuotes = useMemo(() => {
@@ -149,34 +170,89 @@ export default function StatsClient({ allQuotes, allQuoteItems }: StatsClientPro
                 </div>
 
                 {/* Filter Bar */}
-                <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '10px', WebkitOverflowScrolling: 'touch' }} className="hide-scrollbar">
-                    {[
-                        { id: 'this_month', label: 'Este Mes' },
-                        { id: 'last_month', label: 'Mes Pasado' },
-                        { id: 'last_3_months', label: 'Últimos 3 Meses' },
-                        { id: 'this_year', label: 'Este Año' },
-                        { id: 'last_year', label: 'Año Pasado' },
-                        { id: 'all', label: 'Todo el Historial' },
-                    ].map(f => (
-                        <button
-                            key={f.id}
-                            onClick={() => setDateRange(f.id as any)}
-                            style={{
-                                whiteSpace: 'nowrap',
-                                padding: '8px 16px',
-                                borderRadius: '20px',
-                                fontSize: '13px',
-                                fontWeight: 600,
-                                cursor: 'pointer',
-                                transition: 'all 0.2s',
-                                border: dateRange === f.id ? '1px solid #E2A049' : '1px solid rgba(255,255,255,0.1)',
-                                background: dateRange === f.id ? 'rgba(226,160,73,0.15)' : 'transparent',
-                                color: dateRange === f.id ? '#E2A049' : '#94a3b8'
-                            }}
-                        >
-                            {f.label}
-                        </button>
-                    ))}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                    <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '4px', WebkitOverflowScrolling: 'touch' }} className="hide-scrollbar">
+                        {[
+                            { id: 'this_month', label: 'Este Mes' },
+                            { id: 'last_month', label: 'Mes Pasado' },
+                            { id: 'last_3_months', label: 'Últimos 3 Meses' },
+                            { id: 'this_year', label: 'Este Año' },
+                            { id: 'last_year', label: 'Año Pasado' },
+                            { id: 'all', label: 'Todo el Historial' },
+                            { id: 'specific_month', label: 'Mes Específico' },
+                            { id: 'custom', label: 'Rango Manual' },
+                        ].map(f => (
+                            <button
+                                key={f.id}
+                                onClick={() => setDateRange(f.id as any)}
+                                style={{
+                                    whiteSpace: 'nowrap',
+                                    padding: '8px 16px',
+                                    borderRadius: '20px',
+                                    fontSize: '13px',
+                                    fontWeight: 600,
+                                    cursor: 'pointer',
+                                    transition: 'all 0.2s',
+                                    border: dateRange === f.id ? '1px solid #E2A049' : '1px solid rgba(255,255,255,0.1)',
+                                    background: dateRange === f.id ? 'rgba(226,160,73,0.15)' : 'transparent',
+                                    color: dateRange === f.id ? '#E2A049' : '#94a3b8'
+                                }}
+                            >
+                                {f.label}
+                            </button>
+                        ))}
+                    </div>
+
+                    {dateRange === 'specific_month' && (
+                        <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap', animation: 'fadeIn 0.3s ease-out' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                <span style={{ color: '#475569', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.6px' }}>Mes</span>
+                                <select 
+                                    value={specMonth} 
+                                    onChange={(e) => setSpecMonth(Number(e.target.value))}
+                                    style={{ background: '#1e2433', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px', color: '#f1f5f9', padding: '8px 12px', fontSize: '13px', outline: 'none', cursor: 'pointer' }}
+                                >
+                                    {[
+                                        'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 
+                                        'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+                                    ].map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
+                                </select>
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                <span style={{ color: '#475569', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.6px' }}>Año</span>
+                                <select 
+                                    value={specYear} 
+                                    onChange={(e) => setSpecYear(Number(e.target.value))}
+                                    style={{ background: '#1e2433', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px', color: '#f1f5f9', padding: '8px 12px', fontSize: '13px', outline: 'none', cursor: 'pointer' }}
+                                >
+                                    {[2024, 2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
+                                </select>
+                            </div>
+                        </div>
+                    )}
+
+                    {dateRange === 'custom' && (
+                        <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap', animation: 'fadeIn 0.3s ease-out' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                <span style={{ color: '#475569', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.6px' }}>Desde</span>
+                                <input 
+                                    type="date" 
+                                    value={customStart} 
+                                    onChange={(e) => setCustomStart(e.target.value)}
+                                    style={{ background: '#1e2433', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px', color: '#f1f5f9', padding: '8px 12px', fontSize: '13px', outline: 'none' }}
+                                />
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                <span style={{ color: '#475569', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.6px' }}>Hasta</span>
+                                <input 
+                                    type="date" 
+                                    value={customEnd} 
+                                    onChange={(e) => setCustomEnd(e.target.value)}
+                                    style={{ background: '#1e2433', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px', color: '#f1f5f9', padding: '8px 12px', fontSize: '13px', outline: 'none' }}
+                                />
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
 
