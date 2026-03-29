@@ -742,6 +742,21 @@ export async function deleteComuna(id: string) {
     return { success: true };
 }
 
+// ── Bulk Actions ────────────────────────────────────────────────────────
+export async function bulkUpdateQuoteStatus(ids: string[], status: string) {
+    await checkAuth();
+    if (!ids.length) return { success: false, error: 'No hay IDs seleccionados' };
+    
+    const db = createServerClient();
+    const { error } = await db.from('quotes')
+        .update({ status, updated_at: new Date().toISOString() })
+        .in('id', ids);
+        
+    if (error) throw new Error(error.message);
+    revalidatePath('/admin/quotes');
+    return { success: true };
+}
+
 // Helper: auto-send review if setting is 'auto'
 async function maybeAutoSendReview(quoteId: string, db: any) {
     const { data } = await db.from('admin_settings').select('value').eq('key', 'review_mode').single();
