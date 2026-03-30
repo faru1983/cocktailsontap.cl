@@ -959,28 +959,30 @@ export default function QuoteView({ quote, comunas, availableCocktails, categori
                         <div className="flex-1 overflow-y-auto px-6 py-4 sm:px-10 space-y-8">
                             
                             {/* 1. Datos de Transferencia (Prioridad Alta) */}
-                            <div className="bg-slate-50 border-2 border-brand-border rounded-[1.75rem] p-6 relative group overflow-hidden shadow-sm">
-                                <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
-                                    <CreditCard className="w-12 h-12 text-brand-text" />
-                                </div>
-                                <h3 className="font-black text-brand-text flex items-center gap-2 mb-4 text-[0.95rem]">
-                                    <span className="w-2 h-2 bg-primary rounded-full animate-pulse" /> 1. Datos para el Abono (50%)
+                            <div className="space-y-4">
+                                <h3 className="text-[0.75rem] font-black text-brand-text flex items-center gap-2 uppercase tracking-widest">
+                                    <CreditCard className="w-4 h-4 text-primary" /> 1. Datos para el Abono (50%)
                                 </h3>
-                                <div className="grid grid-cols-2 gap-y-3 gap-x-4 border-b border-brand-border/50 pb-5 mb-5 font-medium">
-                                    <div><p className="text-[0.65rem] font-black text-brand-text-muted uppercase tracking-widest">Banco</p><p className="truncate">Mercado Pago</p></div>
-                                    <div><p className="text-[0.65rem] font-black text-brand-text-muted uppercase tracking-widest">Tipo</p><p>Vista</p></div>
-                                    <div className="col-span-2"><p className="text-[0.65rem] font-black text-brand-text-muted uppercase tracking-widest">Nº Cuenta</p><p className="text-lg font-black select-all">1098081647</p></div>
-                                    <div className="col-span-2"><p className="text-[0.65rem] font-black text-brand-text-muted uppercase tracking-widest">Nombre y RUT</p><p className="font-bold">Felipe Ramírez (15.332.189-2)</p></div>
+                                <div className="bg-slate-50 border-2 border-brand-border rounded-[1.75rem] p-6 relative group overflow-hidden shadow-sm">
+                                    <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
+                                        <CreditCard className="w-12 h-12 text-brand-text" />
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-y-3 gap-x-4 border-b border-brand-border/50 pb-5 mb-5 font-medium">
+                                        <div><p className="text-[0.65rem] font-black text-brand-text-muted uppercase tracking-widest">Banco</p><p className="truncate">Mercado Pago</p></div>
+                                        <div><p className="text-[0.65rem] font-black text-brand-text-muted uppercase tracking-widest">Tipo</p><p>Vista</p></div>
+                                        <div className="col-span-2"><p className="text-[0.65rem] font-black text-brand-text-muted uppercase tracking-widest">Nº Cuenta</p><p className="text-lg font-black select-all">1098081647</p></div>
+                                        <div className="col-span-2"><p className="text-[0.65rem] font-black text-brand-text-muted uppercase tracking-widest">Nombre y RUT</p><p className="font-bold">Felipe Ramírez (15.332.189-2)</p></div>
+                                    </div>
+                                    <button 
+                                        onClick={() => {
+                                            const text = `Banco: Mercado Pago\nCuenta Vista: 1098081647\nNombre: Felipe Ramírez\nRUT: 15.332.189-2\nE-mail: contacto@cocktailsontap.cl`;
+                                            navigator.clipboard.writeText(text);
+                                        }}
+                                        className="w-full inline-flex items-center justify-center gap-2 px-6 py-3.5 bg-white border-2 border-brand-border rounded-xl text-[0.85rem] font-black text-brand-text hover:border-primary hover:text-primary transition-all active:scale-95 shadow-sm"
+                                    >
+                                        <Copy className="w-4 h-4" /> Copiar Datos para Transferir
+                                    </button>
                                 </div>
-                                <button 
-                                    onClick={() => {
-                                        const text = `Banco: Mercado Pago\nCuenta Vista: 1098081647\nNombre: Felipe Ramírez\nRUT: 15.332.189-2\nE-mail: contacto@cocktailsontap.cl`;
-                                        navigator.clipboard.writeText(text);
-                                    }}
-                                    className="w-full inline-flex items-center justify-center gap-2 px-6 py-3.5 bg-white border-2 border-brand-border rounded-xl text-[0.85rem] font-black text-brand-text hover:border-primary hover:text-primary transition-all active:scale-95 shadow-sm"
-                                >
-                                    <Copy className="w-4 h-4" /> Copiar Datos para Transferir
-                                </button>
                             </div>
 
                             {/* 2. Resumen del Monto */}
