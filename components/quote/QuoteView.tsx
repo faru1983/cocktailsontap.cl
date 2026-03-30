@@ -9,7 +9,7 @@ import { MURO_INSTALLATION_COST } from '@/lib/config';
 import {
     CheckCircle, Clock, XCircle, AlertCircle, ShoppingCart,
     Calendar, Users, MapPin, User, Mail, Phone, MessageSquare, Loader2, Lock,
-    Plus, Search, ChevronRight, Tag, Info, Copy, ExternalLink
+    Plus, Search, ChevronRight, Tag, Info, Copy, ExternalLink, CreditCard, FileText
 } from 'lucide-react';
 import type { Quote, QuoteItem, Comuna, CocktailForWizard, EventType, Product, ICart } from '@/lib/types';
 import ProductCatalog from '@/components/catalog/ProductCatalog';
@@ -60,6 +60,7 @@ export default function QuoteView({ quote, comunas, availableCocktails, categori
     const [confirmed, setConfirmed] = useState(quote.status === 'confirmed');
     const [showSuccessScreen, setShowSuccessScreen] = useState(false);
     const [acceptedTerms, setAcceptedTerms] = useState(false);
+    const [validationErrors, setValidationErrors] = useState<Record<string, boolean>>({});
 
     const isDraft = quote.status === 'draft' && !confirmed;
 
@@ -127,17 +128,41 @@ export default function QuoteView({ quote, comunas, availableCocktails, categori
     const halfAmount = totals.totalFinal / 2;
     const isSameDayPickup = pickupDate === eventDate;
 
-    const canConfirm =
-        phone.trim().length >= 8 &&
-        address.trim().length >= 5 &&
-        comuna.trim().length > 0 &&
-        eventDate.trim().length > 0 &&
-        startTime.trim().length > 0 &&
-        pickupDate.trim().length > 0 &&
-        (isSameDayPickup || pickupTime.trim().length > 0) &&
-        guests >= 10 &&
-        eventType.trim().length > 0 &&
-        items.some(i => i.quantity > 0);
+    const validateAllFields = () => {
+        const errors: Record<string, boolean> = {};
+        
+        if (phone.trim().length < 8) errors.phone = true;
+        if (address.trim().length < 5) errors.address = true;
+        if (!comuna || comuna === '...') errors.comuna = true;
+        if (comuna === 'Otra' && !comunaOther.trim()) errors.comunaOther = true;
+        if (!eventDate) errors.eventDate = true;
+        if (!startTime) errors.startTime = true;
+        if (!pickupDate) errors.pickupDate = true;
+        if (!isSameDayPickup && !pickupTime) errors.pickupTime = true;
+        if (guests <= 0) errors.guests = true;
+        if (!eventType) errors.eventType = true;
+        if (eventType === 'Otro' && !otherType.trim()) errors.otherType = true;
+        if (!items.some(i => i.quantity > 0)) errors.items = true;
+
+        setValidationErrors(errors);
+        return Object.keys(errors).length === 0;
+    };
+
+    const handlePreConfirm = () => {
+        const isValid = validateAllFields();
+        if (isValid) {
+            setAcceptedTerms(false);
+            setShowConfirmModal(true);
+            setConfirmError('');
+        } else {
+            // Scroll al primer error
+            const firstErrorField = Object.keys(validationErrors)[0] || 'phone';
+            const element = document.getElementById(`field-${firstErrorField}`);
+            if (element) {
+                element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }
+    };
 
     const updateQuantity = (id: string, delta: number) => {
         setItems(prev => prev.map(item => {
@@ -279,7 +304,7 @@ export default function QuoteView({ quote, comunas, availableCocktails, categori
     };
 
     const handleConfirm = async () => {
-        if (!canConfirm) return;
+        if (!validateAllFields()) return;
 
         setIsConfirming(true);
         setConfirmError('');
@@ -411,23 +436,9 @@ export default function QuoteView({ quote, comunas, availableCocktails, categori
                     <p className="text-brand-text-muted text-[0.8rem] sm:text-[0.9rem]">Creada el {new Date(quote.created_at).toLocaleDateString('es-CL', { day: '2-digit', month: 'long', year: 'numeric' })}</p>
                 </div>
 
-                {isDraft && (
-                    <button
-                        type="button"
-                        onClick={() => {
-                            setAcceptedTerms(false);
-                            setShowConfirmModal(true);
-                        }}
-                        disabled={!canConfirm}
-                        className="hidden sm:inline-flex items-center gap-2 px-8 py-4 rounded-2xl bg-primary text-white font-black text-[1rem] shadow-[0_4px_20px_rgba(226,160,73,0.35)] hover:bg-primary-dark transition-all active:scale-95 whitespace-nowrap disabled:opacity-50 disabled:grayscale disabled:cursor-not-allowed"
-                    >
-                        <CheckCircle className="w-5 h-5" /> Confirmar Reserva
-                    </button>
-                )}
-
                 {!isDraft && (
-                    <div className="inline-flex sm:flex items-center gap-2 text-green-700 font-bold bg-green-50 px-4 py-2 rounded-xl border border-green-200 self-start sm:self-auto">
-                        <Lock className="w-4 h-4" /> Reserva cerrada
+                    <div className="inline-flex sm:flex items-center gap-2 text-green-700 font-bold bg-green-50 px-4 py-2 rounded-xl border border-green-200 self-start sm:self-auto shadow-sm">
+                        <Lock className="w-4 h-4" /> Reserva cerrada / Confirmada
                     </div>
                 )}
             </div>
@@ -574,33 +585,39 @@ export default function QuoteView({ quote, comunas, availableCocktails, categori
                                 <label className="text-[0.65rem] font-black text-brand-text-muted flex items-center gap-1.5 uppercase">
                                     <Phone className="w-3 h-3" /> Celular <span className="text-red-500">*</span>
                                 </label>
-                                <input
-                                    type="tel"
-                                    value={phone}
-                                    onFocus={(e) => {
-                                        if (!e.target.value) setPhone('+569');
-                                    }}
-                                    onChange={(e) => setPhone(formatPhoneNumber(e.target.value))}
-                                    placeholder="+569-12345678"
-                                    className="w-full px-3 py-2.5 bg-slate-50 border border-brand-border rounded-xl text-[0.95rem] font-bold focus:outline-none focus:border-primary focus:bg-white transition-all shadow-sm"
-                                />
-                            </div>
-
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <div className="flex flex-col gap-1">
-                                    <label className="text-[0.65rem] font-black text-brand-text-muted flex items-center gap-1.5 uppercase">
-                                        <MapPin className="w-3 h-3" /> Comuna <span className="text-red-500">*</span>
-                                    </label>
-                                    <div className="relative">
-                                        <select
-                                            value={comuna}
-                                            onChange={(e) => setComuna(e.target.value)}
-                                            className="w-full px-3 py-2.5 bg-slate-50 border border-brand-border rounded-xl text-[0.95rem] font-bold focus:outline-none focus:border-primary focus:bg-white transition-all shadow-sm appearance-none pr-10"
-                                        >
-                                            {comunas.map((c) => (
-                                                <option key={c.name} value={c.name}>{c.name}</option>
-                                            ))}
-                                        </select>
+                                    <input
+                                        id="field-phone"
+                                        type="tel"
+                                        value={phone}
+                                        onFocus={(e) => {
+                                            if (!e.target.value) setPhone('+569');
+                                            setValidationErrors(prev => ({ ...prev, phone: false }));
+                                        }}
+                                        onChange={(e) => setPhone(formatPhoneNumber(e.target.value))}
+                                        placeholder="+569-12345678"
+                                        className={`w-full px-3 py-2.5 bg-slate-50 border rounded-xl text-[0.95rem] font-bold focus:outline-none focus:border-primary focus:bg-white transition-all shadow-sm ${validationErrors.phone ? 'border-red-500 bg-red-50/30' : 'border-brand-border'}`}
+                                    />
+                                </div>
+    
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div className="flex flex-col gap-1">
+                                        <label className="text-[0.65rem] font-black text-brand-text-muted flex items-center gap-1.5 uppercase">
+                                            <MapPin className="w-3 h-3" /> Comuna <span className="text-red-500">*</span>
+                                        </label>
+                                        <div className="relative">
+                                            <select
+                                                id="field-comuna"
+                                                value={comuna}
+                                                onChange={(e) => {
+                                                    setComuna(e.target.value);
+                                                    setValidationErrors(prev => ({ ...prev, comuna: false }));
+                                                }}
+                                                className={`w-full px-3 py-2.5 bg-slate-50 border rounded-xl text-[0.95rem] font-bold focus:outline-none focus:border-primary focus:bg-white transition-all shadow-sm appearance-none pr-10 ${validationErrors.comuna ? 'border-red-500 bg-red-50/30' : 'border-brand-border'}`}
+                                            >
+                                                {comunas.map((c) => (
+                                                    <option key={c.name} value={c.name}>{c.name}</option>
+                                                ))}
+                                            </select>
                                         <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
                                             <ChevronRight className="w-3.5 h-3.5 text-brand-text-muted rotate-90" />
                                         </div>
@@ -611,11 +628,15 @@ export default function QuoteView({ quote, comunas, availableCocktails, categori
                                     <div className="flex flex-col gap-1">
                                         <label className="text-[0.65rem] font-black text-brand-text-muted uppercase">Especificar Comuna</label>
                                         <input
+                                            id="field-comunaOther"
                                             type="text"
                                             value={comunaOther}
-                                            onChange={(e) => setComunaOther(e.target.value)}
+                                            onChange={(e) => {
+                                                setComunaOther(e.target.value);
+                                                setValidationErrors(prev => ({ ...prev, comunaOther: false }));
+                                            }}
                                             placeholder="¿Cuál?"
-                                            className="w-full px-3 py-2.5 bg-slate-50 border border-brand-border rounded-xl text-[0.95rem] font-bold focus:outline-none focus:border-primary focus:bg-white transition-all shadow-sm"
+                                            className={`w-full px-3 py-2.5 bg-slate-50 border rounded-xl text-[0.95rem] font-bold focus:outline-none focus:border-primary focus:bg-white transition-all shadow-sm ${validationErrors.comunaOther ? 'border-red-500 bg-red-50/30' : 'border-brand-border'}`}
                                         />
                                     </div>
                                 )}
@@ -626,11 +647,15 @@ export default function QuoteView({ quote, comunas, availableCocktails, categori
                                     <MapPin className="w-3 h-3" /> Dirección <span className="text-red-500">*</span>
                                 </label>
                                 <input
+                                    id="field-address"
                                     type="text"
                                     value={address}
-                                    onChange={(e) => setAddress(e.target.value)}
+                                    onChange={(e) => {
+                                        setAddress(e.target.value);
+                                        setValidationErrors(prev => ({ ...prev, address: false }));
+                                    }}
                                     placeholder="Calle, Número, Depto..."
-                                    className="w-full px-3 py-2.5 bg-slate-50 border border-brand-border rounded-xl text-[0.95rem] font-bold focus:outline-none focus:border-primary focus:bg-white transition-all shadow-sm"
+                                    className={`w-full px-3 py-2.5 bg-slate-50 border rounded-xl text-[0.95rem] font-bold focus:outline-none focus:border-primary focus:bg-white transition-all shadow-sm ${validationErrors.address ? 'border-red-500 bg-red-50/30' : 'border-brand-border'}`}
                                 />
                             </div>
                         </div>
@@ -644,9 +669,13 @@ export default function QuoteView({ quote, comunas, availableCocktails, categori
                                     </label>
                                     <div className="relative">
                                         <select
+                                            id="field-eventType"
                                             value={eventType}
-                                            onChange={(e) => setEventType(e.target.value)}
-                                            className="w-full px-3 py-2.5 bg-slate-50 border border-brand-border rounded-xl text-[0.95rem] font-bold focus:outline-none focus:border-primary focus:bg-white transition-all shadow-sm appearance-none pr-10"
+                                            onChange={(e) => {
+                                                setEventType(e.target.value);
+                                                setValidationErrors(prev => ({ ...prev, eventType: false }));
+                                            }}
+                                            className={`w-full px-3 py-2.5 bg-slate-50 border rounded-xl text-[0.95rem] font-bold focus:outline-none focus:border-primary focus:bg-white transition-all shadow-sm appearance-none pr-10 ${validationErrors.eventType ? 'border-red-500 bg-red-50/30' : 'border-brand-border'}`}
                                         >
                                             <option value="" disabled hidden>...</option>
                                             {eventTypes.map((t) => (
@@ -665,11 +694,15 @@ export default function QuoteView({ quote, comunas, availableCocktails, categori
                                     </label>
                                     <div className="relative">
                                         <input
+                                            id="field-guests"
                                             type="number"
                                             min={0}
                                             value={guests}
-                                            onChange={(e) => setGuests(parseInt(e.target.value) || 0)}
-                                            className="w-full px-3 py-2.5 bg-slate-50 border border-brand-border rounded-xl text-[0.95rem] font-bold focus:outline-none focus:border-primary focus:bg-white transition-all shadow-sm pr-12"
+                                            onChange={(e) => {
+                                                setGuests(parseInt(e.target.value) || 0);
+                                                setValidationErrors(prev => ({ ...prev, guests: false }));
+                                            }}
+                                            className={`w-full px-3 py-2.5 bg-slate-50 border rounded-xl text-[0.95rem] font-bold focus:outline-none focus:border-primary focus:bg-white transition-all shadow-sm pr-12 ${validationErrors.guests ? 'border-red-500 bg-red-50/30' : 'border-brand-border'}`}
                                         />
                                         <div className="absolute right-3 top-1/2 -translate-y-1/2 text-[0.7rem] text-brand-text-muted font-bold pointer-events-none">
                                             pers.
@@ -682,11 +715,15 @@ export default function QuoteView({ quote, comunas, availableCocktails, categori
                                 <div className="flex flex-col gap-1">
                                     <label className="text-[0.65rem] font-black text-brand-text-muted uppercase">Especificar Evento</label>
                                     <input
+                                        id="field-otherType"
                                         type="text"
                                         value={otherType}
-                                        onChange={(e) => setOtherType(e.target.value)}
+                                        onChange={(e) => {
+                                            setOtherType(e.target.value);
+                                            setValidationErrors(prev => ({ ...prev, otherType: false }));
+                                        }}
                                         placeholder="Ej: Aniversario..."
-                                        className="w-full px-3 py-2.5 bg-slate-50 border border-brand-border rounded-xl text-[0.95rem] font-bold focus:outline-none focus:border-primary focus:bg-white transition-all shadow-sm"
+                                        className={`w-full px-3 py-2.5 bg-slate-50 border rounded-xl text-[0.95rem] font-bold focus:outline-none focus:border-primary focus:bg-white transition-all shadow-sm ${validationErrors.otherType ? 'border-red-500 bg-red-50/30' : 'border-brand-border'}`}
                                     />
                                 </div>
                             )}
@@ -697,11 +734,15 @@ export default function QuoteView({ quote, comunas, availableCocktails, categori
                                         <Calendar className="w-3 h-3" /> Fecha del Evento<span className="text-red-500">*</span>
                                     </label>
                                     <input
+                                        id="field-eventDate"
                                         type="date"
                                         value={eventDate}
                                         min={getTodayString()}
-                                        onChange={(e) => setEventDate(e.target.value)}
-                                        className="w-full px-3 py-2.5 bg-slate-50 border border-brand-border rounded-xl text-[0.95rem] font-bold focus:outline-none focus:border-primary focus:bg-white transition-all shadow-sm"
+                                        onChange={(e) => {
+                                            setEventDate(e.target.value);
+                                            setValidationErrors(prev => ({ ...prev, eventDate: false }));
+                                        }}
+                                        className={`w-full px-3 py-2.5 bg-slate-50 border rounded-xl text-[0.95rem] font-bold focus:outline-none focus:border-primary focus:bg-white transition-all shadow-sm ${validationErrors.eventDate ? 'border-red-500 bg-red-50/30' : 'border-brand-border'}`}
                                     />
                                 </div>
                                 <div className="flex flex-col gap-1">
@@ -709,10 +750,14 @@ export default function QuoteView({ quote, comunas, availableCocktails, categori
                                         <Clock className="w-3 h-3" /> Hora de Inicio <span className="text-red-500">*</span>
                                     </label>
                                     <input
+                                        id="field-startTime"
                                         type="time"
                                         value={startTime}
-                                        onChange={(e) => setStartTime(e.target.value)}
-                                        className="w-full px-3 py-2.5 bg-slate-50 border border-brand-border rounded-xl text-[0.95rem] font-bold focus:outline-none focus:border-primary focus:bg-white transition-all shadow-sm"
+                                        onChange={(e) => {
+                                            setStartTime(e.target.value);
+                                            setValidationErrors(prev => ({ ...prev, startTime: false }));
+                                        }}
+                                        className={`w-full px-3 py-2.5 bg-slate-50 border rounded-xl text-[0.95rem] font-bold focus:outline-none focus:border-primary focus:bg-white transition-all shadow-sm ${validationErrors.startTime ? 'border-red-500 bg-red-50/30' : 'border-brand-border'}`}
                                     />
                                 </div>
                             </div>
@@ -723,6 +768,7 @@ export default function QuoteView({ quote, comunas, availableCocktails, categori
                                         <Calendar className="w-3 h-3" /> Fecha del Retiro <span className="text-red-500">*</span>
                                     </label>
                                     <input
+                                        id="field-pickupDate"
                                         type="date"
                                         value={pickupDate}
                                         min={eventDate}
@@ -730,9 +776,10 @@ export default function QuoteView({ quote, comunas, availableCocktails, categori
                                         onChange={(e) => {
                                             const newPickupDate = e.target.value;
                                             setPickupDate(newPickupDate);
+                                            setValidationErrors(prev => ({ ...prev, pickupDate: false }));
                                             if (newPickupDate === eventDate) setPickupTime('');
                                         }}
-                                        className="w-full px-3 py-2.5 bg-slate-50 border border-brand-border rounded-xl text-[0.95rem] font-bold focus:outline-none focus:border-primary focus:bg-white transition-all shadow-sm"
+                                        className={`w-full px-3 py-2.5 bg-slate-50 border rounded-xl text-[0.95rem] font-bold focus:outline-none focus:border-primary focus:bg-white transition-all shadow-sm ${validationErrors.pickupDate ? 'border-red-500 bg-red-50/30' : 'border-brand-border'}`}
                                     />
                                 </div>
                                 <div className={`flex flex-col gap-1 transition-all duration-300 ${isSameDayPickup ? 'opacity-0 scale-95 pointer-events-none' : 'opacity-100'}`}>
@@ -741,9 +788,13 @@ export default function QuoteView({ quote, comunas, availableCocktails, categori
                                     </label>
                                     <div className="relative">
                                         <select
+                                            id="field-pickupTime"
                                             value={pickupTime}
-                                            onChange={(e) => setPickupTime(e.target.value)}
-                                            className="w-full px-3 py-2.5 bg-slate-50 border border-brand-border rounded-xl text-[0.95rem] font-bold focus:outline-none focus:border-primary focus:bg-white transition-all shadow-sm appearance-none pr-10"
+                                            onChange={(e) => {
+                                                setPickupTime(e.target.value);
+                                                setValidationErrors(prev => ({ ...prev, pickupTime: false }));
+                                            }}
+                                            className={`w-full px-3 py-2.5 bg-slate-50 border rounded-xl text-[0.95rem] font-bold focus:outline-none focus:border-primary focus:bg-white transition-all shadow-sm appearance-none pr-10 ${validationErrors.pickupTime ? 'border-red-500 bg-red-50/30' : 'border-brand-border'}`}
                                         >
                                             <option value="">Seleccionar...</option>
                                             <option value="12:00 a 14:00">12:00 a 14:00</option>
@@ -851,96 +902,118 @@ export default function QuoteView({ quote, comunas, availableCocktails, categori
                 </div>
             )}
 
-            {/* Barra de acción flotante (Draft) */}
+            {/* Navigation / Confirmación - INTEGRADA AL FLUJO (UI/UX Expert) */}
             {isDraft && (
-                <div className="fixed bottom-0 left-0 right-0 z-[150] bg-white/80 backdrop-blur-xl border-t border-brand-border py-3 sm:py-4 px-5 sm:px-6 shadow-[0_-10px_40px_rgba(0,0,0,0.08)]">
-                    <div className="max-w-3xl mx-auto flex items-center justify-between gap-4 sm:gap-6">
-                        <div className="hidden sm:block">
-                            <p className="text-[0.7rem] font-black text-brand-text-muted uppercase tracking-widest leading-none mb-1">Abono del 50%</p>
-                            <p className="text-xl font-black text-primary">{formatCurrency(halfAmount)}</p>
+                <div className="mt-8 mb-16">
+                    <div className="bg-white/60 backdrop-blur-md border-2 border-brand-border rounded-[2.5rem] p-6 sm:p-10 flex flex-col sm:flex-row items-center justify-between gap-8 shadow-[0_20px_50px_rgba(0,0,0,0.04)] hover:shadow-[0_25px_60px_rgba(0,0,0,0.08)] transition-all duration-500 relative overflow-hidden group">
+                        {/* Decoración de fondo sutil */}
+                        <div className="absolute -top-10 -right-10 w-40 h-40 bg-primary/5 rounded-full blur-3xl group-hover:bg-primary/10 transition-colors" />
+                        <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-emerald-500/5 rounded-full blur-3xl group-hover:bg-emerald-500/10 transition-colors" />
+
+                        <div className="text-center sm:text-left relative z-10">
+                            <p className="text-[0.7rem] font-black text-brand-text-muted uppercase tracking-[0.2em] mb-2 flex items-center justify-center sm:justify-start gap-2">
+                                <Clock className="w-3.5 h-3.5" /> Abono para confirmar (50%)
+                            </p>
+                            <p className="text-4xl font-black text-brand-text tracking-tight">{formatCurrency(halfAmount)}</p>
+                            <p className="text-[0.85rem] text-brand-text-muted mt-2 font-medium">
+                                El monto restante se abona el día del montaje.
+                            </p>
                         </div>
-                        <button
-                            type="button"
-                            onClick={() => {
-                                setAcceptedTerms(false);
-                                setShowConfirmModal(true);
-                            }}
-                            disabled={!canConfirm}
-                            className="flex-1 py-3.5 sm:py-4 sm:flex-none sm:px-12 rounded-2xl bg-primary text-white font-black text-[1rem] sm:text-[1.1rem] shadow-[0_4px_25px_rgba(226,160,73,0.45)] hover:bg-primary-dark transition-all active:scale-95 disabled:grayscale disabled:opacity-50"
-                        >
-                            🚀 Confirmar Reserva
-                        </button>
+
+                        <div className="w-full sm:w-auto relative z-10">
+                            <button
+                                type="button"
+                                onClick={handlePreConfirm}
+                                className="w-full sm:w-auto inline-flex items-center justify-center gap-3 px-6 sm:px-12 py-5 rounded-[1.25rem] bg-primary text-white font-black text-[1.1rem] sm:text-[1.15rem] shadow-[0_8px_30px_rgba(226,160,73,0.35)] hover:bg-primary-dark hover:shadow-[0_12px_40px_rgba(226,160,73,0.45)] transition-all active:scale-[0.98] disabled:grayscale disabled:opacity-50 group/btn whitespace-nowrap"
+                            >
+                                🚀 Confirmar Reserva
+                                <ChevronRight className="w-5 h-5 transition-transform group-hover/btn:translate-x-1" />
+                            </button>
+                        </div>
                     </div>
+
+                    {/* Mensaje de validación rápida si hay errores */}
+                    {Object.keys(validationErrors).length > 0 && (
+                        <div className="mt-4 text-center animate-fade-in">
+                            <p className="text-[0.75rem] font-bold text-red-600 flex items-center justify-center gap-1.5 bg-red-50 border border-red-100 py-2 px-4 rounded-full inline-flex mx-auto">
+                                <AlertCircle className="w-3.5 h-3.5" /> Faltan campos obligatorios por completar.
+                            </p>
+                        </div>
+                    )}
                 </div>
             )}
 
-            {/* Padding extra para la barra flotante */}
-            {isDraft && <div className="h-32" />}
-
-            {/* Modal de confirmación */}
+            {/* Modal de confirmación - REDISEÑADO UI/UX EXPERT */}
             {showConfirmModal && (
-                <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md" onClick={() => setShowConfirmModal(false)}>
-                    <div className="bg-white rounded-[2.5rem] max-w-lg w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden relative" onClick={(e) => e.stopPropagation()}>
+                <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-brand-text/60 backdrop-blur-md" onClick={() => setShowConfirmModal(false)}>
+                    <div className="bg-white rounded-[2.5rem] max-w-lg w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden relative border border-brand-border" onClick={(e) => e.stopPropagation()}>
                         <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-primary to-amber-300" />
 
-                        {/* Header Fijo */}
-                        <div className="p-6 pb-0 sm:px-10 sm:pt-8 sm:pb-0 shrink-0">
+                        {/* Header */}
+                        <div className="p-6 pb-2 sm:px-10 sm:pt-8 sm:pb-3 shrink-0">
                             <h2 className="text-2xl font-black text-brand-text mb-1 tracking-tight">Finalizar Reserva</h2>
-                            <p className="text-brand-text-muted text-[0.9rem] sm:text-[0.95rem] leading-relaxed">Para asegurar tu fecha, no olvides realizar un abono del <strong>50%</strong>.</p>
+                            <p className="text-brand-text-muted text-[0.85rem] leading-relaxed">Completa los pasos para asegurar tu fecha.</p>
                         </div>
 
-                        {/* Contenido Scrollable */}
-                        <div className="flex-1 overflow-y-auto p-6 pt-4 sm:px-10 sm:pt-4 space-y-6">
-
-                        {/* Monto a pagar destacada */}
-                            <div className="bg-amber-50 border-2 border-amber-100 rounded-[2rem] p-8 text-center relative overflow-hidden group">
-                                <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity" />
-                                <p className="text-amber-800 text-[0.75rem] font-black uppercase tracking-[0.2em] mb-2">Abono para confirmar (50%)</p>
-                                <p className="text-primary font-black text-5xl mt-1 tracking-tighter">{formatCurrency(halfAmount)}</p>
-                                <div className="mt-4 inline-flex items-center gap-2 bg-amber-200/40 px-4 py-1.5 rounded-full text-[0.8rem] text-amber-900 font-bold">
-                                    <Clock className="w-3.5 h-3.5" /> Saldo restante el día del evento
+                        {/* Contenido Scrollable Completo */}
+                        <div className="flex-1 overflow-y-auto px-6 py-4 sm:px-10 space-y-8">
+                            
+                            {/* 1. Datos de Transferencia (Prioridad Alta) */}
+                            <div className="bg-slate-50 border-2 border-brand-border rounded-[1.75rem] p-6 relative group overflow-hidden shadow-sm">
+                                <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
+                                    <CreditCard className="w-12 h-12 text-brand-text" />
                                 </div>
+                                <h3 className="font-black text-brand-text flex items-center gap-2 mb-4 text-[0.95rem]">
+                                    <span className="w-2 h-2 bg-primary rounded-full animate-pulse" /> 1. Datos para el Abono (50%)
+                                </h3>
+                                <div className="grid grid-cols-2 gap-y-3 gap-x-4 border-b border-brand-border/50 pb-5 mb-5 font-medium">
+                                    <div><p className="text-[0.65rem] font-black text-brand-text-muted uppercase tracking-widest">Banco</p><p className="truncate">Mercado Pago</p></div>
+                                    <div><p className="text-[0.65rem] font-black text-brand-text-muted uppercase tracking-widest">Tipo</p><p>Vista</p></div>
+                                    <div className="col-span-2"><p className="text-[0.65rem] font-black text-brand-text-muted uppercase tracking-widest">Nº Cuenta</p><p className="text-lg font-black select-all">1098081647</p></div>
+                                    <div className="col-span-2"><p className="text-[0.65rem] font-black text-brand-text-muted uppercase tracking-widest">Nombre y RUT</p><p className="font-bold">Felipe Ramírez (15.332.189-2)</p></div>
+                                </div>
+                                <button 
+                                    onClick={() => {
+                                        const text = `Banco: Mercado Pago\nCuenta Vista: 1098081647\nNombre: Felipe Ramírez\nRUT: 15.332.189-2\nE-mail: contacto@cocktailsontap.cl`;
+                                        navigator.clipboard.writeText(text);
+                                    }}
+                                    className="w-full inline-flex items-center justify-center gap-2 px-6 py-3.5 bg-white border-2 border-brand-border rounded-xl text-[0.85rem] font-black text-brand-text hover:border-primary hover:text-primary transition-all active:scale-95 shadow-sm"
+                                >
+                                    <Copy className="w-4 h-4" /> Copiar Datos para Transferir
+                                </button>
                             </div>
 
-                        {/* Contrato de Servicio */}
-                            <div className="mb-0">
-                                <h3 className="text-[0.65rem] font-black text-brand-text-muted uppercase tracking-[0.2em] mb-3 flex items-center gap-2">
-                                    <Lock className="w-3.5 h-3.5" /> Contrato de Servicio
+                            {/* 2. Resumen del Monto */}
+                            <div className="text-center py-2">
+                                <p className="text-brand-text-muted text-[0.7rem] font-black uppercase tracking-[0.2em] mb-1">Monto del Abono</p>
+                                <p className="text-primary font-black text-5xl tracking-tighter">{formatCurrency(halfAmount)}</p>
+                            </div>
+
+                            {/* 3. Contrato de Servicio con Scroll Propio */}
+                            <div className="space-y-4">
+                                <h3 className="text-[0.75rem] font-black text-brand-text flex items-center gap-2 uppercase tracking-widest">
+                                    <FileText className="w-4 h-4 text-primary" /> 2. Contrato de Servicio
                                 </h3>
-                                <div className="bg-white border-2 border-brand-border rounded-2xl overflow-hidden shadow-inner">
-                                    <div className="h-48 overflow-y-auto p-5 text-[0.8rem] text-brand-text leading-relaxed font-medium bg-slate-50/50">
-                                        <div className="text-center font-black mb-4 uppercase tracking-widest border-b border-brand-border pb-2">CONTRATO DE SERVICIO</div>
+                                <div className="bg-slate-50 border-2 border-brand-border rounded-2xl overflow-hidden shadow-inner">
+                                    <div className="p-6 text-[0.85rem] text-brand-text-muted leading-relaxed bg-white/50">
+                                        <div className="text-center font-black mb-6 uppercase tracking-[0.3em] border-b-2 border-brand-border/30 pb-3 text-brand-text text-[0.75rem]">CONTRATO DE SERVICIO</div>
                                         <p className="mb-4">
                                             Entre <strong>Cocktails on Tap Chile</strong>, en adelante “El Arrendador”, y don/doña: <strong>{quote.client_name} {lastName}</strong>, en adelante “El Arrendatario”, se acuerda lo siguiente:
                                         </p>
-                                        
-                                        <p className="font-bold mb-1">1. Objeto del contrato</p>
-                                        <p className="mb-4">El Arrendador proporcionará al Arrendatario un servicio de cócteles listos para servir en formato autoservicio, que incluye el arriendo de barriles, dispensadores y cristalería (vasos y/o copas), para el evento acordado.</p>
-                                        
-                                        <p className="font-bold mb-1">2. Fecha y lugar del evento</p>
-                                        <p className="mb-1"><strong>Fecha:</strong> {formatEventDate(eventDate)}</p>
-                                        <p className="mb-4"><strong>Lugar:</strong> {address}, {comuna === 'Otra' ? comunaOther : comuna}</p>
-                                        
-                                        <p className="font-bold mb-1">3. Responsabilidad por pérdidas o daños</p>
-                                        <p className="mb-2">El Arrendatario acepta que, en caso de pérdida o daño de los elementos arrendados, deberá pagar lo siguiente:</p>
-                                        <ul className="list-disc pl-5 mb-4 space-y-1">
-                                            <li>$1.000 (mil pesos) por cada vaso extraviado o dañado.</li>
-                                            <li>$2.000 (dos mil pesos) por cada copa extraviada o dañada.</li>
-                                            <li>Hasta $500.000 (quinientos mil pesos) por daños o pérdida de cada dispensador dejado en préstamo para el evento.</li>
+                                        <p className="font-black text-brand-text mb-2 mt-4">1. Objeto del contrato</p>
+                                        <p className="mb-4">El Arrendador proporcionará al Arrendatario un servicio de cócteles listos para servir en formato autoservicio, incluyendo barriles, dispensadores y cristalería.</p>
+                                        <p className="font-black text-brand-text mb-2">2. Responsabilidad por daños</p>
+                                        <ul className="list-disc pl-5 mb-4 space-y-2">
+                                            <li>$1.000 (mil pesos) por vaso extraviado o dañado.</li>
+                                            <li>$2.000 (dos mil pesos) por copa extraviada o dañada.</li>
+                                            <li>Hasta $500.000 (quinientos mil pesos) por dispensador extraviado o dañado.</li>
                                         </ul>
-                                        
-                                        <p className="font-bold mb-1">4. Condiciones generales</p>
-                                        <ul className="list-disc pl-5 mb-4 space-y-1">
-                                            <li>El servicio incluye entrega, instalación y retiro del equipamiento.</li>
-                                            <li>El Arrendatario se compromete a cuidar adecuadamente todos los elementos arrendados.</li>
-                                            <li>Para asegurar la reserva, el Arrendatario deberá realizar un abono del 50% del total del servicio y cancelar la diferencia al momento del montaje.</li>
-                                        </ul>
-                                        
-                                        <p className="font-bold mb-1">5. Aceptación</p>
-                                        <p>Ambas partes declaran haber leído, entendido y aceptado las condiciones establecidas en el presente contrato.</p>
+                                        <p className="font-black text-brand-text mb-2">3. Aceptación y Pago</p>
+                                        <p className="mb-2">Se entiende aceptado al confirmar la reserva mediante el abono del <strong>50% del total</strong>.</p>
+                                        <p>El saldo restante deberá ser cancelado en su totalidad al momento del montaje del equipo.</p>
                                     </div>
-                                    <div className="p-4 bg-brand-bg flex items-center gap-3 border-t border-brand-border">
-                                        <label className="flex items-center gap-3 cursor-pointer group">
+                                    <div className="p-4 bg-primary/5 flex items-center gap-3 border-t border-brand-border">
+                                        <label className="flex items-center gap-3 cursor-pointer group w-full">
                                             <div className="relative flex items-center justify-center">
                                                 <input 
                                                     type="checkbox" 
@@ -950,58 +1023,39 @@ export default function QuoteView({ quote, comunas, availableCocktails, categori
                                                 />
                                                 <CheckCircle className="absolute w-4 h-4 text-white opacity-0 peer-checked:opacity-100 transition-opacity pointer-events-none" />
                                             </div>
-                                            <span className="text-[0.85rem] font-black text-brand-text group-hover:text-primary transition-colors">He leído y acepto los términos del contrato</span>
+                                            <span className="text-[0.8rem] font-bold text-brand-text group-hover:text-primary transition-colors">He leído y acepto los términos del contrato</span>
                                         </label>
                                     </div>
                                 </div>
                             </div>
 
-                            {/* Datos bancarios comprimidos */}
-                            <div className="bg-slate-50 rounded-2xl p-6 text-[0.9rem] border border-brand-border space-y-4 relative group overflow-hidden">
-                                <p className="font-black text-brand-text flex items-center gap-2">
-                                    <span className="p-1 bg-brand-text text-white rounded-md uppercase text-[0.6rem] tracking-widest">Pago</span> Datos de Transferencia
-                                </p>
-                                <div className="grid grid-cols-2 gap-y-2 gap-x-4 border-b border-brand-border/50 pb-4">
-                                    <div><p className="text-[0.7rem] font-bold text-brand-text-muted uppercase">Banco</p><p className="font-bold">Mercado Pago</p></div>
-                                    <div><p className="text-[0.7rem] font-bold text-brand-text-muted uppercase">Tipo Cuenta</p><p className="font-bold">Vista</p></div>
-                                    <div className="col-span-2"><p className="text-[0.7rem] font-bold text-brand-text-muted uppercase">Nº Cuenta</p><p className="font-bold text-lg select-all">1098081647</p></div>
-                                    <div className="col-span-2"><p className="text-[0.7rem] font-bold text-brand-text-muted uppercase">Nombre y RUT</p><p className="font-bold">Felipe Ramírez (15.332.189-2)</p></div>
-                                </div>
-                                <button 
-                                    onClick={() => {
-                                        const text = `Banco: Mercado Pago\nCuenta Vista: 1098081647\nNombre: Felipe Ramírez\nRUT: 15.332.189-2\nE-mail: contacto@cocktailsontap.cl`;
-                                        navigator.clipboard.writeText(text);
-                                    }}
-                                    className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-brand-border rounded-xl text-[0.8rem] font-bold text-brand-text hover:border-primary hover:text-primary transition-all active:scale-95 shadow-sm"
-                                >
-                                    <Copy className="w-4 h-4" /> Copiar Datos para Transferir
-                                </button>
-                            </div>
-                        </div>
-
-                        {/* Footer Fijo con Botones */}
-                        <div className="p-6 sm:px-10 sm:py-6 pb-8 border-t border-brand-border/50 shrink-0 bg-slate-50/30">
+                            {/* Alerta de Error */}
                             {confirmError && (
-                                <div className="flex items-center gap-3 bg-red-50 border-2 border-red-100 text-red-700 rounded-2xl p-4 mb-6 text-[0.9rem] font-bold animate-shake">
+                                <div className="flex items-center gap-3 bg-red-50 border-2 border-red-100 text-red-700 rounded-2xl p-4 text-[0.85rem] font-bold animate-shake">
                                     <AlertCircle className="w-5 h-5 shrink-0" />{confirmError}
                                 </div>
                             )}
 
-                            <div className="flex flex-col sm:flex-row gap-4">
-                                <button
-                                    type="button"
-                                    onClick={() => setShowConfirmModal(false)}
-                                    className="order-2 sm:order-1 flex-1 py-4 rounded-2xl border-2 border-brand-border text-brand-text-muted font-bold hover:bg-slate-50 transition-all active:scale-95"
-                                >
-                                    Cancelar
-                                </button>
+                            {/* 4. Botones de Acción (Al final del scroll) */}
+                            <div className="flex flex-col gap-3 pt-2 pb-10">
                                 <button
                                     type="button"
                                     onClick={handleConfirm}
-                                    disabled={isConfirming || !canConfirm || !acceptedTerms}
-                                    className="order-1 sm:order-2 flex-[2] py-4 rounded-2xl bg-primary text-white font-black text-[1.1rem] hover:bg-primary-dark transition-all disabled:opacity-50 disabled:grayscale flex items-center justify-center gap-2 shadow-lg active:scale-95"
+                                    disabled={isConfirming || !acceptedTerms}
+                                    className="w-full py-5 rounded-[1.25rem] bg-primary text-white font-black text-[1.2rem] hover:bg-primary-dark transition-all disabled:opacity-50 disabled:grayscale flex items-center justify-center gap-3 shadow-[0_8px_25px_rgba(226,160,73,0.3)] active:scale-[0.98] group/btn"
                                 >
-                                    {isConfirming ? <><Loader2 className="w-5 h-5 animate-spin" /> Procesando...</> : '🚀 Confirmar Ahora'}
+                                    {isConfirming ? (
+                                        <><Loader2 className="w-6 h-6 animate-spin text-white" /> Procesando...</>
+                                    ) : (
+                                        <>🚀 Confirmar Reserva</>
+                                    )}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowConfirmModal(false)}
+                                    className="w-full py-4 rounded-[1.25rem] border-2 border-brand-border text-brand-text-muted font-bold hover:bg-slate-50 hover:text-brand-text transition-all active:scale-[0.98]"
+                                >
+                                    Volver / Cancelar
                                 </button>
                             </div>
                         </div>

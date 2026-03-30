@@ -1,3 +1,4 @@
+'use client';
 import React from 'react';
 
 interface QuantitySelectorProps {
@@ -69,7 +70,7 @@ export default function QuantitySelector({
                 className={btnClassesLeft}
                 onClick={handleMinus}
             >
-                −
+                -
             </button>
             <input
                 type="number"
