@@ -21,8 +21,8 @@ export default function QuantitySelector({
 }: QuantitySelectorProps) {
 
     const sizeClasses = compact 
-        ? "w-[28px] h-[28px] text-[0.95rem] rounded-md" 
-        : "w-14 h-14 text-2xl font-black rounded-none";
+        ? "w-[32px] h-[32px] text-[1rem] rounded-md" 
+        : "w-10 sm:w-12 h-10 sm:h-11 text-xl font-bold rounded-none";
     
     const containerClasses = compact
         ? "flex items-center gap-1 border border-brand-border rounded-lg p-0.5 bg-[#f8fafc]"
@@ -38,8 +38,8 @@ export default function QuantitySelector({
     const btnClassesRight = compact ? btnClasses : `${btnClasses} border-l-2 border-brand-border`;
 
     const inputClasses = compact
-        ? "w-8 text-center bg-transparent border-none text-brand-text font-bold text-[0.95rem] outline-none appearance-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-        : "flex-1 w-full text-center font-black text-2xl text-brand-text bg-transparent outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none";
+        ? "w-10 text-center bg-transparent border-none text-brand-text font-bold text-[1rem] outline-none appearance-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+        : "flex-1 min-w-[3ch] text-center font-bold text-lg sm:text-xl text-brand-text bg-transparent outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none";
 
     const handleMinus = () => {
         if (value - step >= min) {

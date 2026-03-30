@@ -80,12 +80,12 @@ export default function ProductCard({ product, cart }: ProductCardProps) {
                         Agregar
                     </button>
                 ) : (
-                    <div className="flex h-[46px] w-full items-center justify-center bg-white">
+                    <div className="flex w-full items-center justify-center bg-white">
                         <QuantitySelector
                             value={quantity}
                             onChange={(delta) => cart.updateQuantity(product.id, selectedSize, quantity + delta)}
                             min={1}
-                            className="w-full h-full max-w-none"
+                            className="w-full max-w-[180px] h-full"
                             compact={false}
                         />
                     </div>

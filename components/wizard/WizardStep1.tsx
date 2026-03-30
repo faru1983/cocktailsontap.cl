@@ -85,42 +85,46 @@ export default function WizardStep1({ wizard, eventTypes }: Props) {
             </div>
 
             {/* Fecha y Hora de Inicio */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                <div>
-                    <label htmlFor="wizard-date" className="block font-bold mb-2 text-brand-text text-[0.95rem]">Fecha del Evento <span className="text-primary">*</span></label>
-                    <input
-                        id="wizard-date"
-                        type="date"
-                        required
-                        min={today}
-                        className="w-full p-4 border-2 border-brand-border rounded-2xl text-[1rem] font-sans text-brand-text bg-white transition-all focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10"
-                        value={state.eventData.date}
-                        onChange={(e) => {
-                            const newDate = e.target.value;
-                            updateEventData('date', newDate);
-                        }}
-                    />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 mb-8">
+                <div className="flex flex-col">
+                    <label htmlFor="wizard-date" className="block font-bold mb-2 text-brand-text text-[0.9rem] sm:text-[0.95rem]">Fecha del Evento <span className="text-primary">*</span></label>
+                    <div className="relative group/input">
+                        <input
+                            id="wizard-date"
+                            type="date"
+                            required
+                            min={today}
+                            className="w-full p-3 sm:p-4 border-2 border-brand-border rounded-2xl text-[0.95rem] sm:text-[1rem] font-sans text-brand-text bg-white transition-all focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 hover:border-primary/30"
+                            value={state.eventData.date}
+                            onChange={(e) => {
+                                const newDate = e.target.value;
+                                updateEventData('date', newDate);
+                            }}
+                        />
+                    </div>
                 </div>
-                <div>
-                    <label htmlFor="wizard-start-time" className="block font-bold mb-2 text-brand-text text-[0.95rem]">Hora de Inicio</label>
-                    <input
-                        id="wizard-start-time"
-                        type={state.eventData.startTime ? "time" : "text"}
-                        placeholder="Dato opcional"
-                        onFocus={(e) => (e.target.type = "time")}
-                        onBlur={(e) => { if (!e.target.value) e.target.type = "text"; }}
-                        className="w-full p-4 border-2 border-brand-border rounded-2xl text-[1rem] font-sans text-brand-text bg-white transition-all focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10"
-                        value={state.eventData.startTime}
-                        onChange={(e) => updateEventData('startTime', e.target.value)}
-                    />
+                <div className="flex flex-col">
+                    <label htmlFor="wizard-start-time" className="block font-bold mb-2 text-brand-text text-[0.9rem] sm:text-[0.95rem]">Hora de Inicio</label>
+                    <div className="relative group/input">
+                        <input
+                            id="wizard-start-time"
+                            type={state.eventData.startTime ? "time" : "text"}
+                            placeholder="Dato opcional"
+                            onFocus={(e) => (e.target.type = "time")}
+                            onBlur={(e) => { if (!e.target.value) e.target.type = "text"; }}
+                            className="w-full p-3 sm:p-4 border-2 border-brand-border rounded-2xl text-[0.95rem] sm:text-[1rem] font-sans text-brand-text bg-white transition-all focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 hover:border-primary/30"
+                            value={state.eventData.startTime}
+                            onChange={(e) => updateEventData('startTime', e.target.value)}
+                        />
+                    </div>
                 </div>
             </div>
 
             {/* Retiro del Equipo */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                 {state.eventData.startTime && (
-                    <div className="animate-fade-in">
-                        <label htmlFor="wizard-pickup-date" className="block font-bold mb-2 text-brand-text text-[0.95rem]">Fecha de Retiro</label>
+                    <div className="animate-fade-in flex flex-col">
+                        <label htmlFor="wizard-pickup-date" className="block font-bold mb-2 text-brand-text text-[0.9rem] sm:text-[0.95rem]">Fecha de Retiro</label>
                         <input
                             id="wizard-pickup-date"
                             type={state.eventData.pickupDate ? "date" : "text"}
@@ -129,15 +133,15 @@ export default function WizardStep1({ wizard, eventTypes }: Props) {
                             placeholder="Dato opcional"
                             onFocus={(e) => (e.target.type = "date")}
                             onBlur={(e) => { if (!e.target.value) e.target.type = "text"; }}
-                            className="w-full p-4 border-2 border-brand-border rounded-2xl text-[1rem] font-sans text-brand-text bg-white transition-all focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10"
+                            className="w-full p-3 sm:p-4 border-2 border-brand-border rounded-2xl text-[0.95rem] sm:text-[1rem] font-sans text-brand-text bg-white transition-all focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 hover:border-primary/30"
                             value={state.eventData.pickupDate}
                             onChange={(e) => updateEventData('pickupDate', e.target.value)}
                         />
                     </div>
                 )}
                 {state.eventData.pickupDate && state.eventData.pickupDate !== state.eventData.date && (
-                    <div className="animate-fade-in">
-                        <label htmlFor="wizard-pickup-time" className="block font-bold mb-2 text-brand-text text-[0.95rem]">Horario de Retiro</label>
+                    <div className="animate-fade-in flex flex-col">
+                        <label htmlFor="wizard-pickup-time" className="block font-bold mb-2 text-brand-text text-[0.9rem] sm:text-[0.95rem]">Horario de Retiro</label>
                         <SelectField
                             id="wizard-pickup-time"
                             value={state.eventData.pickupTime}

@@ -6,7 +6,7 @@ import { AlertCircle, ArrowLeft, ArrowRight, Loader2 } from 'lucide-react';
 import { WhatsappIcon } from '@/components/icons';
 import type { CocktailForWizard, EventType, Comuna } from '@/lib/types';
 import { createQuote } from '@/app/actions/createQuote';
-import { SITE_URL } from '@/lib/config';
+import { SITE_URL, WHATSAPP_URL } from '@/lib/config';
 import WizardStep1 from './WizardStep1';
 import WizardStep2 from './WizardStep2';
 import WizardStep3 from './WizardStep3';
@@ -107,7 +107,7 @@ export default function WizardShell({ cocktails, eventTypes, comunas, categories
                 </div>
             </div>
             {/* Content */}
-            <div className="w-full max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-2 md:py-4 flex-1 mb-24">
+            <div className="w-full max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-2 md:py-8 flex-1">
                 {validationError && (
                     <div className="bg-red-50 border border-red-200 text-red-600 rounded-2xl px-5 py-4 mb-8 font-semibold flex items-center gap-4 text-[0.95rem] shadow-sm animate-slide-up">
                         <div className="p-2 bg-red-100 rounded-lg">
@@ -133,52 +133,61 @@ export default function WizardShell({ cocktails, eventTypes, comunas, categories
                     ) : (
                         renderStep()
                     )}
+                    {/* Navigation - UI/UX MEJORADO PROFESIONAL */}
+                    {sendStatus !== 'saved' && (
+                        <div className="mt-12 mb-12 sm:mb-20">
+                            <div className="bg-white/50 backdrop-blur-sm border border-brand-border rounded-[2.5rem] p-4 sm:p-6 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-[0_10px_30px_rgba(0,0,0,0.03)] hover:shadow-[0_15px_40px_rgba(0,0,0,0.06)] transition-all duration-500">
+                                <div className="order-2 sm:order-1 w-full sm:w-auto">
+                                    {state.step > 1 && (
+                                        <button
+                                            type="button"
+                                            className="group w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-2xl border-2 border-brand-border text-brand-text-muted font-bold text-[0.95rem] transition-all hover:border-primary/50 hover:text-primary active:scale-[0.98] bg-white/80"
+                                            onClick={() => { setValidationError(''); wizard.goToStep(state.step - 1); }}
+                                        >
+                                            <ArrowLeft className="w-4 h-4 transition-transform group-hover:-translate-x-1" />
+                                            <span>Anterior</span>
+                                        </button>
+                                    )}
+                                </div>
+
+                                <div className="order-1 sm:order-2 w-full sm:w-auto">
+                                    {state.step < 6 ? (
+                                        <button
+                                            type="button"
+                                            className="group w-full sm:w-auto inline-flex items-center justify-center gap-3 px-10 py-3.5 rounded-2xl bg-primary text-white font-black text-[1.1rem] transition-all hover:bg-primary-dark active:scale-[0.98] shadow-[0_4px_20px_rgba(226,160,73,0.3)] hover:shadow-[0_8px_30px_rgba(226,160,73,0.4)]"
+                                            onClick={handleNext}
+                                        >
+                                            <span>Siguiente</span>
+                                            <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
+                                        </button>
+                                    ) : (
+                                        <button
+                                            type="button"
+                                            disabled={sendStatus === 'saving'}
+                                            className="group w-full sm:w-auto inline-flex items-center justify-center gap-3 px-10 py-3.5 rounded-2xl bg-[#25D366] text-white font-black text-[1.1rem] transition-all hover:bg-[#128c7e] active:scale-[0.98] shadow-[0_4px_20px_rgba(37,211,102,0.3)] hover:shadow-[0_8px_30px_rgba(37,211,102,0.4)] disabled:opacity-70 disabled:cursor-not-allowed"
+                                            onClick={handleCotizar}
+                                        >
+                                            {sendStatus === 'saving' ? (
+                                                <><Loader2 className="w-5 h-5 animate-spin" /> <span>Guardando...</span></>
+                                            ) : (
+                                                <><WhatsappIcon className="w-5 h-5" /> <span>Cotizar</span></>
+                                            )}
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                            
+                            {/* Indicador de ayuda/soporte adicional debajo del nav */}
+                            <div className="mt-8 text-center animate-fade-in delay-500">
+                                <p className="text-[0.8rem] text-brand-text-muted font-medium italic">
+                                    ¿Necesitas ayuda con tu cotización? 
+                                    <a href={WHATSAPP_URL} target="_blank" className="ml-1.5 text-primary hover:underline font-bold">Háblanos por WhatsApp</a>
+                                </p>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
-
-            {/* Fixed Nav - Ocultar en pantalla de éxito */}
-            {sendStatus !== 'saved' && (
-                <div className="fixed bottom-0 left-0 right-0 z-[160] bg-white border-t border-brand-border py-4 px-6 flex items-center justify-between gap-4 shadow-[0_-10px_40px_rgba(0,0,0,0.05)]">
-                    <div className="max-w-[1400px] mx-auto w-full flex items-center justify-between">
-                        <div className="flex-1 flex justify-start">
-                            {state.step > 1 && (
-                                <button
-                                    type="button"
-                                    className="group inline-flex items-center gap-2 px-6 py-3 rounded-2xl border border-brand-border text-brand-text-muted font-bold text-[0.9rem] transition-all hover:border-primary hover:text-primary active:scale-95 bg-white"
-                                    onClick={() => { setValidationError(''); wizard.goToStep(state.step - 1); }}
-                                >
-                                    <ArrowLeft className="w-4 h-4 transition-transform group-hover:-translate-x-1" /> Anterior
-                                </button>
-                            )}
-                        </div>
-
-                        <div className="flex-1 flex justify-end">
-                            {state.step < 6 ? (
-                                <button
-                                    type="button"
-                                    className="inline-flex items-center gap-2 px-8 py-3 rounded-2xl bg-primary text-white font-bold text-[1rem] transition-all hover:bg-primary-dark active:scale-95 shadow-[0_4px_15px_rgba(226,160,73,0.35)] hover:shadow-[0_8_25px_rgba(226,160,73,0.45)]"
-                                    onClick={handleNext}
-                                >
-                                    Siguiente <ArrowRight className="w-4 h-4" />
-                                </button>
-                            ) : (
-                                <button
-                                    type="button"
-                                    disabled={sendStatus === 'saving'}
-                                    className="inline-flex items-center gap-2 px-8 py-3 rounded-2xl bg-[#25D366] text-white font-bold text-[1rem] transition-all hover:bg-[#128c7e] active:scale-95 shadow-[0_4px_15px_rgba(37,211,102,0.35)] hover:shadow-[0_8_25px_rgba(37,211,102,0.45)] disabled:opacity-70 disabled:cursor-not-allowed"
-                                    onClick={handleCotizar}
-                                >
-                                    {sendStatus === 'saving' ? (
-                                        <><Loader2 className="w-5 h-5 animate-spin" /> Guardando...</>
-                                    ) : (
-                                        <><WhatsappIcon className="w-5 h-5" /> Cotizar</>
-                                    )}
-                                </button>
-                            )}
-                        </div>
-                    </div>
-                </div>
-            )}
         </div>
     );
 }
