@@ -94,12 +94,13 @@ export default function WizardStep1({ wizard, eventTypes }: Props) {
                             type="date"
                             required
                             min={today}
-                            className="w-full p-3 sm:p-4 border-2 border-brand-border rounded-2xl text-[0.95rem] sm:text-[1rem] font-sans text-brand-text bg-white transition-all focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 hover:border-primary/30"
+                            className="w-full px-3 py-3 sm:p-4 border-2 border-brand-border rounded-2xl text-[0.95rem] sm:text-[1rem] font-sans text-brand-text bg-white transition-all focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 hover:border-primary/30 [appearance:none] min-h-[52px] sm:min-h-[58px]"
                             value={state.eventData.date}
                             onChange={(e) => {
                                 const newDate = e.target.value;
                                 updateEventData('date', newDate);
                             }}
+                            onClick={(e) => e.currentTarget.showPicker?.()}
                         />
                     </div>
                 </div>
@@ -108,14 +109,17 @@ export default function WizardStep1({ wizard, eventTypes }: Props) {
                     <div className="relative group/input">
                         <input
                             id="wizard-start-time"
-                            type={state.eventData.startTime ? "time" : "text"}
-                            placeholder="Dato opcional"
-                            onFocus={(e) => (e.target.type = "time")}
-                            onBlur={(e) => { if (!e.target.value) e.target.type = "text"; }}
-                            className="w-full p-3 sm:p-4 border-2 border-brand-border rounded-2xl text-[0.95rem] sm:text-[1rem] font-sans text-brand-text bg-white transition-all focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 hover:border-primary/30"
+                            type="time"
+                            className="w-full px-3 py-3 sm:p-4 border-2 border-brand-border rounded-2xl text-[0.95rem] sm:text-[1rem] font-sans text-brand-text bg-white transition-all focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 hover:border-primary/30 [appearance:none] min-h-[52px] sm:min-h-[58px]"
                             value={state.eventData.startTime}
                             onChange={(e) => updateEventData('startTime', e.target.value)}
+                            onClick={(e) => e.currentTarget.showPicker?.()}
                         />
+                        {!state.eventData.startTime && (
+                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-brand-text-muted pointer-events-none font-sans text-[0.95rem] sm:text-[1rem]">
+                                Dato opcional
+                            </span>
+                        )}
                     </div>
                 </div>
             </div>
@@ -125,18 +129,23 @@ export default function WizardStep1({ wizard, eventTypes }: Props) {
                 {state.eventData.startTime && (
                     <div className="animate-fade-in flex flex-col">
                         <label htmlFor="wizard-pickup-date" className="block font-bold mb-2 text-brand-text text-[0.9rem] sm:text-[0.95rem]">Fecha de Retiro</label>
-                        <input
-                            id="wizard-pickup-date"
-                            type={state.eventData.pickupDate ? "date" : "text"}
-                            min={minPickupDate}
-                            max={maxPickupDate}
-                            placeholder="Dato opcional"
-                            onFocus={(e) => (e.target.type = "date")}
-                            onBlur={(e) => { if (!e.target.value) e.target.type = "text"; }}
-                            className="w-full p-3 sm:p-4 border-2 border-brand-border rounded-2xl text-[0.95rem] sm:text-[1rem] font-sans text-brand-text bg-white transition-all focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 hover:border-primary/30"
-                            value={state.eventData.pickupDate}
-                            onChange={(e) => updateEventData('pickupDate', e.target.value)}
-                        />
+                        <div className="relative group/input">
+                            <input
+                                id="wizard-pickup-date"
+                                type="date"
+                                min={minPickupDate}
+                                max={maxPickupDate}
+                                className="w-full px-3 py-3 sm:p-4 border-2 border-brand-border rounded-2xl text-[0.95rem] sm:text-[1rem] font-sans text-brand-text bg-white transition-all focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 hover:border-primary/30 [appearance:none] min-h-[52px] sm:min-h-[58px]"
+                                value={state.eventData.pickupDate}
+                                onChange={(e) => updateEventData('pickupDate', e.target.value)}
+                                onClick={(e) => e.currentTarget.showPicker?.()}
+                            />
+                            {!state.eventData.pickupDate && (
+                                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-brand-text-muted pointer-events-none font-sans text-[0.95rem] sm:text-[1rem]">
+                                    Dato opcional
+                                </span>
+                            )}
+                        </div>
                     </div>
                 )}
                 {state.eventData.pickupDate && state.eventData.pickupDate !== state.eventData.date && (

@@ -3,10 +3,11 @@ import SettingsClient from './SettingsClient';
 
 async function getSettings() {
     const db = createServerClient();
-    const [settingsRes, eventRes, comunasRes] = await Promise.all([
+    const [settingsRes, eventRes, comunasRes, siteSettingsRes] = await Promise.all([
         db.from('admin_settings').select('key, value'),
         db.from('event_types').select('*').order('display_order', { ascending: true }),
-        db.from('comunas').select('*').order('display_order', { ascending: true })
+        db.from('comunas').select('*').order('display_order', { ascending: true }),
+        db.from('site_settings').select('*').order('category', { ascending: true })
     ]);
 
     const data = settingsRes.data || [];
@@ -18,7 +19,8 @@ async function getSettings() {
         reviewTemplate: map['review_template'] || '',
         reviewLink: map['review_link'] || 'https://cocktailsontap.cl/google',
         eventTypes: eventRes.data || [],
-        comunas: comunasRes.data || []
+        comunas: comunasRes.data || [],
+        siteSettings: siteSettingsRes.data || []
     };
 }
 

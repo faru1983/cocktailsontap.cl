@@ -16,6 +16,7 @@ import {
 
 import { QuoteService } from '@/lib/services/quoteService';
 import { GoogleSyncService } from '@/lib/services/googleSyncService';
+import { SettingsService } from '@/lib/services/settingsService';
 import { createServerClient } from '@/lib/supabaseServer'; // temporal while some logic resides here
 
 interface ConfirmQuoteResult {
@@ -172,10 +173,28 @@ export async function confirmQuote(input: any): Promise<ConfirmQuoteResult> {
                     : '';
                 const fullName = `${fullQuote.client_name} ${fullQuote.client_lastname || ''}`.trim();
 
+
+                const emailVars = {
+                    full_name: fullName,
+                    event_date: eventDate
+                };
+
+                const adminSubject = await SettingsService.getResolvedValue(
+                    'email_quote_confirmed_admin_subject',
+                    emailVars,
+                    `✅ [Reserva Confirmada] ${fullName} – ${eventDate}`
+                );
+
+                const clientSubject = await SettingsService.getResolvedValue(
+                    'email_quote_confirmed_subject',
+                    emailVars,
+                    `✅ Reserva confirmada – ${eventDate}`
+                );
+
                 emailPromises.push(resend.emails.send({
                     from: FROM_EMAIL,
                     to: ADMIN_EMAIL,
-                    subject: `✅ [Reserva Confirmada] ${fullName} – ${eventDate}`,
+                    subject: adminSubject,
                     html: adminHtml,
                 }));
 
@@ -183,7 +202,7 @@ export async function confirmQuote(input: any): Promise<ConfirmQuoteResult> {
                     emailPromises.push(resend.emails.send({
                         from: FROM_EMAIL,
                         to: fullQuote.client_email,
-                        subject: `✅ Reserva confirmada – ${eventDate}`,
+                        subject: clientSubject,
                         html: clientHtml,
                     }));
                 }

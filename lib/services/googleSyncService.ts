@@ -4,6 +4,7 @@ import type { WizardState, Quote } from '@/lib/types';
 import { QuoteService } from './quoteService';
 import { calculateMaxPickupDate } from '@/lib/wizardLogic';
 import { createServerClient } from '@/lib/supabaseServer';
+import { SettingsService } from './settingsService';
 
 function formatLiteral(dateStr: string, timeStr: string): string {
     return `${dateStr}T${timeStr}:00`;
@@ -134,14 +135,26 @@ export const GoogleSyncService = {
                   `\nSaldo Pendiente: ${formatClp(totalPending < 0 ? 0 : totalPending)}`
                 : `\nREGISTRO DE PAGOS:\nSaldo Pendiente: ${formatClp(quote.total_price || 0)}`;
             
-            const sharedDescription = `${commentsText}` +
-                                      `Celular: ${quote.client_phone || ''}\n` +
-                                      `Ver Cotización: ${link}\n\n` +
-                                      `PRODUCTOS:\n${itemsText}\n` +
-                                      `Transporte: ${formatClp(quote.shipping_cost || 0)}\n` +
-                                      `Instalación (${dispenserLabel}): ${formatClp(quote.installation_cost || 0)}\n` +
-                                      `Total: ${formatClp(quote.total_price || 0)}\n` +
-                                      `${paymentsSummary}`;
+
+            const variables = {
+                full_name: fullName,
+                guests: quote.guests,
+                phone: quote.client_phone || '',
+                link: link,
+                comments: commentsText,
+                items_list: itemsText,
+                shipping_cost: formatClp(quote.shipping_cost || 0),
+                dispenser_label: dispenserLabel,
+                installation_cost: formatClp(quote.installation_cost || 0),
+                total_price: formatClp(quote.total_price || 0),
+                payments_summary: paymentsSummary,
+            };
+
+            const sharedDescription = await SettingsService.getResolvedValue(
+                'calendar_event_description_template', 
+                variables,
+                `${commentsText}Celular: ${quote.client_phone || ''}\nVer Cotización: ${link}\n\nPRODUCTOS:\n${itemsText}\nTransporte: ${formatClp(quote.shipping_cost || 0)}\nInstalación (${dispenserLabel}): ${formatClp(quote.installation_cost || 0)}\nTotal: ${formatClp(quote.total_price || 0)}\n${paymentsSummary}`
+            );
 
             // Determine if times are provided, else fallback to ALL DAY events.
             const hasStartTime = quote.start_time && quote.start_time !== '--:--';
@@ -153,7 +166,11 @@ export const GoogleSyncService = {
             // 1. Create Service Event (Reserva Calendar)
             try {
                 if (CALENDAR_RESERVA_ID && quote.event_date) {
-                    const serviceSummary = `Cócteles - ${fullName} ${quote.guests}px`;
+                    const serviceSummary = await SettingsService.getResolvedValue(
+                        'calendar_event_summary_template',
+                        variables,
+                        `Cócteles - ${fullName} ${quote.guests}px`
+                    );
                     
                     let startISO, endISO, isAllDay;
 
@@ -187,7 +204,11 @@ export const GoogleSyncService = {
             // 2. Create Pickup Event (Retiro Calendar)
             try {
                 if (CALENDAR_RETIRO_ID && quote.pickup_date) {
-                    const pickupSummary = `Retiro - ${fullName}`;
+                    const pickupSummary = await SettingsService.getResolvedValue(
+                        'calendar_pickup_summary_template',
+                        variables,
+                        `Retiro - ${fullName}`
+                    );
                     
                     let pStartISO, pEndISO, pIsAllDay;
 

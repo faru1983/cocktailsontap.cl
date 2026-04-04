@@ -8,6 +8,7 @@ import { ADMIN_EMAIL, FROM_EMAIL } from '@/lib/config';
 
 import { QuoteService } from '@/lib/services/quoteService';
 import { GoogleSyncService } from '@/lib/services/googleSyncService';
+import { SettingsService } from '@/lib/services/settingsService';
 
 interface CreateQuoteInput {
     state: WizardState;
@@ -73,17 +74,35 @@ export async function createQuote(input: CreateQuoteInput): Promise<CreateQuoteR
                     : '';
                 const fullName = `${fullQuote.client_name} ${fullQuote.client_lastname || ''}`.trim();
 
+
+                const emailVars = {
+                    full_name: fullName,
+                    event_date: eventDate
+                };
+
+                const clientSubject = await SettingsService.getResolvedValue(
+                    'email_quote_draft_subject',
+                    emailVars,
+                    `🍸 Tu cotización – ${eventDate}`
+                );
+
+                const adminSubject = await SettingsService.getResolvedValue(
+                    'email_quote_draft_admin_subject',
+                    emailVars,
+                    `[Nueva Cotización] ${fullName} – ${eventDate}`
+                );
+
                 await Promise.allSettled([
                     resend.emails.send({
                         from: FROM_EMAIL,
                         to: state.contact.email,
-                        subject: `🍸 Tu cotización – ${eventDate}`,
+                        subject: clientSubject,
                         html: clientHtml,
                     }),
                     resend.emails.send({
                         from: FROM_EMAIL,
                         to: ADMIN_EMAIL,
-                        subject: `[Nueva Cotización] ${fullName} – ${eventDate}`,
+                        subject: adminSubject,
                         html: adminHtml,
                     }),
                 ]);

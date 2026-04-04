@@ -757,6 +757,22 @@ export async function bulkUpdateQuoteStatus(ids: string[], status: string) {
     return { success: true };
 }
 
+
+// ── Site Settings (Cerebro Central) Management ──────────────────────────────
+export async function updateSiteSetting(id: string, data: { value: string; is_active: boolean }): Promise<{ success: boolean; error?: string }> {
+    await checkAuth();
+    const db = createServerClient();
+    const { error } = await db.from('site_settings').update({ 
+        value: data.value, 
+        is_active: data.is_active,
+        updated_at: new Date().toISOString() 
+    }).eq('id', id);
+
+    if (error) return { success: false, error: error.message };
+    revalidatePath('/admin/settings');
+    return { success: true };
+}
+
 // Helper: auto-send review if setting is 'auto'
 async function maybeAutoSendReview(quoteId: string, db: any) {
     const { data } = await db.from('admin_settings').select('value').eq('key', 'review_mode').single();
