@@ -105,6 +105,16 @@ export async function updateQuoteItemsAdmin(
 
     } catch (e: any) {
         console.error('Error updating items admin:', e);
+        // Log Error in sync_logs for visibility in the dashboard
+        try {
+            await db.from('sync_logs').insert({
+                quote_id: quoteId,
+                type: 'google_calendar',
+                status: 'error',
+                error_msg: `Error sincronizando items: ${e.message || 'Error desconocido'}`
+            });
+        } catch (logErr) { console.error('Error writing to sync_logs:', logErr); }
+        
         return { success: false, error: e.message };
     }
 }
@@ -228,8 +238,17 @@ export async function updateQuoteAdmin(quoteId: string, data: Record<string, any
                     email: updatedClient.email,
                     phone: updatedClient.phone || '',
                 });
-            } catch (e) {
+            } catch (e: any) {
                 console.error('Error syncing Google Contact in updateQuoteAdmin:', e);
+                // Log Contact Sync Error
+                try {
+                    await db.from('sync_logs').insert({
+                        quote_id: quoteId,
+                        type: 'google_contact',
+                        status: 'error',
+                        error_msg: `Error actualizando contacto: ${e.message || 'Error desconocido'}`
+                    });
+                } catch (logErr) { console.error('Error writing to sync_logs:', logErr); }
             }
         }
     }
@@ -258,8 +277,17 @@ export async function updateQuoteAdmin(quoteId: string, data: Record<string, any
                     await db.from('quotes').update(dbUpdates).eq('id', quoteId);
                 }
             }
-        } catch (e) {
+        } catch (e: any) {
             console.error('Admin: Error syncing calendar after update', e);
+            // Log Calendar Sync Error
+            try {
+                await db.from('sync_logs').insert({
+                    quote_id: quoteId,
+                    type: 'google_calendar',
+                    status: 'error',
+                    error_msg: `Error actualizando calendario: ${e.message || 'Error desconocido'}`
+                });
+            } catch (logErr) { console.error('Error writing to sync_logs:', logErr); }
         }
     }
 

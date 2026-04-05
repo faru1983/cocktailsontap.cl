@@ -490,10 +490,10 @@ export default function SettingsClient({
                                         <p className="m-0 text-[10px] text-[#E2A049] font-black uppercase tracking-widest mb-1.5">Variables dinámicas:</p>
                                         <div className="flex flex-wrap gap-1.5">
                                             {(modalData.data.category === 'calendar' 
-                                                ? ['full_name', 'guests', 'phone', 'link', 'comments', 'items_list', 'shipping_cost', 'total_price', 'payments_summary'] 
+                                                ? ['full_name', 'email', 'phone', 'event_date', 'pickup_date', 'start_time', 'pickup_time', 'event_type', 'comuna', 'address', 'guests', 'total_liters', 'link', 'items_list', 'total_price', 'payments_summary', 'comments'] 
                                                 : ['full_name', 'event_date', 'first_name', 'quote_url']
                                             ).map(variable => (
-                                                <code key={variable} className="bg-black/20 text-slate-500 text-[10px] px-1.5 py-0.5 rounded border border-white/5">{`{{${variable}}}`}</code>
+                                                <code key={variable} className="bg-black/20 text-slate-400 text-[9px] px-1.5 py-0.5 rounded border border-white/5">{`{{${variable}}}`}</code>
                                             ))}
                                         </div>
                                     </div>
