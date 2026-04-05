@@ -58,15 +58,6 @@ export default function WizardStep6({ wizard, cocktails, comunas }: Props) {
                 }}
             />
 
-            <div className="mt-8 text-center flex flex-col gap-3 items-center">
-                <button
-                    type="button"
-                    className="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl border-2 border-[#e2e8f0] text-[#64748b] bg-transparent font-bold text-[0.95rem] transition-all hover:bg-[#f1f5f9] hover:text-brand-text cursor-pointer w-full max-w-[300px]"
-                    onClick={() => goToStep(1)}
-                >
-                    <RotateCcw className="w-4 h-4" /> Comenzar de Nuevo
-                </button>
-            </div>
         </div>
     );
 }

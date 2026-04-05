@@ -1,150 +1,98 @@
 'use client';
 
+import { calculateSmartConfig } from '@/hooks/useWizard';
 import type { useWizard } from '@/hooks/useWizard';
-import type { Comuna } from '@/lib/types';
-import { formatPhoneNumber } from '@/lib/utils';
+import { Info, Sparkles } from 'lucide-react';
+
+import InfoTooltip from '@/components/ui/InfoTooltip';
 
 type WizardHook = ReturnType<typeof useWizard>;
 
-interface Props {
-    wizard: WizardHook;
-    comunas: Comuna[];
-}
-
-export default function WizardStep2({ wizard, comunas }: Props) {
-    const { state, updateContact } = wizard;
+export default function WizardStep2({ wizard }: { wizard: WizardHook }) {
+    const { state, updateConsumption } = wizard;
+    const guests = Math.max(state.consumption.guests, 1);
+    const { config, liters, totalDrinks } = calculateSmartConfig(guests, state.consumption.drinksPerPerson);
+    const avgDrinks = (totalDrinks / guests).toFixed(1);
 
     return (
-        <div className="flex flex-col space-y-6">
-            <div className="mb-4">
-                <h3 className="text-2xl font-extrabold text-brand-text mb-2">5. Datos de Contacto</h3>
-                <p className="text-brand-text-muted text-[0.95rem] leading-relaxed">Completa tus datos para enviarte la cotización formal.</p>
-            </div>
+        <div className="flex flex-col">
+            <h3 className="text-2xl font-extrabold text-brand-text mb-2">2. Preferencias de Consumo</h3>
+            <p className="text-brand-text-muted text-[0.95rem] mb-8 leading-relaxed">Ajusta la intensidad de la barra según el perfil de tus invitados.</p>
 
-            {/* Fila 1: Nombre y Apellido (Obligatorios) */}
-            <div className="grid grid-cols-2 gap-4 sm:gap-6">
-                <div>
-                    <label htmlFor="wizard-firstname" className="block font-bold mb-2 text-brand-text text-[0.85rem] sm:text-[0.9rem]">Nombre <span className="text-primary">*</span></label>
-                    <input
-                        id="wizard-firstname"
-                        name="given-name"
-                        autoComplete="given-name"
-                        type="text"
-                        required
-                        placeholder="Ej: Juan"
-                        className="w-full p-3.5 border-2 border-brand-border rounded-xl text-[1rem] font-sans text-brand-text bg-white transition-all focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 pl-4"
-                        value={state.contact.firstName}
-                        onChange={(e) => updateContact('firstName', e.target.value)}
-                    />
+            {/* Slider de Consumo */}
+            <div className="mb-10 bg-white p-6 rounded-2xl border-2 border-brand-border shadow-sm">
+                <div className="flex items-center gap-2 mb-1">
+                    <label className="block font-bold text-brand-text text-[1rem]">Cócteles promedio por persona</label>
+                    <InfoTooltip message="Recomendamos 3 a 4 cócteles para celebraciones de día y +5 para fiestas que duren toda la noche." position="right" />
                 </div>
-                <div>
-                    <label htmlFor="wizard-lastname" className="block font-bold mb-2 text-brand-text text-[0.9rem]">Apellido <span className="text-primary">*</span></label>
-                    <input
-                        id="wizard-lastname"
-                        name="family-name"
-                        autoComplete="family-name"
-                        type="text"
-                        required
-                        placeholder="Ej: Pérez"
-                        className="w-full p-3.5 border-2 border-brand-border rounded-xl text-[1rem] font-sans text-brand-text bg-white transition-all focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 pl-4"
-                        value={state.contact.lastName}
-                        onChange={(e) => updateContact('lastName', e.target.value)}
-                    />
-                </div>
-            </div>
+                <p className="text-brand-text-muted text-[0.85rem] mb-8">¿Cuántos cócteles estimas que consumirá cada invitado?</p>
 
-            {/* Fila 2: Email y Celular */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                    <label htmlFor="wizard-email" className="block font-bold mb-2 text-brand-text text-[0.9rem]">Email <span className="text-primary">*</span></label>
-                    <input
-                        id="wizard-email"
-                        name="email"
-                        autoComplete="email"
-                        type="email"
-                        required
-                        placeholder="ejemplo@correo.com"
-                        className="w-full p-3.5 border-2 border-brand-border rounded-xl text-[1rem] font-sans text-brand-text bg-white transition-all focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 pl-4"
-                        value={state.contact.email}
-                        onChange={(e) => updateContact('email', e.target.value)}
-                    />
-                </div>
-                <div>
-                    <label htmlFor="wizard-phone" className="block font-bold mb-2 text-brand-text text-[0.9rem]">Celular</label>
-                    <input
-                        id="wizard-phone"
-                        name="tel"
-                        autoComplete="tel"
-                        type="tel"
-                        placeholder="+569-12345678"
-                        className="w-full p-3.5 border-2 border-brand-border rounded-xl text-[1rem] font-sans text-brand-text bg-white transition-all focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 pl-4"
-                        value={state.contact.phone}
-                        onFocus={(e) => {
-                            if (!e.target.value) updateContact('phone', '+569');
-                        }}
-                        onChange={(e) => {
-                            const formatted = formatPhoneNumber(e.target.value);
-                            updateContact('phone', formatted);
-                        }}
-                    />
+                <div className="flex flex-col md:flex-row items-center gap-8">
+                    <div className="flex-1 w-full flex flex-col gap-3">
+                        <input
+                            type="range"
+                            min={1}
+                            max={10}
+                            step={1}
+                            className="w-full cursor-pointer h-2.5 bg-slate-200 rounded-lg appearance-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-7 [&::-webkit-slider-thumb]:h-7 [&::-webkit-slider-thumb]:bg-primary [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-lg [&::-webkit-slider-thumb]:border-4 [&::-webkit-slider-thumb]:border-white transition-all hover:[&::-webkit-slider-thumb]:scale-110 active:[&::-webkit-slider-thumb]:scale-95"
+                            value={state.consumption.drinksPerPerson}
+                            onChange={(e) => updateConsumption('drinksPerPerson', parseInt(e.target.value))}
+                        />
+                        <div className="flex justify-between text-[0.8rem] font-bold text-brand-text-muted px-1">
+                            <span>1 (Suave)</span>
+                            <span>5 (Intermedio)</span>
+                            <span>10 (Intenso)</span>
+                        </div>
+                    </div>
+
+                    <div className="flex flex-col items-center justify-center bg-primary/10 border-2 border-primary/20 rounded-[20px] p-4 min-w-[140px] shadow-sm">
+                        <span className="text-[0.7rem] uppercase font-bold text-primary mb-1">CÓCTELES X PERS.</span>
+                        <input
+                            type="number"
+                            min={1}
+                            max={20}
+                            className="w-full bg-transparent text-center font-black text-4xl text-primary outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                            value={state.consumption.drinksPerPerson}
+                            onChange={(e) => updateConsumption('drinksPerPerson', Math.max(1, parseInt(e.target.value) || 1))}
+                        />
+                    </div>
                 </div>
             </div>
 
-            {/* Fila 3: Comuna */}
-            <div>
-                <label htmlFor="wizard-comuna" className="block font-bold mb-2 text-brand-text text-[0.9rem]">Comuna <span className="text-primary">*</span></label>
-                <select
-                    id="wizard-comuna"
-                    required
-                    className="w-full p-3.5 border-2 border-brand-border rounded-xl text-[1rem] font-sans text-brand-text bg-white transition-all focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 appearance-none bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20width%3D%2220%22%20height%3D%2220%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cpath%20d%3D%22M5%207l5%205%205-5%22%20stroke%3D%22%2364748b%22%20stroke-width%3D%222%22%20fill%3D%22none%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%2F%3E%3C%2Fsvg%3E')] bg-no-repeat bg-[position:right_1rem_center]"
-                    value={state.contact.comuna}
-                    onChange={(e) => updateContact('comuna', e.target.value)}
-                >
-                    <option value="">Selecciona comuna...</option>
-                    {comunas.map((c) => (
-                        <option key={c.name} value={c.name}>{c.name}</option>
-                    ))}
-                </select>
-            </div>
-
-            {state.contact.comuna === 'Otra' && (
-                <div className="animate-slide-up">
-                    <label className="block font-bold mb-2 text-brand-text text-[0.9rem]">Especificar Comuna</label>
-                    <input
-                        type="text"
-                        placeholder="Indica tu comuna"
-                        className="w-full p-3.5 border-2 border-brand-border rounded-xl text-[1rem] font-sans text-brand-text bg-white transition-all focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 pl-4"
-                        value={state.contact.otherComuna}
-                        onChange={(e) => updateContact('otherComuna', e.target.value)}
-                    />
+            {/* Recomendación inteligente */}
+            <div className="relative overflow-hidden bg-gradient-to-br from-[#fff7ed] to-[#fffbeb] border-2 border-primary/50 rounded-[24px] p-8 shadow-md">
+                <div className="absolute top-0 right-0 p-4 opacity-10">
+                    <Sparkles className="w-20 h-20 text-primary" />
                 </div>
-            )}
 
-            {/* Dirección */}
-            <div className="animate-slide-up">
-                <label htmlFor="wizard-address" className="block font-bold mb-2 text-brand-text text-[0.9rem]">Dirección del Evento</label>
-                <input
-                    id="wizard-address"
-                    name="street-address"
-                    autoComplete="street-address"
-                    type="text"
-                    placeholder="Dato opcional"
-                    className="w-full p-3.5 border-2 border-brand-border rounded-xl text-[1rem] font-sans text-brand-text bg-white transition-all focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 pl-4"
-                    value={state.contact.address}
-                    onChange={(e) => updateContact('address', e.target.value)}
-                />
-            </div>
+                <div className="flex items-center gap-2 text-[0.8rem] uppercase text-primary font-black tracking-widest mb-4">
+                    <Sparkles className="w-4 h-4" />
+                    Recomendación de Expertos
+                </div>
 
-            {/* Comentarios */}
-            <div className="animate-slide-up">
-                <label className="block font-bold mb-2 text-brand-text text-[0.9rem]">Comentarios</label>
-                <textarea
-                    rows={3}
-                    placeholder="Dato opcional"
-                    className="w-full p-3.5 border-2 border-brand-border rounded-xl text-[1rem] font-sans text-brand-text bg-white transition-all focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 resize-none pl-4"
-                    value={state.contact.comments}
-                    onChange={(e) => updateContact('comments', e.target.value)}
-                />
+                <div className="mb-6 text-center">
+                    <p className="text-[1.1rem] text-brand-text-muted leading-relaxed">
+                        Para asegurar una barra continua durante todo el evento a <strong>{guests} invitados</strong>, sugerimos solicitar:
+                    </p>
+                    <span className="block mt-4 text-[1.8rem] text-brand-text font-black leading-[1.1] text-balance">
+                        {config}
+                    </span>
+                </div>
+
+                <div className="grid grid-cols-3 gap-3 bg-white/60 backdrop-blur-sm rounded-2xl p-4 border border-primary/10">
+                    <div className="text-center">
+                        <span className="block text-[1.4rem] font-black text-primary leading-none">{liters}L</span>
+                        <span className="text-[0.6rem] uppercase text-brand-text-muted font-bold tracking-tighter">Volumen</span>
+                    </div>
+                    <div className="text-center border-x border-primary/10">
+                        <span className="block text-[1.4rem] font-black text-primary leading-none">{totalDrinks}</span>
+                        <span className="text-[0.6rem] uppercase text-brand-text-muted font-bold tracking-tighter">Cócteles</span>
+                    </div>
+                    <div className="text-center">
+                        <span className="block text-[1.4rem] font-black text-primary leading-none">{avgDrinks}</span>
+                        <span className="text-[0.6rem] uppercase text-brand-text-muted font-bold tracking-tighter">x Persona</span>
+                    </div>
+                </div>
             </div>
         </div>
     );

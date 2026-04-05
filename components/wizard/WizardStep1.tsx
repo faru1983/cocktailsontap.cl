@@ -1,22 +1,13 @@
 'use client';
 
+import React from 'react';
 import type { useWizard } from '@/hooks/useWizard';
 import type { EventType, Comuna } from '@/lib/types';
-import { Cake, Baby, Heart, Briefcase, Plus, type LucideIcon } from 'lucide-react';
+import { renderIconFromKey } from '@/lib/icons';
 import SelectField from '@/components/ui/SelectField';
 import OptionCard from '@/components/ui/OptionCard';
 import QuantitySelector from '@/components/ui/QuantitySelector';
 import { calculateMaxPickupDate, getTodayString } from '@/lib/wizardLogic';
-
-const ICON_MAP: Record<string, LucideIcon> = {
-    'fa-solid fa-cake-candles': Cake,
-    'fa-solid fa-baby': Baby,
-    'fa-solid fa-ring': Heart,
-    'fa-solid fa-briefcase': Briefcase,
-    'fa-solid fa-plus': Plus,
-};
-
-const FallbackIcon = Plus;
 
 type WizardHook = ReturnType<typeof useWizard>;
 
@@ -44,13 +35,12 @@ export default function WizardStep1({ wizard, eventTypes }: Props) {
                 <label className="block font-bold mb-3 text-brand-text text-[0.95rem]">¿Cuál es el motivo de tu celebración?</label>
                 <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-3">
                     {eventTypes.map((t) => {
-                        const Icon = ICON_MAP[t.icon] || FallbackIcon;
                         return (
                             <OptionCard
                                 key={t.id}
                                 id={t.id}
                                 label={t.name}
-                                icon={<Icon className="w-7 h-7" />}
+                                icon={renderIconFromKey(t.icon, 28, "w-7 h-7 text-primary")}
                                 isSelected={state.eventData.type === t.id}
                                 onClick={(id) => updateEventData('type', id)}
                             />
@@ -115,11 +105,6 @@ export default function WizardStep1({ wizard, eventTypes }: Props) {
                             onChange={(e) => updateEventData('startTime', e.target.value)}
                             onClick={(e) => e.currentTarget.showPicker?.()}
                         />
-                        {!state.eventData.startTime && (
-                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-brand-text-muted pointer-events-none font-sans text-[0.95rem] sm:text-[1rem]">
-                                Dato opcional
-                            </span>
-                        )}
                     </div>
                 </div>
             </div>
@@ -140,11 +125,6 @@ export default function WizardStep1({ wizard, eventTypes }: Props) {
                                 onChange={(e) => updateEventData('pickupDate', e.target.value)}
                                 onClick={(e) => e.currentTarget.showPicker?.()}
                             />
-                            {!state.eventData.pickupDate && (
-                                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-brand-text-muted pointer-events-none font-sans text-[0.95rem] sm:text-[1rem]">
-                                    Dato opcional
-                                </span>
-                            )}
                         </div>
                     </div>
                 )}

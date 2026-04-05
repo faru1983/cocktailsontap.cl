@@ -108,6 +108,7 @@ export function useWizard(cocktails: CocktailForWizard[], comunas: Comuna[], cat
             if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(c.email)) {
                 return { valid: false, message: 'El formato del email no es válido.' };
             }
+            if (!c.phone.trim() || c.phone === '+569') return { valid: false, message: 'El celular es obligatorio para contactarte.' };
             if (!c.comuna.trim()) return { valid: false, message: 'Selecciona la comuna.' };
         }
         if (step === 3) {

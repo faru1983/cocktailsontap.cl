@@ -3,7 +3,7 @@
 import { createServerClient } from '@/lib/supabaseServer';
 import { Resend } from 'resend';
 import * as React from 'react';
-import { revalidatePath } from 'next/cache';
+import { revalidatePath, revalidateTag } from 'next/cache';
 import { FROM_EMAIL, SITE_URL } from '@/lib/config';
 import { GoogleSyncService } from '@/lib/services/googleSyncService';
 import { validateSession } from '@/lib/adminAuth';
@@ -711,6 +711,7 @@ export async function saveEventType(data: any) {
     const { error } = await db.from('event_types').upsert(data);
     if (error) throw new Error(error.message);
     revalidatePath('/admin/settings');
+    revalidatePath('/cotizar');
     return { success: true };
 }
 
@@ -720,6 +721,7 @@ export async function deleteEventType(id: string) {
     const { error } = await db.from('event_types').delete().eq('id', id);
     if (error) throw new Error(error.message);
     revalidatePath('/admin/settings');
+    revalidatePath('/cotizar');
     return { success: true };
 }
 
@@ -730,6 +732,7 @@ export async function saveComuna(data: any) {
     const { error } = await db.from('comunas').upsert(data);
     if (error) throw new Error(error.message);
     revalidatePath('/admin/settings');
+    revalidatePath('/cotizar');
     return { success: true };
 }
 
@@ -739,6 +742,7 @@ export async function deleteComuna(id: string) {
     const { error } = await db.from('comunas').delete().eq('id', id);
     if (error) throw new Error(error.message);
     revalidatePath('/admin/settings');
+    revalidatePath('/cotizar');
     return { success: true };
 }
 

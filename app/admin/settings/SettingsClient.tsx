@@ -1,5 +1,7 @@
 'use client';
 
+import React from 'react';
+
 import { useState, useTransition } from 'react';
 import { 
     saveAdminSettings, 
@@ -12,6 +14,7 @@ import {
 } from '@/app/actions/admin/adminActions';
 import Modal from '@/components/admin/Modal';
 import { Plus, Trash2, Edit2, MapPin, Calendar, Layout, Cpu } from 'lucide-react';
+import { ICON_CATALOG, renderIconFromKey } from '@/lib/icons';
 
 export default function SettingsClient({ 
     reviewMode, 
@@ -113,6 +116,11 @@ export default function SettingsClient({
     const formatCLP = (n: number | null) => {
         if (n === null) return '—';
         return new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0 }).format(n);
+    };
+
+    // Helper para renderizar iconos del catálogo o texto (emojis)
+    const renderIcon = (iconKey: string, size: number = 24, className?: string) => {
+        return renderIconFromKey(iconKey, size, className);
     };
 
     return (
@@ -224,8 +232,8 @@ export default function SettingsClient({
                         <table className="w-full border-collapse">
                             <thead>
                                 <tr className="bg-white/[0.02]">
-                                    <th className="text-left px-6 py-4 text-slate-500 text-[10px] font-black uppercase tracking-widest">Icono</th>
                                     <th className="text-left px-6 py-4 text-slate-500 text-[10px] font-black uppercase tracking-widest">Nombre</th>
+                                    <th className="text-left px-6 py-4 text-slate-500 text-[10px] font-black uppercase tracking-widest">Icono</th>
                                     <th className="text-center px-6 py-4 text-slate-500 text-[10px] font-black uppercase tracking-widest">Orden</th>
                                     <th className="text-right px-6 py-4 text-slate-500 text-[10px] font-black uppercase tracking-widest">Acciones</th>
                                 </tr>
@@ -233,7 +241,11 @@ export default function SettingsClient({
                             <tbody>
                                 {initialEventTypes.map(item => (
                                     <tr key={item.id} className="border-t border-white/5 hover:bg-white/[0.01] transition-colors">
-                                        <td className="px-6 py-4 text-2xl">{item.icon}</td>
+                                        <td className="px-6 py-4">
+                                            <div className="w-10 h-10 flex items-center justify-center bg-white/5 rounded-lg text-[#E2A049]">
+                                                {renderIcon(item.icon, 20)}
+                                            </div>
+                                        </td>
                                         <td className="px-6 py-4 text-slate-100 font-semibold">{item.name}</td>
                                         <td className="px-6 py-4 text-slate-400 text-sm text-center">{item.display_order}</td>
                                         <td className="px-6 py-4 text-right">
@@ -252,16 +264,18 @@ export default function SettingsClient({
                     <div className="grid grid-cols-1 gap-4 md:hidden">
                         {initialEventTypes.map(item => (
                             <div key={item.id} className="bg-[#1e2433] p-5 rounded-2xl border border-white/5 shadow-md flex justify-between items-center transition-transform active:scale-95">
-                                <div className="flex items-center gap-4">
-                                    <span className="text-3xl bg-white/5 w-14 h-14 rounded-xl flex items-center justify-center border border-white/5">{item.icon}</span>
-                                    <div>
-                                        <div className="text-slate-100 font-bold text-base">{item.name}</div>
-                                        <div className="text-slate-500 text-[10px] font-bold uppercase mt-0.5">Orden: {item.display_order}</div>
+                                <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-3 mb-2">
+                                        <div className="w-10 h-10 flex items-center justify-center bg-white/5 rounded-xl border border-white/5 text-[#E2A049]">
+                                            {renderIcon(item.icon, 22)}
+                                        </div>
+                                        <div className="text-slate-100 font-extrabold text-lg truncate">{item.name}</div>
                                     </div>
+                                    <div className="text-slate-500 text-[10px] font-bold uppercase tracking-wider ml-[52px]">Orden: {item.display_order}</div>
                                 </div>
-                                <div className="flex flex-col gap-3">
-                                    <button onClick={() => openModal('event', item)} className="p-2.5 bg-white/5 rounded-lg text-slate-400 border border-white/5"><Edit2 size={18} /></button>
-                                    <button onClick={() => handleDelete(item.id, item.name, 'event')} className="p-2.5 bg-red-500/5 rounded-lg text-red-400/70 border border-red-500/10"><Trash2 size={18} /></button>
+                                <div className="flex gap-2 ml-4">
+                                    <button onClick={() => openModal('event', item)} className="p-3 bg-white/5 rounded-xl text-slate-400 border border-white/5 hover:text-[#E2A049] transition-colors"><Edit2 size={18} /></button>
+                                    <button onClick={() => handleDelete(item.id, item.name, 'event')} className="p-3 bg-red-500/5 rounded-xl text-red-400/70 border border-red-500/10 hover:text-red-400 transition-colors"><Trash2 size={18} /></button>
                                 </div>
                             </div>
                         ))}
@@ -399,9 +413,29 @@ export default function SettingsClient({
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-slate-500 text-[10px] font-black uppercase tracking-wider mb-2 text-left">Icono (Emoji)</label>
-                                    <input type="text" required value={modalData.data.icon} onChange={e => setModalData({ ...modalData, data: { ...modalData.data, icon: e.target.value } })} 
-                                        className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-slate-100 text-2xl text-center focus:outline-none focus:border-[#E2A049]/50 transition-all" 
+                                    <label className="block text-slate-500 text-[10px] font-black uppercase tracking-wider mb-3 text-left">Elige un Icono para el Evento</label>
+                                    <div className="grid grid-cols-4 sm:grid-cols-5 gap-2 max-h-[220px] overflow-y-auto p-2 bg-black/20 rounded-2xl border border-white/5 scrollbar-thin">
+                                        {ICON_CATALOG.map((iconItem) => {
+                                            const isSelected = modalData.data.icon?.toLowerCase() === iconItem.id.toLowerCase();
+                                            return (
+                                                <button 
+                                                    key={iconItem.id} 
+                                                    type="button"
+                                                    onClick={() => setModalData({ ...modalData, data: { ...modalData.data, icon: iconItem.id } })}
+                                                    className={`aspect-square flex flex-col items-center justify-center p-2 rounded-xl transition-all border ${isSelected ? 'bg-[#E2A049]/20 border-[#E2A049] text-[#E2A049] shadow-inner' : 'bg-white/5 border-white/5 text-slate-400 hover:bg-white/10 hover:border-white/10'}`}
+                                                    title={iconItem.name}
+                                                >
+                                                    {React.createElement(iconItem.component, { size: 24 })}
+                                                    <span className="text-[8px] mt-1 font-bold truncate w-full text-center">{iconItem.name}</span>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="block text-slate-500 text-[10px] font-black uppercase tracking-wider mb-2 text-left">Orden de Aparición</label>
+                                    <input type="number" required value={modalData.data.display_order} onChange={e => setModalData({ ...modalData, data: { ...modalData.data, display_order: Number(e.target.value) } })} 
+                                        className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-slate-100 text-sm focus:outline-none focus:border-[#E2A049]/50 transition-all" 
                                     />
                                 </div>
                             </>

@@ -1,158 +1,151 @@
 'use client';
 
-import { useMemo, useEffect } from 'react';
-import React from 'react';
-import type { CocktailForWizard, Comuna } from '@/lib/types';
-import { useWizard } from '@/hooks/useWizard';
-import { Check, Info, Box, Layout, Wine, Droplets, Snowflake, Leaf, GlassWater, Martini, Infinity } from 'lucide-react';
-import { formatCurrency } from '@/lib/utils';
-import Image from 'next/image';
+import type { useWizard } from '@/hooks/useWizard';
+import type { Comuna } from '@/lib/types';
+import { formatPhoneNumber } from '@/lib/utils';
+
+type WizardHook = ReturnType<typeof useWizard>;
 
 interface Props {
-    wizard: ReturnType<typeof useWizard>;
-    cocktails: CocktailForWizard[];
+    wizard: WizardHook;
     comunas: Comuna[];
 }
 
-const INCLUYE_ITEMS = [
-    { icon: Wine, label: 'Cócteles Previamente Seleccionados' },
-    { icon: Droplets, label: 'Sistema de Dispensador autoservicio' },
-    { icon: Snowflake, label: 'Hielo suficiente para todo el evento' },
-    { icon: Leaf, label: 'Decoraciones (garnish) deshidratadas' },
-    { icon: GlassWater, label: 'Préstamo de vasos y/o copas' },
-    { icon: Martini, label: 'Accesorios de bar: hieleras, palas, pinzas y más' },
-    { icon: Infinity, label: '¡Sin límite de tiempo!' },
-];
-
-export default function WizardStep5({ wizard }: Props) {
-    const { state, updateDispenser } = wizard;
-    const data = useMemo(() => wizard.calculateSummaryData(),
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-        [state.selections]);
-
-    function getLitersFromSize(size: string): number {
-        if (size.includes('30L')) return 30;
-        if (size.includes('20L')) return 20;
-        if (size.includes('10L')) return 10;
-        if (size.includes('5L')) return 5;
-        return 0;
-    }
-
-    // Strict Muro condition: Only Compatible with 10L, 20L, 30L AND volume >= 30L
-    const canHaveMuro = useMemo(() => {
-        const hasIncompatibleSize = state.selections.some((s: { size: string }) => {
-            const liters = getLitersFromSize(s.size);
-            return liters !== 10 && liters !== 20 && liters !== 30;
-        });
-        return !hasIncompatibleSize && data.totalLiters >= 30;
-    }, [state.selections, data.totalLiters]);
-
-    // If user selected Muro but now doesn't meet the condition (e.g. went back and changed items), reset to portatil
-    useEffect(() => {
-        if (!canHaveMuro && state.dispenser === 'muro') {
-            updateDispenser('portatil');
-        }
-    }, [canHaveMuro, state.dispenser, updateDispenser]);
-
-    const dispensers: { id: 'portatil' | 'muro'; title: string; description: string; image: string; price: number; icon: React.ElementType }[] = [
-        {
-            id: 'portatil',
-            title: 'Dispensador Portátil',
-            description: 'Ideal para eventos simples, sin necesidad de energía eléctrica y adaptable a cualquier espacio.',
-            image: '/assets/dispensador3.webp',
-            price: 0,
-            icon: Box
-        },
-        ...(canHaveMuro ? [{
-            id: 'muro' as const,
-            title: 'Muro de Coctelería',
-            description: 'Opción decorativa y elegante para matrimonios y eventos corporativos de gran escala.',
-            image: '/assets/dispensador4.webp',
-            price: 50000,
-            icon: Layout
-        }] : [])
-    ];
+export default function WizardStep5({ wizard, comunas }: Props) {
+    const { state, updateContact } = wizard;
 
     return (
-        <div className="flex flex-col gap-8">
-            <div>
-                <h3 className="text-2xl font-extrabold text-brand-text mb-2">4. Sistema de Dispensación</h3>
-                <p className="text-brand-text-muted text-[0.95rem] leading-relaxed">
-                    Selecciona el sistema que mejor se adapte a tu evento.
-                </p>
+        <div className="flex flex-col space-y-6">
+            <div className="mb-4">
+                <h3 className="text-2xl font-extrabold text-brand-text mb-2">5. Datos de Contacto</h3>
+                <p className="text-brand-text-muted text-[0.95rem] leading-relaxed">Completa tus datos para enviarte la cotización formal.</p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {dispensers.map((disp) => (
-                    <button
-                        key={disp.id}
-                        type="button"
-                        onClick={() => updateDispenser(disp.id)}
-                        className={`relative flex flex-col items-stretch p-0 rounded-3xl border-2 transition-all overflow-hidden text-left bg-white group shadow-sm hover:shadow-md
-                            ${state.dispenser === disp.id
-                                ? 'border-primary ring-4 ring-primary/10'
-                                : 'border-brand-border hover:border-primary/40'}
-                        `}
-                    >
-                        <div className="relative h-48 w-full overflow-hidden">
-                            <Image
-                                src={disp.image}
-                                alt={disp.title}
-                                fill
-                                className="object-cover transition-transform duration-500 group-hover:scale-110"
-                            />
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                            {state.dispenser === disp.id && (
-                                <div className="absolute top-4 right-4 bg-primary text-white p-2 rounded-full shadow-lg">
-                                    <Check className="w-5 h-5" />
-                                </div>
-                            )}
-                            <div className="absolute bottom-4 left-6">
-                                <h4 className="text-white font-black text-xl tracking-tight">{disp.title}</h4>
-                            </div>
-                        </div>
-
-                        <div className="p-6 flex flex-col flex-1">
-                            <p className="text-brand-text-muted text-[0.9rem] leading-relaxed mb-6 flex-1">
-                                {disp.description}
-                            </p>
-
-                            <div className="flex items-center justify-between mt-auto pt-4 border-t border-brand-border">
-                                <span className={`font-bold text-[0.9rem] ${disp.price === 0 ? 'text-primary' : 'text-brand-text'}`}>
-                                    {disp.price === 0 ? 'Instalación Gratis' : `Instalación: ${formatCurrency(disp.price)}`}
-                                </span>
-                                <div className={`px-4 py-1.5 rounded-full text-[0.8rem] font-black uppercase tracking-wider transition-colors
-                                    ${state.dispenser === disp.id ? 'bg-primary text-white' : 'bg-slate-100 text-slate-500 group-hover:bg-primary/10 group-hover:text-primary'}
-                                `}>
-                                    {state.dispenser === disp.id ? 'Seleccionado' : 'Seleccionar'}
-                                </div>
-                            </div>
-                        </div>
-                    </button>
-                ))}
-            </div>
-
-
-            {/* Qué incluye */}
-            <div className="mt-4 pt-8 border-t border-brand-border">
-                <h4 className="text-lg font-black text-brand-text mb-6 flex items-center gap-2">
-                    <Check className="w-5 h-5 text-primary" />
-                    ¿Qué incluye nuestro servicio?
-                </h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {INCLUYE_ITEMS.map((item, i) => (
-                        <div
-                            key={i}
-                            className="flex items-center gap-3 bg-slate-50 p-4 rounded-xl border border-brand-border transition-colors hover:border-primary/30"
-                        >
-                            <item.icon className="w-5 h-5 text-primary shrink-0" />
-                            <span className="text-[0.85rem] font-bold text-brand-text">{item.label}</span>
-                        </div>
-                    ))}
+            {/* Fila 1: Nombre y Apellido (Obligatorios) */}
+            <div className="grid grid-cols-2 gap-4 sm:gap-6">
+                <div>
+                    <label htmlFor="wizard-firstname" className="block font-bold mb-2 text-brand-text text-[0.85rem] sm:text-[0.9rem]">Nombre <span className="text-primary">*</span></label>
+                    <input
+                        id="wizard-firstname"
+                        name="given-name"
+                        autoComplete="given-name"
+                        type="text"
+                        required
+                        placeholder="Ej: Juan"
+                        className="w-full p-3.5 border-2 border-brand-border rounded-xl text-[1rem] font-sans text-brand-text bg-white transition-all focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 pl-4"
+                        value={state.contact.firstName}
+                        onChange={(e) => updateContact('firstName', e.target.value)}
+                    />
                 </div>
-                <p className="mt-6 text-[0.85rem] text-brand-text-muted italic text-center">
-                    Nos encargamos de la instalación horas antes del inicio y del retiro al finalizar, sin costos ocultos.
-                </p>
+                <div>
+                    <label htmlFor="wizard-lastname" className="block font-bold mb-2 text-brand-text text-[0.9rem]">Apellido <span className="text-primary">*</span></label>
+                    <input
+                        id="wizard-lastname"
+                        name="family-name"
+                        autoComplete="family-name"
+                        type="text"
+                        required
+                        placeholder="Ej: Pérez"
+                        className="w-full p-3.5 border-2 border-brand-border rounded-xl text-[1rem] font-sans text-brand-text bg-white transition-all focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 pl-4"
+                        value={state.contact.lastName}
+                        onChange={(e) => updateContact('lastName', e.target.value)}
+                    />
+                </div>
+            </div>
+
+            {/* Fila 2: Email y Celular */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label htmlFor="wizard-email" className="block font-bold mb-2 text-brand-text text-[0.9rem]">Email <span className="text-primary">*</span></label>
+                    <input
+                        id="wizard-email"
+                        name="email"
+                        autoComplete="email"
+                        type="email"
+                        required
+                        placeholder="ejemplo@correo.com"
+                        className="w-full p-3.5 border-2 border-brand-border rounded-xl text-[1rem] font-sans text-brand-text bg-white transition-all focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 pl-4"
+                        value={state.contact.email}
+                        onChange={(e) => updateContact('email', e.target.value)}
+                    />
+                </div>
+                <div>
+                    <label htmlFor="wizard-phone" className="block font-bold mb-2 text-brand-text text-[0.9rem]">Celular <span className="text-primary">*</span></label>
+                    <input
+                        id="wizard-phone"
+                        name="tel"
+                        autoComplete="tel"
+                        type="tel"
+                        required
+                        placeholder="+569-12345678"
+                        className="w-full p-3.5 border-2 border-brand-border rounded-xl text-[1rem] font-sans text-brand-text bg-white transition-all focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 pl-4"
+                        value={state.contact.phone}
+                        onFocus={(e) => {
+                            if (!e.target.value) updateContact('phone', '+569');
+                        }}
+                        onChange={(e) => {
+                            const formatted = formatPhoneNumber(e.target.value);
+                            updateContact('phone', formatted);
+                        }}
+                    />
+                </div>
+            </div>
+
+            {/* Fila 3: Comuna */}
+            <div>
+                <label htmlFor="wizard-comuna" className="block font-bold mb-2 text-brand-text text-[0.9rem]">Comuna <span className="text-primary">*</span></label>
+                <select
+                    id="wizard-comuna"
+                    required
+                    className="w-full p-3.5 border-2 border-brand-border rounded-xl text-[1rem] font-sans text-brand-text bg-white transition-all focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 appearance-none bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20width%3D%2220%22%20height%3D%2220%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cpath%20d%3D%22M5%207l5%205%205-5%22%20stroke%3D%22%2364748b%22%20stroke-width%3D%222%22%20fill%3D%22none%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%2F%3E%3C%2Fsvg%3E')] bg-no-repeat bg-[position:right_1rem_center]"
+                    value={state.contact.comuna}
+                    onChange={(e) => updateContact('comuna', e.target.value)}
+                >
+                    <option value="">Selecciona comuna...</option>
+                    {comunas.map((c) => (
+                        <option key={c.name} value={c.name}>{c.name}</option>
+                    ))}
+                </select>
+            </div>
+
+            {state.contact.comuna === 'Otra' && (
+                <div className="animate-slide-up">
+                    <label className="block font-bold mb-2 text-brand-text text-[0.9rem]">Especificar Comuna</label>
+                    <input
+                        type="text"
+                        placeholder="Indica tu comuna"
+                        className="w-full p-3.5 border-2 border-brand-border rounded-xl text-[1rem] font-sans text-brand-text bg-white transition-all focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 pl-4"
+                        value={state.contact.otherComuna}
+                        onChange={(e) => updateContact('otherComuna', e.target.value)}
+                    />
+                </div>
+            )}
+
+            {/* Dirección */}
+            <div className="animate-slide-up">
+                <label htmlFor="wizard-address" className="block font-bold mb-2 text-brand-text text-[0.9rem]">Dirección del Evento</label>
+                <input
+                    id="wizard-address"
+                    name="street-address"
+                    autoComplete="street-address"
+                    type="text"
+                    placeholder="Calle 123 Depto 456"
+                    className="w-full p-3.5 border-2 border-brand-border rounded-xl text-[1rem] font-sans text-brand-text bg-white transition-all focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 pl-4"
+                    value={state.contact.address}
+                    onChange={(e) => updateContact('address', e.target.value)}
+                />
+            </div>
+
+            {/* Comentarios */}
+            <div className="animate-slide-up">
+                <label className="block font-bold mb-2 text-brand-text text-[0.9rem]">Comentarios</label>
+                <textarea
+                    rows={3}
+                    placeholder="Cualquier detalle adicional"
+                    className="w-full p-3.5 border-2 border-brand-border rounded-xl text-[1rem] font-sans text-brand-text bg-white transition-all focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 resize-none pl-4"
+                    value={state.contact.comments}
+                    onChange={(e) => updateContact('comments', e.target.value)}
+                />
             </div>
         </div>
     );
