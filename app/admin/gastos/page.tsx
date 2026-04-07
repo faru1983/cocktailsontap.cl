@@ -19,7 +19,7 @@ export default async function GastosPage() {
             *,
             expense_categories (name),
             expense_subcategories (name)
-        `).order('expense_date', { ascending: false }).limit(500),
+        `).order('expense_date', { ascending: false }).limit(150),
         db.from('expense_payment_methods').select('*').order('name')
     ]);
 

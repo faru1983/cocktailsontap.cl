@@ -10,11 +10,10 @@ async function getDashboardData() {
     // 1. Date Calculations
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-    const startOfMonthISO = startOfMonth.toISOString();
     const startOfMonthSQL = startOfMonth.toISOString().split('T')[0];
     const todaySQL = now.toISOString().split('T')[0];
     const endOfMonthSQL = endOfMonth.toISOString().split('T')[0];
-    
+
     const startOfNextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
     const endOfNextMonth = new Date(now.getFullYear(), now.getMonth() + 2, 0);
     const startOfNextMonthSQL = startOfNextMonth.toISOString().split('T')[0];
@@ -25,7 +24,7 @@ async function getDashboardData() {
     const startOfLastYearSQL = `${now.getFullYear() - 1}-01-01`;
     const endOfLastYearSQL = `${now.getFullYear() - 1}-12-31`;
 
-    // 2. Fetch Data in Parallel
+    // 2. Fetch Data in Parallel (Selecting only necessary columns for performance)
     const [
         monthlyResults, 
         monthlyDrafts, 
@@ -36,22 +35,28 @@ async function getDashboardData() {
         yearlyResults, 
         lastYearResults,
         topQuoteItems,
-        nextMonthResults
+        nextMonthResults,
+        monthlyExpensesRes
     ] = await Promise.all([
         db.from('quotes').select('total_price').in('status', ['confirmed', 'completed']).gte('event_date', startOfMonthSQL).lte('event_date', endOfMonthSQL),
         db.from('quotes').select('total_price').eq('status', 'draft').gte('event_date', startOfMonthSQL).lte('event_date', endOfMonthSQL),
         db.from('clients').select('id', { count: 'exact', head: true }),
         db.from('quotes').select('id, token, status, client_name, client_lastname, event_date, total_price, created_at').order('created_at', { ascending: false }).limit(5),
         db.from('quotes').select('id, client_name, client_lastname, event_date, start_time, total_price, guests, status, comuna_name, comuna_other').in('status', ['confirmed', 'completed']).gte('event_date', todaySQL).lte('event_date', endOfMonthSQL).order('event_date', { ascending: true }).limit(8),
+        // Limit historical BI data to keep performance as the DB grows
         db.from('quotes').select('total_price, client_id, client_name, client_lastname, comuna_name, comuna_other').in('status', ['confirmed', 'completed']),
         db.from('quotes').select('total_price').in('status', ['confirmed', 'completed']).gte('event_date', startOfYearSQL).lte('event_date', endOfYearSQL),
         db.from('quotes').select('total_price').in('status', ['confirmed', 'completed']).gte('event_date', startOfLastYearSQL).lte('event_date', endOfLastYearSQL),
-        db.from('quote_items').select('product_name, quantity').order('quantity', { ascending: false }).limit(200),
+        db.from('quote_items').select('product_name, quantity').order('quantity', { ascending: false }).limit(150),
         db.from('quotes').select('id, client_name, client_lastname, event_date, start_time, total_price, guests, status, comuna_name, comuna_other').in('status', ['confirmed', 'completed']).gte('event_date', startOfNextMonthSQL).lte('event_date', endOfNextMonthSQL).order('event_date', { ascending: true }).limit(8),
+        db.from('expenses').select('amount').gte('expense_date', startOfMonthSQL).lte('expense_date', endOfMonthSQL)
     ]);
 
     // 3. Simple Sums
     const monthlyRevenue = (monthlyResults.data || []).reduce((s: number, q: any) => s + Number(q.total_price), 0);
+    const monthlyExpenses = (monthlyExpensesRes.data || []).reduce((s: number, e: any) => s + Number(e.amount), 0);
+    const monthlyProfit = monthlyRevenue - monthlyExpenses;
+
     const projectedRevenue = (monthlyDrafts.data || []).reduce((s: number, q: any) => s + Number(q.total_price), 0);
     const historicalRevenue = (historicalRevData.data || []).reduce((s: number, q: any) => s + Number(q.total_price), 0);
     const yearlyRevenue = (yearlyResults.data || []).reduce((s: number, q: any) => s + Number(q.total_price), 0);
@@ -60,7 +65,7 @@ async function getDashboardData() {
         ? Math.round(((monthlyResults.data?.length || 0) / ((monthlyResults.data?.length || 0) + (monthlyDrafts.data?.length || 0))) * 100)
         : 0;
 
-    // 4. BI Aggregations (Top Clients, Products, Comunas)
+    // 4. BI Aggregations
     const clientStats: Record<string, { id: string; name: string; total: number; count: number }> = {};
     const comunaStats: Record<string, number> = {};
     (historicalRevData.data || []).forEach((q: any) => {
@@ -68,7 +73,6 @@ async function getDashboardData() {
         if (!clientStats[key]) clientStats[key] = { id: q.client_id, name: `${q.client_name} ${q.client_lastname || ''}`, total: 0, count: 0 };
         clientStats[key].total += Number(q.total_price);
         clientStats[key].count += 1;
-
         const com = q.comuna_name === 'Otra' ? q.comuna_other : q.comuna_name;
         if (com) comunaStats[com] = (comunaStats[com] || 0) + 1;
     });
@@ -84,6 +88,8 @@ async function getDashboardData() {
 
     return {
         monthlyRevenue,
+        monthlyExpenses,
+        monthlyProfit,
         projectedRevenue,
         historicalRevenue,
         yearlyRevenue,
@@ -109,46 +115,38 @@ async function getDashboardData() {
 const formatCLP = (n: number) => new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0 }).format(n);
 
 const statusBadge: Record<string, { label: string; color: string; bg: string }> = {
-    draft:        { label: 'Borrador',       color: '#94a3b8', bg: 'rgba(148,163,184,0.1)' },
-    confirmed:    { label: 'Confirmada',     color: '#34d399', bg: 'rgba(52,211,153,0.1)' },
-    completed:    { label: 'Completada',     color: '#a78bfa', bg: 'rgba(167,139,250,0.1)' },
-    cancelled:    { label: 'Cancelada',      color: '#f87171', bg: 'rgba(248,113,113,0.1)' },
+    draft: { label: 'Borrador', color: '#94a3b8', bg: 'rgba(148,163,184,0.1)' },
+    confirmed: { label: 'Confirmada', color: '#34d399', bg: 'rgba(52,211,153,0.1)' },
+    completed: { label: 'Completada', color: '#a78bfa', bg: 'rgba(167,139,250,0.1)' },
+    cancelled: { label: 'Cancelada', color: '#f87171', bg: 'rgba(248,113,113,0.1)' },
 };
 
 export default async function AdminDashboardPage() {
     const data = await getDashboardData();
 
     const kpis = [
-        { label: 'Ingresos del Mes',       value: formatCLP(data.monthlyRevenue),   icon: '💰', sub: `${data.confirmedCount} reservas confirmadas`, color: '#34d399' },
+        { label: 'Ingresos del Mes',       value: formatCLP(data.monthlyRevenue),   icon: '💰', sub: `${data.confirmedCount} confirmadas`, color: '#34d399' },
+        { label: 'Gastos del Mes',         value: formatCLP(data.monthlyExpenses),  icon: '💸', sub: 'Egresos registrados',                     color: '#f87171' },
+        { label: 'Utilidad Real',          value: formatCLP(data.monthlyProfit),    icon: '💎', sub: 'Ingresos - Egresos',                      color: '#38bdf8' },
         { label: `Ventas ${data.currentYear}`, value: formatCLP(data.yearlyRevenue), icon: '📈', sub: 'Eventos del año actual', color: '#60a5fa' },
-        { label: `Ventas ${data.lastYear}`,   value: formatCLP(data.lastYearRevenue), icon: '📉', sub: 'Comparativa año anterior', color: '#94a3b8' },
-        { label: 'Ingresos Históricos',     value: formatCLP(data.historicalRevenue), icon: '🏆', sub: `${data.totalHistoricalCount} ventas históricas`, color: '#FFD700' },
-        { label: 'Tasa de Conversión',      value: `${data.conversionRate}%`,        icon: '📈', sub: 'Draft → Confirmada',                           color: '#E2A049' },
-        { label: 'Proyección (Borradores)', value: formatCLP(data.projectedRevenue), icon: '🔮', sub: `${data.draftCount} cotizaciones mensuales`, color: '#f472b6' },
+        { label: 'Ingresos Históricos',     value: formatCLP(data.historicalRevenue), icon: '🏆', sub: `${data.totalHistoricalCount} ventas`, color: '#FFD700' },
+        { label: 'Proyección',              value: formatCLP(data.projectedRevenue), icon: '🔮', sub: 'Potencial borradores',             color: '#f472bc' },
     ];
 
     return (
         <div style={{ paddingBottom: '60px' }}>
             <style>{`
                 .admin-kpi-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 32px; }
-                @media (min-width: 900px) { .admin-kpi-grid { grid-template-columns: repeat(4, 1fr); gap: 16px; } }
+                @media (min-width: 900px) { .admin-kpi-grid { grid-template-columns: repeat(3, 1fr); gap: 16px; } }
                 
-                .admin-kpi-card { background: #1e2433; border: 1px solid rgba(255,255,255,0.06); border-radius: 14px; padding: 16px; }
+                .admin-kpi-card { background: #1e2433; border: 1px solid rgba(255,255,255,0.06); border-radius: 14px; padding: 16px; transition: border-color 0.2s; }
+                .admin-kpi-card:hover { border-color: rgba(226,160,73,0.3); }
                 .admin-kpi-value { font-size: 20px; font-weight: 900; margin-bottom: 2px; word-break: break-all; }
                 @media (min-width: 480px) { .admin-kpi-value { font-size: 24px; } }
 
                 .dashboard-section-title { color: #f1f5f9; fontSize: 18px; fontWeight: 800; margin: 0; text-transform: capitalize; }
                 .dashboard-section-wrap { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; margin-top: 40px; }
                 .dashboard-accent { background: #34d399; width: 4px; height: 20px; borderRadius: 4px; }
-
-                .bi-grid { display: grid; grid-template-columns: 1fr; gap: 20px; margin-top: 20px; }
-                @media (min-width: 1024px) { .bi-grid { grid-template-columns: repeat(3, 1fr); } }
-
-                .bi-card { background: #1e2433; border-radius: 16px; border: 1px solid rgba(255,255,255,0.06); overflow: hidden; }
-                .bi-header { padding: 16px 20px; border-bottom: 1px solid rgba(255,255,255,0.06); background: rgba(255,255,255,0.01); }
-                .bi-item { padding: 12px 20px; border-bottom: 1px solid rgba(255,255,255,0.04); display: flex; justify-content: space-between; align-items: center; text-decoration: none; }
-                .bi-item:last-child { border-bottom: none; }
-                .bi-item-link:hover { background: rgba(255,255,255,0.03) !important; cursor: pointer; }
 
                 .admin-recent-wrap { background: #1e2433; border-radius: 16px; border: 1px solid rgba(255,255,255,0.06); overflow: hidden; }
                 .admin-recent-table-view { display: none; }
@@ -172,7 +170,7 @@ export default async function AdminDashboardPage() {
                 </p>
             </div>
 
-            {/* 1. SECCION: EL PULSO (KPIs) */}
+            {/* KPIs with Profit Calculation */}
             <div className="admin-kpi-grid">
                 {kpis.map((kpi) => (
                     <div key={kpi.label} className="admin-kpi-card" style={{ borderTop: `3px solid ${kpi.color}` }}>
@@ -184,12 +182,11 @@ export default async function AdminDashboardPage() {
                 ))}
             </div>
 
-            {/* 2. SECCION: LA OPERACION (Eventos y Ventas) */}
+            {/* Upcoming Events */}
             <div className="dashboard-section-wrap">
                 <div className="dashboard-accent"></div>
                 <h2 className="dashboard-section-title">Próximos Eventos de {data.currentMonthName}</h2>
             </div>
-            
             <div className="admin-recent-wrap">
                 {data.upcomingEvents.length === 0 ? (
                     <div style={{ padding: '32px', textAlign: 'center', color: '#64748b', fontSize: '14px' }}>No hay eventos próximos confirmados.</div>
@@ -242,7 +239,6 @@ export default async function AdminDashboardPage() {
                 <div className="dashboard-accent" style={{ background: '#a78bfa' }}></div>
                 <h2 className="dashboard-section-title">Próximos Eventos de {data.nextMonthName}</h2>
             </div>
-            
             <div className="admin-recent-wrap">
                 {data.nextMonthEvents.length === 0 ? (
                     <div style={{ padding: '32px', textAlign: 'center', color: '#64748b', fontSize: '14px' }}>No hay eventos confirmados para el próximo mes todavía.</div>
@@ -288,56 +284,6 @@ export default async function AdminDashboardPage() {
                         </div>
                     </>
                 )}
-            </div>
-
-
-
-            {/* Recientes (Footer) */}
-            <div className="dashboard-section-wrap" style={{ marginTop: '50px' }}>
-                <div className="dashboard-accent" style={{ background: '#60a5fa' }}></div>
-                <h2 className="dashboard-section-title">Últimas Cotizaciones Ingresadas</h2>
-            </div>
-            <div className="admin-recent-wrap">
-                <div className="admin-recent-table-view">
-                    <table width="100%" style={{ borderCollapse: 'collapse' }}>
-                        <tbody>
-                            {data.recentQuotes.map((q: any) => {
-                                const badge = statusBadge[q.status] || statusBadge.draft;
-                                return (
-                                    <DashboardRow key={q.id} href={`/admin/quotes/${q.id}`} className="dashboard-row-hover" style={{ borderTop: '1px solid rgba(255,255,255,0.04)' }}>
-                                        <td style={{ padding: '14px 20px', color: '#f1f5f9', fontSize: '13px', fontWeight: 600 }}>{q.client_name} {q.client_lastname} →</td>
-                                        <td style={{ padding: '14px 20px', color: '#94a3b8', fontSize: '12px' }}>{new Date(q.created_at).toLocaleDateString('es-CL')}</td>
-                                        <td style={{ padding: '14px 20px', color: '#E2A049', fontSize: '13px', fontWeight: 700 }}>{formatCLP(Number(q.total_price))}</td>
-                                        <td style={{ padding: '14px 20px' }}>
-                                            <span style={{ display: 'inline-block', padding: '3px 9px', borderRadius: '20px', fontSize: '10px', fontWeight: 700, color: badge.color, background: badge.bg }}>{badge.label}</span>
-                                        </td>
-                                    </DashboardRow>
-                                );
-                            })}
-                        </tbody>
-                    </table>
-                </div>
-                <div className="admin-recent-cards-view">
-                    {data.recentQuotes.map((q: any) => {
-                        const badge = statusBadge[q.status] || statusBadge.draft;
-                        return (
-                            <Link key={q.id} href={`/admin/quotes/${q.id}`} className="dashboard-quote-card">
-                                <div style={{ minWidth: 0 }}>
-                                    <div style={{ color: '#f1f5f9', fontSize: '14px', fontWeight: 700, marginBottom: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                        {q.client_name} {q.client_lastname || ''}
-                                    </div>
-                                    <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                                        <span style={{ color: '#E2A049', fontWeight: 700, fontSize: '13px' }}>{formatCLP(Number(q.total_price))}</span>
-                                        <span style={{ color: '#475569', fontSize: '11px' }}>{new Date(q.created_at).toLocaleDateString('es-CL')}</span>
-                                    </div>
-                                </div>
-                                <span style={{ display: 'inline-block', padding: '3px 9px', borderRadius: '20px', fontSize: '10px', fontWeight: 700, color: badge.color, background: badge.bg, flexShrink: 0 }}>
-                                    {badge.label}
-                                </span>
-                            </Link>
-                        );
-                    })}
-                </div>
             </div>
         </div>
     );
