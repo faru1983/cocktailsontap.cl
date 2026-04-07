@@ -11,15 +11,16 @@ export const dynamic = 'force-dynamic';
 export default async function GastosPage() {
     const db = createServerClient();
 
+    // Fetch ALL items to allow management of deactivated ones
     const [catRes, subRes, expRes, payRes] = await Promise.all([
-        db.from('expense_categories').select('*').eq('is_active', true).order('name'),
-        db.from('expense_subcategories').select('*').eq('is_active', true).order('name'),
+        db.from('expense_categories').select('*').order('name'),
+        db.from('expense_subcategories').select('*').order('name'),
         db.from('expenses').select(`
             *,
             expense_categories (name),
             expense_subcategories (name)
         `).order('expense_date', { ascending: false }).limit(500),
-        db.from('expense_payment_methods').select('*').eq('is_active', true).order('name')
+        db.from('expense_payment_methods').select('*').order('name')
     ]);
 
     // Formatting for client

@@ -20,24 +20,33 @@ export async function addExpense(data: {
     await checkAuth();
     const db = createServerClient();
     
-    // Using service key implicitly via createServerClient bypasses RLS
-    const { error } = await db.from('expenses').insert([{
+    const { data: inserted, error } = await db.from('expenses').insert([{
         amount: data.amount,
         payment_method: data.payment_method,
         expense_date: data.expense_date,
         category_id: data.category_id,
         subcategory_id: data.subcategory_id,
         notes: data.notes || null
-    }]);
+    }]).select('*, category_id(name), subcategory_id(name)').single();
 
     if (error) {
         console.error('Error adding expense:', error);
-        throw new Error('No se pudo guardar el gasto.');
+        return { success: false, error: 'No se pudo guardar el gasto.' };
     }
 
     revalidatePath('/admin/gastos');
     revalidatePath('/admin/estadisticas');
-    return { success: true };
+    
+    // Transform selected data into the interface format
+    const transformed = {
+        ...inserted,
+        category_name: (inserted as any).category_id?.name,
+        subcategory_name: (inserted as any).subcategory_id?.name,
+        category_id: inserted.category_id,
+        subcategory_id: inserted.subcategory_id
+    };
+    
+    return { success: true, data: transformed };
 }
 
 export async function deleteExpense(id: string) {
@@ -92,16 +101,16 @@ export async function addExpenseCategory(name: string) {
     await checkAuth();
     const db = createServerClient();
     const { error } = await db.from('expense_categories').insert([{ name }]);
-    if (error) throw new Error('Error al crear categoría');
+    if (error) return { success: false, error: 'Error al crear categoría' };
     revalidatePath('/admin/gastos');
     return { success: true };
 }
 
-export async function updateExpenseCategory(id: string, name: string, is_active: boolean) {
+export async function updateExpenseCategory(id: string, data: { name?: string; is_active?: boolean }) {
     await checkAuth();
     const db = createServerClient();
-    const { error } = await db.from('expense_categories').update({ name, is_active }).eq('id', id);
-    if (error) throw new Error('Error al actualizar categoría');
+    const { error } = await db.from('expense_categories').update(data).eq('id', id);
+    if (error) return { success: false, error: 'Error al actualizar categoría' };
     revalidatePath('/admin/gastos');
     return { success: true };
 }
@@ -112,16 +121,16 @@ export async function addExpenseSubcategory(categoryId: string, name: string) {
     await checkAuth();
     const db = createServerClient();
     const { error } = await db.from('expense_subcategories').insert([{ category_id: categoryId, name }]);
-    if (error) throw new Error('Error al crear ítem');
+    if (error) return { success: false, error: 'Error al crear ítem' };
     revalidatePath('/admin/gastos');
     return { success: true };
 }
 
-export async function updateExpenseSubcategory(id: string, name: string, is_active: boolean) {
+export async function updateExpenseSubcategory(id: string, data: { name?: string; is_active?: boolean }) {
     await checkAuth();
     const db = createServerClient();
-    const { error } = await db.from('expense_subcategories').update({ name, is_active }).eq('id', id);
-    if (error) throw new Error('Error al actualizar ítem');
+    const { error } = await db.from('expense_subcategories').update(data).eq('id', id);
+    if (error) return { success: false, error: 'Error al actualizar ítem' };
     revalidatePath('/admin/gastos');
     return { success: true };
 }
@@ -132,16 +141,16 @@ export async function addPaymentMethod(name: string) {
     await checkAuth();
     const db = createServerClient();
     const { error } = await db.from('expense_payment_methods').insert([{ name }]);
-    if (error) throw new Error('Error al crear forma de pago');
+    if (error) return { success: false, error: 'Error al crear forma de pago' };
     revalidatePath('/admin/gastos');
     return { success: true };
 }
 
-export async function updatePaymentMethod(id: string, name: string, is_active: boolean) {
+export async function updatePaymentMethod(id: string, data: { name?: string; is_active?: boolean }) {
     await checkAuth();
     const db = createServerClient();
-    const { error } = await db.from('expense_payment_methods').update({ name, is_active }).eq('id', id);
-    if (error) throw new Error('Error al actualizar forma de pago');
+    const { error } = await db.from('expense_payment_methods').update(data).eq('id', id);
+    if (error) return { success: false, error: 'Error al actualizar forma de pago' };
     revalidatePath('/admin/gastos');
     return { success: true };
 }
