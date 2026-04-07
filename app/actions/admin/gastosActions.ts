@@ -54,3 +54,103 @@ export async function deleteExpense(id: string) {
     revalidatePath('/admin/estadisticas');
     return { success: true };
 }
+
+export async function updateExpense(id: string, data: {
+    amount: number;
+    payment_method: string;
+    expense_date: string;
+    category_id: string;
+    subcategory_id: string;
+    notes?: string;
+}) {
+    await checkAuth();
+    const db = createServerClient();
+    
+    const { error } = await db.from('expenses').update({
+        amount: data.amount,
+        payment_method: data.payment_method,
+        expense_date: data.expense_date,
+        category_id: data.category_id,
+        subcategory_id: data.subcategory_id,
+        notes: data.notes || null,
+        updated_at: new Date().toISOString()
+    }).eq('id', id);
+
+    if (error) {
+        console.error('Error updating expense:', error);
+        throw new Error('No se pudo actualizar el gasto.');
+    }
+
+    revalidatePath('/admin/gastos');
+    revalidatePath('/admin/estadisticas');
+    return { success: true };
+}
+
+/** 📂 Gestión de Categorías (Familias) **/
+
+export async function addExpenseCategory(name: string) {
+    await checkAuth();
+    const db = createServerClient();
+    const { error } = await db.from('expense_categories').insert([{ name }]);
+    if (error) throw new Error('Error al crear categoría');
+    revalidatePath('/admin/gastos');
+    return { success: true };
+}
+
+export async function updateExpenseCategory(id: string, name: string, is_active: boolean) {
+    await checkAuth();
+    const db = createServerClient();
+    const { error } = await db.from('expense_categories').update({ name, is_active }).eq('id', id);
+    if (error) throw new Error('Error al actualizar categoría');
+    revalidatePath('/admin/gastos');
+    return { success: true };
+}
+
+/** 🏷️ Gestión de Subcategorías (Ítems) **/
+
+export async function addExpenseSubcategory(categoryId: string, name: string) {
+    await checkAuth();
+    const db = createServerClient();
+    const { error } = await db.from('expense_subcategories').insert([{ category_id: categoryId, name }]);
+    if (error) throw new Error('Error al crear ítem');
+    revalidatePath('/admin/gastos');
+    return { success: true };
+}
+
+export async function updateExpenseSubcategory(id: string, name: string, is_active: boolean) {
+    await checkAuth();
+    const db = createServerClient();
+    const { error } = await db.from('expense_subcategories').update({ name, is_active }).eq('id', id);
+    if (error) throw new Error('Error al actualizar ítem');
+    revalidatePath('/admin/gastos');
+    return { success: true };
+}
+
+/** 💳 Gestión de Formas de Pago **/
+
+export async function addPaymentMethod(name: string) {
+    await checkAuth();
+    const db = createServerClient();
+    const { error } = await db.from('expense_payment_methods').insert([{ name }]);
+    if (error) throw new Error('Error al crear forma de pago');
+    revalidatePath('/admin/gastos');
+    return { success: true };
+}
+
+export async function updatePaymentMethod(id: string, name: string, is_active: boolean) {
+    await checkAuth();
+    const db = createServerClient();
+    const { error } = await db.from('expense_payment_methods').update({ name, is_active }).eq('id', id);
+    if (error) throw new Error('Error al actualizar forma de pago');
+    revalidatePath('/admin/gastos');
+    return { success: true };
+}
+
+export async function deletePaymentMethod(id: string) {
+    await checkAuth();
+    const db = createServerClient();
+    const { error } = await db.from('expense_payment_methods').delete().eq('id', id);
+    if (error) throw new Error('Error al eliminar forma de pago');
+    revalidatePath('/admin/gastos');
+    return { success: true };
+}

@@ -11,14 +11,15 @@ export const dynamic = 'force-dynamic';
 export default async function GastosPage() {
     const db = createServerClient();
 
-    const [catRes, subRes, expRes] = await Promise.all([
+    const [catRes, subRes, expRes, payRes] = await Promise.all([
         db.from('expense_categories').select('*').eq('is_active', true).order('name'),
         db.from('expense_subcategories').select('*').eq('is_active', true).order('name'),
         db.from('expenses').select(`
             *,
             expense_categories (name),
             expense_subcategories (name)
-        `).order('expense_date', { ascending: false }).limit(200)
+        `).order('expense_date', { ascending: false }).limit(500),
+        db.from('expense_payment_methods').select('*').eq('is_active', true).order('name')
     ]);
 
     // Formatting for client
@@ -29,15 +30,18 @@ export default async function GastosPage() {
         payment_method: exp.payment_method,
         notes: exp.notes || '',
         category_name: exp.expense_categories?.name || 'Desconocida',
-        subcategory_name: exp.expense_subcategories?.name || 'General'
+        subcategory_name: exp.expense_subcategories?.name || 'General',
+        category_id: exp.category_id,
+        subcategory_id: exp.subcategory_id
     }));
 
     return (
-        <main style={{ padding: '0', animation: 'fadeIn 0.3s ease-out' }}>
+        <main className="p-0 animate-fade-in">
             <GastosClient 
                 categories={catRes.data || []}
                 subcategories={subRes.data || []}
                 initialExpenses={expenses}
+                paymentMethods={payRes.data || []}
             />
         </main>
     );
