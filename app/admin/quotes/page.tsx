@@ -1,31 +1,46 @@
 import { createServerClient } from '@/lib/supabaseServer';
 import QuotesListClient from './QuotesListClient';
 
-type SearchParams = Promise<{ status?: string; q?: string; sort?: string; order?: string; sort_order?: string }>;
+type SearchParams = Promise<{ status?: string; q?: string; sort?: string; order?: string; sort_order?: string; page?: string }>;
 
-async function getQuotes(status?: string, search?: string, sort = 'event_date', order = 'asc') {
+const ITEMS_PER_PAGE = 25;
+
+async function getQuotes(status?: string, search?: string, sort = 'event_date', order = 'asc', page = 1) {
     const db = createServerClient();
+    const from = (page - 1) * ITEMS_PER_PAGE;
+    const to = from + ITEMS_PER_PAGE - 1;
+
     let query = db.from('quotes')
-        .select('id, token, status, client_name, client_lastname, client_email, event_date, total_price, created_at, comuna_name');
+        .select('id, token, status, client_name, client_lastname, client_email, event_date, total_price, created_at, comuna_name', { count: 'exact' });
+    
     if (status && status !== 'all') query = query.eq('status', status);
     if (search) query = query.or(`client_name.ilike.%${search}%,client_email.ilike.%${search}%,client_lastname.ilike.%${search}%`);
+    
     query = query.order(sort, { ascending: order === 'asc' });
-    const { data } = await query;
-    return data || [];
+    query = query.range(from, to);
+
+    const { data, count, error } = await query;
+    if (error) console.error('Error fetching quotes:', error);
+
+    return {
+        quotes: data || [],
+        totalCount: count || 0,
+        totalPages: Math.ceil((count || 0) / ITEMS_PER_PAGE)
+    };
 }
 
 export default async function QuotesPage({ searchParams }: { searchParams: SearchParams }) {
     const rawParams = await searchParams;
-    let { status = 'confirmed', q, sort = 'event_date', order = 'asc', sort_order } = rawParams as any;
+    let { status = 'confirmed', q, sort = 'event_date', order = 'asc', sort_order, page = '1' } = rawParams as any;
+    const currentPage = parseInt(page) || 1;
     
-    // Handle the combined sort-order param if present
     if (sort_order) {
         const [s, o] = sort_order.split('-');
         sort = s;
         order = o;
     }
 
-    const quotes = await getQuotes(status, q, sort, order);
+    const { quotes, totalCount, totalPages } = await getQuotes(status, q, sort, order, currentPage);
 
     return (
         <QuotesListClient 
@@ -34,6 +49,9 @@ export default async function QuotesPage({ searchParams }: { searchParams: Searc
             q={q} 
             sort={sort} 
             order={order} 
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalCount={totalCount}
         />
     );
 }

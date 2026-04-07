@@ -268,7 +268,7 @@ export default function RemindersClient({ initialQuotes, initialTemplates }: { i
                 .rem-tag { font-family: monospace; background: rgba(226,160,73,0.1); color: #E2A049; padding: 2px 4px; border-radius: 4px; font-size: 12px; }
             `}</style>
 
-            <h1 style={{ color: '#f1f5f9', fontSize: '24px', fontWeight: 900, marginBottom: '20px' }}>🔔 Recordatorios</h1>
+            <h1 style={{ color: '#f1f5f9', fontSize: '24px', fontWeight: 900, marginBottom: '20px' }}>Recordatorios</h1>
 
             <div className="rem-tabs">
                 <button className={`rem-tab ${tab === 'list' ? 'rem-tab-active' : ''}`} onClick={() => setTab('list')}>Listado de Pendientes</button>

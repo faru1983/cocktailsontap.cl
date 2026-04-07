@@ -164,7 +164,7 @@ export default async function AdminDashboardPage() {
 
             {/* Header */}
             <div style={{ marginBottom: '24px' }}>
-                <h1 style={{ color: '#f1f5f9', fontSize: '28px', fontWeight: 900, margin: '0 0 4px' }}>Cocktails Dashboard</h1>
+                <h1 style={{ color: '#f1f5f9', fontSize: '28px', fontWeight: 900, margin: '0 0 4px' }}>Bienvenido</h1>
                 <p style={{ color: '#475569', fontSize: '13px', margin: 0, textTransform: 'capitalize' }}>
                     {new Date().toLocaleDateString('es-CL', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
                 </p>
@@ -181,6 +181,8 @@ export default async function AdminDashboardPage() {
                     </div>
                 ))}
             </div>
+
+
 
             {/* Upcoming Events */}
             <div className="dashboard-section-wrap">
@@ -281,6 +283,63 @@ export default async function AdminDashboardPage() {
                                     <div style={{ color: '#E2A049', fontWeight: 700, fontSize: '13px' }}>{formatCLP(Number(event.total_price))}</div>
                                 </Link>
                             ))}
+                        </div>
+                    </>
+                )}
+            </div>
+
+            {/* 3. SECCION: ULTIMAS RECIBIDAS (LEADS) */}
+            <div className="dashboard-section-wrap" style={{ marginTop: '50px' }}>
+                <div className="dashboard-accent" style={{ background: '#E2A049' }}></div>
+                <h2 className="dashboard-section-title">Últimas Cotizaciones Generadas</h2>
+            </div>
+            <div className="admin-recent-wrap" style={{ marginBottom: '40px' }}>
+                {data.recentQuotes.length === 0 ? (
+                    <div style={{ padding: '32px', textAlign: 'center', color: '#64748b', fontSize: '14px' }}>No hay cotizaciones recientes.</div>
+                ) : (
+                    <>
+                        <div className="admin-recent-table-view">
+                            <table width="100%" style={{ borderCollapse: 'collapse' }}>
+                                <thead>
+                                    <tr style={{ background: 'rgba(226,160,73,0.03)' }}>
+                                        {['Creada', 'Cliente', 'Monto', 'Estado'].map(h => (
+                                            <th key={h} align="left" style={{ padding: '14px 20px', color: '#475569', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase' }}>{h}</th>
+                                        ))}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {data.recentQuotes.map((q: any) => {
+                                        const badge = statusBadge[q.status] || statusBadge.draft;
+                                        return (
+                                            <DashboardRow key={q.id} href={`/admin/quotes/${q.id}`} className="dashboard-row-hover" style={{ borderTop: '1px solid rgba(255,255,255,0.04)' }}>
+                                                <td style={{ padding: '14px 20px', color: '#94a3b8', fontSize: '13px' }}>{new Date(q.created_at).toLocaleDateString('es-CL', { day: '2-digit', month: 'short' })}</td>
+                                                <td style={{ padding: '14px 20px', color: '#f1f5f9', fontSize: '13px', fontWeight: 700 }}>{q.client_name} {q.client_lastname}</td>
+                                                <td style={{ padding: '14px 20px', color: '#E2A049', fontSize: '13px', fontWeight: 700 }}>{formatCLP(Number(q.total_price))}</td>
+                                                <td style={{ padding: '14px 20px' }}>
+                                                    <span style={{ padding: '3px 8px', borderRadius: '12px', fontSize: '10px', fontWeight: 800, color: badge.color, background: badge.bg, textTransform: 'uppercase' }}>{badge.label}</span>
+                                                </td>
+                                            </DashboardRow>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+                        <div className="admin-recent-cards-view">
+                            {data.recentQuotes.map((q: any) => {
+                                const badge = statusBadge[q.status] || statusBadge.draft;
+                                return (
+                                    <Link key={q.id} href={`/admin/quotes/${q.id}`} className="dashboard-quote-card">
+                                        <div style={{ minWidth: 0 }}>
+                                            <div style={{ color: '#f1f5f9', fontSize: '14px', fontWeight: 700, marginBottom: '2px' }}>{q.client_name} {q.client_lastname}</div>
+                                            <div style={{ color: '#475569', fontSize: '11px' }}>Generada: {new Date(q.created_at).toLocaleDateString('es-CL')}</div>
+                                        </div>
+                                        <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                                            <div style={{ color: '#E2A049', fontWeight: 800, fontSize: '13px' }}>{formatCLP(Number(q.total_price))}</div>
+                                            <div style={{ fontSize: '9px', fontWeight: 900, color: badge.color, textTransform: 'uppercase' }}>{badge.label}</div>
+                                        </div>
+                                    </Link>
+                                );
+                            })}
                         </div>
                     </>
                 )}

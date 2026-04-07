@@ -1,11 +1,10 @@
 'use client';
 
-import { useState, useTransition, useMemo } from 'react';
+import { useState, useTransition } from 'react';
 import Link from 'next/link';
 import { SITE_URL } from '@/lib/config';
 import SortSelect from '@/components/admin/SortSelect';
 import { bulkUpdateQuoteStatus } from '@/app/actions/admin/adminActions';
-import { Check, Trash2, MoreHorizontal, ChevronDown } from 'lucide-react';
 
 const statusBadge: Record<string, { label: string; color: string; bg: string }> = {
     draft:        { label: 'Borrador',       color: '#94a3b8', bg: 'rgba(148,163,184,0.12)' },
@@ -16,22 +15,29 @@ const statusBadge: Record<string, { label: string; color: string; bg: string }> 
 
 const formatCLP = (n: number) => new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0 }).format(n);
 
+interface QuotesListClientProps {
+    initialQuotes: any[];
+    status: string;
+    q?: string;
+    sort: string;
+    order: string;
+    currentPage: number;
+    totalPages: number;
+    totalCount: number;
+}
+
 export default function QuotesListClient({ 
     initialQuotes, 
     status, 
     q, 
     sort, 
-    order 
-}: { 
-    initialQuotes: any[]; 
-    status: string; 
-    q?: string; 
-    sort: string; 
-    order: string; 
-}) {
+    order,
+    currentPage,
+    totalPages,
+    totalCount
+}: QuotesListClientProps) {
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
     const [isPending, startTransition] = useTransition();
-    const [isBulkMenuOpen, setIsBulkMenuOpen] = useState(false);
 
     const toggleSelectAll = () => {
         if (selectedIds.length === initialQuotes.length) setSelectedIds([]);
@@ -50,7 +56,6 @@ export default function QuotesListClient({
             const res = await bulkUpdateQuoteStatus(selectedIds, newStatus);
             if (res.success) {
                 setSelectedIds([]);
-                setIsBulkMenuOpen(false);
             } else {
                 alert(res.error);
             }
@@ -64,11 +69,22 @@ export default function QuotesListClient({
         if (q) params.set('q', q);
         params.set('sort', field);
         params.set('order', nextOrder);
+        params.set('page', '1');
+        return `/admin/quotes?${params.toString()}`;
+    };
+
+    const getPageLink = (p: number) => {
+        const params = new URLSearchParams();
+        if (status) params.set('status', status);
+        if (q) params.set('q', q);
+        if (sort) params.set('sort', sort);
+        if (order) params.set('order', order);
+        params.set('page', p.toString());
         return `/admin/quotes?${params.toString()}`;
     };
 
     const filterBase = (v: string) =>
-        `/admin/quotes?status=${v}${q ? `&q=${q}` : ''}${sort ? `&sort=${sort}` : ''}${order ? `&order=${order}` : ''}`;
+        `/admin/quotes?status=${v}${q ? `&q=${q}` : ''}${sort ? `&sort=${sort}` : ''}${order ? `&order=${order}` : ''}&page=1`;
 
     const filters = [
         { value: 'all', label: 'Todas' },
@@ -117,19 +133,25 @@ export default function QuotesListClient({
                 .qp-row.selected { background: rgba(226,160,73,0.04); }
 
                 .checkbox { width: 18px; height: 18px; accent-color: #E2A049; cursor: pointer; }
-                
                 .bulk-btn { padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer; border: none; transition: all 0.2s; }
                 .bulk-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
-                .status-btn { background: none; border: 1px solid rgba(255,255,255,0.1); color: #94a3b8; padding: 6px 12px; border-radius: 8px; font-size: 12px; display: flex; align-items: center; gap: 6px; cursor: pointer; }
-                .status-btn:hover { background: rgba(255,255,255,0.05); }
+                /* ── Pagination ── */
+                .pagination-wrap { display: flex; justify-content: center; align-items: center; gap: 8px; margin-top: 24px; padding-bottom: 20px; }
+                .page-link { 
+                    padding: 8px 16px; border-radius: 10px; background: #1e2433; border: 1px solid rgba(255,255,255,0.06); 
+                    color: #94a3b8; text-decoration: none; font-size: 13px; font-weight: 700; transition: all 0.2s; 
+                }
+                .page-link:hover { border-color: #E2A049; color: #E2A049; }
+                .page-link.active { background: #E2A049; color: #1a1b26; border-color: #E2A049; }
+                .page-link.disabled { opacity: 0.4; pointer-events: none; }
             `}</style>
 
             {/* Header */}
             <div className="qp-header">
                 <div>
                     <h1 style={{ color: '#f1f5f9', fontSize: '24px', fontWeight: 900, margin: '0 0 3px' }}>Cotizaciones</h1>
-                    <p style={{ color: '#475569', fontSize: '13px', margin: 0 }}>{initialQuotes.length} resultado(s)</p>
+                    <p style={{ color: '#475569', fontSize: '13px', margin: 0 }}>{totalCount} coincidencias found</p>
                 </div>
                 <form method="GET" action="/admin/quotes" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', width: '100%', maxWidth: 'max-content' }}>
                     {status && <input type="hidden" name="status" value={status} />}
@@ -265,6 +287,23 @@ export default function QuotesListClient({
                     </tbody>
                 </table>
             </div>
+
+            {/* ── PAGINATION ── */}
+            {totalPages > 1 && (
+                <div className="pagination-wrap">
+                    <Link href={getPageLink(currentPage - 1)} className={`page-link ${currentPage <= 1 ? 'disabled' : ''}`}>
+                        Anterior
+                    </Link>
+                    
+                    <div style={{ color: '#475569', fontSize: '13px', fontWeight: 700, margin: '0 8px' }}>
+                        Página {currentPage} de {totalPages}
+                    </div>
+
+                    <Link href={getPageLink(currentPage + 1)} className={`page-link ${currentPage >= totalPages ? 'disabled' : ''}`}>
+                        Siguiente
+                    </Link>
+                </div>
+            )}
         </div>
     );
 }

@@ -126,11 +126,9 @@ export default function StatsClient({ allQuotes, allQuoteItems, allExpenses }: S
                 .progress-bar { height: 100%; border-radius: 4px; transition: width 0.6s ease; }
             `}</style>
 
-            <div style={{ marginBottom: '32px' }}>
-                <h1 style={{ color: '#f1f5f9', fontSize: '28px', fontWeight: 900, margin: 0, display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <Activity size={32} color="#E2A049" /> Auditoría & Rentabilidad
-                </h1>
-                <p style={{ color: '#475569', fontSize: '14px', marginTop: '6px' }}>Visión completa de ingresos, gastos y utilidad real.</p>
+            <div style={{ marginBottom: '24px' }}>
+                <h1 style={{ color: '#f1f5f9', fontSize: '28px', fontWeight: 900, margin: '0 0 4px' }}>Estadísticas</h1>
+                <p style={{ color: '#475569', fontSize: '13px', margin: 0 }}>Análisis de rentabilidad</p>
             </div>
 
             <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '16px', marginBottom: '24px' }}>

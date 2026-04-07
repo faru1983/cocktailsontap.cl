@@ -22,12 +22,7 @@ export default async function ProductsPage() {
 
     return (
         <div style={{ paddingBottom: '40px' }}>
-            <div style={{ marginBottom: '24px' }}>
-                <h1 style={{ color: '#f1f5f9', fontSize: '28px', fontWeight: 900, margin: '0 0 4px' }}>Mantenedor de Productos</h1>
-                <p style={{ color: '#475569', fontSize: '13px', margin: 0 }}>
-                    Administra tu catálogo de productos y categorías de forma centralizada.
-                </p>
-            </div>
+
 
             <ProductsClient 
                 products={products || []} 

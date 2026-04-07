@@ -117,13 +117,17 @@ export default function GastosClient({
 
             if (res.success) {
                 if (editingExpense) {
-                   router.refresh(); // Simpler for full update
+                   router.refresh(); 
                 } else {
-                   setExpenses([res.data!, ...expenses]);
+                   const newExp = (res as any).data;
+                   if (newExp) setExpenses([newExp, ...expenses]);
+                   else router.refresh();
                 }
                 setIsCreateOpen(false);
                 setEditingExpense(null);
-            } else if (res.error) alert(res.error);
+            } else if ((res as any).error) {
+                alert((res as any).error);
+            }
         });
     };
 
@@ -239,9 +243,13 @@ export default function GastosClient({
                 .simple-card { background: #1e2433; border: 1px solid rgba(255,255,255,0.06); border-radius: 16px; padding: 20px; transition: border-color 0.2s; }
                 .simple-card:hover { border-color: rgba(226,160,73,0.3); }
 
-                .tabs-row { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 4px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
-                .tab-btn { background: none; border: none; color: #64748b; font-size: 13px; font-weight: 700; cursor: pointer; padding: 12px 14px; border-radius: 8px; transition: all 0.2s; white-space: nowrap; }
-                .tab-btn.active { color: #E2A049; background: rgba(226,160,73,0.1); box-shadow: inset 0 -2px 0 #E2A049; border-radius: 8px 8px 0 0; }
+                .tabs-row { 
+                    display: flex; gap: 8px; margin-bottom: 24px; border-bottom: 1px solid rgba(255,255,255,0.06); 
+                    padding-bottom: 12px; overflow-x: auto; -ms-overflow-style: none; scrollbar-width: none; 
+                }
+                .tabs-row::-webkit-scrollbar { display: none; }
+                .tab-btn { padding: 8px 16px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; color: #64748b; background: none; border: none; transition: all 0.2s; white-space: nowrap; }
+                .tab-btn.active { background: rgba(226,160,73,0.12); color: #E2A049; }
                 
                 .gp-table-wrap { display: none; background: #1e2433; border-radius: 16px; border: 1px solid rgba(255,255,255,0.06); overflow: hidden; margin-top: 16px; }
                 .gp-cards { display: flex; flex-direction: column; gap: 12px; margin-top: 16px; }
@@ -293,12 +301,12 @@ export default function GastosClient({
             {tab === 'list' && (
                 <div className="animate-fade-in">
                     {/* Filters Row */}
-                    <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginBottom: '16px' }}>
-                        <select className="input-field" style={{ width: 'auto' }} value={filterCat} onChange={e => setFilterCat(e.target.value)}>
+                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '16px' }}>
+                        <select className="input-field" style={{ flex: '1', minWidth: '160px' }} value={filterCat} onChange={e => setFilterCat(e.target.value)}>
                             <option value="">Todas las Categorías</option>
                             {categories.filter(c => c.is_active).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                         </select>
-                        <input className="input-field" style={{ width: '220px' }} placeholder="Buscar en notas..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+                        <input className="input-field" style={{ flex: '2', minWidth: '200px' }} placeholder="Buscar en notas..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
                     </div>
 
                     <div className="gp-table-wrap">
@@ -344,11 +352,13 @@ export default function GastosClient({
                                     <div style={{ color: '#E2A049', fontWeight: 800 }}>{formatCLP(e.amount)}</div>
                                 </div>
                                 <div style={{ color: '#f1f5f9', fontSize: '14px', fontWeight: 700 }}>{e.category_name} &gt; {e.subcategory_name}</div>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '10px' }}>
+                                {e.notes && <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#64748b', fontStyle: 'italic' }}>{e.notes}</p>}
+
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '14px' }}>
                                     <div style={{ color: '#475569', fontSize: '12px' }}>{e.payment_method}</div>
                                     <div style={{ display: 'flex', gap: '12px' }}>
-                                        <button onClick={() => handleOpenCreate(e)} style={{ color: '#64748b' }}><Pencil size={16}/></button>
-                                        <button onClick={() => handleDeleteExpense(e.id)} style={{ color: '#f87171' }}><Trash2 size={16}/></button>
+                                        <button onClick={() => handleOpenCreate(e)} style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer' }}><Pencil size={16}/></button>
+                                        <button onClick={() => handleDeleteExpense(e.id)} style={{ background: 'none', border: 'none', color: '#f87171', cursor: 'pointer' }}><Trash2 size={16}/></button>
                                     </div>
                                 </div>
                             </div>

@@ -216,8 +216,9 @@ export default function ProductsClient({ products, categories }: { products: any
                 
                 /* ── Header Styles (Same as Quotes) ── */
                 .pp-header { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 12px; margin-bottom: 20px; }
-                .pp-filters { display: flex; gap: 7px; flex-wrap: wrap; margin-bottom: 18px; }
-                .pp-filter-btn { padding: 6px 13px; border-radius: 20px; fontSize: 12.5px; fontWeight: 600; cursor: pointer; text-decoration: none; border: 1px solid rgba(255,255,255,0.08); transition: all 0.2s; }
+                .pp-tabs { display: flex; gap: 8px; margin-bottom: 24px; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 12px; flex-wrap: wrap; }
+                .pp-tab-btn { padding: 8px 16px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; color: #64748b; background: none; border: none; transition: all 0.2s; white-space: nowrap; }
+                .pp-tab-btn.active { background: rgba(226,160,73,0.12); color: #E2A049; }
 
                 /* ── List Layouts ── */
                 .pp-cards { display: flex; flex-direction: column; gap: 10px; }
@@ -292,11 +293,11 @@ export default function ProductsClient({ products, categories }: { products: any
                 </div>
             </div>
 
-            {/* ── Filters (Tabs) ── */}
-            <div className="pp-filters">
-                <button className="pp-filter-btn" onClick={() => setTab('products')} style={{ background: tab === 'products' ? '#E2A049' : 'rgba(255,255,255,0.05)', color: tab === 'products' ? '#1a1a2e' : '#64748b' }}>📦 Productos</button>
-                <button className="pp-filter-btn" onClick={() => setTab('categories')} style={{ background: tab === 'categories' ? '#E2A049' : 'rgba(255,255,255,0.05)', color: tab === 'categories' ? '#1a1a2e' : '#64748b' }}>🏷️ Categorías</button>
-                <button className="pp-filter-btn" onClick={() => setTab('gallery')} style={{ background: tab === 'gallery' ? '#E2A049' : 'rgba(255,255,255,0.05)', color: tab === 'gallery' ? '#1a1a2e' : '#64748b' }}>🖼️ Galería</button>
+            {/* ── Tabs ── */}
+            <div className="pp-tabs">
+                <button className={`pp-tab-btn ${tab === 'products' ? 'active' : ''}`} onClick={() => setTab('products')}>Productos</button>
+                <button className={`pp-tab-btn ${tab === 'categories' ? 'active' : ''}`} onClick={() => setTab('categories')}>Categorías</button>
+                <button className={`pp-tab-btn ${tab === 'gallery' ? 'active' : ''}`} onClick={() => setTab('gallery')}>Galería</button>
             </div>
 
             {/* ── Listing ── */}

@@ -42,7 +42,7 @@ export default async function LogsPage({ searchParams }: { searchParams: SearchP
     return (
         <div>
             <div style={{ marginBottom: '28px' }}>
-                <h1 style={{ color: '#f1f5f9', fontSize: '24px', fontWeight: 900, margin: '0 0 4px' }}>Monitor de Sincronización</h1>
+                <h1 style={{ color: '#f1f5f9', fontSize: '24px', fontWeight: 900, margin: '0 0 4px' }}>Sincronización</h1>
                 <p style={{ color: '#475569', fontSize: '13px', margin: 0 }}>
                     {logs.length} registros · <span style={{ color: failed.length > 0 ? '#f87171' : '#34d399' }}>{failed.length} errores</span>
                 </p>
@@ -54,7 +54,7 @@ export default async function LogsPage({ searchParams }: { searchParams: SearchP
                 </div>
             )}
 
-            <div style={{ background: '#1e2433', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.06)', overflow: 'hidden' }}>
+            <div style={{ background: '#1e2433', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.06)', overflow: 'hidden' }} className="desktop-only">
                 <div style={{ overflowX: 'auto' }}>
                     <table width="100%" style={{ borderCollapse: 'collapse' }}>
                         <thead>
@@ -106,6 +106,55 @@ export default async function LogsPage({ searchParams }: { searchParams: SearchP
                     </table>
                 </div>
             </div>
+
+            {/* Mobile Cards View */}
+            <div className="mobile-only">
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    {logs.length === 0 ? (
+                         <div style={{ padding: '40px 20px', textAlign: 'center', color: '#475569', fontSize: '14px', background: '#1e2433', borderRadius: '16px' }}>Sin registros.</div>
+                    ) : logs.map((log: any) => (
+                        <div key={log.id} style={{ background: '#1e2433', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.06)', padding: '16px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
+                                <div style={{ fontSize: '11px', color: '#64748b' }}>{new Date(log.created_at).toLocaleString('es-CL')}</div>
+                                <span style={{
+                                    display: 'inline-block', padding: '2px 8px', borderRadius: '20px', fontSize: '10px', fontWeight: 700,
+                                    color: log.status === 'success' ? '#34d399' : log.status === 'retried' ? '#60a5fa' : '#f87171',
+                                    background: log.status === 'success' ? 'rgba(52,211,153,0.1)' : log.status === 'retried' ? 'rgba(96,165,250,0.1)' : 'rgba(248,113,113,0.1)',
+                                }}>
+                                    {log.status === 'success' ? 'OK' : log.status === 'retried' ? 'Reintentado' : '⚠️ Error'}
+                                </span>
+                            </div>
+                            <div style={{ color: '#f1f5f9', fontSize: '14px', fontWeight: 700, marginBottom: '4px' }}>
+                                {log.quotes?.client_name} {log.quotes?.client_lastname || ''}
+                            </div>
+                            <div style={{ fontSize: '13px', color: '#94a3b8', marginBottom: '12px' }}>
+                                {typeLabels[log.type] || log.type}
+                            </div>
+                            {log.error_msg && (
+                                <div style={{ fontSize: '11px', color: '#f87171', background: 'rgba(248,113,113,0.05)', padding: '8px', borderRadius: '8px', marginTop: '8px', border: '1px solid rgba(248,113,113,0.1)' }}>
+                                    {log.error_msg}
+                                </div>
+                            )}
+                            {log.status === 'failed' && (
+                                <div style={{ marginTop: '12px', borderTop: '1px solid rgba(255,255,255,0.04)', paddingTop: '12px' }}>
+                                    <RetryButton logId={log.id} />
+                                </div>
+                            )}
+                        </div>
+                    ))}
+                </div>
+            </div>
+
+            <style>{`
+                @media (max-width: 767px) {
+                    .desktop-only { display: none !important; }
+                    .mobile-only { display: block !important; }
+                }
+                @media (min-width: 768px) {
+                    .desktop-only { display: block !important; }
+                    .mobile-only { display: none !important; }
+                }
+            `}</style>
         </div>
     );
 }

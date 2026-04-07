@@ -124,31 +124,36 @@ export default function SettingsClient({
     };
 
     return (
-        <div className="px-4 py-6 md:px-8 max-w-7xl mx-auto">
+        <div style={{ paddingBottom: '60px' }}>
+            <style>{`
+                .set-tabs { display: flex; gap: 8px; margin-bottom: 24px; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 12px; overflow-x: auto; }
+                .set-tab-btn { padding: 8px 16px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; color: #64748b; background: none; border: none; transition: all 0.2s; white-space: nowrap; }
+                .set-tab-btn.active { background: rgba(226,160,73,0.12); color: #E2A049; }
+                
+                .set-header { margin-bottom: 24px; }
+                .set-header h1 { color: #f1f5f9; fontSize: 24px; fontWeight: 900; margin: 0 0 4px; }
+                .set-header p { color: #475569; fontSize: 13px; margin: 0; }
+            `}</style>
+
             {/* Header */}
-            <div className="mb-8">
-                <h1 className="text-2xl md:text-3xl text-slate-100 font-black mb-1">Configuración</h1>
-                <p className="text-slate-500 text-sm">Gestión avanzada del sistema</p>
+            <div className="set-header">
+                <h1>Configuración</h1>
+                <p>Gestión avanzada del sistema</p>
             </div>
 
-            {/* Tabs - Scrollable on mobile */}
-            <div className="flex gap-2 bg-[#1e2433] p-1.5 rounded-2xl mb-8 overflow-x-auto hide-scrollbar sticky top-0 z-10 md:relative md:max-w-max">
+            {/* Tabs */}
+            <div className="set-tabs">
                 {[
-                    { id: 'review', label: 'Post-Venta', icon: <Layout size={16} /> },
-                    { id: 'events', label: 'Eventos', icon: <Calendar size={16} /> },
-                    { id: 'comunas', label: 'Comunas', icon: <MapPin size={16} /> },
-                    { id: 'system', label: 'Cerebro Central', icon: <Cpu size={16} /> }
+                    { id: 'review', label: 'Post-Venta' },
+                    { id: 'events', label: 'Eventos' },
+                    { id: 'comunas', label: 'Comunas' },
+                    { id: 'system', label: 'Cerebro Central' }
                 ].map((t: any) => (
                     <button
                         key={t.id}
                         onClick={() => setTab(t.id)}
-                        className={`flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all text-xs md:text-sm font-bold whitespace-nowrap border-none cursor-pointer ${
-                            tab === t.id 
-                            ? 'bg-[rgba(226,160,73,0.12)] text-[#E2A049]' 
-                            : 'bg-transparent text-slate-500 hover:text-slate-300'
-                        }`}
+                        className={`set-tab-btn ${tab === t.id ? 'active' : ''}`}
                     >
-                        {t.icon}
                         {t.label}
                     </button>
                 ))}
