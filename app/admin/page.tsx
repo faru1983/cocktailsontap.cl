@@ -121,7 +121,7 @@ export default async function AdminDashboardPage() {
     const kpis = [
         { label: 'Ingresos del Mes',       value: formatCLP(data.monthlyRevenue),   icon: <CircleDollarSign size={20} />, sub: `${data.confirmedCount} confirmadas`, color: 'text-emerald-400', border: 'border-emerald-500/20' },
         { label: 'Gastos del Mes',         value: formatCLP(data.monthlyExpenses),  icon: <Receipt size={20} />, sub: 'Egresos registrados',                     color: 'text-rose-400', border: 'border-rose-500/20' },
-        { label: 'Utilidad Real',          value: formatCLP(data.monthlyProfit),    icon: <Gem size={20} />, sub: 'Ingresos - Egresos',                      color: 'text-sky-400', border: 'border-sky-500/20' },
+        { label: 'Utilidad del Mes',          value: formatCLP(data.monthlyProfit),    icon: <Gem size={20} />, sub: 'Ingresos - Egresos',                      color: 'text-sky-400', border: 'border-sky-500/20' },
         { label: `Ventas ${data.currentYear}`, value: formatCLP(data.yearlyRevenue), icon: <TrendingUp size={20} />, sub: 'Eventos del año actual', color: 'text-blue-400', border: 'border-blue-500/20' },
         { label: 'Ingresos Históricos',     value: formatCLP(data.historicalRevenue), icon: <Award size={20} />, sub: `${data.totalHistoricalCount} ventas`, color: 'text-amber-400', border: 'border-amber-500/20' },
         { label: 'Proyección',              value: formatCLP(data.projectedRevenue), icon: <Sparkles size={20} />, sub: 'Potencial borradores',             color: 'text-pink-400', border: 'border-pink-500/20' },
@@ -142,9 +142,9 @@ export default async function AdminDashboardPage() {
                 {kpis.map((kpi) => (
                     <div key={kpi.label} className={`bg-[#1e2433] border-t-2 ${kpi.border} border-x border-b border-white/5 rounded-2xl p-5 transition-all hover:border-[#E2A049]/30 shadow-xl shadow-black/20`}>
                         <div className={`mb-3 ${kpi.color}`}>{kpi.icon}</div>
-                        <div className="text-2xl font-black text-white leading-tight mb-1">{kpi.value}</div>
-                        <div className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">{kpi.label}</div>
-                        <div className="text-slate-600 text-[10px] mt-1 italic">{kpi.sub}</div>
+                        <div className="text-xl md:text-2xl font-black text-white leading-tight mb-1 truncate" title={String(kpi.value)}>{kpi.value}</div>
+                        <div className="text-slate-500 text-[10px] font-bold uppercase tracking-widest truncate">{kpi.label}</div>
+                        <div className="text-slate-600 text-[10px] mt-1 italic truncate">{kpi.sub}</div>
                     </div>
                 ))}
             </div>
@@ -166,9 +166,9 @@ export default async function AdminDashboardPage() {
                                         <tbody>
                                             {data.upcomingEvents.map((q: any) => (
                                                 <DashboardRow key={q.id} href={`/admin/quotes/${q.id}`} className="group hover:bg-white/[0.02]">
-                                                    <td className="py-4 px-6 text-emerald-400 font-bold text-xs">{new Date(q.event_date + 'T12:00:00').toLocaleDateString('es-CL', { day: '2-digit', month: 'short' })}</td>
-                                                    <td className="py-4 px-6 text-slate-200 text-xs font-semibold">{q.client_name} {q.client_lastname}</td>
-                                                    <td className="py-4 px-6 text-slate-500 text-[11px]">{q.comuna_name === 'Otra' ? q.comuna_other : q.comuna_name}</td>
+                                                    <td className="py-4 px-3 md:px-6 text-emerald-400 font-bold text-[11px] md:text-xs whitespace-nowrap">{new Date(q.event_date + 'T12:00:00').toLocaleDateString('es-CL', { day: '2-digit', month: 'short' }).replace(/ /g, '-').replace('.', '')}</td>
+                                                    <td className="py-4 px-3 md:px-6 text-slate-200 text-xs font-semibold">{q.client_name} {q.client_lastname}</td>
+                                                    <td className="py-4 px-3 md:px-6 text-slate-500 text-[10px] md:text-[11px] truncate max-w-[80px] md:max-w-none">{q.comuna_name === 'Otra' ? q.comuna_other : q.comuna_name}</td>
                                                 </DashboardRow>
                                             ))}
                                         </tbody>
@@ -192,9 +192,9 @@ export default async function AdminDashboardPage() {
                                         <tbody>
                                             {data.nextMonthEvents.map((q: any) => (
                                                 <DashboardRow key={q.id} href={`/admin/quotes/${q.id}`} className="group hover:bg-white/[0.02]">
-                                                    <td className="py-4 px-6 text-sky-400 font-bold text-xs">{new Date(q.event_date + 'T12:00:00').toLocaleDateString('es-CL', { day: '2-digit', month: 'short' })}</td>
-                                                    <td className="py-4 px-6 text-slate-200 text-xs font-semibold">{q.client_name} {q.client_lastname}</td>
-                                                    <td className="py-4 px-6 text-slate-500 text-[11px]">{q.comuna_name === 'Otra' ? q.comuna_other : q.comuna_name}</td>
+                                                    <td className="py-4 px-3 md:px-6 text-sky-400 font-bold text-[11px] md:text-xs whitespace-nowrap">{new Date(q.event_date + 'T12:00:00').toLocaleDateString('es-CL', { day: '2-digit', month: 'short' }).replace(/ /g, '-').replace('.', '')}</td>
+                                                    <td className="py-4 px-3 md:px-6 text-slate-200 text-xs font-semibold">{q.client_name} {q.client_lastname}</td>
+                                                    <td className="py-4 px-3 md:px-6 text-slate-500 text-[10px] md:text-[11px] truncate max-w-[80px] md:max-w-none">{q.comuna_name === 'Otra' ? q.comuna_other : q.comuna_name}</td>
                                                 </DashboardRow>
                                             ))}
                                         </tbody>

@@ -23,7 +23,7 @@ Este archivo es la fuente de verdad para el desarrollo y mantenimiento del proye
 
 ## 📐 Arquitectura de Integraciones (Direct Node.js)
 
-El proyecto elimina intermediarios (Make/Zapier) mediante integraciones directas en el backend para maximizar eficiencia en capas gratuitas (Vercel/Supabase).
+El proyecto cuenta con integraciones directas en el backend para maximizar eficiencia en capas gratuitas (Vercel/Supabase).
 
 ### 1. Google APIs (CRM & Logística)
 - **Google Contacts**: Sincronización bidireccional inteligente. Usa `resourceName` para evitar duplicados. Mantiene notas cronológicas con links únicos de cotización.

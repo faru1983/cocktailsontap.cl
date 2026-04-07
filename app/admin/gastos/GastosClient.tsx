@@ -84,6 +84,10 @@ export default function GastosClient({
     const [editingPayId, setEditingPayId] = useState<string | null>(null);
     const [editingPayName, setEditingPayName] = useState('');
 
+    const [isCreateCatOpen, setIsCreateCatOpen] = useState(false);
+    const [isCreateSubOpen, setIsCreateSubOpen] = useState(false);
+    const [isCreatePayOpen, setIsCreatePayOpen] = useState(false);
+
     const filteredExpenses = useMemo(() => {
         return expenses.filter(e => {
             const matchesCat = !filterCat || e.category_id === filterCat;
@@ -141,20 +145,22 @@ export default function GastosClient({
 
     const refreshData = () => router.refresh();
 
-    const handleAddCat = async () => {
+    const handleAddCat = async (e?: React.FormEvent) => {
+        if (e) e.preventDefault();
         if (!newCatName) return;
         startTransition(async () => {
             const res = await addExpenseCategory(newCatName);
-            if (res.success) { setNewCatName(''); refreshData(); }
+            if (res.success) { setNewCatName(''); setIsCreateCatOpen(false); refreshData(); }
             else if ((res as any).error) alert((res as any).error);
         });
     };
 
-    const handleAddSub = async () => {
+    const handleAddSub = async (e?: React.FormEvent) => {
+        if (e) e.preventDefault();
         if (!newSubName || !selectedCatForSub) return;
         startTransition(async () => {
             const res = await addExpenseSubcategory(selectedCatForSub, newSubName);
-            if (res.success) { setNewSubName(''); refreshData(); }
+            if (res.success) { setNewSubName(''); setIsCreateSubOpen(false); refreshData(); }
             else if ((res as any).error) alert((res as any).error);
         });
     };
@@ -203,11 +209,12 @@ export default function GastosClient({
         });
     };
 
-    const handleAddPay = async () => {
+    const handleAddPay = async (e?: React.FormEvent) => {
+        if (e) e.preventDefault();
         if (!newPayName) return;
         startTransition(async () => {
             const res = await addPaymentMethod(newPayName);
-            if (res.success) { setNewPayName(''); refreshData(); }
+            if (res.success) { setNewPayName(''); setIsCreatePayOpen(false); refreshData(); }
         });
     };
 
@@ -330,10 +337,11 @@ export default function GastosClient({
             {tab === 'cats' && (
                 <div className="animate-in fade-in duration-500 space-y-10">
                     <section className="bg-[#1e2433] rounded-2xl border border-white/5 p-8 shadow-2xl">
-                        <h3 className="text-white text-lg font-black mb-6 flex items-center gap-3"><Layers className="text-[#E2A049]" size={20}/> Familia de Gastos</h3>
-                        <div className="flex gap-2 mb-8">
-                            <input className="flex-1 bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-[#E2A049] transition-colors" placeholder="Nueva Categoría (Ventas, Logística, Insumos)..." value={newCatName} onChange={e => setNewCatName(e.target.value)} />
-                            <button className="bg-[#E2A049] text-black px-6 py-3 rounded-xl font-black text-sm active:scale-95 transition-transform shadow-lg shadow-[#E2A049]/10" onClick={handleAddCat}>Añadir</button>
+                        <div className="flex items-center justify-between mb-8">
+                            <h3 className="text-white text-lg font-black flex items-center gap-3"><Layers className="text-[#E2A049]" size={20}/> Familia de Gastos</h3>
+                            <button className="bg-[#E2A049]/10 text-[#E2A049] hover:bg-[#E2A049]/20 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex items-center gap-2" onClick={() => setIsCreateCatOpen(true)}>
+                                <Plus size={14}/> Añadir
+                            </button>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                             {categories.map(c => (
@@ -362,14 +370,11 @@ export default function GastosClient({
                     </section>
 
                     <section className="bg-[#1e2433] rounded-2xl border border-white/5 p-8 shadow-2xl">
-                        <h3 className="text-white text-lg font-black mb-6 flex items-center gap-3"><List className="text-sky-400" size={20}/> Subcategorías e Ítems</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2 mb-8">
-                            <select className="bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-sky-400 transition-colors text-sm" value={selectedCatForSub} onChange={e => setSelectedCatForSub(e.target.value)}>
-                                <option value="">Familia principal...</option>
-                                {categories.filter(c => c.is_active).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                            </select>
-                            <input className="lg:col-span-2 bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-sky-400 transition-colors text-sm" placeholder="Nombre del ítem detallado..." value={newSubName} onChange={e => setNewSubName(e.target.value)} />
-                            <button className="bg-sky-500 text-white px-6 py-3 rounded-xl font-black text-sm active:scale-95 transition-transform shadow-lg shadow-sky-500/10" onClick={handleAddSub}>Añadir Ítem</button>
+                        <div className="flex items-center justify-between mb-8">
+                            <h3 className="text-white text-lg font-black flex items-center gap-3"><List className="text-sky-400" size={20}/> Subcategorías e Ítems</h3>
+                            <button className="bg-sky-500/10 text-sky-400 hover:bg-sky-500/20 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex items-center gap-2" onClick={() => setIsCreateSubOpen(true)}>
+                                <Plus size={14}/> Añadir
+                            </button>
                         </div>
                         <div className="space-y-6">
                             {categories.map(cat => (
@@ -408,10 +413,11 @@ export default function GastosClient({
             {tab === 'pay' && (
                 <div className="animate-in fade-in duration-500">
                     <section className="bg-[#1e2433] rounded-2xl border border-white/5 p-8 shadow-2xl">
-                         <h3 className="text-white text-lg font-black mb-6 flex items-center gap-3"><Wallet size={20} className="text-emerald-400" /> Medios de Pago Activos</h3>
-                         <div className="flex gap-2 mb-8">
-                            <input className="flex-1 bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-emerald-400 transition-colors" placeholder="Nuevo medio (ej: Zelle, Caja Chica, Transferencia)..." value={newPayName} onChange={e => setNewPayName(e.target.value)} />
-                            <button className="bg-emerald-500 text-white px-6 py-3 rounded-xl font-black text-sm active:scale-95 transition-transform shadow-lg shadow-emerald-500/10" onClick={handleAddPay}>Añadir Medio</button>
+                         <div className="flex items-center justify-between mb-8">
+                             <h3 className="text-white text-lg font-black flex items-center gap-3"><Wallet size={20} className="text-emerald-400" /> Medios de Pago Activos</h3>
+                             <button className="bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex items-center gap-2" onClick={() => setIsCreatePayOpen(true)}>
+                                 <Plus size={14}/> Añadir
+                             </button>
                          </div>
                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                              {paymentMethods.map(pm => (
@@ -495,6 +501,79 @@ export default function GastosClient({
                                 <Save size={18}/>
                                 {isPending ? 'Procesando...' : editingExpense ? 'Guardar Cambios' : 'Persistir Gasto'}
                             </button>
+                        </div>
+                    </form>
+                </div>
+            )}
+
+            {isCreateCatOpen && (
+                <div className="fixed inset-0 z-100 flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-black/80 backdrop-blur-md transition-opacity" onClick={() => setIsCreateCatOpen(false)}></div>
+                    <form className="relative w-full max-w-md bg-[#161b27] border border-white/10 rounded-3xl p-8 shadow-2xl animate-in zoom-in-95 duration-200" onSubmit={handleAddCat}>
+                        <div className="flex justify-between items-center mb-6 pb-4 border-b border-white/5">
+                            <h2 className="text-white text-lg font-black flex items-center gap-3"><Layers className="text-[#E2A049]" size={20}/> Añadir Categoría</h2>
+                            <button type="button" onClick={() => setIsCreateCatOpen(false)} className="text-slate-500 hover:text-white transition-colors p-2 rounded-full hover:bg-white/5"><X size={18}/></button>
+                        </div>
+                        <div className="space-y-6">
+                            <div>
+                                <label className="block text-slate-500 text-[10px] font-black uppercase tracking-[2px] mb-2 px-1">Nombre de la Categoría</label>
+                                <input className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-[#E2A049] transition-colors" placeholder="Ventas, Logística..." value={newCatName} onChange={e => setNewCatName(e.target.value)} required autoFocus />
+                            </div>
+                            <div className="flex gap-3">
+                                <button type="button" onClick={() => setIsCreateCatOpen(false)} className="flex-1 bg-white/5 text-white py-3 rounded-xl font-bold text-sm active:scale-95 transition-transform">Cancelar</button>
+                                <button type="submit" disabled={isPending || !newCatName} className="flex-1 bg-[#E2A049] text-black py-3 rounded-xl font-black text-sm active:scale-95 transition-transform disabled:opacity-50">Guardar</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            )}
+
+            {isCreateSubOpen && (
+                <div className="fixed inset-0 z-100 flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-black/80 backdrop-blur-md transition-opacity" onClick={() => setIsCreateSubOpen(false)}></div>
+                    <form className="relative w-full max-w-md bg-[#161b27] border border-white/10 rounded-3xl p-8 shadow-2xl animate-in zoom-in-95 duration-200" onSubmit={handleAddSub}>
+                        <div className="flex justify-between items-center mb-6 pb-4 border-b border-white/5">
+                            <h2 className="text-white text-lg font-black flex items-center gap-3"><List className="text-sky-400" size={20}/> Añadir Ítem</h2>
+                            <button type="button" onClick={() => setIsCreateSubOpen(false)} className="text-slate-500 hover:text-white transition-colors p-2 rounded-full hover:bg-white/5"><X size={18}/></button>
+                        </div>
+                        <div className="space-y-6">
+                            <div>
+                                <label className="block text-slate-500 text-[10px] font-black uppercase tracking-[2px] mb-2 px-1">Familia Principal</label>
+                                <select className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-sky-400 transition-colors text-sm" value={selectedCatForSub} onChange={e => setSelectedCatForSub(e.target.value)} required>
+                                    <option value="">Seleccionar familia...</option>
+                                    {categories.filter(c => c.is_active).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-slate-500 text-[10px] font-black uppercase tracking-[2px] mb-2 px-1">Nombre del Ítem</label>
+                                <input className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-sky-400 transition-colors" placeholder="Ej: Fletes, Insumos barra..." value={newSubName} onChange={e => setNewSubName(e.target.value)} required />
+                            </div>
+                            <div className="flex gap-3">
+                                <button type="button" onClick={() => setIsCreateSubOpen(false)} className="flex-1 bg-white/5 text-white py-3 rounded-xl font-bold text-sm active:scale-95 transition-transform">Cancelar</button>
+                                <button type="submit" disabled={isPending || !newSubName || !selectedCatForSub} className="flex-1 bg-sky-500 text-white py-3 rounded-xl font-black text-sm active:scale-95 transition-transform disabled:opacity-50">Guardar</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            )}
+
+            {isCreatePayOpen && (
+                <div className="fixed inset-0 z-100 flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-black/80 backdrop-blur-md transition-opacity" onClick={() => setIsCreatePayOpen(false)}></div>
+                    <form className="relative w-full max-w-md bg-[#161b27] border border-white/10 rounded-3xl p-8 shadow-2xl animate-in zoom-in-95 duration-200" onSubmit={handleAddPay}>
+                        <div className="flex justify-between items-center mb-6 pb-4 border-b border-white/5">
+                            <h2 className="text-white text-lg font-black flex items-center gap-3"><Wallet className="text-emerald-400" size={20}/> Añadir Medio de Pago</h2>
+                            <button type="button" onClick={() => setIsCreatePayOpen(false)} className="text-slate-500 hover:text-white transition-colors p-2 rounded-full hover:bg-white/5"><X size={18}/></button>
+                        </div>
+                        <div className="space-y-6">
+                            <div>
+                                <label className="block text-slate-500 text-[10px] font-black uppercase tracking-[2px] mb-2 px-1">Nombre del Medio de Pago</label>
+                                <input className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-emerald-500 transition-colors" placeholder="Ej: Zelle, Transferencia..." value={newPayName} onChange={e => setNewPayName(e.target.value)} required autoFocus />
+                            </div>
+                            <div className="flex gap-3">
+                                <button type="button" onClick={() => setIsCreatePayOpen(false)} className="flex-1 bg-white/5 text-white py-3 rounded-xl font-bold text-sm active:scale-95 transition-transform">Cancelar</button>
+                                <button type="submit" disabled={isPending || !newPayName} className="flex-1 bg-emerald-500 text-white py-3 rounded-xl font-black text-sm active:scale-95 transition-transform disabled:opacity-50">Guardar</button>
+                            </div>
                         </div>
                     </form>
                 </div>
