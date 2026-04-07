@@ -875,4 +875,4 @@ Este proyecto se comparte libremente como código abierto. Si lo usas como base 
 
 ---
 
-Desarrollado con ❤️ por **Cocktails on Tap Chile** 🇨🇱🍸
+Desarrollado con ❤️ por **Felipe Ramirez Urrutiaguer**🍸
