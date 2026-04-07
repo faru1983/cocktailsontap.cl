@@ -5,7 +5,7 @@ import {
   TrendingUp, MapPin, 
   GlassWater, Filter, Activity, CheckCircle, 
   DollarSign, ArrowRight,
-  TrendingDown, PieChart
+  TrendingDown, PieChart, Award, ChevronRight
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -113,74 +113,88 @@ export default function StatsClient({ allQuotes, allQuoteItems, allExpenses }: S
         return Object.entries(stats).sort((a, b) => b[1] - a[1]);
     }, [filteredExpenses]);
 
+    const topClients = useMemo(() => {
+        const stats: Record<string, { name: string, total: number, count: number }> = {};
+        confirmedQuotes.forEach(q => {
+            const key = q.client_id || q.client_name;
+            if (!stats[key]) stats[key] = { name: `${q.client_name} ${q.client_lastname || ''}`, total: 0, count: 0 };
+            stats[key].total += Number(q.total_price);
+            stats[key].count += 1;
+        });
+        return Object.values(stats).sort((a, b) => b.total - a.total).slice(0, 5);
+    }, [confirmedQuotes]);
+
+    const topProductsQuantity = useMemo(() => {
+        const stats: Record<string, number> = {};
+        confirmedItems.forEach(item => {
+            stats[item.product_name] = (stats[item.product_name] || 0) + item.quantity;
+        });
+        return Object.entries(stats).sort((a, b) => b[1] - a[1]).slice(0, 5);
+    }, [confirmedItems]);
+
     const formatCLP = (n: number) => new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0 }).format(n);
 
     return (
-        <div style={{ paddingBottom: '40px' }}>
-            <style>{`
-                .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-                @media (max-width: 900px) { .stats-grid { grid-template-columns: 1fr; } }
-                .kpi-card { background: #1e2433; border: 1px solid rgba(255,255,255,0.06); border-radius: 16px; padding: 24px; display: flex; flex-direction: column; gap: 8px; border-top-width: 4px; }
-                .simple-card { background: #1e2433; border: 1px solid rgba(255,255,255,0.06); border-radius: 16px; padding: 24px; }
-                .progress-bg { background: rgba(255,255,255,0.03); height: 8px; border-radius: 4px; overflow: hidden; margin-top: 8px; }
-                .progress-bar { height: 100%; border-radius: 4px; transition: width 0.6s ease; }
-            `}</style>
-
-            <div style={{ marginBottom: '24px' }}>
-                <h1 style={{ color: '#f1f5f9', fontSize: '28px', fontWeight: 900, margin: '0 0 4px' }}>Estadísticas</h1>
-                <p style={{ color: '#475569', fontSize: '13px', margin: 0 }}>Análisis de rentabilidad</p>
+        <div className="pb-16 w-full">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+                <h1 className="text-white text-2xl font-black mb-1 capitalize">Estadísticas</h1>
             </div>
 
-            <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '16px', marginBottom: '24px' }}>
+            <div className="flex gap-1.5 border-b border-white/5 mb-8 pb-3 overflow-x-auto scrollbar-none">
                 {[
                     { id: 'this_month', label: 'Este Mes' },
                     { id: 'last_month', label: 'Mes Pasado' },
                     { id: 'this_year', label: 'Este Año' },
                     { id: 'all', label: 'Historial Total' },
-                ].map(f => (
-                    <button key={f.id} onClick={() => setDateRange(f.id as any)} 
-                        style={{ whiteSpace: 'nowrap', padding: '10px 18px', borderRadius: '12px', fontSize: '13px', fontWeight: 700, cursor: 'pointer',
-                        border: '1px solid rgba(255,255,255,0.08)', background: dateRange === f.id ? '#E2A049' : 'rgba(255,255,255,0.02)',
-                        color: dateRange === f.id ? '#1a1b26' : '#94a3b8', transition: '0.2s' }}>
+                ].map((f: any) => (
+                    <button 
+                        key={f.id} 
+                        onClick={() => setDateRange(f.id)} 
+                        className={`px-4 py-2 rounded-lg text-sm font-bold transition-all whitespace-nowrap cursor-pointer ${
+                            dateRange === f.id ? 'bg-[#E2A049]/10 text-[#E2A049]' : 'text-slate-500 hover:text-slate-300'
+                        }`}
+                    >
                         {f.label}
                     </button>
                 ))}
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginBottom: '32px' }}>
-                <div className="kpi-card" style={{ borderTopColor: '#34d399' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}><DollarSign size={18} color="#34d399"/><span style={{ fontSize: '11px', fontWeight: 800, color: '#34d399' }}>INGRESOS</span></div>
-                    <div style={{ fontSize: '24px', fontWeight: 900, color: '#f1f5f9' }}>{formatCLP(totalRevenue)}</div>
-                    <div style={{ fontSize: '12px', color: '#475569' }}>{confirmedQuotes.length} eventos confirmados</div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+                <div className="bg-[#1e2433] rounded-2xl border border-white/5 border-t-4 border-t-emerald-400 p-6 flex flex-col gap-2 shadow-xl">
+                    <div className="flex justify-between items-center"><DollarSign size={18} className="text-emerald-400"/><span className="text-[10px] font-black tracking-widest text-emerald-400 uppercase">Ingresos</span></div>
+                    <div className="text-3xl font-black text-white tracking-tight">{formatCLP(totalRevenue)}</div>
+                    <div className="text-xs font-bold text-slate-500">{confirmedQuotes.length} eventos confirmados</div>
                 </div>
-                <div className="kpi-card" style={{ borderTopColor: '#f87171' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}><TrendingDown size={18} color="#f87171"/><span style={{ fontSize: '11px', fontWeight: 800, color: '#f87171' }}>EGRESOS</span></div>
-                    <div style={{ fontSize: '24px', fontWeight: 900, color: '#f1f5f9' }}>{formatCLP(totalExpenses)}</div>
-                    <div style={{ fontSize: '12px', color: '#475569' }}>{filteredExpenses.length} cargos registrados</div>
+                <div className="bg-[#1e2433] rounded-2xl border border-white/5 border-t-4 border-t-rose-400 p-6 flex flex-col gap-2 shadow-xl">
+                    <div className="flex justify-between items-center"><TrendingDown size={18} className="text-rose-400"/><span className="text-[10px] font-black tracking-widest text-rose-400 uppercase">Egresos</span></div>
+                    <div className="text-3xl font-black text-white tracking-tight">{formatCLP(totalExpenses)}</div>
+                    <div className="text-xs font-bold text-slate-500">{filteredExpenses.length} cargos registrados</div>
                 </div>
-                <div className="kpi-card" style={{ borderTopColor: '#38bdf8' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}><Activity size={18} color="#38bdf8"/><span style={{ fontSize: '11px', fontWeight: 800, color: '#38bdf8' }}>UTILIDAD NETTA</span></div>
-                    <div style={{ fontSize: '24px', fontWeight: 900, color: netProfit >= 0 ? '#38bdf8' : '#f87171' }}>{formatCLP(netProfit)}</div>
-                    <div style={{ fontSize: '12px', color: '#475569' }}>Margen real de {profitMargin.toFixed(1)}%</div>
+                <div className="bg-[#1e2433] rounded-2xl border border-white/5 border-t-4 border-t-sky-400 p-6 flex flex-col gap-2 shadow-xl sm:col-span-2 lg:col-span-1">
+                    <div className="flex justify-between items-center"><Activity size={18} className="text-sky-400"/><span className="text-[10px] font-black tracking-widest text-sky-400 uppercase">Utilidad Neta</span></div>
+                    <div className={`text-3xl font-black tracking-tight ${netProfit >= 0 ? 'text-sky-400' : 'text-rose-400'}`}>{formatCLP(netProfit)}</div>
+                    <div className="text-xs font-bold text-slate-500">Margen operativo {profitMargin.toFixed(1)}%</div>
                 </div>
             </div>
 
-            <div className="stats-grid">
-                <div className="simple-card">
-                    <h3 style={{ margin: '0 0 24px 0', fontSize: '16px', fontWeight: 800, color: '#f1f5f9', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <PieChart size={18} color="#f472b6" /> Distribución de Gastos
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="bg-[#1e2433] rounded-2xl border border-white/5 p-6 md:p-8 shadow-xl">
+                    <h3 className="text-white text-base font-black mb-6 flex items-center gap-3">
+                        <PieChart size={18} className="text-pink-400" /> Desglose de Gastos
                     </h3>
-                    {expenseByCategory.length === 0 ? <p style={{ color: '#475569', fontSize: '13px' }}>Sin gastos en este periodo.</p> : (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                    {expenseByCategory.length === 0 ? <p className="text-slate-500 text-sm font-bold italic">Sin movimientos registrados.</p> : (
+                        <div className="flex flex-col gap-5">
                             {expenseByCategory.map(([name, amount]) => {
                                 const pct = (amount / totalExpenses) * 100;
                                 return (
                                     <div key={name}>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', marginBottom: '6px' }}>
-                                            <span style={{ color: '#f1f5f9', fontWeight: 700 }}>{name}</span>
-                                            <span style={{ color: '#94a3b8' }}>{formatCLP(amount)} <span style={{fontSize:'11px'}}>({pct.toFixed(1)}%)</span></span>
+                                        <div className="flex justify-between items-baseline text-sm mb-2">
+                                            <span className="text-white font-bold">{name}</span>
+                                            <span className="text-slate-400 font-black">{formatCLP(amount)} <span className="text-[10px] font-bold">({pct.toFixed(1)}%)</span></span>
                                         </div>
-                                        <div className="progress-bg"><div className="progress-bar" style={{ width: `${pct}%`, background: '#f472b6' }}></div></div>
+                                        <div className="h-2 bg-white/5 rounded-full overflow-hidden">
+                                            <div className="h-full bg-pink-400 rounded-full transition-all duration-700 ease-out" style={{ width: `${pct}%` }}></div>
+                                        </div>
                                     </div>
                                 );
                             })}
@@ -188,27 +202,70 @@ export default function StatsClient({ allQuotes, allQuoteItems, allExpenses }: S
                     )}
                 </div>
 
-                <div className="simple-card">
-                    <h3 style={{ margin: '0 0 24px 0', fontSize: '16px', fontWeight: 800, color: '#f1f5f9', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <GlassWater size={18} color="#c084fc" /> Top Mixología
+                <div className="bg-[#1e2433] rounded-2xl border border-white/5 p-6 md:p-8 shadow-xl">
+                    <h3 className="text-white text-base font-black mb-6 flex items-center gap-3">
+                        <GlassWater size={18} className="text-purple-400" /> Catálogo Destacado
                     </h3>
-                    {productStats.length === 0 ? <p style={{ color: '#475569', fontSize: '13px' }}>Sin ventas confirmadas.</p> : (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    {productStats.length === 0 ? <p className="text-slate-500 text-sm font-bold italic">Sin datos de venta suficientes.</p> : (
+                        <div className="flex flex-col gap-5">
                             {productStats.map(([name, stat]) => {
                                 const maxRev = productStats[0][1].revenue;
                                 const pct = (stat.revenue / maxRev) * 100;
                                 return (
                                     <div key={name}>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', marginBottom: '6px' }}>
-                                            <span style={{ color: '#f1f5f9', fontWeight: 700 }}>{name}</span>
-                                            <span style={{ color: '#E2A049', fontWeight: 800 }}>{formatCLP(stat.revenue)}</span>
+                                        <div className="flex justify-between items-baseline text-sm mb-2">
+                                            <span className="text-white font-bold truncate max-w-[200px] sm:max-w-[300px] shrink-0">{name}</span>
+                                            <span className="text-[#E2A049] font-black">{formatCLP(stat.revenue)}</span>
                                         </div>
-                                        <div className="progress-bg"><div className="progress-bar" style={{ width: `${pct}%`, background: '#c084fc' }}></div></div>
+                                        <div className="h-2 bg-white/5 rounded-full overflow-hidden">
+                                            <div className="h-full bg-purple-400 rounded-full transition-all duration-700 ease-out" style={{ width: `${pct}%` }}></div>
+                                        </div>
                                     </div>
                                 );
                             })}
                         </div>
                     )}
+                </div>
+            </div>
+
+            {/* Ranking Segment Migrated from Dashboard */}
+            <div className="mt-8 mb-8">
+                <div className="flex items-center gap-3 mb-5 px-1">
+                    <div className="bg-amber-500 w-1 h-5 rounded-full" />
+                    <h2 className="text-white text-lg font-extrabold">Ranking Clientes & Productos</h2>
+                </div>
+                <div className="bg-[#1e2433] rounded-2xl border border-white/5 p-6 shadow-xl">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div>
+                            <h3 className="text-[#E2A049] text-[10px] font-black uppercase tracking-[2px] mb-4 flex items-center gap-2">
+                                <Award size={14}/> Top Compradores
+                            </h3>
+                            <div className="space-y-4">
+                                {topClients.length === 0 ? <p className="text-slate-500 text-sm font-bold italic">Sin registros de clientes.</p> : topClients.map((c: any, index) => (
+                                    <div key={index} className="flex justify-between items-center group">
+                                        <div className="flex flex-col">
+                                            <span className="text-slate-200 text-xs font-bold group-hover:text-white transition-colors">{c.name}</span>
+                                            <span className="text-slate-600 text-[10px]">{c.count} servicios</span>
+                                        </div>
+                                        <span className="text-[#E2A049] text-xs font-black">{formatCLP(c.total)}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                        <div>
+                            <h3 className="text-sky-400 text-[10px] font-black uppercase tracking-[2px] mb-4 flex items-center gap-2">
+                                <ChevronRight size={14}/> Estrellas del Bar
+                            </h3>
+                            <div className="space-y-4">
+                                {topProductsQuantity.length === 0 ? <p className="text-slate-500 text-sm font-bold italic">Sin registros de productos.</p> : topProductsQuantity.map(([name, qty]: any, index) => (
+                                    <div key={index} className="flex justify-between items-center group">
+                                        <span className="text-slate-400 text-xs font-bold truncate max-w-[200px] shrink-0 group-hover:text-slate-200 transition-colors">{name}</span>
+                                        <span className="bg-sky-500/10 text-sky-400 text-[10px] font-black px-2 py-0.5 rounded-full">{qty} unid</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

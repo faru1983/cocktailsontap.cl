@@ -1,7 +1,16 @@
-import { DashboardRow } from './DashboardRow';
 import { createServerClient } from '@/lib/supabaseServer';
 import Link from 'next/link';
-import type { Quote } from '@/lib/types';
+import { DashboardRow } from './DashboardRow';
+import { 
+    CircleDollarSign, 
+    Receipt, 
+    Gem, 
+    TrendingUp, 
+    Award, 
+    Sparkles, 
+    ChevronRight,
+    Search
+} from 'lucide-react';
 
 async function getDashboardData() {
     const db = createServerClient();
@@ -24,7 +33,7 @@ async function getDashboardData() {
     const startOfLastYearSQL = `${now.getFullYear() - 1}-01-01`;
     const endOfLastYearSQL = `${now.getFullYear() - 1}-12-31`;
 
-    // 2. Fetch Data in Parallel (Selecting only necessary columns for performance)
+    // 2. Fetch Data in Parallel
     const [
         monthlyResults, 
         monthlyDrafts, 
@@ -43,7 +52,6 @@ async function getDashboardData() {
         db.from('clients').select('id', { count: 'exact', head: true }),
         db.from('quotes').select('id, token, status, client_name, client_lastname, event_date, total_price, created_at').order('created_at', { ascending: false }).limit(5),
         db.from('quotes').select('id, client_name, client_lastname, event_date, start_time, total_price, guests, status, comuna_name, comuna_other').in('status', ['confirmed', 'completed']).gte('event_date', todaySQL).lte('event_date', endOfMonthSQL).order('event_date', { ascending: true }).limit(8),
-        // Limit historical BI data to keep performance as the DB grows
         db.from('quotes').select('total_price, client_id, client_name, client_lastname, comuna_name, comuna_other').in('status', ['confirmed', 'completed']),
         db.from('quotes').select('total_price').in('status', ['confirmed', 'completed']).gte('event_date', startOfYearSQL).lte('event_date', endOfYearSQL),
         db.from('quotes').select('total_price').in('status', ['confirmed', 'completed']).gte('event_date', startOfLastYearSQL).lte('event_date', endOfLastYearSQL),
@@ -52,7 +60,6 @@ async function getDashboardData() {
         db.from('expenses').select('amount').gte('expense_date', startOfMonthSQL).lte('expense_date', endOfMonthSQL)
     ]);
 
-    // 3. Simple Sums
     const monthlyRevenue = (monthlyResults.data || []).reduce((s: number, q: any) => s + Number(q.total_price), 0);
     const monthlyExpenses = (monthlyExpensesRes.data || []).reduce((s: number, e: any) => s + Number(e.amount), 0);
     const monthlyProfit = monthlyRevenue - monthlyExpenses;
@@ -61,11 +68,7 @@ async function getDashboardData() {
     const historicalRevenue = (historicalRevData.data || []).reduce((s: number, q: any) => s + Number(q.total_price), 0);
     const yearlyRevenue = (yearlyResults.data || []).reduce((s: number, q: any) => s + Number(q.total_price), 0);
     const lastYearRevenue = (lastYearResults.data || []).reduce((s: number, q: any) => s + Number(q.total_price), 0);
-    const conversionRate = (monthlyResults.data?.length || 0) + (monthlyDrafts.data?.length || 0) > 0
-        ? Math.round(((monthlyResults.data?.length || 0) / ((monthlyResults.data?.length || 0) + (monthlyDrafts.data?.length || 0))) * 100)
-        : 0;
 
-    // 4. BI Aggregations
     const clientStats: Record<string, { id: string; name: string; total: number; count: number }> = {};
     const comunaStats: Record<string, number> = {};
     (historicalRevData.data || []).forEach((q: any) => {
@@ -82,10 +85,6 @@ async function getDashboardData() {
         productStats[item.product_name] = (productStats[item.product_name] || 0) + (item.quantity || 0);
     });
 
-    const topClients = Object.values(clientStats).sort((a, b) => b.total - a.total).slice(0, 5);
-    const topProducts = Object.entries(productStats).sort((a, b) => b[1] - a[1]).slice(0, 5);
-    const topComunas = Object.entries(comunaStats).sort((a, b) => b[1] - a[1]).slice(0, 5);
-
     return {
         monthlyRevenue,
         monthlyExpenses,
@@ -95,254 +94,145 @@ async function getDashboardData() {
         yearlyRevenue,
         lastYearRevenue,
         confirmedCount: monthlyResults.data?.length || 0,
-        draftCount: monthlyDrafts.data?.length || 0,
         totalHistoricalCount: historicalRevData.data?.length || 0,
-        totalClients: allClients.count || 0,
-        conversionRate,
         recentQuotes: recentQuotes.data || [],
         upcomingEvents: upcomingEvents.data || [],
         nextMonthEvents: nextMonthResults.data || [],
-        topClients,
-        topProducts,
-        topComunas,
+        topClients: Object.values(clientStats).sort((a, b) => b.total - a.total).slice(0, 5),
+        topProducts: Object.entries(productStats).sort((a, b) => b[1] - a[1]).slice(0, 5),
         currentMonthName: now.toLocaleDateString('es-CL', { month: 'long' }),
         nextMonthName: startOfNextMonth.toLocaleDateString('es-CL', { month: 'long' }),
-        currentYear: now.getFullYear(),
-        lastYear: now.getFullYear() - 1
+        currentYear: now.getFullYear()
     };
 }
 
 const formatCLP = (n: number) => new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0 }).format(n);
 
 const statusBadge: Record<string, { label: string; color: string; bg: string }> = {
-    draft: { label: 'Borrador', color: '#94a3b8', bg: 'rgba(148,163,184,0.1)' },
-    confirmed: { label: 'Confirmada', color: '#34d399', bg: 'rgba(52,211,153,0.1)' },
-    completed: { label: 'Completada', color: '#a78bfa', bg: 'rgba(167,139,250,0.1)' },
-    cancelled: { label: 'Cancelada', color: '#f87171', bg: 'rgba(248,113,113,0.1)' },
+    draft: { label: 'Borrador', color: 'text-slate-400', bg: 'bg-slate-500/10' },
+    confirmed: { label: 'Confirmada', color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
+    completed: { label: 'Completada', color: 'text-purple-400', bg: 'bg-purple-500/10' },
+    cancelled: { label: 'Cancelada', color: 'text-rose-400', bg: 'bg-rose-500/10' },
 };
 
 export default async function AdminDashboardPage() {
     const data = await getDashboardData();
 
     const kpis = [
-        { label: 'Ingresos del Mes',       value: formatCLP(data.monthlyRevenue),   icon: '💰', sub: `${data.confirmedCount} confirmadas`, color: '#34d399' },
-        { label: 'Gastos del Mes',         value: formatCLP(data.monthlyExpenses),  icon: '💸', sub: 'Egresos registrados',                     color: '#f87171' },
-        { label: 'Utilidad Real',          value: formatCLP(data.monthlyProfit),    icon: '💎', sub: 'Ingresos - Egresos',                      color: '#38bdf8' },
-        { label: `Ventas ${data.currentYear}`, value: formatCLP(data.yearlyRevenue), icon: '📈', sub: 'Eventos del año actual', color: '#60a5fa' },
-        { label: 'Ingresos Históricos',     value: formatCLP(data.historicalRevenue), icon: '🏆', sub: `${data.totalHistoricalCount} ventas`, color: '#FFD700' },
-        { label: 'Proyección',              value: formatCLP(data.projectedRevenue), icon: '🔮', sub: 'Potencial borradores',             color: '#f472bc' },
+        { label: 'Ingresos del Mes',       value: formatCLP(data.monthlyRevenue),   icon: <CircleDollarSign size={20} />, sub: `${data.confirmedCount} confirmadas`, color: 'text-emerald-400', border: 'border-emerald-500/20' },
+        { label: 'Gastos del Mes',         value: formatCLP(data.monthlyExpenses),  icon: <Receipt size={20} />, sub: 'Egresos registrados',                     color: 'text-rose-400', border: 'border-rose-500/20' },
+        { label: 'Utilidad Real',          value: formatCLP(data.monthlyProfit),    icon: <Gem size={20} />, sub: 'Ingresos - Egresos',                      color: 'text-sky-400', border: 'border-sky-500/20' },
+        { label: `Ventas ${data.currentYear}`, value: formatCLP(data.yearlyRevenue), icon: <TrendingUp size={20} />, sub: 'Eventos del año actual', color: 'text-blue-400', border: 'border-blue-500/20' },
+        { label: 'Ingresos Históricos',     value: formatCLP(data.historicalRevenue), icon: <Award size={20} />, sub: `${data.totalHistoricalCount} ventas`, color: 'text-amber-400', border: 'border-amber-500/20' },
+        { label: 'Proyección',              value: formatCLP(data.projectedRevenue), icon: <Sparkles size={20} />, sub: 'Potencial borradores',             color: 'text-pink-400', border: 'border-pink-500/20' },
     ];
 
     return (
-        <div style={{ paddingBottom: '60px' }}>
-            <style>{`
-                .admin-kpi-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 32px; }
-                @media (min-width: 900px) { .admin-kpi-grid { grid-template-columns: repeat(3, 1fr); gap: 16px; } }
-                
-                .admin-kpi-card { background: #1e2433; border: 1px solid rgba(255,255,255,0.06); border-radius: 14px; padding: 16px; transition: border-color 0.2s; }
-                .admin-kpi-card:hover { border-color: rgba(226,160,73,0.3); }
-                .admin-kpi-value { font-size: 20px; font-weight: 900; margin-bottom: 2px; word-break: break-all; }
-                @media (min-width: 480px) { .admin-kpi-value { font-size: 24px; } }
-
-                .dashboard-section-title { color: #f1f5f9; fontSize: 18px; fontWeight: 800; margin: 0; text-transform: capitalize; }
-                .dashboard-section-wrap { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; margin-top: 40px; }
-                .dashboard-accent { background: #34d399; width: 4px; height: 20px; borderRadius: 4px; }
-
-                .admin-recent-wrap { background: #1e2433; border-radius: 16px; border: 1px solid rgba(255,255,255,0.06); overflow: hidden; }
-                .admin-recent-table-view { display: none; }
-                .admin-recent-cards-view { display: flex; flex-direction: column; }
-                @media (min-width: 768px) {
-                    .admin-recent-table-view { display: block; overflow-x: auto; }
-                    .admin-recent-cards-view { display: none; }
-                }
-
-                .dashboard-quote-card { padding: 14px 16px; border-top: 1px solid rgba(255,255,255,0.05); text-decoration: none; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
-                .dashboard-quote-card:first-child { border-top: none; }
-                .dashboard-quote-card:hover { background: rgba(255,255,255,0.02); }
-                .dashboard-row-hover:hover { background: rgba(255,255,255,0.03) !important; }
-            `}</style>
-
+        <div className="pb-16 px-4 md:px-0">
             {/* Header */}
-            <div style={{ marginBottom: '24px' }}>
-                <h1 style={{ color: '#f1f5f9', fontSize: '28px', fontWeight: 900, margin: '0 0 4px' }}>Bienvenido</h1>
-                <p style={{ color: '#475569', fontSize: '13px', margin: 0, textTransform: 'capitalize' }}>
+            <div className="mb-8 p-1">
+                <h1 className="text-white text-3xl font-black mb-1">Bienvenido</h1>
+                <p className="text-slate-500 text-sm capitalize">
                     {new Date().toLocaleDateString('es-CL', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
                 </p>
             </div>
 
-            {/* KPIs with Profit Calculation */}
-            <div className="admin-kpi-grid">
+            {/* KPIs */}
+            <div className="grid grid-cols-2 gap-3 mb-10 md:grid-cols-3 md:gap-5">
                 {kpis.map((kpi) => (
-                    <div key={kpi.label} className="admin-kpi-card" style={{ borderTop: `3px solid ${kpi.color}` }}>
-                        <div style={{ fontSize: '20px', marginBottom: '8px' }}>{kpi.icon}</div>
-                        <div className="admin-kpi-value" style={{ color: kpi.color }}>{kpi.value}</div>
-                        <div style={{ color: '#f1f5f9', fontSize: '12px', fontWeight: 600, marginBottom: '2px' }}>{kpi.label}</div>
-                        <div style={{ color: '#475569', fontSize: '11px' }}>{kpi.sub}</div>
+                    <div key={kpi.label} className={`bg-[#1e2433] border-t-2 ${kpi.border} border-x border-b border-white/5 rounded-2xl p-5 transition-all hover:border-[#E2A049]/30 shadow-xl shadow-black/20`}>
+                        <div className={`mb-3 ${kpi.color}`}>{kpi.icon}</div>
+                        <div className="text-2xl font-black text-white leading-tight mb-1">{kpi.value}</div>
+                        <div className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">{kpi.label}</div>
+                        <div className="text-slate-600 text-[10px] mt-1 italic">{kpi.sub}</div>
                     </div>
                 ))}
             </div>
 
-
-
-            {/* Upcoming Events */}
-            <div className="dashboard-section-wrap">
-                <div className="dashboard-accent"></div>
-                <h2 className="dashboard-section-title">Próximos Eventos de {data.currentMonthName}</h2>
-            </div>
-            <div className="admin-recent-wrap">
-                {data.upcomingEvents.length === 0 ? (
-                    <div style={{ padding: '32px', textAlign: 'center', color: '#64748b', fontSize: '14px' }}>No hay eventos próximos confirmados.</div>
-                ) : (
-                    <>
-                        <div className="admin-recent-table-view">
-                            <table width="100%" style={{ borderCollapse: 'collapse' }}>
-                                <thead>
-                                    <tr style={{ background: 'rgba(52,211,153,0.03)' }}>
-                                        {['Fecha', 'Cliente', 'Comuna', 'Invitados', 'Monto'].map(h => (
-                                            <th key={h} align="left" style={{ padding: '14px 20px', color: '#475569', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase' }}>{h}</th>
-                                        ))}
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {data.upcomingEvents.map((event: any) => (
-                                        <DashboardRow key={event.id} href={`/admin/quotes/${event.id}`} className="dashboard-row-hover" style={{ borderTop: '1px solid rgba(255,255,255,0.04)' }}>
-                                            <td style={{ padding: '14px 20px', color: '#34d399', fontSize: '13px', fontWeight: 700 }}>{new Date(event.event_date + 'T12:00:00').toLocaleDateString('es-CL', { day: '2-digit', month: 'short' })}</td>
-                                            <td style={{ padding: '14px 20px', color: '#f1f5f9', fontSize: '13px' }}>{event.client_name} {event.client_lastname}</td>
-                                            <td style={{ padding: '14px 20px', color: '#94a3b8', fontSize: '13px' }}>{event.comuna_name === 'Otra' ? event.comuna_other : event.comuna_name}</td>
-                                            <td style={{ padding: '14px 20px', color: '#94a3b8', fontSize: '13px' }}>{event.guests} pax</td>
-                                            <td style={{ padding: '14px 20px', color: '#E2A049', fontSize: '13px', fontWeight: 700 }}>{formatCLP(Number(event.total_price))}</td>
-                                        </DashboardRow>
-                                    ))}
-                                </tbody>
-                            </table>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {/* UPCOMING & NEXT MONTH */}
+                <div className="space-y-10">
+                    <section>
+                         <div className="flex items-center gap-3 mb-5 px-1">
+                            <div className="bg-emerald-500 w-1 h-5 rounded-full" />
+                            <h2 className="text-white text-lg font-extrabold capitalize">Eventos de {data.currentMonthName}</h2>
                         </div>
-                        <div className="admin-recent-cards-view">
-                            {data.upcomingEvents.map((event: any) => (
-                                <Link key={event.id} href={`/admin/quotes/${event.id}`} className="dashboard-quote-card">
-                                    <div style={{ minWidth: 0 }}>
-                                        <div style={{ color: '#f1f5f9', fontSize: '14px', fontWeight: 700, marginBottom: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                            {event.client_name} {event.client_lastname || ''}
-                                        </div>
-                                        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                                            <span style={{ color: '#34d399', fontWeight: 700, fontSize: '12px' }}>{event.event_date ? new Date(event.event_date + 'T12:00:00').toLocaleDateString('es-CL', { day: '2-digit', month: 'short' }) : '—'}</span>
-                                            <span style={{ color: '#475569', fontSize: '11px' }}>{event.guests} pax • {event.comuna_name === 'Otra' ? event.comuna_other : event.comuna_name}</span>
-                                        </div>
+                        <div className="bg-[#1e2433] rounded-2xl border border-white/5 overflow-hidden shadow-2xl">
+                             <div className="max-h-[500px] overflow-y-auto scrollbar-thin scrollbar-thumb-white/10">
+                                {data.upcomingEvents.length === 0 ? (
+                                    <div className="p-10 text-center text-slate-500 text-sm italic">Sin eventos próximos este mes.</div>
+                                ) : (
+                                    <table className="w-full border-collapse">
+                                        <tbody>
+                                            {data.upcomingEvents.map((q: any) => (
+                                                <DashboardRow key={q.id} href={`/admin/quotes/${q.id}`} className="group hover:bg-white/[0.02]">
+                                                    <td className="py-4 px-6 text-emerald-400 font-bold text-xs">{new Date(q.event_date + 'T12:00:00').toLocaleDateString('es-CL', { day: '2-digit', month: 'short' })}</td>
+                                                    <td className="py-4 px-6 text-slate-200 text-xs font-semibold">{q.client_name} {q.client_lastname}</td>
+                                                    <td className="py-4 px-6 text-slate-500 text-[11px]">{q.comuna_name === 'Otra' ? q.comuna_other : q.comuna_name}</td>
+                                                </DashboardRow>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                )}
+                            </div>
+                        </div>
+                    </section>
+
+                    <section>
+                        <div className="flex items-center gap-3 mb-5 px-1">
+                            <div className="bg-sky-500 w-1 h-5 rounded-full" />
+                            <h2 className="text-white text-lg font-extrabold capitalize">Eventos de {data.nextMonthName}</h2>
+                        </div>
+                        <div className="bg-[#1e2433] rounded-2xl border border-white/5 overflow-hidden shadow-2xl">
+                            <div className="max-h-[500px] overflow-y-auto scrollbar-thin scrollbar-thumb-white/10">
+                                {data.nextMonthEvents.length === 0 ? (
+                                    <div className="p-10 text-center text-slate-500 text-sm italic">Sin reservas aún para {data.nextMonthName}.</div>
+                                ) : (
+                                    <table className="w-full border-collapse">
+                                        <tbody>
+                                            {data.nextMonthEvents.map((q: any) => (
+                                                <DashboardRow key={q.id} href={`/admin/quotes/${q.id}`} className="group hover:bg-white/[0.02]">
+                                                    <td className="py-4 px-6 text-sky-400 font-bold text-xs">{new Date(q.event_date + 'T12:00:00').toLocaleDateString('es-CL', { day: '2-digit', month: 'short' })}</td>
+                                                    <td className="py-4 px-6 text-slate-200 text-xs font-semibold">{q.client_name} {q.client_lastname}</td>
+                                                    <td className="py-4 px-6 text-slate-500 text-[11px]">{q.comuna_name === 'Otra' ? q.comuna_other : q.comuna_name}</td>
+                                                </DashboardRow>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                )}
+                            </div>
+                        </div>
+                    </section>
+                </div>
+
+                {/* Últimas Cotizaciones */}
+                <div className="space-y-8">
+                    <section>
+                        <div className="flex items-center gap-3 mb-5 px-1">
+                            <div className="bg-purple-500 w-1 h-5 rounded-full" />
+                            <h2 className="text-white text-lg font-extrabold">Últimas Cotizaciones</h2>
+                        </div>
+                        <div className="bg-[#1e2433] rounded-2xl border border-white/5 overflow-hidden shadow-2xl">
+                            {data.recentQuotes.map((q: any) => (
+                                <Link key={q.id} href={`/admin/quotes#${q.id}`} className="flex items-center justify-between p-4 border-b border-white/[0.03] hover:bg-white/[0.02] transition-colors no-underline group">
+                                    <div className="flex flex-col">
+                                        <span className="text-slate-200 text-xs font-bold w-40 truncate">{q.client_name} {q.client_lastname}</span>
+                                        <span className="text-slate-600 text-[10px]">{new Date(q.created_at).toLocaleDateString('es-CL')}</span>
                                     </div>
-                                    <div style={{ color: '#E2A049', fontWeight: 700, fontSize: '13px' }}>{formatCLP(Number(event.total_price))}</div>
+                                    <div className="flex flex-col items-end">
+                                        <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full mb-1 ${
+                                            statusBadge[q.status as keyof typeof statusBadge]?.bg + ' ' + 
+                                            statusBadge[q.status as keyof typeof statusBadge]?.color
+                                        }`}>
+                                            {statusBadge[q.status as keyof typeof statusBadge]?.label.toUpperCase()}
+                                        </span>
+                                        <span className="text-white text-xs font-black group-hover:text-[#E2A049] transition-colors">{formatCLP(q.total_price)}</span>
+                                    </div>
                                 </Link>
                             ))}
                         </div>
-                    </>
-                )}
-            </div>
-
-            {/* 3. SECCION: PROXIMO MES */}
-            <div className="dashboard-section-wrap" style={{ marginTop: '50px' }}>
-                <div className="dashboard-accent" style={{ background: '#a78bfa' }}></div>
-                <h2 className="dashboard-section-title">Próximos Eventos de {data.nextMonthName}</h2>
-            </div>
-            <div className="admin-recent-wrap">
-                {data.nextMonthEvents.length === 0 ? (
-                    <div style={{ padding: '32px', textAlign: 'center', color: '#64748b', fontSize: '14px' }}>No hay eventos confirmados para el próximo mes todavía.</div>
-                ) : (
-                    <>
-                        <div className="admin-recent-table-view">
-                            <table width="100%" style={{ borderCollapse: 'collapse' }}>
-                                <thead>
-                                    <tr style={{ background: 'rgba(167,139,250,0.03)' }}>
-                                        {['Fecha', 'Cliente', 'Comuna', 'Invitados', 'Monto'].map(h => (
-                                            <th key={h} align="left" style={{ padding: '14px 20px', color: '#475569', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase' }}>{h}</th>
-                                        ))}
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {data.nextMonthEvents.map((event: any) => (
-                                        <DashboardRow key={event.id} href={`/admin/quotes/${event.id}`} className="dashboard-row-hover" style={{ borderTop: '1px solid rgba(255,255,255,0.04)' }}>
-                                            <td style={{ padding: '14px 20px', color: '#a78bfa', fontSize: '13px', fontWeight: 700 }}>{new Date(event.event_date + 'T12:00:00').toLocaleDateString('es-CL', { day: '2-digit', month: 'short' })}</td>
-                                            <td style={{ padding: '14px 20px', color: '#f1f5f9', fontSize: '13px' }}>{event.client_name} {event.client_lastname}</td>
-                                            <td style={{ padding: '14px 20px', color: '#94a3b8', fontSize: '13px' }}>{event.comuna_name === 'Otra' ? event.comuna_other : event.comuna_name}</td>
-                                            <td style={{ padding: '14px 20px', color: '#94a3b8', fontSize: '13px' }}>{event.guests} pax</td>
-                                            <td style={{ padding: '14px 20px', color: '#E2A049', fontSize: '13px', fontWeight: 700 }}>{formatCLP(Number(event.total_price))}</td>
-                                        </DashboardRow>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                        <div className="admin-recent-cards-view">
-                            {data.nextMonthEvents.map((event: any) => (
-                                <Link key={event.id} href={`/admin/quotes/${event.id}`} className="dashboard-quote-card">
-                                    <div style={{ minWidth: 0 }}>
-                                        <div style={{ color: '#f1f5f9', fontSize: '14px', fontWeight: 700, marginBottom: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                            {event.client_name} {event.client_lastname || ''}
-                                        </div>
-                                        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                                            <span style={{ color: '#a78bfa', fontWeight: 700, fontSize: '12px' }}>{event.event_date ? new Date(event.event_date + 'T12:00:00').toLocaleDateString('es-CL', { day: '2-digit', month: 'short' }) : '—'}</span>
-                                            <span style={{ color: '#475569', fontSize: '11px' }}>{event.guests} pax • {event.comuna_name === 'Otra' ? event.comuna_other : event.comuna_name}</span>
-                                        </div>
-                                    </div>
-                                    <div style={{ color: '#E2A049', fontWeight: 700, fontSize: '13px' }}>{formatCLP(Number(event.total_price))}</div>
-                                </Link>
-                            ))}
-                        </div>
-                    </>
-                )}
-            </div>
-
-            {/* 3. SECCION: ULTIMAS RECIBIDAS (LEADS) */}
-            <div className="dashboard-section-wrap" style={{ marginTop: '50px' }}>
-                <div className="dashboard-accent" style={{ background: '#E2A049' }}></div>
-                <h2 className="dashboard-section-title">Últimas Cotizaciones Generadas</h2>
-            </div>
-            <div className="admin-recent-wrap" style={{ marginBottom: '40px' }}>
-                {data.recentQuotes.length === 0 ? (
-                    <div style={{ padding: '32px', textAlign: 'center', color: '#64748b', fontSize: '14px' }}>No hay cotizaciones recientes.</div>
-                ) : (
-                    <>
-                        <div className="admin-recent-table-view">
-                            <table width="100%" style={{ borderCollapse: 'collapse' }}>
-                                <thead>
-                                    <tr style={{ background: 'rgba(226,160,73,0.03)' }}>
-                                        {['Creada', 'Cliente', 'Monto', 'Estado'].map(h => (
-                                            <th key={h} align="left" style={{ padding: '14px 20px', color: '#475569', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase' }}>{h}</th>
-                                        ))}
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {data.recentQuotes.map((q: any) => {
-                                        const badge = statusBadge[q.status] || statusBadge.draft;
-                                        return (
-                                            <DashboardRow key={q.id} href={`/admin/quotes/${q.id}`} className="dashboard-row-hover" style={{ borderTop: '1px solid rgba(255,255,255,0.04)' }}>
-                                                <td style={{ padding: '14px 20px', color: '#94a3b8', fontSize: '13px' }}>{new Date(q.created_at).toLocaleDateString('es-CL', { day: '2-digit', month: 'short' })}</td>
-                                                <td style={{ padding: '14px 20px', color: '#f1f5f9', fontSize: '13px', fontWeight: 700 }}>{q.client_name} {q.client_lastname}</td>
-                                                <td style={{ padding: '14px 20px', color: '#E2A049', fontSize: '13px', fontWeight: 700 }}>{formatCLP(Number(q.total_price))}</td>
-                                                <td style={{ padding: '14px 20px' }}>
-                                                    <span style={{ padding: '3px 8px', borderRadius: '12px', fontSize: '10px', fontWeight: 800, color: badge.color, background: badge.bg, textTransform: 'uppercase' }}>{badge.label}</span>
-                                                </td>
-                                            </DashboardRow>
-                                        );
-                                    })}
-                                </tbody>
-                            </table>
-                        </div>
-                        <div className="admin-recent-cards-view">
-                            {data.recentQuotes.map((q: any) => {
-                                const badge = statusBadge[q.status] || statusBadge.draft;
-                                return (
-                                    <Link key={q.id} href={`/admin/quotes/${q.id}`} className="dashboard-quote-card">
-                                        <div style={{ minWidth: 0 }}>
-                                            <div style={{ color: '#f1f5f9', fontSize: '14px', fontWeight: 700, marginBottom: '2px' }}>{q.client_name} {q.client_lastname}</div>
-                                            <div style={{ color: '#475569', fontSize: '11px' }}>Generada: {new Date(q.created_at).toLocaleDateString('es-CL')}</div>
-                                        </div>
-                                        <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                                            <div style={{ color: '#E2A049', fontWeight: 800, fontSize: '13px' }}>{formatCLP(Number(q.total_price))}</div>
-                                            <div style={{ fontSize: '9px', fontWeight: 900, color: badge.color, textTransform: 'uppercase' }}>{badge.label}</div>
-                                        </div>
-                                    </Link>
-                                );
-                            })}
-                        </div>
-                    </>
-                )}
+                    </section>
+                </div>
             </div>
         </div>
     );

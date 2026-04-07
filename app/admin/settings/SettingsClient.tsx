@@ -1,7 +1,6 @@
 'use client';
 
 import React from 'react';
-
 import { useState, useTransition } from 'react';
 import { 
     saveAdminSettings, 
@@ -13,7 +12,10 @@ import {
     updateSiteSetting 
 } from '@/app/actions/admin/adminActions';
 import Modal from '@/components/admin/Modal';
-import { Plus, Trash2, Edit2, MapPin, Calendar, Layout, Cpu } from 'lucide-react';
+import { 
+    Plus, Trash2, Edit2, MapPin, Calendar, Layout, Cpu, 
+    Mail, Star, Settings, MessageSquare, Check, X, RefreshCw
+} from 'lucide-react';
 import { ICON_CATALOG, renderIconFromKey } from '@/lib/icons';
 
 export default function SettingsClient({ 
@@ -77,7 +79,7 @@ export default function SettingsClient({
             isOpen: true,
             type,
             data: item || (
-                type === 'event' ? { name: '', icon: '🥂', display_order: 0 } : 
+                type === 'event' ? { name: '', icon: 'GlassWater', display_order: 0 } : 
                 type === 'comuna' ? { name: '', cost: 0, free_from: null, display_order: 0 } :
                 { key: '', value: '', category: 'global', is_active: true, description: '' }
             )
@@ -118,31 +120,22 @@ export default function SettingsClient({
         return new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0 }).format(n);
     };
 
-    // Helper para renderizar iconos del catálogo o texto (emojis)
     const renderIcon = (iconKey: string, size: number = 24, className?: string) => {
         return renderIconFromKey(iconKey, size, className);
     };
 
     return (
-        <div style={{ paddingBottom: '60px' }}>
-            <style>{`
-                .set-tabs { display: flex; gap: 8px; margin-bottom: 24px; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 12px; overflow-x: auto; }
-                .set-tab-btn { padding: 8px 16px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; color: #64748b; background: none; border: none; transition: all 0.2s; white-space: nowrap; }
-                .set-tab-btn.active { background: rgba(226,160,73,0.12); color: #E2A049; }
-                
-                .set-header { margin-bottom: 24px; }
-                .set-header h1 { color: #f1f5f9; fontSize: 24px; fontWeight: 900; margin: 0 0 4px; }
-                .set-header p { color: #475569; fontSize: 13px; margin: 0; }
-            `}</style>
-
-            {/* Header */}
-            <div className="set-header">
-                <h1>Configuración</h1>
-                <p>Gestión avanzada del sistema</p>
+        <div className="pb-16 w-full">
+            {/* Header Simplified */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+                <div>
+                    <h1 className="text-white text-2xl font-black mb-1 capitalize">Configuración</h1>
+                    <p className="text-slate-500 text-sm">Gestión avanzada del sistema</p>
+                </div>
             </div>
 
-            {/* Tabs */}
-            <div className="set-tabs">
+            {/* Tabs matching the new standard */}
+            <div className="flex gap-1.5 border-b border-white/5 mb-8 pb-3 overflow-x-auto scrollbar-none">
                 {[
                     { id: 'review', label: 'Post-Venta' },
                     { id: 'events', label: 'Eventos' },
@@ -152,250 +145,250 @@ export default function SettingsClient({
                     <button
                         key={t.id}
                         onClick={() => setTab(t.id)}
-                        className={`set-tab-btn ${tab === t.id ? 'active' : ''}`}
+                        className={`px-4 py-2 rounded-lg text-sm font-bold transition-all whitespace-nowrap cursor-pointer ${
+                            tab === t.id ? 'bg-[#E2A049]/10 text-[#E2A049]' : 'text-slate-500 hover:text-slate-300'
+                        }`}
                     >
                         {t.label}
                     </button>
                 ))}
             </div>
 
-            {/* ─── TAB: REVIEW ───────────────────────────────────────────────────── */}
-            {tab === 'review' && (
-                <div className="bg-[#1e2433] rounded-2xl border border-white/5 p-6 md:p-8 max-w-2xl shadow-xl">
-                    <h2 className="text-slate-100 text-lg font-bold mb-6 flex items-center gap-2">⭐ Email de Review</h2>
-                    <form action={handleSaveGeneral} className="flex flex-col gap-6">
-                        <div>
-                            <label className="block text-slate-500 text-[10px] font-bold uppercase tracking-wider mb-3">Modo de envío</label>
-                            <div className="grid grid-cols-2 gap-3">
-                                {[{ v: 'manual', l: 'Manual' }, { v: 'auto', l: 'Automático' }].map(opt => (
-                                    <label key={opt.v} className={`flex items-center justify-center gap-3 p-4 rounded-xl cursor-pointer border-2 transition-all ${
-                                        mode === opt.v 
-                                        ? 'border-[#E2A049] bg-[rgba(226,160,73,0.08)]' 
-                                        : 'border-white/5 bg-white/3'
-                                    }`}>
-                                        <input type="radio" name="review_mode" value={opt.v} checked={mode === opt.v} onChange={() => setMode(opt.v)} className="accent-[#E2A049]" />
-                                        <span className={`text-sm font-bold ${mode === opt.v ? 'text-[#E2A049]' : 'text-slate-400'}`}>{opt.l}</span>
-                                    </label>
-                                ))}
-                            </div>
-                        </div>
-                        <div>
-                            <label className="block text-slate-500 text-[10px] font-bold uppercase tracking-wider mb-2">Link de Reseña</label>
-                            <input type="url" name="review_link" value={link} onChange={e => setLink(e.target.value)} placeholder="https://..." 
-                                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-slate-100 text-sm focus:outline-none focus:border-[#E2A049]/50 transition-all" 
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-slate-500 text-[10px] font-bold uppercase tracking-wider mb-2">Mensaje <span className="text-slate-600 font-medium whitespace-nowrap">· {'{nombre}'} para nombre cliente</span></label>
-                            <textarea name="review_template" value={template} onChange={e => setTemplate(e.target.value)} rows={6} 
-                                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-slate-100 text-sm focus:outline-none focus:border-[#E2A049]/50 transition-all resize-y leading-relaxed font-sans" 
-                            />
-                        </div>
-                        <div className="pt-6 border-t border-white/5 flex flex-col sm:flex-row justify-between items-center gap-6">
-                            <button type="submit" disabled={isPending} 
-                                className={`w-full sm:w-auto px-10 py-3 rounded-xl text-white font-extrabold text-sm transition-all border-none cursor-pointer ${
-                                    saved ? 'bg-emerald-500/80' : 'bg-gradient-to-br from-[#E2A049] to-[#c8872e] shadow-lg shadow-orange-900/10'
-                                } hover:scale-105 active:scale-95 disabled:opacity-50`}
-                            >
-                                {isPending ? '⏳' : saved ? '✅ Guardado' : 'Guardar Cambios'}
-                            </button>
-                            
-                            <div className="flex w-full sm:w-auto gap-2 items-center">
-                                <input type="email" placeholder="Email de prueba…" value={testEmail} onChange={e => setTestEmail(e.target.value)} 
-                                    className="flex-1 sm:w-48 px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-white text-xs outline-none" 
-                                />
-                                <button type="button" onClick={handleTest} disabled={isTesting || !testEmail} 
-                                    className="whitespace-nowrap px-4 py-2 bg-white/10 hover:bg-white/15 border border-white/10 rounded-xl text-slate-400 text-xs font-bold cursor-pointer transition-colors"
-                                >
-                                    {isTesting ? '...' : 'Probar'}
-                                </button>
-                            </div>
-                        </div>
-                        {testResult && (
-                            <div className={`text-xs font-bold p-3 rounded-lg animate-fade-in ${testResult.s ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'}`}>
-                                {testResult.m}
-                            </div>
-                        )}
-                    </form>
-                </div>
-            )}
-
-            {/* ─── TAB: EVENTS ───────────────────────────────────────────────────── */}
-            {tab === 'events' && (
-                <div className="max-w-4xl">
-                    <div className="flex justify-between items-center mb-6">
-                        <h2 className="text-slate-100 text-lg font-bold">Tipos de Evento</h2>
-                        <button onClick={() => openModal('event')} 
-                            className="flex items-center gap-2 px-4 py-2 bg-[#E2A049]/10 border border-[#E2A049]/30 rounded-xl text-[#E2A049] font-bold text-sm hover:bg-[#E2A049]/20 transition-all cursor-pointer"
-                        >
-                            <Plus size={16} /> <span className="hidden sm:inline">Agregar</span>
-                        </button>
-                    </div>
-
-                    {/* Table View (Desktop) */}
-                    <div className="hidden md:block bg-[#1e2433] rounded-2xl border border-white/5 overflow-hidden shadow-xl">
-                        <table className="w-full border-collapse">
-                            <thead>
-                                <tr className="bg-white/[0.02]">
-                                    <th className="text-left px-6 py-4 text-slate-500 text-[10px] font-black uppercase tracking-widest">Nombre</th>
-                                    <th className="text-left px-6 py-4 text-slate-500 text-[10px] font-black uppercase tracking-widest">Icono</th>
-                                    <th className="text-center px-6 py-4 text-slate-500 text-[10px] font-black uppercase tracking-widest">Orden</th>
-                                    <th className="text-right px-6 py-4 text-slate-500 text-[10px] font-black uppercase tracking-widest">Acciones</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {initialEventTypes.map(item => (
-                                    <tr key={item.id} className="border-t border-white/5 hover:bg-white/[0.01] transition-colors">
-                                        <td className="px-6 py-4">
-                                            <div className="w-10 h-10 flex items-center justify-center bg-white/5 rounded-lg text-[#E2A049]">
-                                                {renderIcon(item.icon, 20)}
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-4 text-slate-100 font-semibold">{item.name}</td>
-                                        <td className="px-6 py-4 text-slate-400 text-sm text-center">{item.display_order}</td>
-                                        <td className="px-6 py-4 text-right">
-                                            <div className="flex gap-2 justify-end">
-                                                <button onClick={() => openModal('event', item)} className="p-2 text-slate-500 hover:text-[#E2A049] transition-colors bg-transparent border-none cursor-pointer"><Edit2 size={16} /></button>
-                                                <button onClick={() => handleDelete(item.id, item.name, 'event')} className="p-2 text-slate-500 hover:text-red-400 transition-colors bg-transparent border-none cursor-pointer"><Trash2 size={16} /></button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-
-                    {/* Card View (Mobile) */}
-                    <div className="grid grid-cols-1 gap-4 md:hidden">
-                        {initialEventTypes.map(item => (
-                            <div key={item.id} className="bg-[#1e2433] p-5 rounded-2xl border border-white/5 shadow-md flex justify-between items-center transition-transform active:scale-95">
-                                <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-3 mb-2">
-                                        <div className="w-10 h-10 flex items-center justify-center bg-white/5 rounded-xl border border-white/5 text-[#E2A049]">
-                                            {renderIcon(item.icon, 22)}
-                                        </div>
-                                        <div className="text-slate-100 font-extrabold text-lg truncate">{item.name}</div>
-                                    </div>
-                                    <div className="text-slate-500 text-[10px] font-bold uppercase tracking-wider ml-[52px]">Orden: {item.display_order}</div>
-                                </div>
-                                <div className="flex gap-2 ml-4">
-                                    <button onClick={() => openModal('event', item)} className="p-3 bg-white/5 rounded-xl text-slate-400 border border-white/5 hover:text-[#E2A049] transition-colors"><Edit2 size={18} /></button>
-                                    <button onClick={() => handleDelete(item.id, item.name, 'event')} className="p-3 bg-red-500/5 rounded-xl text-red-400/70 border border-red-500/10 hover:text-red-400 transition-colors"><Trash2 size={18} /></button>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            )}
-
-            {/* ─── TAB: COMUNAS ──────────────────────────────────────────────────── */}
-            {tab === 'comunas' && (
-                <div className="max-w-4xl">
-                    <div className="flex justify-between items-center mb-6">
-                        <h2 className="text-slate-100 text-lg font-bold">Gestión de Comunas</h2>
-                        <button onClick={() => openModal('comuna')} 
-                            className="flex items-center gap-2 px-4 py-2 bg-[#E2A049]/10 border border-[#E2A049]/30 rounded-xl text-[#E2A049] font-bold text-sm hover:bg-[#E2A049]/20 transition-all cursor-pointer"
-                        >
-                            <Plus size={16} /> <span className="hidden sm:inline">Agregar</span>
-                        </button>
-                    </div>
-
-                    {/* Table View (Desktop) */}
-                    <div className="hidden md:block bg-[#1e2433] rounded-2xl border border-white/5 overflow-hidden shadow-xl">
-                        <table className="w-full border-collapse text-left">
-                            <thead>
-                                <tr className="bg-white/[0.02]">
-                                    <th className="px-6 py-4 text-slate-500 text-[10px] font-black uppercase tracking-widest">Comuna</th>
-                                    <th className="px-6 py-4 text-slate-500 text-[10px] font-black uppercase tracking-widest">Costo</th>
-                                    <th className="px-6 py-4 text-slate-500 text-[10px] font-black uppercase tracking-widest">Gratis desde</th>
-                                    <th className="text-right px-6 py-4 text-slate-500 text-[10px] font-black uppercase tracking-widest">Acciones</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {initialComunas.map(item => (
-                                    <tr key={item.id} className="border-t border-white/5 hover:bg-white/[0.01] transition-colors">
-                                        <td className="px-6 py-4 text-slate-100 font-semibold">{item.name}</td>
-                                        <td className="px-6 py-4 text-emerald-400 font-bold text-sm">{formatCLP(item.cost)}</td>
-                                        <td className="px-6 py-4 text-slate-400 text-sm whitespace-nowrap">{item.free_from ? `${item.free_from}L` : '—'}</td>
-                                        <td className="px-6 py-4 text-right">
-                                            <div className="flex gap-2 justify-end">
-                                                <button onClick={() => openModal('comuna', item)} className="p-2 text-slate-500 hover:text-[#E2A049] transition-colors bg-transparent border-none cursor-pointer"><Edit2 size={16} /></button>
-                                                <button onClick={() => handleDelete(item.id, item.name, 'comuna')} className="p-2 text-slate-500 hover:text-red-400 transition-colors bg-transparent border-none cursor-pointer"><Trash2 size={16} /></button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-
-                    {/* Card View (Mobile) */}
-                    <div className="grid grid-cols-1 gap-4 md:hidden">
-                        {initialComunas.map(item => (
-                            <div key={item.id} className="bg-[#1e2433] p-5 rounded-2xl border border-white/5 shadow-md transition-all active:scale-[0.98]">
-                                <div className="flex justify-between items-start mb-4">
-                                    <div>
-                                        <div className="text-slate-100 font-bold text-lg mb-0.5">{item.name}</div>
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-emerald-400 font-bold text-base">{formatCLP(item.cost)}</span>
-                                            {item.free_from && (
-                                                <>
-                                                    <span className="text-slate-600 text-xs">•</span>
-                                                    <span className="text-slate-500 text-xs">Gratis desde {item.free_from}L</span>
-                                                </>
-                                            )}
-                                        </div>
-                                    </div>
-                                    <div className="flex gap-2">
-                                        <button onClick={() => openModal('comuna', item)} className="p-3 bg-white/5 rounded-xl text-slate-400 border border-white/5"><Edit2 size={18} /></button>
-                                        <button onClick={() => handleDelete(item.id, item.name, 'comuna')} className="p-3 bg-red-500/5 rounded-xl text-red-400/70 border border-red-500/10"><Trash2 size={18} /></button>
-                                    </div>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            )}
-
-            {/* ─── TAB: SYSTEM (Cerebro Central) ────────────────────────────────── */}
-            {tab === 'system' && (
-                <div className="max-w-6xl">
-                    <div className="mb-8">
-                        <h2 className="text-slate-100 text-xl font-bold mb-2">Cerebro Central</h2>
-                        <p className="text-slate-500 text-sm">Comunicaciones y automatización avanzada con Google Services.</p>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {['emails', 'calendar', 'contacts'].map(cat => (
-                            <div key={cat} className="flex flex-col h-full bg-[#1e2433] rounded-3xl border border-white/5 p-6 shadow-2xl">
-                                <h3 className="text-[#E2A049] text-[10px] font-black uppercase tracking-[2px] mb-6 flex items-center gap-3">
-                                    <span className="p-2 bg-[#E2A049]/10 rounded-lg">
-                                        {cat === 'emails' ? <Layout size={14} /> : cat === 'calendar' ? <Calendar size={14} /> : <Cpu size={14} />}
-                                    </span>
-                                    {cat === 'emails' ? '📧 Correos' : cat === 'calendar' ? '📅 Calendario' : '👤 Contactos'}
-                                </h3>
-                                <div className="flex flex-col gap-4 overflow-y-auto max-h-[500px] pr-1 scrollbar-thin">
-                                    {siteSettings.filter((s: any) => s.category === cat).map((setting: any) => (
-                                        <div key={setting.id} onClick={() => openModal('system', setting)} 
-                                            className="group bg-white/[0.02] hover:bg-white/[0.04] p-4 rounded-2xl border border-white/5 hover:border-white/10 cursor-pointer transition-all active:scale-[0.97]"
-                                        >
-                                            <div className="flex justify-between items-start mb-2">
-                                                <span className="text-slate-100 text-sm font-bold group-hover:text-[#E2A049] transition-colors">{setting.description || setting.key}</span>
-                                                {!setting.is_active && (
-                                                    <span className="text-[9px] bg-red-500/20 text-red-400 px-2 py-0.5 rounded-full font-black tracking-tighter uppercase border border-red-500/20">Inactive</span>
-                                                )}
-                                            </div>
-                                            <p className="text-slate-500 text-xs leading-relaxed line-clamp-3 italic">
-                                                {setting.value}
-                                            </p>
-                                        </div>
+            <div className="animate-in fade-in duration-500">
+                {/* ─── TAB: REVIEW ───────────────────────────────────────────────────── */}
+                {tab === 'review' && (
+                    <div className="bg-[#1e2433] rounded-2xl border border-white/5 p-6 md:p-8 max-w-2xl shadow-xl">
+                        <h2 className="text-white text-lg font-black mb-6 flex items-center gap-3"><Star className="text-[#E2A049]" size={22} /> Email de Reseñas</h2>
+                        <form action={handleSaveGeneral} className="flex flex-col gap-6">
+                            <div>
+                                <label className="block text-slate-500 text-[10px] font-black uppercase tracking-widest mb-3 ml-1">Modo de envío</label>
+                                <div className="grid grid-cols-2 gap-3">
+                                    {[{ v: 'manual', l: 'Manual' }, { v: 'auto', l: 'Automático' }].map(opt => (
+                                        <label key={opt.v} className={`flex items-center justify-center gap-3 p-4 rounded-xl cursor-pointer border-2 transition-all ${
+                                            mode === opt.v 
+                                            ? 'border-[#E2A049] bg-[rgba(226,160,73,0.08)]' 
+                                            : 'border-white/5 bg-white/3'
+                                        }`}>
+                                            <input type="radio" name="review_mode" value={opt.v} checked={mode === opt.v} onChange={() => setMode(opt.v)} className="accent-[#E2A049]" />
+                                            <span className={`text-sm font-black ${mode === opt.v ? 'text-[#E2A049]' : 'text-slate-400'}`}>{opt.l}</span>
+                                        </label>
                                     ))}
                                 </div>
                             </div>
-                        ))}
+                            <div>
+                                <label className="block text-slate-500 text-[10px] font-black uppercase tracking-widest mb-3 ml-1">Enlace de Calificación Google</label>
+                                <input type="url" name="review_link" value={link} onChange={e => setLink(e.target.value)} placeholder="https://g.page/..." 
+                                    className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-[#E2A049] transition-colors text-sm" 
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-slate-500 text-[10px] font-black uppercase tracking-widest mb-3 ml-1">Plantilla de Correo <span className="text-slate-600 lowercase ml-2 font-bold">(Usa {'{nombre}'} para nombre cliente)</span></label>
+                                <textarea name="review_template" value={template} onChange={e => setTemplate(e.target.value)} rows={6} 
+                                    className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-4 text-white outline-none focus:border-[#E2A049] transition-colors text-sm resize-none leading-relaxed" 
+                                />
+                            </div>
+                            <div className="pt-6 border-t border-white/5 flex flex-col sm:flex-row justify-between items-center gap-6">
+                                <button type="submit" disabled={isPending} 
+                                    className="w-full sm:w-auto bg-[#E2A049] text-black px-8 py-3.5 rounded-2xl font-black text-sm active:scale-95 transition-transform flex items-center justify-center gap-2 shadow-lg shadow-[#E2A049]/10 disabled:opacity-50"
+                                >
+                                    {isPending ? <RefreshCw className="animate-spin" size={16}/> : saved ? <Check size={16}/> : <Check size={16}/>}
+                                    {isPending ? 'Procesando' : saved ? 'Guardado Exitosamente' : 'Actualizar Plantilla'}
+                                </button>
+                                
+                                <div className="flex w-full sm:w-auto gap-3 items-center">
+                                    <input type="email" placeholder="Email de simulación" value={testEmail} onChange={e => setTestEmail(e.target.value)} 
+                                        className="flex-1 sm:w-48 bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-white text-xs outline-none focus:border-sky-500 transition-colors" 
+                                    />
+                                    <button type="button" onClick={handleTest} disabled={isTesting || !testEmail} 
+                                        className="bg-sky-500/10 text-sky-400 px-4 py-2 rounded-xl font-bold text-xs hover:bg-sky-500/20 active:scale-95 transition-all disabled:opacity-30"
+                                    >
+                                        {isTesting ? 'Procesando...' : 'Enviar Prueba'}
+                                    </button>
+                                </div>
+                            </div>
+                            {testResult && (
+                                <div className={`text-xs font-bold p-3 rounded-lg flex items-center gap-2 ${testResult.s ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'}`}>
+                                    {testResult.s ? <Check size={14}/> : <X size={14}/>} {testResult.m}
+                                </div>
+                            )}
+                        </form>
                     </div>
-                </div>
-            )}
+                )}
+
+                {/* ─── TAB: EVENTS ───────────────────────────────────────────────────── */}
+                {tab === 'events' && (
+                    <div className="max-w-4xl">
+                        <div className="flex justify-between items-center mb-6">
+                            <h2 className="text-white text-lg font-black">Repertorio de Eventos</h2>
+                            <button onClick={() => openModal('event')} 
+                                className="bg-[#E2A049] text-black px-4 py-2 rounded-xl font-black text-xs sm:text-sm flex items-center gap-2 transition-transform active:scale-95 shadow-lg shadow-[#E2A049]/10"
+                            >
+                                <Plus size={16} /> <span className="hidden sm:inline">Nuevo Tipo</span>
+                            </button>
+                        </div>
+
+                        {/* Table View (Desktop) */}
+                        <div className="hidden md:block bg-[#1e2433] rounded-2xl border border-white/5 overflow-hidden shadow-xl">
+                            <table className="w-full border-collapse">
+                                <thead>
+                                    <tr className="bg-white/[0.02]">
+                                        <th className="text-left px-6 py-4 text-slate-500 text-[10px] font-black uppercase tracking-widest border-b border-white/5">Icono</th>
+                                        <th className="text-left px-6 py-4 text-slate-500 text-[10px] font-black uppercase tracking-widest border-b border-white/5">Denominación</th>
+                                        <th className="text-left px-6 py-4 text-slate-500 text-[10px] font-black uppercase tracking-widest border-b border-white/5">Orden</th>
+                                        <th className="text-right px-6 py-4 text-slate-500 text-[10px] font-black uppercase tracking-widest border-b border-white/5">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {initialEventTypes.map(item => (
+                                        <tr key={item.id} className="border-t border-white/[0.03] hover:bg-white/[0.01] transition-colors">
+                                            <td className="px-6 py-4">
+                                                <div className="w-10 h-10 flex items-center justify-center bg-black/30 shadow-inner rounded-xl border border-white/5 text-[#E2A049]">
+                                                    {renderIcon(item.icon, 20)}
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4 text-white font-bold text-sm">{item.name}</td>
+                                            <td className="px-6 py-4 text-slate-500 font-bold text-xs">#{item.display_order}</td>
+                                            <td className="px-6 py-4 text-right">
+                                                <div className="flex gap-2 justify-end">
+                                                    <button onClick={() => openModal('event', item)} className="p-2 text-slate-500 hover:text-[#E2A049] transition-colors"><Edit2 size={16} /></button>
+                                                    <button onClick={() => handleDelete(item.id, item.name, 'event')} className="p-2 text-slate-500 hover:text-rose-400 transition-colors"><Trash2 size={16} /></button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        {/* Card View (Mobile) */}
+                        <div className="grid grid-cols-1 gap-3 md:hidden">
+                            {initialEventTypes.map(item => (
+                                <div key={item.id} className="bg-[#1e2433] p-4 rounded-xl border border-white/5 shadow-md flex justify-between items-center transition-transform active:scale-[0.98]">
+                                    <div className="flex items-center gap-4 min-w-0">
+                                        <div className="w-10 h-10 flex items-center justify-center bg-black/40 rounded-xl border border-white/5 text-[#E2A049] shrink-0 shadow-inner">
+                                            {renderIcon(item.icon, 20)}
+                                        </div>
+                                        <div className="min-w-0">
+                                            <div className="text-white font-bold text-base truncate">{item.name}</div>
+                                            <div className="text-slate-500 text-[10px] font-black uppercase tracking-widest mt-0.5">Orden: {item.display_order}</div>
+                                        </div>
+                                    </div>
+                                    <div className="flex gap-2 shrink-0">
+                                        <button onClick={() => openModal('event', item)} className="p-2.5 bg-white/5 rounded-lg text-slate-400 hover:text-[#E2A049]"><Edit2 size={16} /></button>
+                                        <button onClick={() => handleDelete(item.id, item.name, 'event')} className="p-2.5 bg-rose-500/10 rounded-lg text-rose-400"><Trash2 size={16} /></button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {/* ─── TAB: COMUNAS ──────────────────────────────────────────────────── */}
+                {tab === 'comunas' && (
+                    <div className="max-w-4xl">
+                        <div className="flex justify-between items-center mb-6">
+                            <h2 className="text-white text-lg font-black">Cobertura y Despacho</h2>
+                            <button onClick={() => openModal('comuna')} 
+                                className="bg-[#E2A049] text-black px-4 py-2 rounded-xl font-black text-xs sm:text-sm flex items-center gap-2 transition-transform active:scale-95 shadow-lg shadow-[#E2A049]/10"
+                            >
+                                <Plus size={16} /> <span className="hidden sm:inline">Nueva Comuna</span>
+                            </button>
+                        </div>
+
+                        {/* Table View (Desktop) */}
+                        <div className="hidden md:block bg-[#1e2433] rounded-2xl border border-white/5 overflow-hidden shadow-xl">
+                            <table className="w-full border-collapse text-left">
+                                <thead>
+                                    <tr className="bg-white/[0.02]">
+                                        <th className="px-6 py-4 text-slate-500 text-[10px] font-black uppercase tracking-widest border-b border-white/5">Ubicación</th>
+                                        <th className="px-6 py-4 text-slate-500 text-[10px] font-black uppercase tracking-widest border-b border-white/5">Tarifa Normal</th>
+                                        <th className="px-6 py-4 text-slate-500 text-[10px] font-black uppercase tracking-widest border-b border-white/5">Beneficio Mayorista</th>
+                                        <th className="text-right px-6 py-4 text-slate-500 text-[10px] font-black uppercase tracking-widest border-b border-white/5">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {initialComunas.map(item => (
+                                        <tr key={item.id} className="border-t border-white/[0.03] hover:bg-white/[0.01] transition-colors">
+                                            <td className="px-6 py-4 text-white font-bold text-sm">{item.name}</td>
+                                            <td className="px-6 py-4 text-[#E2A049] font-black text-sm">{formatCLP(item.cost)}</td>
+                                            <td className="px-6 py-4 text-slate-400 text-xs font-bold">
+                                                {item.free_from ? <span className="bg-emerald-500/10 text-emerald-400 px-2 py-1 rounded-md">Envío sin costo {'>'} {item.free_from}L</span> : <span className="text-slate-600 italic">No aplica</span>}
+                                            </td>
+                                            <td className="px-6 py-4 text-right">
+                                                <div className="flex gap-2 justify-end">
+                                                    <button onClick={() => openModal('comuna', item)} className="p-2 text-slate-500 hover:text-[#E2A049] transition-colors"><Edit2 size={16} /></button>
+                                                    <button onClick={() => handleDelete(item.id, item.name, 'comuna')} className="p-2 text-slate-500 hover:text-rose-400 transition-colors"><Trash2 size={16} /></button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        {/* Card View (Mobile) */}
+                        <div className="grid grid-cols-1 gap-3 md:hidden">
+                            {initialComunas.map(item => (
+                                <div key={item.id} className="bg-[#1e2433] p-4 rounded-xl border border-white/5 shadow-md flex justify-between items-center transition-all active:scale-[0.98]">
+                                    <div>
+                                        <div className="text-white font-black text-base mb-1">{item.name}</div>
+                                        <div className="flex flex-col gap-1">
+                                            <span className="text-[#E2A049] font-black text-sm">{formatCLP(item.cost)}</span>
+                                            {item.free_from && (
+                                                <span className="text-emerald-400 text-[10px] font-black uppercase tracking-widest drop-shadow-sm">Envio gratis desde {item.free_from}L</span>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <div className="flex gap-2 shrink-0">
+                                        <button onClick={() => openModal('comuna', item)} className="p-2.5 bg-white/5 rounded-lg text-slate-400 hover:text-[#E2A049]"><Edit2 size={16} /></button>
+                                        <button onClick={() => handleDelete(item.id, item.name, 'comuna')} className="p-2.5 bg-rose-500/10 rounded-lg text-rose-400"><Trash2 size={16} /></button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {/* ─── TAB: SYSTEM (Cerebro Central) ────────────────────────────────── */}
+                {tab === 'system' && (
+                    <div className="max-w-6xl">
+                        <div className="mb-6">
+                            <h2 className="text-white text-lg font-black mb-1">Automatizaciones y Configuración</h2>
+                            <p className="text-slate-500 text-sm">Gestionar plantillas de comunicación, agenda y reglas globales.</p>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                            {['emails', 'calendar', 'contacts'].map(cat => (
+                                <div key={cat} className="flex flex-col h-full bg-[#1e2433] rounded-2xl border border-white/5 p-6 shadow-xl">
+                                    <h3 className="text-white text-sm font-black mb-5 flex items-center gap-3">
+                                        <span className={`p-2 rounded-xl ${cat === 'emails' ? 'bg-sky-500/10 text-sky-400' : cat === 'calendar' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400'}`}>
+                                            {cat === 'emails' ? <Mail size={16} /> : cat === 'calendar' ? <Calendar size={16} /> : <Cpu size={16} />}
+                                        </span>
+                                        {cat === 'emails' ? 'Plantillas de Correo' : cat === 'calendar' ? 'Eventos Google Calendar' : 'Integración G-Contacts'}
+                                    </h3>
+                                    <div className="flex flex-col gap-3 overflow-y-auto max-h-[500px] pr-1 scrollbar-thin scrollbar-thumb-white/10">
+                                        {siteSettings.filter((s: any) => s.category === cat).map((setting: any) => (
+                                            <div key={setting.id} onClick={() => openModal('system', setting)} 
+                                                className="group bg-black/20 hover:bg-black/40 p-4 rounded-xl border border-white/5 hover:border-[#E2A049]/30 cursor-pointer transition-all active:scale-[0.98]"
+                                            >
+                                                <div className="flex justify-between items-start mb-2">
+                                                    <span className="text-white text-xs font-black group-hover:text-[#E2A049] transition-colors">{setting.description || setting.key}</span>
+                                                    {!setting.is_active && (
+                                                        <span className="text-[8px] bg-rose-500/20 text-rose-400 px-2 py-0.5 rounded-md font-black tracking-widest uppercase">Inactivo</span>
+                                                    )}
+                                                </div>
+                                                <p className="text-slate-400 text-xs leading-relaxed line-clamp-2 italic font-mono bg-black/40 p-2 rounded-lg border border-white/5">
+                                                    {setting.value}
+                                                </p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+            </div>
 
             {/* ─── MODAL: EVENT / COMUNA / SYSTEM ─────────────────────────────────── */}
             {modalData.isOpen && modalData.data && (
@@ -403,23 +396,23 @@ export default function SettingsClient({
                     isOpen={modalData.isOpen}
                     onClose={closeModal}
                     title={
-                        modalData.type === 'event' ? (modalData.data?.id ? '✏️ Editar Evento' : '✨ Nuevo Evento') : 
-                        modalData.type === 'comuna' ? (modalData.data?.id ? '📍 Editar Comuna' : '🏙️ Nueva Comuna') :
-                        '⚙️ Ajuste de Sistema'
+                        modalData.type === 'event' ? (modalData.data?.id ? 'Editar Evento' : 'Nuevo Evento') : 
+                        modalData.type === 'comuna' ? (modalData.data?.id ? 'Editar Comuna' : 'Nueva Comuna') :
+                        'Ajuste Sensible'
                     }
                 >
-                    <form onSubmit={handleSaveItem} className="flex flex-col gap-6">
+                    <form onSubmit={handleSaveItem} className="flex flex-col gap-6 px-1">
                         {modalData.type === 'event' ? (
                             <>
                                 <div>
-                                    <label className="block text-slate-500 text-[10px] font-black uppercase tracking-wider mb-2 text-left">Nombre</label>
+                                    <label className="block text-slate-500 text-[10px] font-black uppercase tracking-widest mb-3 text-left">Denominación</label>
                                     <input type="text" required value={modalData.data.name} onChange={e => setModalData({ ...modalData, data: { ...modalData.data, name: e.target.value } })} 
-                                        className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-slate-100 text-sm focus:outline-none focus:border-[#E2A049]/50 transition-all font-bold" 
+                                        className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-[#E2A049] transition-colors text-sm font-bold" 
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-slate-500 text-[10px] font-black uppercase tracking-wider mb-3 text-left">Elige un Icono para el Evento</label>
-                                    <div className="grid grid-cols-4 sm:grid-cols-5 gap-2 max-h-[220px] overflow-y-auto p-2 bg-black/20 rounded-2xl border border-white/5 scrollbar-thin">
+                                    <label className="block text-slate-500 text-[10px] font-black uppercase tracking-widest mb-3 text-left">Representación Visual (Icono)</label>
+                                    <div className="grid grid-cols-4 sm:grid-cols-5 gap-2 max-h-[220px] overflow-y-auto p-2 bg-black/30 rounded-xl border border-white/5 scrollbar-thin scrollbar-thumb-white/10">
                                         {ICON_CATALOG.map((iconItem) => {
                                             const isSelected = modalData.data.icon?.toLowerCase() === iconItem.id.toLowerCase();
                                             return (
@@ -431,74 +424,75 @@ export default function SettingsClient({
                                                     title={iconItem.name}
                                                 >
                                                     {React.createElement(iconItem.component, { size: 24 })}
-                                                    <span className="text-[8px] mt-1 font-bold truncate w-full text-center">{iconItem.name}</span>
+                                                    <span className="text-[8px] mt-1.5 font-bold truncate w-full text-center tracking-tight">{iconItem.name}</span>
                                                 </button>
                                             );
                                         })}
                                     </div>
                                 </div>
                                 <div>
-                                    <label className="block text-slate-500 text-[10px] font-black uppercase tracking-wider mb-2 text-left">Orden de Aparición</label>
+                                    <label className="block text-slate-500 text-[10px] font-black uppercase tracking-widest mb-3 text-left">Ordenanza</label>
                                     <input type="number" required value={modalData.data.display_order} onChange={e => setModalData({ ...modalData, data: { ...modalData.data, display_order: Number(e.target.value) } })} 
-                                        className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-slate-100 text-sm focus:outline-none focus:border-[#E2A049]/50 transition-all" 
+                                        className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-[#E2A049] transition-colors text-sm font-bold" 
                                     />
                                 </div>
                             </>
                         ) : modalData.type === 'comuna' ? (
                             <>
                                 <div>
-                                    <label className="block text-slate-500 text-[10px] font-black uppercase tracking-wider mb-2 text-left">Nombre Comuna</label>
+                                    <label className="block text-slate-500 text-[10px] font-black uppercase tracking-widest mb-3 text-left">Topónimo / Comuna</label>
                                     <input type="text" required value={modalData.data.name} onChange={e => setModalData({ ...modalData, data: { ...modalData.data, name: e.target.value } })} 
-                                        className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-slate-100 text-sm font-bold focus:outline-none focus:border-[#E2A049]/50 transition-all" 
+                                        className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-[#E2A049] transition-colors text-sm font-bold" 
                                     />
                                 </div>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div>
-                                        <label className="block text-slate-500 text-[10px] font-black uppercase tracking-wider mb-2 text-left">Costo Despacho</label>
+                                        <label className="block text-slate-500 text-[10px] font-black uppercase tracking-widest mb-3 text-left">Tarifa Logística ($)</label>
                                         <input type="number" required value={modalData.data.cost} onChange={e => setModalData({ ...modalData, data: { ...modalData.data, cost: Number(e.target.value) } })} 
-                                            className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-slate-100 text-sm focus:outline-none focus:border-[#E2A049]/50 transition-all" 
+                                            className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-[#E2A049] outline-none focus:border-[#E2A049] transition-colors text-sm font-black" 
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-slate-500 text-[10px] font-black uppercase tracking-wider mb-2 text-left">Gratis desde (Litros)</label>
+                                        <label className="block text-slate-500 text-[10px] font-black uppercase tracking-widest mb-3 text-left">Exención Comercial (L)</label>
                                         <input type="number" value={modalData.data.free_from || ''} onChange={e => setModalData({ ...modalData, data: { ...modalData.data, free_from: e.target.value ? Number(e.target.value) : null } })} 
-                                            className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-slate-100 text-sm focus:outline-none focus:border-[#E2A049]/50 transition-all" 
+                                            className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-emerald-400 outline-none focus:border-emerald-500 transition-colors text-sm font-black" 
+                                            placeholder="Litros para despacho gratis"
                                         />
                                     </div>
                                 </div>
                                 <div>
-                                    <label className="block text-slate-500 text-[10px] font-black uppercase tracking-wider mb-2 text-left">Orden de Aparición</label>
+                                    <label className="block text-slate-500 text-[10px] font-black uppercase tracking-widest mb-3 text-left">Posición en Formulario</label>
                                     <input type="number" required value={modalData.data.display_order} onChange={e => setModalData({ ...modalData, data: { ...modalData.data, display_order: Number(e.target.value) } })} 
-                                        className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-slate-100 text-sm focus:outline-none focus:border-[#E2A049]/50 transition-all" 
+                                        className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-[#E2A049] transition-colors text-sm font-bold" 
                                     />
                                 </div>
                             </>
                         ) : (
                             <>
                                 <div className="space-y-4">
-                                    <div className="flex justify-between items-center bg-white/[0.02] p-4 rounded-2xl border border-white/5">
-                                        <label className="block text-slate-100 text-sm font-black uppercase tracking-wider text-left">{modalData.data.description || modalData.data.key}</label>
+                                    <div className="flex justify-between items-center bg-black/20 p-4 rounded-xl border border-white/5">
+                                        <label className="block text-white text-sm font-black tracking-tight text-left">{modalData.data.description || modalData.data.key}</label>
                                         <label className="flex items-center gap-3 cursor-pointer group">
                                             <input type="checkbox" checked={modalData.data.is_active} onChange={e => setModalData({ ...modalData, data: { ...modalData.data, is_active: e.target.checked } })} 
-                                                className="w-5 h-5 accent-[#E2A049] cursor-pointer" 
+                                                className="w-5 h-5 accent-[#E2A049] cursor-pointer rounded-md bg-black/40 border-white/10" 
                                             />
-                                            <span className="text-xs font-bold text-slate-500 group-hover:text-slate-300 transition-colors uppercase tracking-widest leading-none">Activo</span>
+                                            <span className="text-[10px] font-black text-slate-500 group-hover:text-slate-300 transition-colors uppercase tracking-widest">Habilitado</span>
                                         </label>
                                     </div>
                                     <textarea 
                                         rows={8} 
                                         value={modalData.data.value} 
                                         onChange={e => setModalData({ ...modalData, data: { ...modalData.data, value: e.target.value } })} 
-                                        className="w-full px-4 py-4 bg-white/5 border border-white/10 rounded-2xl text-slate-100 text-xs md:text-sm font-mono focus:outline-none focus:border-[#E2A049]/50 transition-all resize-y leading-relaxed" 
+                                        className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-4 text-emerald-400 text-xs md:text-sm font-mono focus:outline-none focus:border-[#E2A049] transition-all resize-y leading-relaxed shadow-inner" 
                                     />
-                                    <div className="bg-[#E2A049]/5 p-4 rounded-2xl border border-[#E2A049]/10">
-                                        <p className="m-0 text-[10px] text-[#E2A049] font-black uppercase tracking-widest mb-1.5">Variables dinámicas:</p>
+                                    <div className="bg-sky-500/5 p-4 rounded-xl border border-sky-500/10">
+                                        <p className="m-0 text-[10px] text-sky-400 font-black uppercase tracking-widest mb-2 flex items-center gap-1.5"><Layout size={12}/> Variables Disponibles de Contexto:</p>
                                         <div className="flex flex-wrap gap-1.5">
                                             {(modalData.data.category === 'calendar' 
                                                 ? ['full_name', 'email', 'phone', 'event_date', 'pickup_date', 'start_time', 'pickup_time', 'event_type', 'comuna', 'address', 'guests', 'total_liters', 'link', 'items_list', 'total_price', 'payments_summary', 'comments'] 
                                                 : ['full_name', 'event_date', 'first_name', 'quote_url']
                                             ).map(variable => (
-                                                <code key={variable} className="bg-black/20 text-slate-400 text-[9px] px-1.5 py-0.5 rounded border border-white/5">{`{{${variable}}}`}</code>
+                                                <code key={variable} className="bg-black/30 text-slate-300 text-[10px] font-bold px-2 py-0.5 rounded-md border border-white/5">{`{{${variable}}}`}</code>
                                             ))}
                                         </div>
                                     </div>
@@ -506,9 +500,10 @@ export default function SettingsClient({
                             </>
                         )}
                         <button type="submit" disabled={isPending} 
-                            className="mt-2 w-full py-4 bg-gradient-to-br from-[#E2A049] to-[#c8872e] rounded-2xl text-white font-black text-base shadow-xl shadow-orange-950/20 active:scale-95 transition-all border-none cursor-pointer disabled:opacity-50"
+                            className="mt-6 w-full py-4 bg-[#E2A049] text-black rounded-2xl font-black text-sm shadow-xl active:scale-95 transition-transform flex items-center justify-center gap-2 disabled:opacity-50"
                         >
-                            {isPending ? '⏳ Guardando...' : 'Guardar Cambios'}
+                            {isPending ? <RefreshCw className="animate-spin" size={16}/> : <Check size={16}/>}
+                            {isPending ? 'Sincronizando Cambios...' : 'Consolidar Cambios al Sistema'}
                         </button>
                     </form>
                 </Modal>

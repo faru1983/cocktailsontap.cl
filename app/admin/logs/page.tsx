@@ -1,6 +1,10 @@
 import { createServerClient } from '@/lib/supabaseServer';
 import RetryButton from './RetryButton';
 import Link from 'next/link';
+import { 
+    RefreshCcw, Mail, Calendar, User, CheckCircle, XCircle, 
+    AlertTriangle, Clock, ArrowUpDown
+} from 'lucide-react';
 
 async function getSyncLogs(sort: string = 'created_at', order: string = 'desc') {
     const db = createServerClient();
@@ -11,12 +15,12 @@ async function getSyncLogs(sort: string = 'created_at', order: string = 'desc') 
     return data || [];
 }
 
-const typeLabels: Record<string, string> = {
-    email_client: '✉️ Email Cliente',
-    email_admin: '✉️ Email Admin',
-    google_calendar: '📅 Google Calendar',
-    google_pickup: '📅 Calendar Retiro',
-    google_contact: '👤 Google Contact',
+const typeLabels: Record<string, { label: string, icon: any }> = {
+    email_client: { label: 'Email Cliente', icon: Mail },
+    email_admin: { label: 'Email Admin', icon: Mail },
+    google_calendar: { label: 'Google Calendar', icon: Calendar },
+    google_pickup: { label: 'Calendar Retiro', icon: Calendar },
+    google_contact: { label: 'Google Contact', icon: User },
 };
 
 type SearchParams = Promise<{ sort?: string; order?: string }>;
@@ -27,10 +31,10 @@ export default async function LogsPage({ searchParams }: { searchParams: SearchP
     const failed = logs.filter((l: any) => l.status === 'failed');
 
     const sortFields = [
-        { label: 'Fecha', field: 'created_at' },
-        { label: 'Cliente', field: 'quote_id' }, // Simplified: sort by quote association
-        { label: 'Tipo', field: 'type' },
-        { label: 'Estado', field: 'status' }
+        { label: 'Fecha de Ejecución', field: 'created_at' },
+        { label: 'Cliente Asociado', field: 'quote_id' }, 
+        { label: 'Tipo de Proceso', field: 'type' },
+        { label: 'Estado Actual', field: 'status' }
     ];
 
     const getSortLink = (field: string) => {
@@ -40,121 +44,145 @@ export default async function LogsPage({ searchParams }: { searchParams: SearchP
     };
 
     return (
-        <div>
-            <div style={{ marginBottom: '28px' }}>
-                <h1 style={{ color: '#f1f5f9', fontSize: '24px', fontWeight: 900, margin: '0 0 4px' }}>Sincronización</h1>
-                <p style={{ color: '#475569', fontSize: '13px', margin: 0 }}>
-                    {logs.length} registros · <span style={{ color: failed.length > 0 ? '#f87171' : '#34d399' }}>{failed.length} errores</span>
-                </p>
+        <div className="pb-16 w-full">
+            {/* Header Simplified */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+                <div>
+                    <h1 className="text-white text-2xl font-black mb-1 capitalize flex items-center gap-2">
+                        Sincronización
+                    </h1>
+                </div>
             </div>
 
-            {failed.length === 0 && (
-                <div style={{ background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.2)', borderRadius: '12px', padding: '16px 20px', marginBottom: '24px', color: '#34d399', fontSize: '14px', fontWeight: 600 }}>
-                    ✅ Todo sincronizando correctamente — sin errores detectados.
+            {/* Health Indicator */}
+            {failed.length === 0 ? (
+                <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-5 mb-8 text-emerald-400 text-sm font-bold flex items-center gap-3 shadow-lg shadow-emerald-500/5">
+                    <CheckCircle size={20} className="shrink-0" />
+                    <span>Todos los sistemas operativos. No hay errores de sincronización pendientes.</span>
+                </div>
+            ) : (
+                <div className="bg-rose-500/10 border border-rose-500/20 rounded-2xl p-5 mb-8 text-rose-400 text-sm font-bold flex items-center gap-3 shadow-lg shadow-rose-500/5">
+                    <AlertTriangle size={20} className="shrink-0" />
+                    <span>Hemos detectado {failed.length} {failed.length === 1 ? 'proceso fallido' : 'procesos fallidos'} que requieren atención.</span>
                 </div>
             )}
 
-            <div style={{ background: '#1e2433', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.06)', overflow: 'hidden' }} className="desktop-only">
-                <div style={{ overflowX: 'auto' }}>
-                    <table width="100%" style={{ borderCollapse: 'collapse' }}>
-                        <thead>
-                            <tr style={{ background: 'rgba(255,255,255,0.02)' }}>
-                                {sortFields.map(h => (
-                                    <th key={h.field} align="left" style={{ padding: '14px 20px', color: '#475569', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.8px' }}>
-                                        <Link href={getSortLink(h.field)} style={{ textDecoration: 'none', color: sort === h.field ? '#E2A049' : 'inherit', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                            {h.label}
-                                            {sort === h.field && (order === 'asc' ? ' 🔼' : ' 🔽')}
-                                        </Link>
-                                    </th>
-                                ))}
-                                <th style={{ padding: '14px 20px', color: '#475569', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase' }}>Error</th>
-                                <th style={{ padding: '14px 20px' }}></th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {logs.length === 0 ? (
-                                <tr><td colSpan={6} style={{ padding: '40px 20px', textAlign: 'center', color: '#475569', fontSize: '14px' }}>Sin registros de sincronización.</td></tr>
-                            ) : logs.map((log: any) => (
-                                <tr key={log.id} style={{ borderTop: '1px solid rgba(255,255,255,0.04)' }}>
-                                    <td style={{ padding: '12px 20px', color: '#64748b', fontSize: '12px', whiteSpace: 'nowrap' }}>
-                                        {new Date(log.created_at).toLocaleString('es-CL')}
+            {/* Desktop Table View */}
+            <div className="hidden md:block bg-[#1e2433] rounded-2xl border border-white/5 overflow-hidden shadow-2xl">
+                <table className="w-full border-collapse">
+                    <thead>
+                        <tr className="bg-white/[0.02]">
+                            {sortFields.map(h => (
+                                <th key={h.field} className="text-left px-6 py-4 text-slate-500 text-[10px] font-black uppercase tracking-widest border-b border-white/5">
+                                    <Link href={getSortLink(h.field)} className={`flex items-center gap-2 transition-colors ${sort === h.field ? 'text-[#E2A049]' : 'hover:text-slate-300'}`}>
+                                        {h.label}
+                                        {sort === h.field && <ArrowUpDown size={12} className={order === 'asc' ? 'rotate-180' : ''} />}
+                                    </Link>
+                                </th>
+                            ))}
+                            <th className="text-left px-6 py-4 text-slate-500 text-[10px] font-black uppercase tracking-widest border-b border-white/5">Registro de Error</th>
+                            <th className="px-6 py-4 border-b border-white/5"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {logs.length === 0 ? (
+                            <tr><td colSpan={6} className="px-6 py-20 text-center text-slate-500 text-sm font-bold italic">Sin registros de sincronización disponibles.</td></tr>
+                        ) : logs.map((log: any) => {
+                            const TypeIcon = typeLabels[log.type]?.icon || RefreshCcw;
+                            return (
+                                <tr key={log.id} className="border-t border-white/[0.03] hover:bg-white/[0.01] transition-colors group">
+                                    <td className="px-6 py-4">
+                                        <div className="flex items-center gap-2 text-slate-400 font-bold text-xs uppercase tracking-tight">
+                                            <Clock size={14} className="text-slate-500"/>
+                                            {new Date(log.created_at).toLocaleString('es-CL')}
+                                        </div>
                                     </td>
-                                    <td style={{ padding: '12px 20px', color: '#94a3b8', fontSize: '13px', whiteSpace: 'nowrap' }}>
-                                        {log.quotes?.client_name} {log.quotes?.client_lastname || ''}
-                                    </td>
-                                    <td style={{ padding: '12px 20px', color: '#94a3b8', fontSize: '13px', whiteSpace: 'nowrap' }}>
-                                        {typeLabels[log.type] || log.type}
-                                    </td>
-                                    <td style={{ padding: '12px 20px' }}>
-                                        <span style={{
-                                            display: 'inline-block', padding: '3px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 700,
-                                            color: log.status === 'success' ? '#34d399' : log.status === 'retried' ? '#60a5fa' : '#f87171',
-                                            background: log.status === 'success' ? 'rgba(52,211,153,0.1)' : log.status === 'retried' ? 'rgba(96,165,250,0.1)' : 'rgba(248,113,113,0.1)',
-                                        }}>
-                                            {log.status === 'success' ? 'OK' : log.status === 'retried' ? 'Reintentado' : '⚠️ Error'}
+                                    <td className="px-6 py-4">
+                                        <span className="text-white font-bold text-sm">
+                                            {log.quotes?.client_name} {log.quotes?.client_lastname || ''}
                                         </span>
                                     </td>
-                                    <td style={{ padding: '12px 20px', color: '#475569', fontSize: '12px', maxWidth: '240px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                        {log.error_msg || '—'}
+                                    <td className="px-6 py-4">
+                                        <div className="flex items-center gap-2 bg-white/5 w-max px-3 py-1.5 rounded-lg text-slate-300 text-xs font-bold shadow-inner">
+                                            <TypeIcon size={14} className="text-[#E2A049]" />
+                                            {typeLabels[log.type]?.label || log.type}
+                                        </div>
                                     </td>
-                                    <td style={{ padding: '12px 20px' }}>
+                                    <td className="px-6 py-4">
+                                        <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-[10px] font-black uppercase tracking-widest transition-all ${
+                                            log.status === 'success' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 
+                                            log.status === 'retried' ? 'bg-sky-500/10 text-sky-400 border border-sky-500/20' : 
+                                            'bg-rose-500/10 text-rose-400 border border-rose-500/20 shadow-[0_0_10px_rgba(244,63,94,0.2)]'
+                                        }`}>
+                                            {log.status === 'success' ? <><CheckCircle size={10}/> OK</> : 
+                                             log.status === 'retried' ? <><RefreshCcw size={10}/> Resuelto</> : 
+                                             <><XCircle size={10}/> Fallo</>}
+                                        </span>
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <div className="text-slate-500 text-xs font-mono max-w-[200px] truncate group-hover:text-slate-400 transition-colors">
+                                            {log.error_msg || '—'}
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-4 text-right">
                                         {log.status === 'failed' && <RetryButton logId={log.id} />}
                                     </td>
                                 </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
+                            );
+                        })}
+                    </tbody>
+                </table>
             </div>
 
-            {/* Mobile Cards View */}
-            <div className="mobile-only">
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                    {logs.length === 0 ? (
-                         <div style={{ padding: '40px 20px', textAlign: 'center', color: '#475569', fontSize: '14px', background: '#1e2433', borderRadius: '16px' }}>Sin registros.</div>
-                    ) : logs.map((log: any) => (
-                        <div key={log.id} style={{ background: '#1e2433', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.06)', padding: '16px' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
-                                <div style={{ fontSize: '11px', color: '#64748b' }}>{new Date(log.created_at).toLocaleString('es-CL')}</div>
-                                <span style={{
-                                    display: 'inline-block', padding: '2px 8px', borderRadius: '20px', fontSize: '10px', fontWeight: 700,
-                                    color: log.status === 'success' ? '#34d399' : log.status === 'retried' ? '#60a5fa' : '#f87171',
-                                    background: log.status === 'success' ? 'rgba(52,211,153,0.1)' : log.status === 'retried' ? 'rgba(96,165,250,0.1)' : 'rgba(248,113,113,0.1)',
-                                }}>
-                                    {log.status === 'success' ? 'OK' : log.status === 'retried' ? 'Reintentado' : '⚠️ Error'}
+            {/* Mobile Card View */}
+            <div className="md:hidden space-y-4">
+                {logs.length === 0 ? (
+                        <div className="bg-[#1e2433] rounded-2xl border border-white/5 p-10 text-center text-slate-500 font-bold text-sm shadow-xl">
+                        Sin registros disponibles
+                    </div>
+                ) : logs.map((log: any) => {
+                    const TypeIcon = typeLabels[log.type]?.icon || RefreshCcw;
+                    return (
+                        <div key={log.id} className={`bg-[#1e2433] rounded-2xl border p-5 shadow-xl transition-all active:scale-[0.98] relative overflow-hidden ${
+                            log.status === 'failed' ? 'border-rose-500/30' : 'border-white/5 hover:border-white/10'
+                        }`}>
+                            <div className="flex justify-between items-start mb-3">
+                                <div className="flex items-center gap-1.5 text-slate-500 font-bold text-[10px] uppercase tracking-widest">
+                                    <Clock size={12}/> {new Date(log.created_at).toLocaleString('es-CL')}
+                                </div>
+                                <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded text-[9px] font-black uppercase tracking-widest ${
+                                    log.status === 'success' ? 'bg-emerald-500/10 text-emerald-400' : 
+                                    log.status === 'retried' ? 'bg-sky-500/10 text-sky-400' : 
+                                    'bg-rose-500/10 text-rose-400 shadow-md'
+                                }`}>
+                                    {log.status === 'success' ? 'OK' : log.status === 'retried' ? 'Resuelto' : 'Fallo'}
                                 </span>
                             </div>
-                            <div style={{ color: '#f1f5f9', fontSize: '14px', fontWeight: 700, marginBottom: '4px' }}>
-                                {log.quotes?.client_name} {log.quotes?.client_lastname || ''}
+                            
+                            <div className="mb-4">
+                                <div className="text-white font-black text-lg leading-tight mb-1">
+                                    {log.quotes?.client_name} {log.quotes?.client_lastname || ''}
+                                </div>
+                                <div className="flex items-center gap-2 text-[#E2A049] text-xs font-bold">
+                                    <TypeIcon size={14} /> {typeLabels[log.type]?.label || log.type}
+                                </div>
                             </div>
-                            <div style={{ fontSize: '13px', color: '#94a3b8', marginBottom: '12px' }}>
-                                {typeLabels[log.type] || log.type}
-                            </div>
+
                             {log.error_msg && (
-                                <div style={{ fontSize: '11px', color: '#f87171', background: 'rgba(248,113,113,0.05)', padding: '8px', borderRadius: '8px', marginTop: '8px', border: '1px solid rgba(248,113,113,0.1)' }}>
+                                <div className="bg-rose-500/5 border border-rose-500/10 rounded-xl p-3 mt-4 text-rose-400/80 text-[11px] font-mono leading-relaxed">
                                     {log.error_msg}
                                 </div>
                             )}
+
                             {log.status === 'failed' && (
-                                <div style={{ marginTop: '12px', borderTop: '1px solid rgba(255,255,255,0.04)', paddingTop: '12px' }}>
+                                <div className="mt-4 pt-4 border-t border-white/5">
                                     <RetryButton logId={log.id} />
                                 </div>
                             )}
                         </div>
-                    ))}
-                </div>
+                    );
+                })}
             </div>
-
-            <style>{`
-                @media (max-width: 767px) {
-                    .desktop-only { display: none !important; }
-                    .mobile-only { display: block !important; }
-                }
-                @media (min-width: 768px) {
-                    .desktop-only { display: block !important; }
-                    .mobile-only { display: none !important; }
-                }
-            `}</style>
         </div>
     );
 }

@@ -9,6 +9,10 @@ import {
 import { SITE_URL } from '@/lib/config';
 import type { QuoteItem, Product } from '@/lib/types';
 import { formatPhoneNumber } from '@/lib/utils';
+import { 
+    FileText, ShoppingBag, CreditCard, Mail, Edit2, Save, Send,
+    Link as LinkIcon, Trash2, ArrowRight, MessageCircle, Star, ArrowLeft, X
+} from 'lucide-react';
 
 const statusFlow = ['draft', 'confirmed', 'completed', 'cancelled'];
 const statusBadge: Record<string, { label: string; color: string; bg: string }> = {
@@ -271,7 +275,7 @@ export default function QuoteDetailClient({ quote: initial, allProducts, eventTy
 
             {/* Header */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '28px', flexWrap: 'wrap' }}>
-                <Link href="/admin/quotes" style={{ color: '#E2A049', fontSize: '13px', textDecoration: 'none', whiteSpace: 'nowrap' }}>← Cotizaciones</Link>
+                <Link href="/admin/quotes" style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#E2A049', fontSize: '13px', textDecoration: 'none', whiteSpace: 'nowrap' }}><ArrowLeft size={16}/> Cotizaciones</Link>
                 <h1 style={{ color: '#f1f5f9', fontSize: '20px', fontWeight: 900, margin: 0 }}>
                     <Link href={`/admin/clients/${quote.client_id}`} style={{ color: 'inherit', textDecoration: 'none', borderBottom: '1px solid transparent', transition: 'border-color 0.15s' }} 
                         onMouseEnter={e => e.currentTarget.style.borderColor = 'rgba(226,160,73,0.5)'}
@@ -288,7 +292,7 @@ export default function QuoteDetailClient({ quote: initial, allProducts, eventTy
                     color: '#94a3b8', cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s',
                     opacity: isPending ? 0.5 : 1,
                 }}>
-                    ✉️ Reenvío Orden
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Send size={14}/> Reenvío Orden</span>
                 </button>
             </div>
 
@@ -315,7 +319,7 @@ export default function QuoteDetailClient({ quote: initial, allProducts, eventTy
                             border: `1px solid ${quote.review_email_sent ? 'rgba(255,255,255,0.1)' : '#a78bfa40'}`,
                             color: quote.review_email_sent ? '#475569' : '#a78bfa', fontFamily: 'inherit',
                         }}>
-                            {quote.review_email_sent ? '✅ Review ya enviado' : '⭐ Enviar email de Review'}
+                            {quote.review_email_sent ? <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Star size={14}/> Review ya enviado</span> : <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Star size={14}/> Enviar email de Review</span>}
                         </button>
                     </div>
                 )}
@@ -324,13 +328,13 @@ export default function QuoteDetailClient({ quote: initial, allProducts, eventTy
             {/* New Tabs Design */}
             <div className="q-tabs">
                 {[
-                    { id: 'info', name: 'Detalle', icon: '📋' },
-                    { id: 'review', name: 'Items', icon: '📊' },
-                    { id: 'payments', name: 'Pagos', icon: '💰' },
-                    { id: 'email', name: 'Email', icon: '✉️' },
+                    { id: 'info', name: 'Detalle', icon: <FileText size={16}/> },
+                    { id: 'review', name: 'Items', icon: <ShoppingBag size={16}/> },
+                    { id: 'payments', name: 'Pagos', icon: <CreditCard size={16}/> },
+                    { id: 'email', name: 'Email', icon: <Mail size={16}/> },
                 ].map(t => (
                     <button key={t.id} className={`q-tab ${tab === t.id ? 'q-tab-active' : ''}`} onClick={() => setTab(t.id as any)}>
-                        <span style={{ fontSize: '16px' }}>{t.icon}</span>
+                        <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{t.icon}</span>
                         <span className="q-tab-text">{t.name}</span>
                     </button>
                 ))}
@@ -352,7 +356,7 @@ export default function QuoteDetailClient({ quote: initial, allProducts, eventTy
                     {quote.token && (
                         <a href={`${SITE_URL}/cotizar/${quote.token}`} target="_blank" rel="noopener noreferrer" 
                             style={{ padding: '8px 12px', borderRadius: '12px', background: 'rgba(96,165,250,0.12)', color: '#60a5fa', display: 'flex', alignItems: 'center', border: '1px solid rgba(96,165,250,0.1)' }} title="Público">
-                            🔗
+                            <LinkIcon size={16}/>
                         </a>
                     )}
                 </div>
@@ -369,15 +373,15 @@ export default function QuoteDetailClient({ quote: initial, allProducts, eventTy
                             <div className="q-btn-group">
                                 {!isEditingInfo ? (
                                     <div className="q-btn-group q-btn-group-single">
-                                        <button onClick={handleEditInfoStart} className="q-action-btn q-action-btn-outline">
-                                            ✏️ Editar
+                                        <button onClick={handleEditInfoStart} className="q-action-btn q-action-btn-outline" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                            <Edit2 size={14}/> Editar
                                         </button>
                                     </div>
                                 ) : (
                                     <div className="q-btn-group q-btn-group-edit">
-                                        <button onClick={() => setIsEditingInfo(false)} className="q-action-btn q-action-btn-secondary">Cancelar</button>
-                                        <button onClick={handleEditInfoSave} disabled={isPending} className="q-action-btn q-action-btn-primary">
-                                            {isPending ? '...' : '✅ Guardar'}
+                                        <button onClick={() => setIsEditingInfo(false)} className="q-action-btn q-action-btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><X size={14}/> Cancelar</button>
+                                        <button onClick={handleEditInfoSave} disabled={isPending} className="q-action-btn q-action-btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                            {isPending ? '...' : <><Save size={14}/> Guardar</>}
                                         </button>
                                     </div>
                                 )}
@@ -599,15 +603,15 @@ export default function QuoteDetailClient({ quote: initial, allProducts, eventTy
                             <div className="q-btn-group">
                                 {!isEditingItems ? (
                                     <div className="q-btn-group q-btn-group-single">
-                                        <button onClick={handleEditItemsStart} className="q-action-btn q-action-btn-outline">
-                                            ✏️ Editar
+                                        <button onClick={handleEditItemsStart} className="q-action-btn q-action-btn-outline" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                            <Edit2 size={14}/> Editar
                                         </button>
                                     </div>
                                 ) : (
                                     <div className="q-btn-group q-btn-group-edit">
-                                        <button onClick={() => setIsEditingItems(false)} className="q-action-btn q-action-btn-secondary">Cancelar</button>
-                                        <button onClick={handleEditItemsSave} disabled={isPending} className="q-action-btn q-action-btn-primary">
-                                            {isPending ? '...' : '✅ Guardar'}
+                                        <button onClick={() => setIsEditingItems(false)} className="q-action-btn q-action-btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><X size={14}/> Cancelar</button>
+                                        <button onClick={handleEditItemsSave} disabled={isPending} className="q-action-btn q-action-btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                            {isPending ? '...' : <><Save size={14}/> Guardar</>}
                                         </button>
                                     </div>
                                 )}
@@ -663,7 +667,7 @@ export default function QuoteDetailClient({ quote: initial, allProducts, eventTy
                                                     <label className="q-label" style={{ margin: 0 }}>Precio</label>
                                                     <input type="number" value={item.offer_price_at_time} onChange={e => updateItem(idx, 'offer_price_at_time', Number(e.target.value))} className="q-input" style={{ width: '90px', padding: '6px' }} />
                                                 </div>
-                                                <button onClick={() => handleRemoveItem(idx)} style={{ background: 'rgba(248,113,113,0.1)', border: 'none', color: '#f87171', padding: '8px', borderRadius: '8px', cursor: 'pointer' }}>🗑️</button>
+                                                <button onClick={() => handleRemoveItem(idx)} style={{ background: 'rgba(248,113,113,0.1)', border: 'none', color: '#f87171', padding: '8px', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Trash2 size={16}/></button>
                                             </>
                                         ) : (
                                             <div style={{ textAlign: 'right' }}>
@@ -764,7 +768,7 @@ export default function QuoteDetailClient({ quote: initial, allProducts, eventTy
                                             <span style={{ color: '#64748b', fontSize: '11px' }}>{new Date(p.date + 'T12:00:00').toLocaleDateString('es-CL')} — {p.note}</span>
                                         </div>
                                     </div>
-                                    <button onClick={() => handleDeletePayment(idx)} style={{ background: 'none', border: 'none', color: '#f87171', cursor: 'pointer', fontSize: '16px' }}>🗑️</button>
+                                    <button onClick={() => handleDeletePayment(idx)} style={{ background: 'none', border: 'none', color: '#f87171', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Trash2 size={16}/></button>
                                 </div>
                             ))}
                         </div>
@@ -783,8 +787,8 @@ export default function QuoteDetailClient({ quote: initial, allProducts, eventTy
                                 <label className="q-label">Mensaje</label>
                                 <textarea name="body" value={emailForm.body} onChange={e => setEmailForm(f => ({ ...f, body: e.target.value }))} required rows={6} className="q-input" style={{ resize: 'vertical' }} />
                             </div>
-                            <button type="submit" disabled={isPending} style={{ alignSelf: 'flex-start', padding: '10px 24px', background: 'linear-gradient(135deg, #E2A049, #c8872e)', border: 'none', borderRadius: '12px', color: '#fff', fontWeight: 800, fontSize: '14px', cursor: 'pointer', opacity: isPending ? 0.6 : 1 }}>
-                                {isPending ? 'Enviando…' : '✉️ Enviar Email'}
+                            <button type="submit" disabled={isPending} style={{ alignSelf: 'flex-start', padding: '10px 24px', background: 'linear-gradient(135deg, #E2A049, #c8872e)', border: 'none', borderRadius: '12px', color: '#fff', fontWeight: 800, fontSize: '14px', cursor: 'pointer', opacity: isPending ? 0.6 : 1, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                {isPending ? 'Enviando…' : <><Send size={16}/> Enviar Email</>}
                             </button>
                         </form>
                     </div>

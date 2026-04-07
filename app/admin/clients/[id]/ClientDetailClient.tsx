@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { formatCurrency, formatPhoneNumber } from '@/lib/utils';
 import { updateClientAdmin, syncClientWithGoogle } from '@/app/actions/admin/adminActions';
 import { useRouter } from 'next/navigation';
+import { Edit2, Save, X, Phone, Mail, MessageCircle, RefreshCcw, User, ArrowLeft } from 'lucide-react';
 
 interface Client {
     id: string;
@@ -117,13 +118,15 @@ export default function ClientDetailClient({ client: initialClient, quotes: init
             `}</style>
 
             {/* Back */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                <Link href="/admin/clients" style={{ color: '#E2A049', fontSize: '13px', textDecoration: 'none' }}>← Volver a Clientes</Link>
+            <div className="flex justify-between items-center mb-6">
+                <Link href="/admin/clients" className="flex items-center gap-2 text-[#E2A049] text-sm font-bold hover:text-white transition-colors no-underline">
+                    <ArrowLeft size={16} /> Volver a Clientes
+                </Link>
                 <button 
                     onClick={() => setIsEditing(!isEditing)}
-                    style={{ background: isEditing ? 'rgba(248,113,113,0.1)' : 'rgba(226,160,73,0.1)', border: `1px solid ${isEditing ? 'rgba(248,113,113,0.3)' : 'rgba(226,160,73,0.3)'}`, color: isEditing ? '#f87171' : '#E2A049', padding: '6px 14px', borderRadius: '8px', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold border transition-colors ${isEditing ? 'bg-rose-500/10 text-rose-400 border-rose-500/20 hover:bg-rose-500/20' : 'bg-[#E2A049]/10 text-[#E2A049] border-[#E2A049]/20 hover:bg-[#E2A049]/20'}`}
                 >
-                    {isEditing ? 'Cancelar Edición' : '✎ Editar Perfil'}
+                    {isEditing ? <><X size={14}/> Cancelar Edición</> : <><Edit2 size={14}/> Editar Perfil</>}
                 </button>
             </div>
 
@@ -140,7 +143,7 @@ export default function ClientDetailClient({ client: initialClient, quotes: init
                                 </div>
                             </div>
                             <div className="cd-meta">
-                                {client.phone && <div style={{ color: '#94a3b8', fontSize: '13px' }}>📞 {client.phone}</div>}
+                                {client.phone && <div className="flex items-center gap-2 text-slate-400 text-sm"><Phone size={14}/> {client.phone}</div>}
                                 <div style={{ color: '#475569', fontSize: '12px' }}>
                                     Google: {client.google_contact_id ? '✅ Sincronizado' : '⚠️ Sin sync'}
                                 </div>
@@ -175,35 +178,30 @@ export default function ClientDetailClient({ client: initialClient, quotes: init
                                     onChange={e => setEditForm(f => ({ ...f, phone: formatPhoneNumber(e.target.value) }))} 
                                 />
                             </div>
-                            <button className="save-btn" onClick={handleSave} disabled={isPending}>
-                                {isPending ? 'Guardando...' : '💾 Guardar Cambios'}
+                            <button className="flex justify-center items-center gap-2 bg-[#E2A049] text-black font-bold text-sm py-3 rounded-xl hover:bg-[#f0ad5c] transition-colors" onClick={handleSave} disabled={isPending}>
+                                <Save size={16}/> {isPending ? 'Guardando...' : 'Guardar Cambios'}
                             </button>
                         </div>
                     )}
                     
                     {!isEditing && (
-                        <div className="cd-actions">
+                        <div className="cd-actions flex flex-col gap-3 mt-5">
                             <button 
                                 onClick={handleSyncGoogle}
                                 disabled={isPending}
-                                style={{ 
-                                    width: '100%', padding: '10px', background: 'rgba(226,160,73,0.1)', 
-                                    border: '1px solid #E2A049', borderRadius: '10px', color: '#E2A049', 
-                                    fontSize: '13px', fontWeight: 700, cursor: 'pointer',
-                                    opacity: isPending ? 0.6 : 1
-                                }}
+                                className="flex justify-center items-center gap-2 w-full py-3 bg-[#E2A049]/10 border border-[#E2A049]/30 rounded-xl text-[#E2A049] text-sm font-bold hover:bg-[#E2A049]/20 transition-all disabled:opacity-50 cursor-pointer"
                             >
-                                {isPending ? 'Sincronizando...' : '🔄 Sincronizar a Google'}
+                                <RefreshCcw size={16} className={isPending ? "animate-spin" : ""} /> {isPending ? 'Sincronizando...' : 'Sincronizar a Google'}
                             </button>
                             {client.phone && (
                                 <a href={`https://wa.me/${client.phone.replace(/\D/g, '').startsWith('56') ? client.phone.replace(/\D/g, '') : '56' + client.phone.replace(/\D/g, '')}`} target="_blank" rel="noopener"
-                                    style={{ display: 'block', padding: '10px', background: 'rgba(37,211,102,0.1)', border: '1px solid rgba(37,211,102,0.3)', borderRadius: '10px', color: '#4ade80', fontSize: '13px', fontWeight: 700, textDecoration: 'none', textAlign: 'center' }}>
-                                    💬 Escribir al WhatsApp
+                                    className="flex justify-center items-center gap-2 w-full py-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-emerald-400 text-sm font-bold hover:bg-emerald-500/20 transition-all no-underline">
+                                    <MessageCircle size={16}/> Escribir al WhatsApp
                                 </a>
                             )}
                             <a href={`mailto:${client.email}`}
-                                style={{ display: 'block', padding: '10px', background: 'rgba(226,160,73,0.1)', border: '1px solid rgba(226,160,73,0.3)', borderRadius: '10px', color: '#E2A049', fontSize: '13px', fontWeight: 700, textDecoration: 'none', textAlign: 'center' }}>
-                                ✉️ Enviar un Email
+                                className="flex justify-center items-center gap-2 w-full py-3 bg-[#E2A049]/10 border border-[#E2A049]/30 rounded-xl text-[#E2A049] text-sm font-bold hover:bg-[#E2A049]/20 transition-all no-underline">
+                                <Mail size={16}/> Enviar un Email
                             </a>
                         </div>
                     )}

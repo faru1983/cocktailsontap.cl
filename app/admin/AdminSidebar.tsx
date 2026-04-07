@@ -4,17 +4,31 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { adminLogout } from '@/app/actions/admin/authActions';
+import { 
+    LayoutDashboard, 
+    Banknote, 
+    ClipboardList, 
+    Users, 
+    GlassWater, 
+    BarChart3, 
+    Bell, 
+    RefreshCcw, 
+    Settings,
+    LogOut,
+    Menu,
+    X 
+} from 'lucide-react';
 
 const navItems = [
-    { href: '/admin', label: 'Dashboard', icon: '📊' },
-    { href: '/admin/gastos', label: 'Gastos', icon: '💸' },
-    { href: '/admin/quotes', label: 'Cotizaciones', icon: '📋' },
-    { href: '/admin/clients', label: 'Clientes', icon: '👥' },
-    { href: '/admin/products', label: 'Productos', icon: '🍸' },
-    { href: '/admin/estadisticas', label: 'Estadísticas', icon: '📈' },
-    { href: '/admin/reminders', label: 'Recordatorios', icon: '🔔' },
-    { href: '/admin/logs', label: 'Sincronización', icon: '🔧' },
-    { href: '/admin/settings', label: 'Configuración', icon: '⚙️' },
+    { href: '/admin', label: 'Dashboard', icon: <LayoutDashboard size={18} /> },
+    { href: '/admin/gastos', label: 'Gastos', icon: <Banknote size={18} /> },
+    { href: '/admin/quotes', label: 'Cotizaciones', icon: <ClipboardList size={18} /> },
+    { href: '/admin/clients', label: 'Clientes', icon: <Users size={18} /> },
+    { href: '/admin/products', label: 'Productos', icon: <GlassWater size={18} /> },
+    { href: '/admin/estadisticas', label: 'Estadísticas', icon: <BarChart3 size={18} /> },
+    { href: '/admin/reminders', label: 'Recordatorios', icon: <Bell size={18} /> },
+    { href: '/admin/logs', label: 'Sincronización', icon: <RefreshCcw size={18} /> },
+    { href: '/admin/settings', label: 'Configuración', icon: <Settings size={18} /> },
 ];
 
 export default function AdminSidebar() {
@@ -31,26 +45,26 @@ export default function AdminSidebar() {
     const sidebarContent = (
         <>
             {/* Brand + toggle */}
-            <div style={{ padding: '0 16px 24px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <span style={{ fontSize: '22px' }}>🍸</span>
+            <div className="px-5 py-6 border-b border-white/5 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                    <span className="text-xl">🍸</span>
                     <div>
-                        <div style={{ color: '#E2A049', fontWeight: 800, fontSize: '13px', lineHeight: 1.2 }}>Cocktails on Tap</div>
-                        <div style={{ color: '#475569', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.8px' }}>Control Center</div>
+                        <div className="text-[#E2A049] font-black text-xs leading-tight">Cocktails on Tap</div>
+                        <div className="text-slate-500 text-[9px] font-bold uppercase tracking-wider">Control Center</div>
                     </div>
                 </div>
-                {/* Collapse button */}
+                {/* Close button (mobile) */}
                 <button
                     onClick={() => setOpen(false)}
                     aria-label="Cerrar menú"
-                    style={{ background: 'none', border: 'none', color: '#475569', cursor: 'pointer', fontSize: '20px', padding: '4px', lineHeight: 1 }}
+                    className="p-1 text-slate-500 hover:text-slate-300 transition-colors bg-transparent border-none cursor-pointer"
                 >
-                    ✕
+                    <X size={20} />
                 </button>
             </div>
 
             {/* Nav */}
-            <nav style={{ flex: 1, padding: '16px 10px' }}>
+            <nav className="flex-1 px-3 py-6 space-y-1">
                 {navItems.map((item) => {
                     const isActive = item.href === '/admin'
                         ? pathname === '/admin'
@@ -59,23 +73,15 @@ export default function AdminSidebar() {
                         <Link
                             key={item.href}
                             href={item.href}
-                            style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '10px',
-                                padding: '11px 12px',
-                                borderRadius: '10px',
-                                marginBottom: '4px',
-                                textDecoration: 'none',
-                                color: isActive ? '#ffffff' : '#64748b',
-                                background: isActive ? 'rgba(226,160,73,0.12)' : 'transparent',
-                                fontWeight: isActive ? 700 : 500,
-                                fontSize: '14px',
-                                transition: 'all 0.15s',
-                                borderLeft: isActive ? '3px solid #E2A049' : '3px solid transparent',
-                            }}
+                            className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-[13px] no-underline border-l-2 ${
+                                isActive 
+                                ? 'bg-[rgba(226,160,73,0.12)] text-white font-bold border-[#E2A049]' 
+                                : 'bg-transparent text-slate-500 font-medium border-transparent hover:text-slate-300 hover:bg-white/5'
+                            }`}
                         >
-                            <span style={{ fontSize: '16px' }}>{item.icon}</span>
+                            <span className={isActive ? 'text-[#E2A049]' : 'text-slate-600'}>
+                                {item.icon}
+                            </span>
                             {item.label}
                         </Link>
                     );
@@ -83,19 +89,13 @@ export default function AdminSidebar() {
             </nav>
 
             {/* Logout */}
-            <div style={{ padding: '12px' }}>
+            <div className="p-4 border-t border-white/5">
                 <form action={adminLogout}>
                     <button
                         type="submit"
-                        style={{
-                            width: '100%', padding: '10px 12px',
-                            background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)',
-                            borderRadius: '10px', color: '#f87171', fontSize: '13px', fontWeight: 600,
-                            cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px',
-                            fontFamily: 'inherit', transition: 'all 0.15s',
-                        }}
+                        className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-red-500/5 hover:bg-red-500/10 border border-red-500/10 rounded-xl text-red-500 text-[13px] font-bold transition-all cursor-pointer"
                     >
-                        🚪 Cerrar Sesión
+                        <LogOut size={16} /> Cerrar Sesión
                     </button>
                 </form>
             </div>
@@ -106,58 +106,30 @@ export default function AdminSidebar() {
 
     return (
         <>
-            {/* ── Hamburger button (visible cuando sidebar está cerrado) ── */}
+            {/* ── Hamburger button ── */}
             <button
                 onClick={() => setOpen(true)}
                 aria-label="Abrir menú"
-                style={{
-                    position: 'fixed',
-                    top: '16px',
-                    left: open ? '-60px' : '16px', // hide when open to avoid overlap
-                    zIndex: 60,
-                    background: '#1e2433',
-                    border: '1px solid rgba(255,255,255,0.1)',
-                    borderRadius: '10px',
-                    color: '#E2A049',
-                    cursor: 'pointer',
-                    fontSize: '20px',
-                    padding: '8px 12px',
-                    lineHeight: 1,
-                    transition: 'left 0.3s ease',
-                    boxShadow: '0 4px 20px rgba(0,0,0,0.4)',
-                }}
+                className={`fixed top-4 z-60 bg-[#1e2433] border border-white/10 rounded-xl text-[#E2A049] p-2.5 flex items-center justify-center cursor-pointer transition-all duration-300 shadow-2xl ${
+                    open ? '-left-16' : 'left-4'
+                }`}
             >
-                ☰
+                <Menu size={20} />
             </button>
 
-            {/* ── Overlay (mobile only, closes sidebar) ── */}
+            {/* ── Overlay ── */}
             {open && (
                 <div
                     onClick={() => setOpen(false)}
-                    style={{
-                        position: 'fixed', inset: 0, zIndex: 40,
-                        background: 'rgba(0,0,0,0.55)',
-                        backdropFilter: 'blur(2px)',
-                    }}
+                    className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
                 />
             )}
 
             {/* ── Sidebar panel ── */}
             <aside
-                style={{
-                    position: 'fixed',
-                    top: 0, left: 0, bottom: 0,
-                    zIndex: 50,
-                    width: '240px',
-                    background: '#161b27',
-                    borderRight: '1px solid rgba(255,255,255,0.06)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    padding: '24px 0',
-                    transform: open ? 'translateX(0)' : 'translateX(-100%)',
-                    transition: 'transform 0.28s cubic-bezier(0.4, 0, 0.2, 1)',
-                    overflowY: 'auto',
-                }}
+                className={`fixed top-0 left-0 bottom-0 z-50 w-60 bg-[#161b27] border-r border-white/5 flex flex-col transition-transform duration-300 ease-in-out overflow-y-auto ${
+                    open ? 'translate-x-0' : '-translate-x-full'
+                }`}
             >
                 {sidebarContent}
             </aside>

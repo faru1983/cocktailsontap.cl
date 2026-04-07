@@ -6,6 +6,12 @@ import {
     saveReminderTemplate, deleteReminderTemplate, sendBatchReminders, sendTestReminderEmail, logReminderSend 
 } from '@/app/actions/admin/adminActions';
 import { SITE_URL } from '@/lib/config';
+import { 
+    Mail, MessageSquare, Trash2, Edit2, Plus, 
+    X, Check, Send, Smartphone, Calendar,
+    ExternalLink, Filter, List, LayoutGrid,
+    TestTube, Info
+} from 'lucide-react';
 
 const formatCLP = (n: number) => new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0 }).format(n);
 
@@ -111,8 +117,10 @@ export default function RemindersClient({ initialQuotes, initialTemplates }: { i
         if (!confirm('¿Borrar esta plantilla?')) return;
         startTransition(async () => {
             const res = await deleteReminderTemplate(id);
-            if (res.success) showToast('Plantilla eliminada');
-            else showToast(res.error || 'Error', false);
+            if (res.success) {
+                showToast('Plantilla eliminada');
+                setTemplates(prev => prev.filter(t => t.id !== id));
+            } else showToast(res.error || 'Error', false);
         });
     };
 
@@ -203,358 +211,350 @@ export default function RemindersClient({ initialQuotes, initialTemplates }: { i
     };
 
     return (
-        <div style={{ position: 'relative' }}>
-            {/* Toast */}
+        <div className="pb-16 w-full">
+            {/* Toast Container */}
             {toast && (
-                <div style={{
-                    position: 'fixed', top: '24px', right: '24px', zIndex: 9999,
-                    padding: '14px 20px', borderRadius: '12px',
-                    background: toast.ok ? 'rgba(52,211,153,0.15)' : 'rgba(248,113,113,0.15)',
-                    border: `1px solid ${toast.ok ? '#34d399' : '#f87171'}`,
-                    color: toast.ok ? '#34d399' : '#f87171',
-                    fontSize: '14px', fontWeight: 700,
-                    boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
-                }}>
-                    {toast.ok ? '✅' : '⚠️'} {toast.msg}
+                <div className={`fixed top-6 right-6 z-[9999] px-5 py-3.5 rounded-xl border shadow-2xl backdrop-blur-md animate-in slide-in-from-right duration-300 flex items-center gap-3 ${
+                    toast.ok ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-rose-500/10 border-rose-500/20 text-rose-400'
+                }`}>
+                    {toast.ok ? <Check size={18} /> : <Info size={18} />}
+                    <span className="font-bold text-sm">{toast.msg}</span>
                 </div>
             )}
 
-            <style>{`
-                .rem-tabs { display: flex; gap: 8px; margin-bottom: 24px; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 12px; }
-                .rem-tab { 
-                    padding: 8px 16px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; color: #64748b; background: none; border: none; transition: all 0.2s;
-                }
-                .rem-tab-active { background: rgba(226,160,73,0.12); color: #E2A049; }
-                
-                /* ── Desktop table ── */
-                .rem-table-wrap { display: block; background: #1e2433; border-radius: 16px; border: 1px solid rgba(255,255,255,0.06); overflow: hidden; }
-                .rem-table { width: 100%; border-collapse: collapse; }
-                .rem-table th { padding: 14px 20px; text-align: left; color: #475569; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; background: rgba(255,255,255,0.02); }
-                .rem-table td { padding: 14px 20px; border-top: 1px solid rgba(255,255,255,0.04); color: #f1f5f9; font-size: 14px; }
-                
-                /* ── Mobile cards ── */
-                .rem-cards { display: none; flex-direction: column; gap: 12px; }
-                .rem-card { 
-                    background: #1e2433; border: 1px solid rgba(255,255,255,0.06); border-radius: 16px; padding: 16px; position: relative;
-                }
-                .rem-card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
-                .rem-card-name { color: #f1f5f9; font-size: 15px; font-weight: 700; }
-                .rem-card-meta { display: flex; gap: 14px; margin-bottom: 14px; }
-                .rem-meta-item { display: flex; flex-direction: column; gap: 2px; }
-                .rem-meta-label { color: #475569; font-size: 10px; font-weight: 600; text-transform: uppercase; }
-                .rem-meta-value { color: #94a3b8; font-size: 13px; }
-                .rem-card-price { color: #E2A049; font-weight: 800; font-size: 15px; }
-                .rem-card-actions { display: flex; gap: 8px; border-top: 1px solid rgba(255,255,255,0.04); padding-top: 12px; margin-top: 12px; }
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+                <div>
+                    <h1 className="text-white text-2xl font-black mb-1">Recordatorios</h1>
+                    <p className="text-slate-500 text-sm">Gestiona el seguimiento de cotizaciones pendientes</p>
+                </div>
+                {tab === 'templates' && (
+                    <button 
+                        className="bg-[#E2A049] text-black px-5 py-2.5 rounded-xl font-black text-sm flex items-center justify-center gap-2 transition-transform active:scale-95 shadow-lg shadow-[#E2A049]/10"
+                        onClick={() => setEditingTemplate({ name: '', content: '', type: 'both' })}
+                    >
+                       <Plus size={18} /> Nueva Plantilla
+                    </button>
+                )}
+            </div>
 
-                @media(max-width: 767px) {
-                    .rem-table-wrap { display: none; }
-                    .rem-cards { display: flex; }
-                }
-                
-                .rem-check { width: 18px; height: 18px; cursor: pointer; accent-color: #E2A049; }
-                
-                .rem-filter-bar { display: flex; gap: 12px; align-items: center; margin-bottom: 16px; flex-wrap: wrap; }
-                .rem-select { padding: 8px 12px; background: #1e2433; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: #f1f5f9; font-size: 13px; cursor: pointer; outline: none; }
-                
-                .rem-btn { padding: 9px 18px; border-radius: 10px; font-size: 13px; font-weight: 700; cursor: pointer; border: none; transition: all 0.2s; }
-                .rem-btn-primary { background: linear-gradient(135deg, #E2A049, #c8872e); color: #fff; }
-                .rem-btn-outline { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #94a3b8; }
-                .rem-btn-wa { background: rgba(37,211,102,0.1); border: 1px solid rgba(37,211,102,0.2); color: #25D366; }
-                
-                .rem-modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 1000; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(4px); padding: 20px; }
-                .rem-modal { background: #1e2433; border: 1px solid rgba(255,255,255,0.1); border-radius: 20px; width: 100%; max-width: 500px; padding: 28px; box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
-                
-                .rem-temp-card { background: #1e2433; border: 1px solid rgba(255,255,255,0.06); border-radius: 14px; padding: 20px; margin-bottom: 12px; text-align: left; }
-                .rem-tag { font-family: monospace; background: rgba(226,160,73,0.1); color: #E2A049; padding: 2px 4px; border-radius: 4px; font-size: 12px; }
-            `}</style>
-
-            <h1 style={{ color: '#f1f5f9', fontSize: '24px', fontWeight: 900, marginBottom: '20px' }}>Recordatorios</h1>
-
-            <div className="rem-tabs">
-                <button className={`rem-tab ${tab === 'list' ? 'rem-tab-active' : ''}`} onClick={() => setTab('list')}>Listado de Pendientes</button>
-                <button className={`rem-tab ${tab === 'templates' ? 'rem-tab-active' : ''}`} onClick={() => setTab('templates')}>Gestionar Plantillas</button>
+            {/* Tabs */}
+            <div className="flex gap-1.5 border-b border-white/5 mb-8 pb-3 overflow-x-auto scrollbar-none">
+                <button 
+                    className={`px-4 py-2 rounded-lg text-sm font-bold transition-all whitespace-nowrap cursor-pointer flex items-center gap-2 ${
+                        tab === 'list' ? 'bg-[#E2A049]/10 text-[#E2A049]' : 'text-slate-500 hover:text-slate-300'
+                    }`} 
+                    onClick={() => setTab('list')}
+                >
+                    <List size={16} /> Listado de Pendientes
+                </button>
+                <button 
+                    className={`px-4 py-2 rounded-lg text-sm font-bold transition-all whitespace-nowrap cursor-pointer flex items-center gap-2 ${
+                        tab === 'templates' ? 'bg-[#E2A049]/10 text-[#E2A049]' : 'text-slate-500 hover:text-slate-300'
+                    }`} 
+                    onClick={() => setTab('templates')}
+                >
+                    <LayoutGrid size={16} /> Gestionar Plantillas
+                </button>
             </div>
 
             {tab === 'list' && (
-                <div>
-                    <div className="rem-filter-bar">
-                        <select className="rem-select" value={filterType} onChange={e => setFilterType(e.target.value)}>
-                            <option value="7">Próximos 7 días</option>
-                            <option value="this_month">De este mes</option>
-                            <option value="next_month">Del próximo mes</option>
-                            <option value="all">Ver todas</option>
-                        </select>
-                        <span style={{ color: '#475569', fontSize: '13px' }}>{filteredQuotes.length} borradores encontrados</span>
+                <div className="animate-in fade-in duration-500">
+                    <div className="flex flex-wrap items-center gap-4 mb-6">
+                        <div className="flex-1 min-w-[200px] relative">
+                             <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
+                             <select className="w-full bg-black/20 border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-white outline-none focus:border-[#E2A049] transition-colors text-sm appearance-none" value={filterType} onChange={e => setFilterType(e.target.value)}>
+                                <option value="7">Próximos 7 días</option>
+                                <option value="this_month">De este mes</option>
+                                <option value="next_month">Del próximo mes</option>
+                                <option value="all">Ver todas</option>
+                            </select>
+                        </div>
+                        <span className="text-slate-500 text-xs font-bold uppercase tracking-tight">{filteredQuotes.length} borradores encontrados</span>
                         
                         {selectedIds.length > 0 && (
-                            <button className="rem-btn rem-btn-primary" style={{ marginLeft: 'auto' }} onClick={handleBatchSend}>
-                                📧 Email Masivo ({selectedIds.length})
+                            <button className="bg-[#E2A049] text-black px-4 py-2 rounded-lg font-bold text-xs flex items-center gap-2 shadow-lg shadow-[#E2A049]/10 active:scale-95 transition-transform" onClick={handleBatchSend}>
+                                <Mail size={14} /> Email Masivo ({selectedIds.length})
                             </button>
                         )}
-                        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#64748b', fontSize: '12px', cursor: 'pointer', marginLeft: selectedIds.length > 0 ? '0' : 'auto' }}>
-                            <input type="checkbox" className="rem-check" checked={selectedIds.length === filteredQuotes.length && filteredQuotes.length > 0} onChange={toggleSelectAll} />
+                        <label className="flex items-center gap-2 text-slate-500 text-xs font-bold cursor-pointer hover:text-slate-300 transition-colors ml-auto md:ml-0">
+                            <input type="checkbox" className="w-4 h-4 rounded border-white/10 bg-black/20 accent-[#E2A049]" checked={selectedIds.length === filteredQuotes.length && filteredQuotes.length > 0} onChange={toggleSelectAll} />
                             Todos
                         </label>
                     </div>
 
-                    {/* ── MOBILE VIEW: Cards ── */}
-                    <div className="rem-cards">
-                        {filteredQuotes.length === 0 ? (
-                            <div style={{ textAlign: 'center', padding: '40px', color: '#64748b' }}>No hay borradores para este rango.</div>
-                        ) : filteredQuotes.map((q: any) => (
-                            <div key={q.id} className="rem-card">
-                                <div className="rem-card-header">
-                                    <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
-                                        <input type="checkbox" className="rem-check" checked={selectedIds.includes(q.id)} onChange={() => toggleSelect(q.id)} />
-                                        <div className="rem-card-name">{q.client_name} {q.client_lastname}</div>
-                                    </div>
-                                    <Link href={`/admin/quotes/${q.id}`} style={{ color: '#E2A049', fontSize: '12px', textDecoration: 'none', fontWeight: 700 }}>VER FICHA →</Link>
-                                </div>
-                                <div className="rem-card-meta">
-                                    <div className="rem-meta-item">
-                                        <span className="rem-meta-label">Fecha Evento</span>
-                                        <span className="rem-meta-value">{new Date(q.event_date + 'T12:00:00').toLocaleDateString('es-CL')}</span>
-                                    </div>
-                                    <div className="rem-meta-item">
-                                        <span className="rem-meta-label">Total</span>
-                                        <span className="rem-card-price">{formatCLP(q.total_price)}</span>
-                                    </div>
-                                    {q.reminder_logs?.[0] && (
-                                        <div className="rem-meta-item" style={{ marginLeft: 'auto', textAlign: 'right' }}>
-                                            <span className="rem-meta-label">Últ. Envío</span>
-                                            <span style={{ color: '#34d399', fontSize: '11px', fontWeight: 700 }}>
-                                                {new Date(q.reminder_logs[0].sent_at).toLocaleDateString('es-CL', { day: '2-digit', month: 'short' })}
-                                                ({q.reminder_logs[0].channel === 'email' ? '📧' : '💬'})
-                                            </span>
-                                        </div>
-                                    )}
-                                </div>
-                                <div className="rem-card-actions">
-                                    <button disabled={!q.client_phone} onClick={() => handleWaClick(q)} 
-                                        className="rem-btn rem-btn-wa" style={{ flex: 1, textAlign: 'center', fontSize: '13px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', opacity: q.client_phone ? 1 : 0.4 }}>
-                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.038 3.284l-.569 2.1c-.123.454.28.855.73.726l2.124-.609c1.048.589 2.123.915 3.313.915 3.14-.04 5.77-2.612 5.77-5.77 0-3.18-2.587-5.761-5.767-5.761zm3.336 8.356c-.113.318-.654.582-.911.62-.257.038-.501.066-1.556-.35a5.53 5.53 0 0 1-2.42-2.128c-.066-.094-.523-.695-.523-1.327 0-.632.33-.941.449-1.065.118-.124.257-.156.344-.156s.174.001.249.005c.08.004.188-.03.294.223.113.272.387.942.422 1.012.035.071.058.151.011.246-.046.094-.07.151-.139.231-.07.081-.144.179-.211.24-.075.071-.154.146-.064.301.091.156.401.66.862 1.07.593.527 1.091.69 1.246.763.156.075.246.061.34-.046.094-.108.401-.468.509-.627.108-.159.217-.133.363-.078.146.056.923.435 1.083.514.16.08.267.118.305.18.038.061.038.353-.075.671z"/></svg>
-                                        Contactar por WhatsApp
-                                    </button>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-
-                    {/* ── DESKTOP VIEW: Table ── */}
-                    <div className="rem-table-wrap">
-                        <table className="rem-table">
+                    <div className="hidden md:block bg-[#1e2433] rounded-2xl border border-white/5 overflow-hidden shadow-2xl">
+                        <table className="w-full border-collapse">
                             <thead>
-                                <tr>
-                                    <th style={{ width: '40px' }}><input type="checkbox" className="rem-check" checked={selectedIds.length === filteredQuotes.length && filteredQuotes.length > 0} onChange={toggleSelectAll} /></th>
-                                    <th>Cliente</th>
-                                    <th>Fecha Evento</th>
-                                    <th>Total</th>
-                                    <th>Último Envío</th>
-                                    <th>Acción WhatsApp</th>
-                                    <th></th>
+                                <tr className="bg-white/[0.02]">
+                                    <th className="py-4 px-6 text-left border-b border-white/5"><input type="checkbox" className="w-4 h-4 rounded border-white/10 bg-black/20 accent-[#E2A049]" checked={selectedIds.length === filteredQuotes.length && filteredQuotes.length > 0} onChange={toggleSelectAll} /></th>
+                                    <th className="text-left py-4 px-6 text-slate-500 text-[11px] font-bold uppercase tracking-widest border-b border-white/5">Cliente</th>
+                                    <th className="text-left py-4 px-6 text-slate-500 text-[11px] font-bold uppercase tracking-widest border-b border-white/5">Fecha Evento</th>
+                                    <th className="text-left py-4 px-6 text-slate-500 text-[11px] font-bold uppercase tracking-widest border-b border-white/5">Total</th>
+                                    <th className="text-left py-4 px-6 text-slate-500 text-[11px] font-bold uppercase tracking-widest border-b border-white/5">Último Envío</th>
+                                    <th className="text-right py-4 px-6 text-slate-500 text-[11px] font-bold uppercase tracking-widest border-b border-white/5"></th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {filteredQuotes.length === 0 ? (
-                                    <tr><td colSpan={6} style={{ textAlign: 'center', padding: '40px', color: '#64748b' }}>No hay borradores para este rango.</td></tr>
+                                    <tr><td colSpan={6} className="py-20 text-center text-slate-500 text-sm italic">No hay borradores para este rango.</td></tr>
                                 ) : filteredQuotes.map((q: any) => (
-                                    <tr key={q.id}>
-                                        <td><input type="checkbox" className="rem-check" checked={selectedIds.includes(q.id)} onChange={() => toggleSelect(q.id)} /></td>
-                                        <td style={{ fontWeight: 700, color: '#f1f5f9' }}>{q.client_name} {q.client_lastname}</td>
-                                        <td>{new Date(q.event_date + 'T12:00:00').toLocaleDateString('es-CL')}</td>
-                                        <td style={{ color: '#E2A049', fontWeight: 800 }}>{formatCLP(q.total_price)}</td>
-                                        <td style={{ fontSize: '12px' }}>
+                                    <tr key={q.id} className="border-t border-white/[0.03] hover:bg-white/[0.01] transition-colors group">
+                                        <td className="py-4 px-6"><input type="checkbox" className="w-4 h-4 rounded border-white/10 bg-black/20 accent-[#E2A049]" checked={selectedIds.includes(q.id)} onChange={() => toggleSelect(q.id)} /></td>
+                                        <td className="py-4 px-6">
+                                            <div className="text-white font-bold text-sm tracking-tight">{q.client_name} {q.client_lastname}</div>
+                                            <div className="text-[10px] text-slate-500 uppercase font-black tracking-widest mt-0.5">{q.id.substring(0,8)}</div>
+                                        </td>
+                                        <td className="py-4 px-6 text-slate-400 text-sm">{new Date(q.event_date + 'T12:00:00').toLocaleDateString('es-CL')}</td>
+                                        <td className="py-4 px-6 text-[#E2A049] font-black text-sm">{formatCLP(q.total_price)}</td>
+                                        <td className="py-4 px-6">
                                             {q.reminder_logs?.[0] ? (
-                                                <div style={{ color: '#34d399', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                                                    <span style={{ fontWeight: 700 }}>
-                                                        {new Date(q.reminder_logs[0].sent_at).toLocaleDateString('es-CL')} 
-                                                        {q.reminder_logs[0].channel === 'email' ? ' 📧' : ' 💬'}
+                                                <div className="flex flex-col">
+                                                    <span className="text-emerald-400 text-xs font-bold flex items-center gap-1.5">
+                                                        {new Date(q.reminder_logs[0].sent_at).toLocaleDateString('es-CL')}
+                                                        {q.reminder_logs[0].channel === 'email' ? <Mail size={12} /> : <Smartphone size={12} />}
                                                     </span>
-                                                    <span style={{ fontSize: '10px', color: '#475569' }}>
+                                                    <span className="text-[10px] text-slate-600 truncate max-w-[120px]">
                                                         {templates.find(t => t.id === q.reminder_logs[0].template_id)?.name || 'Plantilla borrada'}
                                                     </span>
                                                 </div>
-                                            ) : (
-                                                <span style={{ color: '#475569' }}>—</span>
-                                            )}
+                                            ) : <span className="text-slate-600 text-xs italic">Nunca</span>}
                                         </td>
-                                        <td>
-                                            <button disabled={!q.client_phone} onClick={() => handleWaClick(q)} 
-                                                className="rem-btn rem-btn-wa" style={{ padding: '6px 14px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px', opacity: q.client_phone ? 1 : 0.4 }}>
-                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.038 3.284l-.569 2.1c-.123.454.28.855.73.726l2.124-.609c1.048.589 2.123.915 3.313.915 3.14-.04 5.77-2.612 5.77-5.77 0-3.18-2.587-5.761-5.767-5.761zm3.336 8.356c-.113.318-.654.582-.911.62-.257.038-.501.066-1.556-.35a5.53 5.53 0 0 1-2.42-2.128c-.066-.094-.523-.695-.523-1.327 0-.632.33-.941.449-1.065.118-.124.257-.156.344-.156s.174.001.249.005c.08.004.188-.03.294.223.113.272.387.942.422 1.012.035.071.058.151.011.246-.046.094-.07.151-.139.231-.07.081-.144.179-.211.24-.075.071-.154.146-.064.301.091.156.401.66.862 1.07.593.527 1.091.69 1.246.763.156.075.246.061.34-.046.094-.108.401-.468.509-.627.108-.159.217-.133.363-.078.146.056.923.435 1.083.514.16.08.267.118.305.18.038.061.038.353-.075.671z"/></svg>
-                                                Conversar
-                                            </button>
+                                        <td className="py-4 px-6 text-right">
+                                            <div className="flex items-center justify-end gap-2">
+                                                <button disabled={!q.client_phone} onClick={() => handleWaClick(q)} className="p-2.5 bg-emerald-500/5 text-emerald-400 hover:bg-emerald-500/10 rounded-xl transition-all disabled:opacity-30" title="WhatsApp"><MessageSquare size={16} /></button>
+                                                <Link href={`/admin/quotes/${q.id}`} className="p-2.5 bg-white/5 text-slate-400 hover:text-white rounded-xl transition-all" title="Ver Ficha"><ExternalLink size={16} /></Link>
+                                            </div>
                                         </td>
-                                        <td align="right"><Link href={`/admin/quotes/${q.id}`} style={{ color: '#64748b', fontSize: '12px', textDecoration: 'none', fontWeight: 600 }}>Ficha →</Link></td>
                                     </tr>
                                 ))}
                             </tbody>
                         </table>
                     </div>
-                </div>
-            )}
 
-            {tab === 'templates' && (
-                <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                        <p style={{ color: '#94a3b8', fontSize: '14px' }}>Configura tus mensajes tipo. Usa <span className="rem-tag">{'{nombre}'}</span>, <span className="rem-tag">{'{fecha}'}</span>, <span className="rem-tag">{'{total}'}</span> y <span className="rem-tag">{'{link}'}</span>.</p>
-                        <button className="rem-btn rem-btn-primary" onClick={() => setEditingTemplate({ name: '', content: '', type: 'both' })}>+ Nueva Plantilla</button>
-                    </div>
-
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: '16px' }}>
-                        {templates.map(t => (
-                            <div key={t.id} className="rem-temp-card">
-                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', alignItems: 'flex-start' }}>
-                                    <div style={{ flex: 1 }}>
-                                        <h3 style={{ margin: 0, color: '#f1f5f9', fontSize: '15px' }}>{t.name}</h3>
-                                        <span style={{ fontSize: '10px', color: '#475569', fontWeight: 600, textTransform: 'uppercase' }}>Canal: {t.type}</span>
+                    <div className="flex flex-col gap-3 mt-4 md:hidden">
+                        {filteredQuotes.map((q: any) => (
+                            <div key={q.id} className="bg-[#1e2433] rounded-2xl border border-white/5 p-5 shadow-lg relative overflow-hidden">
+                                <div className="flex justify-between items-start mb-4">
+                                    <div className="flex gap-3">
+                                        <input type="checkbox" className="w-5 h-5 rounded border-white/10 bg-black/20 accent-[#E2A049] mt-1" checked={selectedIds.includes(q.id)} onChange={() => toggleSelect(q.id)} />
+                                        <div>
+                                            <div className="text-white font-black text-base leading-tight">{q.client_name} {q.client_lastname}</div>
+                                            <div className="text-[#E2A049] font-black text-sm mt-1">{formatCLP(q.total_price)}</div>
+                                        </div>
                                     </div>
-                                    <div style={{ display: 'flex', gap: '6px' }}>
-                                        <button className="rem-btn rem-btn-outline" style={{ padding: '4px 8px' }} onClick={() => setTestModal({ show: true, template: t })} title="Probar envío">🧪</button>
-                                        <button className="rem-btn rem-btn-outline" style={{ padding: '4px 8px' }} onClick={() => setEditingTemplate(t)}>✏️</button>
-                                        <button className="rem-btn rem-btn-outline" style={{ padding: '4px 8px', borderColor: 'rgba(248,113,113,0.3)' }} onClick={() => handleDeleteTemplate(t.id)}>🗑️</button>
+                                    <Link href={`/admin/quotes/${q.id}`} className="p-2.5 bg-white/5 text-slate-400 rounded-xl"><ExternalLink size={16}/></Link>
+                                </div>
+                                <div className="grid grid-cols-2 gap-4 pt-4 border-t border-white/5">
+                                    <div>
+                                        <span className="block text-[9px] text-slate-500 font-black uppercase tracking-widest mb-1">Evento</span>
+                                        <span className="text-slate-300 text-xs font-bold flex items-center gap-1.5"><Calendar size={12} className="text-emerald-500"/> {new Date(q.event_date + 'T12:00:00').toLocaleDateString('es-CL')}</span>
+                                    </div>
+                                    <div className="text-right">
+                                        <span className="block text-[9px] text-slate-500 font-black uppercase tracking-widest mb-1">Último Envío</span>
+                                        <span className="text-slate-300 text-xs font-bold">
+                                            {q.reminder_logs?.[0] ? new Date(q.reminder_logs[0].sent_at).toLocaleDateString('es-CL', { day: '2-digit', month: 'short' }) : '—'}
+                                        </span>
                                     </div>
                                 </div>
-                                <div style={{ color: '#64748b', fontSize: '12px', marginBottom: '8px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Asunto: {t.subject || '—'}</div>
-                                <div style={{ color: '#94a3b8', fontSize: '13px', whiteSpace: 'pre-wrap', maxHeight: '100px', overflowY: 'auto', background: 'rgba(0,0,0,0.1)', padding: '10px', borderRadius: '8px', lineHeight: 1.5 }}>{t.content}</div>
+                                <button disabled={!q.client_phone} onClick={() => handleWaClick(q)} className="w-full mt-4 py-3 bg-emerald-500 text-emerald-950 font-black text-xs rounded-xl flex items-center justify-center gap-2 active:scale-95 transition-transform disabled:opacity-30">
+                                    <MessageSquare size={14} /> Contactar por WhatsApp
+                                </button>
                             </div>
                         ))}
                     </div>
                 </div>
             )}
 
-            {/* Test Reminder Modal */}
-            {testModal.show && testModal.template && (
-                <div className="rem-modal-overlay">
-                    <div className="rem-modal">
-                        <h2 style={{ color: '#f1f5f9', fontSize: '18px', margin: '0 0 10px', textAlign: 'left' }}>🧪 Probar Plantilla</h2>
-                        <p style={{ color: '#64748b', fontSize: '13px', marginBottom: '24px', textAlign: 'left' }}>Prueba cómo se ve tu recordatorio: "{testModal.template.name}"</p>
-
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                            {/* Email Test */}
-                            {(testModal.template.type === 'both' || testModal.template.type === 'email') && (
-                                <div style={{ background: 'rgba(255,255,255,0.02)', padding: '16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)', textAlign: 'left' }}>
-                                    <label style={{ display: 'block', color: '#94a3b8', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', marginBottom: '8px' }}>Probar por EMAIL</label>
-                                    <div style={{ display: 'flex', gap: '8px' }}>
-                                        <input 
-                                            type="email" 
-                                            className="rem-select" 
-                                            placeholder="correo@ejemplo.com" 
-                                            style={{ flex: 1 }} 
-                                            value={testInp.email} 
-                                            onChange={e => setTestInp(prev => ({ ...prev, email: e.target.value }))}
-                                        />
-                                        <button className="rem-btn rem-btn-primary" onClick={() => handleTestReminder('email')} disabled={isTesting || !testInp.email}>
-                                            {isTesting ? '…' : 'Enviar'}
-                                        </button>
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* WA Test */}
-                            {(testModal.template.type === 'both' || testModal.template.type === 'whatsapp') && (
-                                <div style={{ background: 'rgba(37,211,102,0.05)', padding: '16px', borderRadius: '12px', border: '1px solid rgba(37,211,102,0.1)', textAlign: 'left' }}>
-                                    <label style={{ display: 'block', color: '#25D366', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', marginBottom: '8px' }}>Probar por WHATSAPP</label>
-                                    <div style={{ display: 'flex', gap: '8px' }}>
-                                        <input 
-                                            type="tel" 
-                                            className="rem-select" 
-                                            placeholder="56912345678" 
-                                            style={{ flex: 1 }} 
-                                            value={testInp.phone} 
-                                            onChange={e => setTestInp(prev => ({ ...prev, phone: e.target.value }))}
-                                        />
-                                        <button className="rem-btn" style={{ background: '#25D366', color: '#fff' }} onClick={() => handleTestReminder('wa')} disabled={!testInp.phone}>
-                                            WhatsApp
-                                        </button>
-                                    </div>
-                                </div>
-                            )}
+            {tab === 'templates' && (
+                <div className="animate-in fade-in duration-500">
+                    <div className="bg-[#1e2433] rounded-2xl border border-white/5 p-6 mb-8 flex flex-col md:flex-row items-center gap-6 shadow-xl">
+                        <div className="p-4 bg-[#E2A049]/10 rounded-2xl text-[#E2A049]">
+                            <Info size={32} />
                         </div>
+                        <div className="flex-1">
+                            <h3 className="text-white font-black text-lg mb-1 tracking-tight">Variables de Personalización</h3>
+                            <p className="text-slate-400 text-sm leading-relaxed">
+                                Mejora la respuesta usando etiquetas dinámicas en el contenido: 
+                                <span className="inline-block mx-1 px-2 py-0.5 bg-black/30 rounded border border-white/10 font-mono text-[#E2A049] text-xs">{"{nombre}"}</span>, 
+                                <span className="inline-block mx-1 px-2 py-0.5 bg-black/30 rounded border border-white/10 font-mono text-[#E2A049] text-xs">{"{fecha}"}</span>, 
+                                <span className="inline-block mx-1 px-2 py-0.5 bg-black/30 rounded border border-white/10 font-mono text-[#E2A049] text-xs">{"{total}"}</span> y 
+                                <span className="inline-block mx-1 px-2 py-0.5 bg-black/30 rounded border border-white/10 font-mono text-[#E2A049] text-xs">{"{link}"}</span>.
+                            </p>
+                        </div>
+                    </div>
 
-                        <button className="rem-btn rem-btn-outline" style={{ width: '100%', marginTop: '24px' }} onClick={() => setTestModal({ show: false, template: null })}>Cerrar</button>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                        {templates.map(t => (
+                            <div key={t.id} className="bg-[#1e2433] rounded-2xl border border-white/5 p-6 shadow-2xl hover:border-white/10 transition-all group relative overflow-hidden flex flex-col">
+                                <div className="absolute top-0 right-0 p-3 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <button onClick={() => setTestModal({ show: true, template: t })} className="p-2 bg-sky-500/10 text-sky-400 rounded-lg group-hover:scale-100 scale-90 transition-transform" title="Probar"><TestTube size={14}/></button>
+                                    <button onClick={() => setEditingTemplate(t)} className="p-2 bg-emerald-500/10 text-emerald-400 rounded-lg group-hover:scale-100 scale-90 transition-transform" title="Editar"><Edit2 size={14}/></button>
+                                    <button onClick={() => handleDeleteTemplate(t.id)} className="p-2 bg-rose-500/10 text-rose-400 rounded-lg group-hover:scale-100 scale-90 transition-transform" title="Eliminar"><Trash2 size={14}/></button>
+                                </div>
+                                
+                                <div className="mb-4">
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <div className={`w-2 h-2 rounded-full ${t.type === 'both' ? 'bg-amber-400' : t.type === 'email' ? 'bg-sky-400' : 'bg-emerald-400'}`} />
+                                        <span className="text-[10px] text-slate-500 font-black uppercase tracking-widest">Canal: {t.type}</span>
+                                    </div>
+                                    <h3 className="text-white font-black text-lg line-clamp-1">{t.name}</h3>
+                                </div>
+
+                                <div className="space-y-4 flex-1">
+                                    <div className="p-4 bg-black/30 rounded-xl border border-white/5 text-slate-400 text-xs italic line-clamp-4 leading-relaxed h-[100px] overflow-hidden relative">
+                                        {t.content}
+                                        <div className="absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-[#1b1f2b] to-transparent" />
+                                    </div>
+                                    <div className="text-[10px] text-slate-600 font-bold uppercase tracking-tight flex items-center gap-2 truncate">
+                                        <Mail size={10}/> {t.subject || 'Sin asunto (Email)'}
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
                     </div>
                 </div>
             )}
 
-            {/* Modal Edit Template */}
+            {/* Modals Implementation (Minimalist Layer) */}
             {editingTemplate && (
-                <div className="rem-modal-overlay">
-                    <form className="rem-modal" onSubmit={handleSaveTemplate}>
-                        <h2 style={{ color: '#f1f5f9', fontSize: '18px', margin: '0 0 20px', textAlign: 'left' }}>{editingTemplate.id ? 'Editar Plantilla' : 'Nueva Plantilla'}</h2>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', textAlign: 'left' }}>
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-black/80 backdrop-blur-md" onClick={() => setEditingTemplate(null)}></div>
+                    <form className="relative w-full max-w-xl bg-[#1e2433] border border-white/10 rounded-3xl p-8 shadow-2xl animate-in zoom-in-95 duration-200" onSubmit={handleSaveTemplate}>
+                        <div className="flex justify-between items-center mb-6 pb-4 border-b border-white/5">
+                            <h2 className="text-white text-xl font-black">{editingTemplate.id ? 'Editar Plantilla' : 'Nueva Plantilla'}</h2>
+                            <button type="button" onClick={() => setEditingTemplate(null)} className="text-slate-500 hover:text-white p-2 rounded-full hover:bg-white/5"><X size={20}/></button>
+                        </div>
+                        <div className="space-y-5">
                             <div>
-                                <label style={{ display: 'block', color: '#64748b', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', marginBottom: '6px' }}>Nombre</label>
-                                <input name="name" defaultValue={editingTemplate.name} required className="rem-select" style={{ width: '100%', boxSizing: 'border-box' }} />
+                                <label className="block text-slate-500 text-[10px] font-black uppercase tracking-widest mb-2 ml-1">Nombre Identificador</label>
+                                <input name="name" defaultValue={editingTemplate.name} required className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-[#E2A049] transition-colors text-sm" placeholder="Ej: Primer Seguimiento" />
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-slate-500 text-[10px] font-black uppercase tracking-widest mb-2 ml-1">Canal de Envío</label>
+                                    <select name="type" defaultValue={editingTemplate.type} className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-[#E2A049] transition-colors text-sm" required>
+                                        <option value="both">Ambos Canales</option>
+                                        <option value="email">Sólo Email</option>
+                                        <option value="whatsapp">Sólo WhatsApp</option>
+                                    </select>
+                                </div>
+                                <div className="opacity-60 pointer-events-none">
+                                    <label className="block text-slate-500 text-[10px] font-black uppercase tracking-widest mb-2 ml-1">Prioridad (WIP)</label>
+                                    <div className="w-full bg-black/30 border border-white/5 rounded-xl px-4 py-3 text-slate-600 text-sm">Media</div>
+                                </div>
                             </div>
                             <div>
-                                <label style={{ display: 'block', color: '#64748b', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', marginBottom: '6px' }}>Asunto (Email)</label>
-                                <input name="subject" defaultValue={editingTemplate.subject} className="rem-select" style={{ width: '100%', boxSizing: 'border-box' }} />
+                                <label className="block text-slate-500 text-[10px] font-black uppercase tracking-widest mb-2 ml-1">Asunto (Solo para Email)</label>
+                                <input name="subject" defaultValue={editingTemplate.subject} className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-[#E2A049] transition-colors text-sm" placeholder="Te recordamos tu cotización en Cocktails on Tap" />
                             </div>
                             <div>
-                                <label style={{ display: 'block', color: '#64748b', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', marginBottom: '6px' }}>Contenido</label>
-                                <textarea name="content" defaultValue={editingTemplate.content} required rows={6} className="rem-select" style={{ width: '100%', boxSizing: 'border-box', resize: 'vertical' }} />
-                            </div>
-                            <div>
-                                <label style={{ display: 'block', color: '#64748b', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', marginBottom: '6px' }}>Canal</label>
-                                <select name="type" defaultValue={editingTemplate.type} className="rem-select" style={{ width: '100%' }}>
-                                    <option value="both">Ambos (Email & WA)</option>
-                                    <option value="email">Sólo Email</option>
-                                    <option value="whatsapp">Sólo WhatsApp</option>
-                                </select>
+                                <label className="block text-slate-500 text-[10px] font-black uppercase tracking-widest mb-2 ml-1">Contenido del Mensaje</label>
+                                <textarea name="content" defaultValue={editingTemplate.content} required rows={8} className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-4 text-white outline-none focus:border-[#E2A049] transition-colors text-sm resize-none leading-relaxed" placeholder="Hola {nombre}, te escribimos para..." />
                             </div>
                         </div>
-                        <div style={{ display: 'flex', gap: '10px', marginTop: '24px' }}>
-                            <button type="button" className="rem-btn rem-btn-outline" style={{ flex: 1 }} onClick={() => setEditingTemplate(null)}>Cancelar</button>
-                            <button type="submit" className="rem-btn rem-btn-primary" style={{ flex: 1 }} disabled={isPending}>Guardar</button>
+                        <div className="flex gap-4 mt-8">
+                            <button type="button" className="flex-1 bg-white/5 text-slate-400 py-3.5 rounded-2xl font-black text-xs active:scale-95 transition-transform" onClick={() => setEditingTemplate(null)}>Cancelar</button>
+                            <button type="submit" className="flex-1 bg-[#E2A049] text-black py-3.5 rounded-2xl font-black text-xs active:scale-95 transition-transform flex items-center justify-center gap-2" disabled={isPending}>
+                                <Check size={16}/> Guardar Plantilla
+                            </button>
                         </div>
                     </form>
                 </div>
             )}
 
-            {/* Modal Batch Send Email */}
-            {batchModal.show && (
-                <div className="rem-modal-overlay">
-                    <div className="rem-modal">
-                        <h2 style={{ color: '#f1f5f9', fontSize: '18px', margin: '0 0 10px', textAlign: 'left' }}>Enviar Recordatorio Masivo</h2>
-                        <p style={{ color: '#64748b', fontSize: '14px', marginBottom: '20px', textAlign: 'left' }}>Seleccionaste <strong style={{ color: '#f1f5f9' }}>{selectedIds.length}</strong> cotizaciones para enviar por Email.</p>
-                        
-                        <div style={{ textAlign: 'left' }}>
-                            <label style={{ display: 'block', color: '#64748b', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', marginBottom: '6px' }}>Selecciona Plantilla</label>
-                            <select className="rem-select" style={{ width: '100%', marginBottom: '24px' }} value={batchModal.templateId} onChange={e => setBatchModal(m => ({ ...m, templateId: e.target.value }))}>
-                                {templates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                            </select>
+            {/* Test Modal Implementation */}
+            {testModal.show && testModal.template && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-black/80 backdrop-blur-md" onClick={() => setTestModal({ show: false, template: null })}></div>
+                    <div className="relative w-full max-w-lg bg-[#1e2433] border border-white/10 rounded-3xl p-8 shadow-2xl animate-in zoom-in-95 duration-200">
+                        <div className="flex justify-between items-center mb-6 pb-4 border-b border-white/5">
+                            <h2 className="text-white text-xl font-black flex items-center gap-3"><TestTube className="text-sky-400" size={24}/> Laboratorio de Pruebas</h2>
+                        </div>
+                        <p className="text-slate-400 text-sm mb-8 leading-relaxed">
+                            Simula un envío para la plantilla <span className="text-[#E2A049] font-bold">"{testModal.template.name}"</span>.
+                        </p>
+
+                        <div className="space-y-6">
+                            {(testModal.template.type === 'both' || testModal.template.type === 'email') && (
+                                <div className="bg-black/20 border border-white/5 p-6 rounded-2xl">
+                                    <label className="block text-sky-400 text-[10px] font-black uppercase tracking-widest mb-4">Simulador de Email</label>
+                                    <div className="flex gap-3">
+                                        <input type="email" className="flex-1 bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white text-sm outline-none focus:border-sky-400 transition-colors" placeholder="tu@email.com" value={testInp.email} onChange={e => setTestInp(prev => ({ ...prev, email: e.target.value }))} />
+                                        <button className="bg-sky-500 text-sky-950 px-5 rounded-xl font-black text-xs active:scale-95 transition-transform disabled:opacity-30 flex items-center gap-2" onClick={() => handleTestReminder('email')} disabled={isTesting || !testInp.email}>
+                                            <Send size={14}/> {isTesting ? '...' : 'Enviar'}
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+
+                            {(testModal.template.type === 'both' || testModal.template.type === 'whatsapp') && (
+                                <div className="bg-emerald-500/5 border border-emerald-500/10 p-6 rounded-2xl">
+                                    <label className="block text-emerald-400 text-[10px] font-black uppercase tracking-widest mb-4">Simulador de WhatsApp</label>
+                                    <div className="flex gap-3">
+                                        <input type="tel" className="flex-1 bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white text-sm outline-none focus:border-emerald-400 transition-colors" placeholder="56912345678" value={testInp.phone} onChange={e => setTestInp(prev => ({ ...prev, phone: e.target.value }))} />
+                                        <button className="bg-emerald-500 text-emerald-950 px-5 rounded-xl font-black text-xs active:scale-95 transition-transform disabled:opacity-30 flex items-center gap-2" onClick={() => handleTestReminder('wa')} disabled={!testInp.phone}>
+                                            <MessageSquare size={14}/> Abrir
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
                         </div>
 
-                        <div style={{ display: 'flex', gap: '10px' }}>
-                            <button className="rem-btn rem-btn-outline" style={{ flex: 1 }} onClick={() => setBatchModal({ show: false, templateId: '' })}>Cancelar</button>
-                            <button className="rem-btn rem-btn-primary" style={{ flex: 1 }} onClick={executeBatchSend} disabled={isPending || !batchModal.templateId}>
-                                {isPending ? 'Enviando…' : '¡Enviar ahora!'}
+                        <button className="w-full mt-8 py-3.5 bg-white/5 text-slate-500 text-xs font-black rounded-2xl hover:text-white transition-colors" onClick={() => setTestModal({ show: false, template: null })}>Cerrar Laboratorio</button>
+                    </div>
+                </div>
+            )}
+
+            {/* Batch Send Modal */}
+            {batchModal.show && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-black/80 backdrop-blur-md" onClick={() => setBatchModal({ show: false, templateId: '' })}></div>
+                    <div className="relative w-full max-w-md bg-[#1e2433] border border-white/10 rounded-3xl p-8 shadow-2xl animate-in zoom-in-95 duration-200">
+                        <h2 className="text-white text-xl font-black mb-1">Envío Masivo</h2>
+                        <p className="text-slate-400 text-sm mb-8 leading-relaxed">
+                            Se enviará un recordatorio por email a <span className="text-white font-black">{selectedIds.length}</span> contactos.
+                        </p>
+                        
+                        <div className="space-y-6">
+                            <div>
+                                <label className="block text-slate-500 text-[10px] font-black uppercase tracking-widest mb-3 ml-1">Selecciona Plantilla a utilizar</label>
+                                <select className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-[#E2A049] transition-colors text-sm" value={batchModal.templateId} onChange={e => setBatchModal(m => ({ ...m, templateId: e.target.value }))}>
+                                    {templates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                                </select>
+                            </div>
+
+                            <button className="w-full bg-[#E2A049] text-black py-4 rounded-2xl font-black text-sm active:scale-95 transition-transform flex items-center justify-center gap-3 disabled:opacity-50" onClick={executeBatchSend} disabled={isPending || !batchModal.templateId}>
+                                <Send size={18}/>
+                                {isPending ? 'Procesando Envío...' : 'Confirmar y Enviar'}
                             </button>
+                            <button className="w-full py-3 text-slate-600 text-xs font-bold hover:text-slate-400 transition-colors" onClick={() => setBatchModal({ show: false, templateId: '' })}>Abortar Proceso</button>
                         </div>
                     </div>
                 </div>
             )}
 
-            {/* Modal Select WhatsApp Template */}
+            {/* WA Selection Modal */}
             {waModal.show && (
-                <div className="rem-modal-overlay">
-                    <div className="rem-modal">
-                        <h2 style={{ color: '#f1f5f9', fontSize: '18px', margin: '0 0 10px', textAlign: 'left' }}>Contactar por WhatsApp</h2>
-                        <p style={{ color: '#64748b', fontSize: '14px', marginBottom: '20px', textAlign: 'left' }}>Vas a enviar un recordatorio a <strong style={{ color: '#f1f5f9' }}>{waModal.quote.client_name}</strong>.</p>
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-black/80 backdrop-blur-md" onClick={() => setWaModal({ show: false, quote: null, templateId: '' })}></div>
+                    <div className="relative w-full max-w-md bg-[#1e2433] border border-white/10 rounded-3xl p-8 shadow-2xl animate-in zoom-in-95 duration-200">
+                        <h2 className="text-white text-xl font-black mb-1 flex items-center gap-3"><MessageSquare className="text-emerald-400" size={24}/> Canal WhatsApp</h2>
+                        <p className="text-slate-400 text-sm mb-8 leading-relaxed">
+                            Personaliza el mensaje para <span className="text-white font-black">{waModal.quote.client_name}</span>.
+                        </p>
                         
-                        <div style={{ textAlign: 'left' }}>
-                            <label style={{ display: 'block', color: '#64748b', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', marginBottom: '6px' }}>Selecciona Plantilla</label>
-                            <select className="rem-select" style={{ width: '100%', marginBottom: '24px' }} value={waModal.templateId} onChange={e => setWaModal(m => ({ ...m, templateId: e.target.value }))}>
-                                {templates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                            </select>
-                        </div>
+                        <div className="space-y-6">
+                            <div>
+                                <label className="block text-slate-500 text-[10px] font-black uppercase tracking-widest mb-3 ml-1">Plantilla de Conversación</label>
+                                <select className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-emerald-500 transition-colors text-sm font-bold" value={waModal.templateId} onChange={e => setWaModal(m => ({ ...m, templateId: e.target.value }))}>
+                                    {templates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                                </select>
+                            </div>
 
-                        <div style={{ display: 'flex', gap: '10px' }}>
-                            <button className="rem-btn rem-btn-outline" style={{ flex: 1 }} onClick={() => setWaModal({ show: false, quote: null, templateId: '' })}>Cancelar</button>
-                            <button className="rem-btn" style={{ flex: 1, background: '#25D366', color: '#fff' }} onClick={executeWaSend} disabled={!waModal.templateId}>
-                                Abrir WhatsApp
+                            <button className="w-full bg-emerald-500 text-emerald-950 py-4 rounded-2xl font-black text-sm active:scale-95 transition-transform flex items-center justify-center gap-3" onClick={executeWaSend} disabled={!waModal.templateId}>
+                                <ExternalLink size={18}/> Abrir Aplicación
                             </button>
+                            <button className="w-full py-3 text-slate-600 text-xs font-bold hover:text-slate-400 transition-colors" onClick={() => setWaModal({ show: false, quote: null, templateId: '' })}>Regresar</button>
                         </div>
                     </div>
                 </div>
