@@ -161,7 +161,11 @@ export function calculateSummaryData(
         return !MURO_COMPATIBLE_SIZES.includes(liters);
     });
     const canHaveMuro = !hasIncompatibleSize && totalLiters >= MURO_MIN_LITERS;
-    const dispenserLabel = (state.dispenser === 'muro' && canHaveMuro) ? 'Muro de Coctelería' : 'Dispensador Portátil';
+    
+    let dispenserLabel = 'Dispensador Portátil';
+    if (state.dispenser === 'muro' && canHaveMuro) dispenserLabel = 'Muro de Coctelería';
+    if (state.dispenser === 'desechable') dispenserLabel = 'Barril Desechable';
+
     const installationCost = (state.dispenser === 'muro' && canHaveMuro) ? MURO_INSTALLATION_COST : 0;
 
     return {

@@ -102,7 +102,7 @@ function itemsTable(items: QuoteItem[]): string {
 }
 
 function priceBreakdownSection(quote: Quote): string {
-    const dispenserLabel = quote.dispenser === 'muro' ? 'Muro de Coctelería' : 'Dispensador Portátil';
+    const dispenserLabel = quote.dispenser === 'muro' ? 'Muro de Coctelería' : (quote.dispenser === 'desechable' ? 'Barril Desechable' : 'Dispensador Portátil');
     const hasDiscount = quote.total_normal_price > quote.total_offer_price;
     const isOtra = quote.comuna_name === 'Otra';
 

@@ -38,11 +38,13 @@ interface Props {
 }
 
 export default function QuoteSummaryProducts({ data, isEditable = false, onUpdateQuantity, onAddProductsClick, onToggleDispenser }: Props) {
+    const isDesechable = data.dispenserLabel.toLowerCase().includes('desechable');
     const isMuro = data.dispenserLabel.toLowerCase().includes('muro');
     
     // Solo permitimos el toggle si es editable, hay una función de toggle y 
     // actualmente es muro O cumple los requisitos para ser muro.
-    const canToggle = isEditable && onToggleDispenser && (isMuro || data.canHaveMuro);
+    // Prohibimos toggle si es 'Barril Desechable' (opción solo admin)
+    const canToggle = isEditable && onToggleDispenser && !isDesechable && (isMuro || data.canHaveMuro);
 
     return (
         <div className="bg-white rounded-[20px] p-8 shadow-[0_4px_20px_rgba(0,0,0,0.07)] border border-brand-border mb-6">

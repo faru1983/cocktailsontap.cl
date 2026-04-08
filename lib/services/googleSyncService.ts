@@ -120,7 +120,7 @@ export const GoogleSyncService = {
                 `${item.size} ${item.product_name} (x${item.quantity}) ${formatClp(item.offer_price_at_time * item.quantity)}`
             ).join('\n') || 'Sin productos';
 
-            const dispenserLabel = quote.dispenser === 'muro' ? 'Muro' : 'Portátil';
+            const dispenserLabel = quote.dispenser === 'muro' ? 'Muro' : (quote.dispenser === 'desechable' ? 'Desechable' : 'Portátil');
             
             const commentsText = quote.comments ? `Comentarios: ${quote.comments}\n` : '';
 

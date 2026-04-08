@@ -81,7 +81,7 @@ export interface WizardState {
         comments: string;
     };
     selections: WizardSelection[];
-    dispenser: 'portatil' | 'muro';
+    dispenser: 'portatil' | 'muro' | 'desechable';
     expandedCocktailId: string | null;
     expandedCategoryId: string;
 }
@@ -158,7 +158,7 @@ export interface Quote {
     drinks_per_person: number;
 
     // Dispensador
-    dispenser: 'portatil' | 'muro';
+    dispenser: 'portatil' | 'muro' | 'desechable';
 
     // Precios
     total_normal_price: number;
@@ -206,7 +206,7 @@ export const CreateQuoteSchema = z.object({
             size: z.string(),
             quantity: z.number().min(1),
         })).min(1, 'Selecciona al menos un producto'),
-        dispenser: z.enum(['portatil', 'muro']),
+        dispenser: z.enum(['portatil', 'muro', 'desechable']),
     }).passthrough(),
     cocktails: z.array(z.any()).optional(),
     comunas: z.array(z.any()).optional(),
@@ -227,7 +227,7 @@ export const ConfirmQuoteSchema = z.object({
     pickup_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Fecha de retiro inválida'),
     pickup_time: z.string().nullable().optional(),
     comments: z.string().nullable().optional(),
-    dispenser: z.enum(['portatil', 'muro']),
+    dispenser: z.enum(['portatil', 'muro', 'desechable']),
     items: z.array(z.object({
         id: z.string().optional(),
         product_id: z.string().nullable(),

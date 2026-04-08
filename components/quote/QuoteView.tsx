@@ -53,7 +53,7 @@ export default function QuoteView({ quote, comunas, availableCocktails, categori
     const [eventType, setEventType] = useState(quote.event_type_id ?? (quote.event_type_other ? 'Otro' : ''));
     const [otherType, setOtherType] = useState(quote.event_type_other ?? '');
     const [items, setItems] = useState<QuoteItem[]>(quote.quote_items);
-    const [dispenser, setDispenser] = useState<'portatil' | 'muro'>(quote.dispenser || 'portatil');
+    const [dispenser, setDispenser] = useState<'portatil' | 'muro' | 'desechable'>(quote.dispenser as any || 'portatil');
 
     const [isConfirming, setIsConfirming] = useState(false);
     const [confirmError, setConfirmError] = useState('');
@@ -219,7 +219,7 @@ export default function QuoteView({ quote, comunas, availableCocktails, categori
             shippingCost: totals.shipping,
             shippingLabel: comuna === 'Otra' && totals.shipping === 0 ? 'Pendiente de factibilidad' : (totals.shipping === 0 ? '¡Gratis!' : formatCurrency(totals.shipping)),
             installationCost: isDraft ? totals.installationCost : quote.installation_cost,
-            dispenserLabel: dispenser === 'muro' ? 'Muro de Coctelería' : 'Dispensador Portátil',
+            dispenserLabel: dispenser === 'muro' ? 'Muro de Coctelería' : (dispenser === 'desechable' ? 'Barril Desechable' : 'Dispensador Portátil'),
             manualDiscount: quote.manual_discount || 0,
             totalPrice: totals.totalFinal,
             guests: guests,

@@ -694,19 +694,27 @@ export default function QuoteDetailClient({ quote: initial, allProducts, eventTy
                                         <>
                                             <select 
                                                 value={editCosts.dispenser} 
-                                                onChange={e => setEditCosts(prev => ({ ...prev, dispenser: e.target.value }))}
+                                                onChange={e => {
+                                                    const d = e.target.value as any;
+                                                    setEditCosts(prev => ({ 
+                                                        ...prev, 
+                                                        dispenser: d,
+                                                        installation_cost: d === 'muro' ? (prev.installation_cost || 50000) : 0
+                                                    }));
+                                                }}
                                                 className="q-input"
                                                 style={{ width: 'auto', fontSize: '13px', padding: '6px 10px' }}
                                             >
                                                 <option value="portatil">Dispensador Portátil</option>
                                                 <option value="muro">Muro de Cócteleria</option>
+                                                <option value="desechable">Barril Desechable</option>
                                             </select>
                                             <input type="number" value={editCosts.installation_cost} onChange={e => setEditCosts(prev => ({ ...prev, installation_cost: Number(e.target.value) }))} className="q-input" style={{ width: '120px', textAlign: 'right' }} />
                                         </>
                                     ) : (
                                         <>
                                             <span style={{ color: '#94a3b8', fontSize: '13px' }}>
-                                                {quote.dispenser === 'muro' ? 'Muro de Cócteleria' : 'Dispensador Portátil'}
+                                                {quote.dispenser === 'muro' ? 'Muro de Cócteleria' : (quote.dispenser === 'desechable' ? 'Barril Desechable' : 'Dispensador Portátil')}
                                             </span>
                                             <span style={{ color: '#f1f5f9', fontWeight: 700 }}>{formatCLP(quote.installation_cost)}</span>
                                         </>
