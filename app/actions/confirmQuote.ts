@@ -54,11 +54,27 @@ export async function confirmQuote(input: any): Promise<ConfirmQuoteResult> {
             totalLiters += getSizeLiters(item.size) * item.quantity;
         }
 
-        // Recalcular costo de envío basado en la comuna oficial de la DB.
+        // Recalcular costo de envío (respetando manual overrides si la comuna no cambió)
         let finalShippingCost = quote.shipping_cost;
         const { data: comunaData } = await db.from('comunas').select().eq('name', data.comuna_name).single();
-        if (comunaData && comunaData.free_from !== null) {
-            finalShippingCost = (totalLiters >= comunaData.free_from) ? 0 : (comunaData.cost || 0);
+        
+        if (comunaData) {
+            const qualifiesForFree = comunaData.free_from !== null && totalLiters >= comunaData.free_from;
+            
+            if (qualifiesForFree) {
+                finalShippingCost = 0;
+            } else if (data.comuna_name !== quote.comuna_name) {
+                // Si el usuario cambió la comuna en el paso final, usamos el costo estándar
+                finalShippingCost = comunaData.cost || 0;
+            } else {
+                // Es la misma comuna. Si el costo guardado es 0 pero ya no califica para gratis, volvemos al base.
+                // De lo contrario, respetamos el valor manual que pudo setear el admin.
+                if (quote.shipping_cost === 0 && !qualifiesForFree) {
+                    finalShippingCost = comunaData.cost || 0;
+                } else {
+                    finalShippingCost = quote.shipping_cost;
+                }
+            }
         }
 
         // Recalcular instalación del Muro

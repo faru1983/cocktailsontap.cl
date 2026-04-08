@@ -104,14 +104,27 @@ export default function QuoteView({ quote, comunas, availableCocktails, categori
             totalLiters += getSizeLiters(item.size) * item.quantity;
         });
 
-        // Recalcular envío gratis si aplica (basado en comuna seleccionada)
+        // Recalcular envío dinámicamente
         let shipping = quote.shipping_cost;
         const selectedComuna = comunas.find(c => c.name === comuna);
+        
         if (selectedComuna && selectedComuna.name !== 'Otra') {
-            if (selectedComuna.freeFrom !== null && totalLiters >= selectedComuna.freeFrom) {
+            const qualifiesForFree = selectedComuna.freeFrom !== null && totalLiters >= selectedComuna.freeFrom;
+            
+            if (qualifiesForFree) {
                 shipping = 0;
-            } else {
+            } else if (comuna !== quote.comuna_name) {
+                // Si el usuario cambia la comuna, aplicamos el costo estándar de la nueva comuna
                 shipping = selectedComuna.cost || 0;
+            } else {
+                // Es la misma comuna original. 
+                // Si el costo en BD es 0 pero ya no califica para envío gratis, volvemos al costo base.
+                // De lo contrario, respetamos el valor guardado (que puede ser un override manual del admin).
+                if (quote.shipping_cost === 0 && !qualifiesForFree) {
+                    shipping = selectedComuna.cost || 0;
+                } else {
+                    shipping = quote.shipping_cost;
+                }
             }
         }
 
