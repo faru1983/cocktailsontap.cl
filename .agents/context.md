@@ -34,39 +34,33 @@ Next.js 16 · React 19 · Tailwind CSS v4 · Supabase · Resend · Google APIs �
 
 ## 🔄 Últimos Cambios (Historial de Sesiones)
 
-### 📅 09-04-2026 — Refactorización y Finalización del Módulo de Cotización Manual
+### 📅 09-04-2026 — Optimización de Cotización Manual, Precios Custom y Correcciones UI
 - **Archivos creados/modificados**:
-  - `app/admin/quotes/new/CreateQuoteManualClient.tsx` — Refactorización total: lógica centralizada en `wizardLogic.ts`, sistema de overrides (envío, instalación, descuento), y UI reactiva 2x2 para logística.
-  - `app/actions/createQuote.ts` — Soporte para overrides de costos y descuentos manuales.
-  - `lib/services/quoteService.ts` — Persistencia robusta de descuentos e integración de `overrides` en la creación de borradores.
-- **Resumen**: Se completó el nuevo módulo de creación manual. Ahora es capaz de sugerir precios reactivamente (ej: $50.000 automático para Muro), permite visualización de precios en el buscador de productos, maneja rangos de horario de retiro (todo el día o horas específicas) y soporta descuentos extra. Todo el cálculo emula exactamente al wizard de cliente usando la misma "fuente de verdad" (`calculateSummaryData`), garantizando consistencia total en el CRM y emails. Se aplicaron optimizaciones de recursos (useMemo, unstable_cache) para la capa gratuita.
+  - `app/admin/quotes/new/CreateQuoteManualClient.tsx` — Implementación de búsqueda/autofill de clientes existentes (`service_role`), inputs de precios personalizados por ítem y soporte para `className` en componente `Field`.
+  - `lib/services/quoteService.ts` — Soporte para persistencia de `customPrice` en ítems de cotización manual.
+  - `lib/wizardLogic.ts` — Lógica de cálculo actualizada para respetar precios manuales sobre los de catálogo.
+  - `components/quote/QuoteView.tsx` — Fix de UI: placeholder "Selecciona comuna..." para evitar la selección automática de "Alhué" por defecto del navegador.
+  - `lib/serverData.ts` — Nueva función `fetchAllClients` para alimentar el buscador del admin.
+- **Resumen**: Se cerró el ciclo de la "Cotización Manual" permitiendo ahora: búsqueda rápida de clientes (bypass de RLS), modificación de precios individuales por barril (independiente del catálogo), y mejor UX al finalizar (link público + botones de compartir). Se resolvieron errores de tipo en la compilación de Vercel y un bug visual crítico donde el navegador forzaba la primera comuna alfabética en cotizaciones con comuna nula.
+
+### 📅 09-04-2026 — Refactorización y Finalización del Módulo de Cotización Manual
+- **Resumen**: Refactorización total del módulo manual: lógica centralizada en `wizardLogic.ts`, sistema de overrides (envío, instalación, descuento), y UI reactiva 2x2. Soporte para rangos de retiro y validaciones robustas.
 
 ### 📅 07-04-2026 — Análisis profundo y documentación
-- **Archivos modificados**:
-  - `.agents/rules/rules.md` — Reescritura completa con arquitectura detallada, esquema DB, flujos de ejecución, integraciones, seguridad, y protocolo de contexto AI
-  - `README.md` — Reescritura completa como documentación exhaustiva para desarrolladores nuevos (instalación, schema SQL, flujos de negocio, integraciones, convenciones)
-  - `.agents/context.md` — **[NUEVO]** Archivo de contexto AI que se actualiza cada sesión
-- **Resumen**: Análisis profundo de todo el proyecto. Se mejoró la documentación para compartir el proyecto como open source en GitHub.
+- **Resumen**: Reescritura de `rules.md` y `README.md` con arquitectura detallada, esquema DB e integraciones. Creación del sistema de contexto AI.
 
 ### 📅 07-04-2026 — Optimización Mobile UI
-- **Archivos modificados**: `GastosClient.tsx`, componentes admin varios
-- **Resumen**: Corrección de overflow horizontal en botones "Agregar" de Gastos y Medios de Pago (modales), formateo de fechas sin line-break, y responsividad de valores monetarios en cards del dashboard.
+- **Resumen**: Corrección de overflow horizontal en Gastos/Medios de Pago vía modales, responsividad de métricas y formateo de fechas en el dashboard.
 
 ### 📅 06-04-2026 — Modernización Dashboard Admin
-- **Archivos modificados**: `GastosClient.tsx`, `StatsClient.tsx`, páginas admin varias
-- **Resumen**: Migración completa de UI legacy a Tailwind CSS v4 + Lucide. Refactorización del módulo de Gastos (100% responsive). Consolidación de métricas BI en la página de estadísticas.
-
-### 📅 05-04-2026 — Wizard UX + Debugging Sync
-- **Archivos modificados**: Steps del wizard, admin logs, server actions
-- **Resumen**: Campos de contacto obligatorios en el wizard. Debugging de sincronización Google Calendar para cotizaciones específicas. Implementación de logging robusto para diagnóstico de errores de sincronización.
+- **Resumen**: Migración completa a Tailwind CSS v4 + Lucide. Refactorización de Gastos (100% responsive) y consolidación de métricas BI.
 
 ---
 
 ## 🐛 Issues Conocidos / Pendientes
 
-- [ ] `lib/emails.ts` (HTML legacy) coexiste con React Email — pendiente migración completa y eliminación del archivo legacy
-- [ ] `app/api/` está vacío — directorio puede eliminarse si no se planean API routes
-- [ ] El admin layout usa `style={{}}` inline en vez de clases Tailwind (decisión intencional por Server Component constraints)
+- [ ] `lib/emails.ts` (HTML legacy) coexiste con React Email — pendiente migración completa.
+- [ ] Centralizar la lógica de `shipping_cost` reactivo en el admin (actualmente se maneja vía overrides manuales o sugerencia base).
 
 ---
 
@@ -87,4 +81,4 @@ Next.js 16 · React 19 · Tailwind CSS v4 · Supabase · Resend · Google APIs �
 
 ---
 
-*Última actualización: 09-04-2026*
+*Última actualización: 09-04-2026 (Fin de Sesión)*
