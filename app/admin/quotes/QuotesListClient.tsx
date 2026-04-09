@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { SITE_URL } from '@/lib/config';
 import SortSelect from '@/components/admin/SortSelect';
 import { bulkUpdateQuoteStatus } from '@/app/actions/admin/adminActions';
+import { Plus } from 'lucide-react';
 
 const statusBadge: Record<string, { label: string; color: string; bg: string }> = {
     draft:        { label: 'Borrador',       color: '#94a3b8', bg: 'rgba(148,163,184,0.12)' },
@@ -148,10 +149,19 @@ export default function QuotesListClient({
             `}</style>
 
             {/* Header */}
-            <div className="qp-header">
-                <div>
-                    <h1 style={{ color: '#f1f5f9', fontSize: '24px', fontWeight: 900, margin: '0 0 3px' }}>Cotizaciones</h1>
-                    <p style={{ color: '#475569', fontSize: '13px', margin: 0 }}>{totalCount} coincidencias found</p>
+            <div className="qp-header" style={{ marginBottom: '28px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                    <div>
+                        <h1 style={{ color: '#f1f5f9', fontSize: '24px', fontWeight: 900, margin: '0 0 3px' }}>Cotizaciones</h1>
+                        <p style={{ color: '#475569', fontSize: '13px', margin: 0 }}>{totalCount} coincidencias found</p>
+                    </div>
+                    <Link href="/admin/quotes/new" style={{
+                        padding: '10px 18px', borderRadius: '12px', background: '#E2A049', color: '#1a1a2e',
+                        fontSize: '13px', fontWeight: 800, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '8px',
+                        boxShadow: '0 4px 15px rgba(226,160,73,0.3)', transition: 'all 0.15s'
+                    }}>
+                        <Plus size={18} /> Nueva Cotización
+                    </Link>
                 </div>
                 <form method="GET" action="/admin/quotes" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', width: '100%', maxWidth: 'max-content' }}>
                     {status && <input type="hidden" name="status" value={status} />}

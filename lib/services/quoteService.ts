@@ -67,10 +67,18 @@ export const QuoteService = {
         state: WizardState,
         cocktails: CocktailForWizard[],
         comunas: Comuna[],
-        clientId: string | null
+        clientId: string | null,
+        overrides?: { shippingCost?: number; installationCost?: number; manualDiscount?: number }
     ): Promise<CreateQuoteResult> {
         const db = createServerClient();
         const data = calculateSummaryData(state, cocktails, comunas);
+
+        const finalShipping = overrides?.shippingCost !== undefined ? overrides.shippingCost : data.shippingCost;
+        const finalInstallation = overrides?.installationCost !== undefined ? overrides.installationCost : data.installationCost;
+        const finalDiscount = overrides?.manualDiscount !== undefined ? overrides.manualDiscount : 0;
+        
+        const finalTotalPrice = data.totalOfferPrice + finalShipping + finalInstallation - finalDiscount;
+
         const emailTrimmed = state.contact.email.trim().toLowerCase();
 
         // Insert quote
@@ -102,9 +110,10 @@ export const QuoteService = {
 
                 total_normal_price: data.totalNormalPrice,
                 total_offer_price: data.totalOfferPrice,
-                shipping_cost: data.shippingCost,
-                installation_cost: data.installationCost,
-                total_price: data.totalPrice,
+                shipping_cost: finalShipping,
+                installation_cost: finalInstallation,
+                manual_discount: finalDiscount,
+                total_price: finalTotalPrice,
                 total_liters: data.totalLiters,
             })
             .select('*')

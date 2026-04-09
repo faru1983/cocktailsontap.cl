@@ -82,10 +82,18 @@ export async function reorderItems(type: 'products' | 'categories', updates: { i
     await checkAuth();
     const db = createServerClient();
     
-    // Optimized: Batch mass update using upsert
-    // Supabase upsert with IDs will update existing rows
-    const { error } = await db.from(type).upsert(updates);
+    // Use parallel updates instead of upsert to avoid NOT NULL violations 
+    // on unrelated columns (like 'name') during a partial update.
+    const results = await Promise.all(
+        updates.map(u => 
+            db.from(type)
+              .update({ display_order: u.display_order })
+              .eq('id', u.id)
+        )
+    );
     
-    if (error) throw new Error('Error al reordenar: ' + error.message);
+    const firstError = results.find(r => r.error);
+    if (firstError) throw new Error('Error al reordenar: ' + firstError.error?.message);
+    
     revalidatePath('/admin/products');
 }

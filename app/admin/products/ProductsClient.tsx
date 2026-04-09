@@ -442,10 +442,25 @@ export default function ProductsClient({ products, categories }: { products: any
                             {modalProduct.prices.map((p: any, i: number) => (
                                 <div key={i} className="grid grid-cols-12 gap-2 bg-black/20 p-3 rounded-xl border border-white/5 items-center">
                                     <div className="col-span-3">
-                                        <input className="w-full bg-black/40 border border-white/5 rounded-lg px-2 py-2 text-xs text-white" value={p.size} onChange={e => { const np = [...modalProduct.prices]; np[i].size = e.target.value; setModalProduct({ ...modalProduct, prices: np }) }} placeholder="5L" required />
+                                        <select 
+                                            className="w-full bg-black/40 border border-white/5 rounded-lg px-2 py-2 text-[11px] font-bold text-white outline-none focus:border-[#E2A049] appearance-none cursor-pointer" 
+                                            value={p.size} 
+                                            onChange={e => { 
+                                                const np = [...modalProduct.prices]; 
+                                                np[i].size = e.target.value; 
+                                                setModalProduct({ ...modalProduct, prices: np }) 
+                                            }} 
+                                            required
+                                        >
+                                            <option value="" disabled>Seleccionar</option>
+                                            <option value="5L">5L</option>
+                                            <option value="10L">10L</option>
+                                            <option value="20L">20L</option>
+                                            <option value="30L">30L</option>
+                                        </select>
                                     </div>
                                     <div className="col-span-4">
-                                        <input className="w-full bg-black/40 border border-white/5 rounded-lg px-2 py-2 text-xs text-white" type="number" value={p.price} onChange={e => { const np = [...modalProduct.prices]; np[i].price = parseInt(e.target.value); setModalProduct({ ...modalProduct, prices: np }) }} placeholder="Costo" required />
+                                        <input className="w-full bg-black/40 border border-white/5 rounded-lg px-2 py-2 text-xs text-white" type="number" value={p.price || ''} onChange={e => { const val = e.target.value; const np = [...modalProduct.prices]; np[i].price = val === '' ? 0 : parseInt(val); setModalProduct({ ...modalProduct, prices: np }) }} placeholder="Costo" required />
                                     </div>
                                     <div className="col-span-4">
                                         <input className="w-full bg-black/40 border border-white/5 rounded-lg px-2 py-2 text-xs text-emerald-400 placeholder:text-slate-700" type="number" value={p.offer_price || ''} onChange={e => { const np = [...modalProduct.prices]; np[i].offer_price = e.target.value ? parseInt(e.target.value) : null; setModalProduct({ ...modalProduct, prices: np }) }} placeholder="Oferta" />

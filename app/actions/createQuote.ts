@@ -14,47 +14,53 @@ interface CreateQuoteInput {
     state: WizardState;
     cocktails: CocktailForWizard[];
     comunas: Comuna[];
+    skipEmail?: boolean;
+    isAdmin?: boolean;
+    overrides?: { shippingCost?: number; installationCost?: number; manualDiscount?: number };
 }
 
 interface CreateQuoteResult {
     success: boolean;
     token?: string;
+    quoteId?: string;
     error?: string;
 }
 
 export async function createQuote(input: CreateQuoteInput): Promise<CreateQuoteResult> {
     try {
-        // ─── 1. Validación de Esquema ─────────────────────────────────────────
-        const validation = CreateQuoteSchema.safeParse(input);
-        if (!validation.success) {
-            const errorMsg = validation.error.issues.map(i => `${i.path.join('.')}: ${i.message}`).join(', ');
-            console.error('Validation Error Details:', errorMsg);
-            return { success: false, error: `Datos de cotización inválidos (${errorMsg}).` };
-        }
+        const { state, cocktails, comunas, skipEmail, isAdmin, overrides } = input;
 
-        const { state, cocktails, comunas } = input;
+        // ─── 1. Validación de Esquema ─────────────────────────────────────────
+        // Saltamos validación estricta si es creación manual desde el Admin
+        if (!isAdmin) {
+            const validation = CreateQuoteSchema.safeParse(input);
+            if (!validation.success) {
+                const errorMsg = validation.error.issues.map(i => `${i.path.join('.')}: ${i.message}`).join(', ');
+                console.error('Validation Error Details:', errorMsg);
+                return { success: false, error: `Datos de cotización inválidos (${errorMsg}).` };
+            }
+        }
 
         // ─── 2. Upsert Cliente (CRM) ──────────────────────────────────────────
         const clientId = await QuoteService.upsertClient(state);
 
         // ─── 3 & 4. Crear Cotización y Congelar Precios ───────────────────────
-        const createResult = await QuoteService.createDraftQuote(state, cocktails, comunas, clientId);
-        
+        const createResult = await QuoteService.createDraftQuote(state, cocktails, comunas, clientId, overrides);
+
         if (!createResult.success || !createResult.token || !createResult.quote) {
-             return { success: false, error: createResult.error || 'No se pudo guardar la cotización.' };
+            return { success: false, error: createResult.error || 'No se pudo guardar la cotización.' };
         }
 
         // ─── 5. Sincronización proactiva con Google Contacts ─────────────────
-        // We await this to ensure it completes before the function finishes.
         try {
             await GoogleSyncService.syncContactForQuote(state, createResult.token, clientId ?? undefined);
         } catch (e) {
             console.error('Google Sync failed:', e);
         }
 
-        // ─── 6. Enviar emails (Non-blocking) ──────────────────────────────────
+        // ─── 6. Enviar emails (Condicional y Non-blocking) ───────────────────
         const resendKey = process.env.RESEND_API_KEY;
-        if (resendKey && state.contact.email && createResult.quoteItems) {
+        if (!skipEmail && resendKey && state.contact.email && createResult.quoteItems) {
             try {
                 const resend = new Resend(resendKey);
                 // Reconstruct full quote for the email template
@@ -111,7 +117,7 @@ export async function createQuote(input: CreateQuoteInput): Promise<CreateQuoteR
             }
         }
 
-        return { success: true, token: createResult.token };
+        return { success: true, token: createResult.token, quoteId: createResult.quote.id };
     } catch (err) {
         console.error('Error inesperado en createQuote:', err);
         return { success: false, error: 'Error inesperado. Intenta nuevamente.' };

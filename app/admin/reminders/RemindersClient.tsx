@@ -302,7 +302,6 @@ export default function RemindersClient({ initialQuotes, initialTemplates }: { i
                                         <td className="py-4 px-6"><input type="checkbox" className="w-4 h-4 rounded border-white/10 bg-black/20 accent-[#E2A049]" checked={selectedIds.includes(q.id)} onChange={() => toggleSelect(q.id)} /></td>
                                         <td className="py-4 px-6">
                                             <div className="text-white font-bold text-sm tracking-tight">{q.client_name} {q.client_lastname}</div>
-                                            <div className="text-[10px] text-slate-500 uppercase font-black tracking-widest mt-0.5">{q.id.substring(0,8)}</div>
                                         </td>
                                         <td className="py-4 px-6 text-slate-400 text-sm">{new Date(q.event_date + 'T12:00:00').toLocaleDateString('es-CL')}</td>
                                         <td className="py-4 px-6 text-[#E2A049] font-black text-sm">{formatCLP(q.total_price)}</td>

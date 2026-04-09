@@ -23,6 +23,14 @@ const statusBadge: Record<string, { label: string; color: string; bg: string }> 
 };
 const formatCLP = (n: number) => new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0 }).format(n);
 
+const formatDateWithDashes = (dateString: string) => {
+    const d = new Date(dateString);
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+    return `${day}-${month}-${year}`;
+};
+
 export default function QuoteDetailClient({ quote: initial, allProducts, eventTypes }: { quote: any, allProducts: Product[], eventTypes: any[] }) {
     const [quote, setQuote] = useState(initial);
     const [isPending, startTransition] = useTransition();
@@ -276,16 +284,21 @@ export default function QuoteDetailClient({ quote: initial, allProducts, eventTy
             {/* Header */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '28px', flexWrap: 'wrap' }}>
                 <Link href="/admin/quotes" style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#E2A049', fontSize: '13px', textDecoration: 'none', whiteSpace: 'nowrap' }}><ArrowLeft size={16}/> Cotizaciones</Link>
-                <h1 style={{ color: '#f1f5f9', fontSize: '20px', fontWeight: 900, margin: 0 }}>
-                    <Link href={`/admin/clients/${quote.client_id}`} style={{ color: 'inherit', textDecoration: 'none', borderBottom: '1px solid transparent', transition: 'border-color 0.15s' }} 
-                        onMouseEnter={e => e.currentTarget.style.borderColor = 'rgba(226,160,73,0.5)'}
-                        onMouseLeave={e => e.currentTarget.style.borderColor = 'transparent'}>
-                        {quote.client_name} {quote.client_lastname || ''}
-                    </Link>
-                </h1>
-                <span style={{ display: 'inline-block', padding: '5px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: 700, color: badge.color, background: badge.bg }}>
-                    {badge.label}
-                </span>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                    <h1 style={{ color: '#f1f5f9', fontSize: '20px', fontWeight: 900, margin: 0 }}>
+                        <Link href={`/admin/clients/${quote.client_id}`} style={{ color: 'inherit', textDecoration: 'none', borderBottom: '1px solid transparent', transition: 'border-color 0.15s' }} 
+                            onMouseEnter={e => e.currentTarget.style.borderColor = 'rgba(226,160,73,0.5)'}
+                            onMouseLeave={e => e.currentTarget.style.borderColor = 'transparent'}>
+                            {quote.client_name} {quote.client_lastname || ''}
+                        </Link>
+                    </h1>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ color: '#64748b', fontSize: '12px', fontWeight: 600 }}>({formatDateWithDashes(quote.created_at)})</span>
+                        <span style={{ display: 'inline-block', padding: '4px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 700, color: badge.color, background: badge.bg }}>
+                            {badge.label}
+                        </span>
+                    </div>
+                </div>
                 <button onClick={handleResendOrder} disabled={isPending} style={{
                     marginLeft: 'auto', padding: '6px 14px', borderRadius: '10px', fontSize: '12px', fontWeight: 700,
                     background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',

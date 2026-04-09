@@ -34,6 +34,13 @@ Next.js 16 · React 19 · Tailwind CSS v4 · Supabase · Resend · Google APIs �
 
 ## 🔄 Últimos Cambios (Historial de Sesiones)
 
+### 📅 09-04-2026 — Refactorización y Finalización del Módulo de Cotización Manual
+- **Archivos creados/modificados**:
+  - `app/admin/quotes/new/CreateQuoteManualClient.tsx` — Refactorización total: lógica centralizada en `wizardLogic.ts`, sistema de overrides (envío, instalación, descuento), y UI reactiva 2x2 para logística.
+  - `app/actions/createQuote.ts` — Soporte para overrides de costos y descuentos manuales.
+  - `lib/services/quoteService.ts` — Persistencia robusta de descuentos e integración de `overrides` en la creación de borradores.
+- **Resumen**: Se completó el nuevo módulo de creación manual. Ahora es capaz de sugerir precios reactivamente (ej: $50.000 automático para Muro), permite visualización de precios en el buscador de productos, maneja rangos de horario de retiro (todo el día o horas específicas) y soporta descuentos extra. Todo el cálculo emula exactamente al wizard de cliente usando la misma "fuente de verdad" (`calculateSummaryData`), garantizando consistencia total en el CRM y emails. Se aplicaron optimizaciones de recursos (useMemo, unstable_cache) para la capa gratuita.
+
 ### 📅 07-04-2026 — Análisis profundo y documentación
 - **Archivos modificados**:
   - `.agents/rules/rules.md` — Reescritura completa con arquitectura detallada, esquema DB, flujos de ejecución, integraciones, seguridad, y protocolo de contexto AI
@@ -52,10 +59,6 @@ Next.js 16 · React 19 · Tailwind CSS v4 · Supabase · Resend · Google APIs �
 ### 📅 05-04-2026 — Wizard UX + Debugging Sync
 - **Archivos modificados**: Steps del wizard, admin logs, server actions
 - **Resumen**: Campos de contacto obligatorios en el wizard. Debugging de sincronización Google Calendar para cotizaciones específicas. Implementación de logging robusto para diagnóstico de errores de sincronización.
-
-### 📅 04-04-2026 — Fix Mobile iOS
-- **Archivos modificados**: `WizardStep1.tsx`
-- **Resumen**: Corrección de overflow en campo de fecha y fix del time picker nativo en iOS.
 
 ---
 
@@ -84,4 +87,4 @@ Next.js 16 · React 19 · Tailwind CSS v4 · Supabase · Resend · Google APIs �
 
 ---
 
-*Última actualización: 07-04-2026*
+*Última actualización: 09-04-2026*
