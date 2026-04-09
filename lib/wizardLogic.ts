@@ -128,8 +128,12 @@ export function calculateSummaryData(
     const items = state.selections.map((s: WizardSelection) => {
         const cocktail = cocktailsById.get(s.id);
         const priceData = cocktail?.prices[s.size] ?? { price: 0, offerPrice: 0 };
+        
+        // Use custom price if provided (for admin overrides), otherwise use standard offer price
+        const unitPrice = s.customPrice !== undefined ? s.customPrice : priceData.offerPrice;
+        
         const itemNormal = priceData.price * s.quantity;
-        const itemOffer = priceData.offerPrice * s.quantity;
+        const itemOffer = unitPrice * s.quantity;
         
         totalNormalPrice += itemNormal;
         totalOfferPrice += itemOffer;
@@ -194,9 +198,9 @@ export function calculateSummaryData(
  * Genera el texto formateado para enviar la cotización por WhatsApp.
  */
 export function buildWhatsAppMessage(state: WizardState, data: SummaryData, token?: string): string {
-    const guests = Math.max(state.consumption.guests, 1);
+    const guests = state.consumption.guests || 0;
     const totalDrinks = data.totalLiters * 5;
-    const avgDrinks = (totalDrinks / guests).toFixed(1);
+    const avgDrinks = guests > 0 ? (totalDrinks / guests).toFixed(1) : '0';
     const N = new Intl.NumberFormat('es-CL');
 
     const itemsText = data.items.map((s) => {
@@ -214,8 +218,10 @@ export function buildWhatsAppMessage(state: WizardState, data: SummaryData, toke
     msg += `*${data.dispenserLabel}:* ${data.installationCost === 0 ? '¡Gratis!' : formatCurrency(data.installationCost)}\n`;
     msg += `*TOTAL: ${formatCurrency(data.totalPrice)}*\n\n`;
 
-    msg += `*Notas:* \n`;
-    msg += `_Estas cotizando ${data.totalLiters}L con rendimiento total aprox. de ${totalDrinks} cócteles._\n_Para ${guests} invitados tienes en promedio de ${avgDrinks} cócteles x pers._\n\n`;
+    if (guests > 0 && data.totalLiters > 0) {
+        msg += `*Notas:* \n`;
+        msg += `_Estas cotizando ${data.totalLiters}L con rendimiento total aprox. de ${totalDrinks} cócteles._\n_Para ${guests} invitados tienes en promedio de ${avgDrinks} cócteles x pers._\n\n`;
+    }
 
     if (token) {
         msg += `*Confirma tu cotización aquí:* ${SITE_URL}/cotizar/${token}\n`;

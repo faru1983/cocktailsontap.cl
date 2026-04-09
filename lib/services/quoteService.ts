@@ -136,7 +136,7 @@ export const QuoteService = {
                 size: sel.size,
                 quantity: sel.quantity,
                 price_at_time: priceData.price,
-                offer_price_at_time: priceData.offerPrice,
+                offer_price_at_time: sel.customPrice !== undefined ? sel.customPrice : priceData.offerPrice,
             };
         });
 

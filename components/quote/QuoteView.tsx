@@ -618,19 +618,20 @@ export default function QuoteView({ quote, comunas, availableCocktails, categori
                                             <MapPin className="w-3 h-3" /> Comuna <span className="text-red-500">*</span>
                                         </label>
                                         <div className="relative">
-                                            <select
-                                                id="field-comuna"
-                                                value={comuna}
-                                                onChange={(e) => {
-                                                    setComuna(e.target.value);
-                                                    setValidationErrors(prev => ({ ...prev, comuna: false }));
-                                                }}
-                                                className={`w-full px-3 py-2.5 bg-slate-50 border rounded-xl text-[0.95rem] font-bold focus:outline-none focus:border-primary focus:bg-white transition-all shadow-sm appearance-none pr-10 ${validationErrors.comuna ? 'border-red-500 bg-red-50/30' : 'border-brand-border'}`}
-                                            >
-                                                {comunas.map((c) => (
-                                                    <option key={c.name} value={c.name}>{c.name}</option>
-                                                ))}
-                                            </select>
+                                                <select
+                                                    id="field-comuna"
+                                                    value={comuna}
+                                                    onChange={(e) => {
+                                                        setComuna(e.target.value);
+                                                        setValidationErrors(prev => ({ ...prev, comuna: false }));
+                                                    }}
+                                                    className={`w-full px-3 py-2.5 bg-slate-50 border rounded-xl text-[0.95rem] font-bold focus:outline-none focus:border-primary focus:bg-white transition-all shadow-sm appearance-none pr-10 ${validationErrors.comuna ? 'border-red-500 bg-red-50/30' : 'border-brand-border'}`}
+                                                >
+                                                    <option value="" disabled hidden>Selecciona comuna...</option>
+                                                    {comunas.map((c) => (
+                                                        <option key={c.name} value={c.name}>{c.name}</option>
+                                                    ))}
+                                                </select>
                                         <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
                                             <ChevronRight className="w-3.5 h-3.5 text-brand-text-muted rotate-90" />
                                         </div>

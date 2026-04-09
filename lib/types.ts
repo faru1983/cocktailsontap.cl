@@ -54,6 +54,7 @@ export interface WizardSelection {
     id: string;
     size: string;
     quantity: number;
+    customPrice?: number;
 }
 
 export interface WizardState {

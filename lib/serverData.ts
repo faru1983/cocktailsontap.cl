@@ -1,5 +1,6 @@
 import { unstable_cache } from 'next/cache';
 import { supabase } from './supabase';
+import { createServerClient } from './supabaseServer';
 import type { Product, CocktailForWizard, EventType, Comuna, SupabaseProduct } from './types';
 
 // ─── Helpers de transformación ───────────────────────────────────────────────
@@ -95,4 +96,14 @@ export const fetchAllProductData = unstable_cache(
     },
     ['product-data'],           // cache key
     { revalidate: 300 }         // revalida cada 5 minutos
+);
+export const fetchAllClients = unstable_cache(
+    async () => {
+        const db = createServerClient();
+        const { data, error } = await db.from('clients').select('id, first_name, last_name, email, phone').order('first_name', { ascending: true });
+        if (error) throw new Error(`clients: ${error.message}`);
+        return data ?? [];
+    },
+    ['clients-data'],
+    { revalidate: 60 } // Revalidar cada 1 minuto para clientes (más dinámico)
 );

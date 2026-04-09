@@ -3,7 +3,7 @@
 import { useState, useTransition, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Save, Plus, Trash2, Search, Check, AlertCircle, MessageCircle, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Save, Plus, Trash2, Search, Check, AlertCircle, MessageCircle, RefreshCw, Copy } from 'lucide-react';
 import { createQuote } from '@/app/actions/createQuote';
 import type { Product, Comuna, EventType, WizardState } from '@/lib/types';
 import { calculateSummaryData } from '@/lib/wizardLogic';
@@ -13,9 +13,10 @@ interface CreateQuoteManualClientProps {
     allProducts: Product[];
     comunas: Comuna[];
     eventTypes: EventType[];
+    existingClients: any[];
 }
 
-export default function CreateQuoteManualClient({ allProducts, comunas, eventTypes }: CreateQuoteManualClientProps) {
+export default function CreateQuoteManualClient({ allProducts, comunas, eventTypes, existingClients }: CreateQuoteManualClientProps) {
     const router = useRouter();
     const [isPending, startTransition] = useTransition();
     const [error, setError] = useState<string | null>(null);
@@ -32,6 +33,26 @@ export default function CreateQuoteManualClient({ allProducts, comunas, eventTyp
         comments: ''
     });
 
+    const [clientSearch, setClientSearch] = useState('');
+    const filteredClients = useMemo(() => {
+        if (!clientSearch) return [];
+        return existingClients.filter(c => 
+            `${c.first_name} ${c.last_name}`.toLowerCase().includes(clientSearch.toLowerCase()) ||
+            c.email.toLowerCase().includes(clientSearch.toLowerCase())
+        ).slice(0, 5);
+    }, [clientSearch, existingClients]);
+
+    const handleSelectClient = (c: any) => {
+        setContact(prev => ({
+            ...prev,
+            firstName: c.first_name,
+            lastName: c.last_name || '',
+            email: c.email,
+            phone: c.phone || ''
+        }));
+        setClientSearch('');
+    };
+
     const [eventData, setEventData] = useState({
         type: '',
         otherType: '',
@@ -47,7 +68,7 @@ export default function CreateQuoteManualClient({ allProducts, comunas, eventTyp
     });
 
     const [dispenser, setDispenser] = useState<'portatil' | 'muro' | 'desechable'>('portatil');
-    const [selections, setSelections] = useState<{ id: string; size: string; quantity: number }[]>([]);
+    const [selections, setSelections] = useState<{ id: string; size: string; quantity: number; customPrice?: number }[]>([]);
     
     // Overrides (undefined means use default)
     const [shippingOverride, setShippingOverride] = useState<number | undefined>(undefined);
@@ -77,13 +98,13 @@ export default function CreateQuoteManualClient({ allProducts, comunas, eventTyp
     const currentWizardState: WizardState = useMemo(() => ({
         step: 6,
         eventData,
-        consumption: { guests: 50, drinksPerPerson: 3 }, // placeholders for manual calc
+        consumption,
         contact,
         selections,
         dispenser,
         expandedCocktailId: null,
         expandedCategoryId: ''
-    }), [eventData, contact, selections, dispenser]);
+    }), [eventData, consumption, contact, selections, dispenser]);
 
     // Summary Data (Prices, Delivery, Rules)
     const summary = useMemo(() => 
@@ -111,7 +132,8 @@ export default function CreateQuoteManualClient({ allProducts, comunas, eventTyp
             if (existing) {
                 return prev.map(s => s.id === p.id && s.size === size ? { ...s, quantity: s.quantity + 1 } : s);
             }
-            return [...prev, { id: p.id, size, quantity: 1 }];
+            const price = p.sizes.find(sz => sz.size === size)?.offerPrice;
+            return [...prev, { id: p.id, size, quantity: 1, customPrice: price }];
         });
         setSearchTerm('');
     };
@@ -123,6 +145,12 @@ export default function CreateQuoteManualClient({ allProducts, comunas, eventTyp
     const updateQuantity = (id: string, size: string, delta: number) => {
         setSelections(prev => prev.map(s => 
             s.id === id && s.size === size ? { ...s, quantity: Math.max(1, s.quantity + delta) } : s
+        ));
+    };
+
+    const updatePrice = (id: string, size: string, newPrice: number) => {
+        setSelections(prev => prev.map(s => 
+            s.id === id && s.size === size ? { ...s, customPrice: isNaN(newPrice) ? 0 : newPrice } : s
         ));
     };
 
@@ -173,7 +201,7 @@ export default function CreateQuoteManualClient({ allProducts, comunas, eventTyp
     const getWhatsAppUrl = () => {
         if (!successData) return '';
         const phone = contact.phone.replace(/\D/g, '');
-        const msg = `¡Hola *${contact.firstName}*! Te envío la cotización base para tu evento 🍸\n\nPuedes revisarla, completar tus datos faltantes y reservarla directamente en este link:\n${SITE_URL}/cotizar/${successData.token}`;
+        const msg = `¡Hola *${contact.firstName}*! Te envío la cotización solicitada para tu evento\n\nPuedes revisarla, completar tus datos faltantes y reservarla directamente en este link:\n${SITE_URL}/cotizar/${successData.token}`;
         const base = phone.startsWith('56') ? phone : '56' + phone;
         return `https://wa.me/${base}?text=${encodeURIComponent(msg)}`;
     };
@@ -191,11 +219,33 @@ export default function CreateQuoteManualClient({ allProducts, comunas, eventTyp
 
                 <div className="grid grid-cols-1 gap-4">
                     <a href={getWhatsAppUrl()} target="_blank" rel="noopener noreferrer" className="w-full bg-emerald-500 hover:bg-emerald-400 text-emerald-950 py-4 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-3 transition-all active:scale-95 shadow-xl shadow-emerald-500/20">
-                        Compartir por WhatsApp
+                        <MessageCircle size={18} /> Compartir por WhatsApp
                     </a>
                     <button onClick={handleSendEmail} disabled={isPending} className="w-full bg-sky-500 hover:bg-sky-400 text-sky-950 py-4 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-3 transition-all active:scale-95 shadow-xl shadow-sky-500/20 disabled:opacity-50">
-                        Enviar por Email Habitual
+                        <Save size={18} /> Enviar por Email Habitual
                     </button>
+
+                    <div className="mt-4 p-4 bg-black/40 border border-white/5 rounded-2xl">
+                        <div className="text-slate-500 text-[9px] font-black uppercase tracking-widest mb-3 text-left ml-1">Link Público de Cotización</div>
+                        <div className="flex items-center gap-2 bg-black/40 p-1.5 rounded-xl border border-white/10 group">
+                            <input 
+                                readOnly 
+                                value={`${SITE_URL}/cotizar/${successData.token}`} 
+                                className="bg-transparent text-slate-300 text-xs px-2 flex-1 outline-none font-medium truncate"
+                            />
+                            <button 
+                                onClick={() => {
+                                    navigator.clipboard.writeText(`${SITE_URL}/cotizar/${successData.token}`);
+                                    alert('Link copiado al portapapeles 📋');
+                                }}
+                                className="bg-[#E2A049]/10 hover:bg-[#E2A049]/20 text-[#E2A049] p-2.5 rounded-lg transition-all active:scale-90 flex items-center justify-center"
+                                title="Copiar link"
+                            >
+                                <Copy size={16} />
+                            </button>
+                        </div>
+                    </div>
+
                     <div className="pt-10 flex items-center justify-center gap-8 border-t border-white/5 mt-6">
                         <Link href="/admin/quotes" className="text-slate-500 text-[10px] font-black uppercase tracking-[0.2em] hover:text-white transition-colors">Ver Listado</Link>
                         <button onClick={() => window.location.reload()} className="text-[#E2A049] text-[10px] font-black uppercase tracking-[0.2em] hover:text-white transition-colors">Crear otra</button>
@@ -233,6 +283,41 @@ export default function CreateQuoteManualClient({ allProducts, comunas, eventTyp
                 <div className="lg:col-span-8 space-y-10">
                     
                     <SectionBox title="Datos Personales" icon={<span className="w-1.5 h-6 bg-[#E2A049] rounded-full" />}>
+                        <div className="mb-6 relative">
+                            <label className="block text-slate-500 text-[10px] font-black uppercase tracking-widest mb-3">Buscar Cliente Existente</label>
+                            <div className="relative">
+                                <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 z-10" />
+                                <input 
+                                    value={clientSearch} 
+                                    onChange={e => setClientSearch(e.target.value)} 
+                                    className="admin-input !pl-12 !border-dashed !border-[#E2A049]/30 focus:!border-[#E2A049] !bg-[#E2A049]/5" 
+                                    placeholder="Nombre o email del cliente..." 
+                                />
+                                {clientSearch && (
+                                    <div className="absolute top-full left-0 right-0 mt-2 bg-[#1e2433] border border-[#E2A049]/20 rounded-2xl shadow-2xl p-2 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+                                        {filteredClients.length > 0 ? (
+                                            filteredClients.map(c => (
+                                                <button 
+                                                    key={c.id} 
+                                                    type="button"
+                                                    onClick={() => handleSelectClient(c)}
+                                                    className="w-full text-left p-3 hover:bg-[#E2A049]/10 rounded-xl transition-colors group flex items-start justify-between gap-4"
+                                                >
+                                                    <div className="min-w-0">
+                                                        <div className="text-white font-bold text-sm truncate">{c.first_name} {c.last_name}</div>
+                                                        <div className="text-slate-500 text-xs truncate">{c.email}</div>
+                                                    </div>
+                                                    <Plus size={14} className="text-[#E2A049] opacity-0 group-hover:opacity-100 transition-opacity mt-1" />
+                                                </button>
+                                            ))
+                                        ) : (
+                                            <div className="p-4 text-center text-slate-500 text-xs italic">No se encontraron clientes</div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <Field label="Nombre" required>
                                 <input required value={contact.firstName} onChange={e => setContact(c => ({...c, firstName: e.target.value}))} className="admin-input" placeholder="Juan" />
@@ -264,13 +349,13 @@ export default function CreateQuoteManualClient({ allProducts, comunas, eventTyp
                                 <input value={contact.address} onChange={e => setContact(c => ({...c, address: e.target.value}))} className="admin-input" placeholder="Av. Siempre Viva 123" />
                             </Field>
                             <Field label="Comuna">
-                                <select value={contact.comuna} onChange={e => {
-                                    setContact(c => ({...c, comuna: e.target.value}));
-                                    setShippingOverride(undefined); // Reset override on change
-                                }} className="admin-input appearance-none">
-                                    <option value="">Selecciona comuna...</option>
-                                    {comunas.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
-                                </select>
+                                        <select value={contact.comuna} onChange={e => {
+                                            setContact(c => ({...c, comuna: e.target.value}));
+                                            setShippingOverride(undefined); // Reset override on change
+                                        }} className="admin-input appearance-none">
+                                            <option value="" disabled hidden>Selecciona comuna...</option>
+                                            {comunas.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
+                                        </select>
                             </Field>
                         </div>
                     </SectionBox>
@@ -379,7 +464,18 @@ export default function CreateQuoteManualClient({ allProducts, comunas, eventTyp
                                     <div key={s.id + s.size} className="flex items-center justify-between p-4 bg-black/20 rounded-2xl border border-white/5 group hover:border-[#E2A049]/20 transition-colors">
                                         <div className="flex-1 min-w-0 pr-3">
                                             <div className="text-white font-bold text-xs truncate mb-0.5">{product?.name}</div>
-                                            <div className="text-slate-600 text-[10px] font-black uppercase">{s.size}</div>
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-slate-600 text-[10px] font-black uppercase text-nowrap">{s.size} @</span>
+                                                <div className="flex items-center text-[#E2A049] text-[10px] font-black">
+                                                    <span className="mr-0.5">$</span>
+                                                    <input 
+                                                        type="number"
+                                                        value={s.customPrice ?? 0}
+                                                        onChange={(e) => updatePrice(s.id, s.size, parseInt(e.target.value))}
+                                                        className="bg-transparent border-b border-white/5 w-16 outline-none focus:border-[#E2A049] transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                                    />
+                                                </div>
+                                            </div>
                                         </div>
                                         <div className="flex items-center gap-3">
                                             <div className="flex items-center gap-2 bg-black/40 rounded-xl p-1 border border-white/5">
