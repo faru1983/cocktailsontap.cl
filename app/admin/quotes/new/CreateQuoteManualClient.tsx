@@ -599,9 +599,9 @@ function SectionBox({ title, icon, children }: { title: string, icon: React.Reac
     );
 }
 
-function Field({ label, required, children }: { label: string, required?: boolean, children: React.ReactNode }) {
+function Field({ label, required, children, className }: { label: string, required?: boolean, children: React.ReactNode, className?: string }) {
     return (
-        <div className="space-y-2 flex flex-col">
+        <div className={`space-y-2 flex flex-col ${className || ''}`}>
             <label className="text-slate-500 text-[10px] font-black uppercase tracking-widest ml-1 flex items-center gap-1">{label}{required && <span className="text-[#E2A049]">*</span>}</label>
             {children}
         </div>
