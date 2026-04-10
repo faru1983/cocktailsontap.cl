@@ -467,7 +467,7 @@ export default function QuoteView({ quote, comunas, availableCocktails, categori
                     </p>
                     <p className="text-brand-text-muted text-[0.875rem] leading-relaxed font-medium">
                         {isDraft ? (
-                            <>Verifica los cócteles, la fecha y la dirección del evento. Todos los campos marcados con <span className="text-red-500 font-black">*</span> son obligatorios para asegurar tu reserva.</>
+                            <>Verifica los cócteles y los demas datos del evento. Todos los campos son obligatorios para asegurar tu reserva.</>
                         ) : (
                             <>Tus detalles han sido registrados exitosamente. Esta página es tu comprobante oficial del servicio. Si necesitas realizar cualquier cambio de último minuto, contáctanos directamente.</>
                         )}
