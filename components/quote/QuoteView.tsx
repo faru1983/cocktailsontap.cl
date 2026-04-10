@@ -549,15 +549,6 @@ export default function QuoteView({ quote, comunas, availableCocktails, categori
                 </div>
             )}
 
-            {/* Productos (Editables si es draft) */}
-            <QuoteSummaryProducts
-                data={summaryData}
-                isEditable={isDraft}
-                onUpdateQuantity={onSummaryUpdateQuantity}
-                onAddProductsClick={() => setShowCatalog(true)}
-                onToggleDispenser={() => setDispenser(prev => prev === 'muro' ? 'portatil' : 'muro')}
-            />
-
             {/* Datos de contacto y Dirección */}
             {!isDraft ? (
                 <QuoteSummaryReservation data={reservationData} />
@@ -627,7 +618,7 @@ export default function QuoteView({ quote, comunas, availableCocktails, categori
                                                     }}
                                                     className={`w-full px-3 py-2.5 bg-slate-50 border rounded-xl text-[0.95rem] font-bold focus:outline-none focus:border-primary focus:bg-white transition-all shadow-sm appearance-none pr-10 ${validationErrors.comuna ? 'border-red-500 bg-red-50/30' : 'border-brand-border'}`}
                                                 >
-                                                    <option value="" disabled hidden>Selecciona comuna...</option>
+                                                    <option value="" disabled hidden>Seleccionar...</option>
                                                     {comunas.map((c) => (
                                                         <option key={c.name} value={c.name}>{c.name}</option>
                                                     ))}
@@ -691,7 +682,7 @@ export default function QuoteView({ quote, comunas, availableCocktails, categori
                                             }}
                                             className={`w-full px-3 py-2.5 bg-slate-50 border rounded-xl text-[0.95rem] font-bold focus:outline-none focus:border-primary focus:bg-white transition-all shadow-sm appearance-none pr-10 ${validationErrors.eventType ? 'border-red-500 bg-red-50/30' : 'border-brand-border'}`}
                                         >
-                                            <option value="" disabled hidden>...</option>
+                                            <option value="" disabled hidden>Seleccionar...</option>
                                             {eventTypes.map((t) => (
                                                 <option key={t.id} value={t.id}>{t.name}</option>
                                             ))}
@@ -838,6 +829,15 @@ export default function QuoteView({ quote, comunas, availableCocktails, categori
                     </div>
                 </div>
             )}
+
+            {/* Productos (Editables si es draft) */}
+            <QuoteSummaryProducts
+                data={summaryData}
+                isEditable={isDraft}
+                onUpdateQuantity={onSummaryUpdateQuantity}
+                onAddProductsClick={() => setShowCatalog(true)}
+                onToggleDispenser={() => setDispenser(prev => prev === 'muro' ? 'portatil' : 'muro')}
+            />
 
             {/* Catálogo Modal (Full Screen Mobile) */}
             {showCatalog && (
