@@ -48,6 +48,7 @@ export async function syncGoogleContact(data: {
         let etag: string | undefined;
         let existingAddresses: any[] = [];
         let existingBio = '';
+        let existingGivenName = '';
 
         // 1. Obtener datos existentes (si hay resourceName o encontramos por búsqueda)
         const fetchExistingData = async (resourceName: string) => {
@@ -58,6 +59,7 @@ export async function syncGoogleContact(data: {
                 });
                 existingAddresses = response.data.addresses || [];
                 existingBio = response.data.biographies?.[0]?.value || '';
+                existingGivenName = response.data.names?.[0]?.givenName || '';
                 return response.data.etag || undefined;
             } catch (err) {
                 return undefined;
@@ -87,7 +89,14 @@ export async function syncGoogleContact(data: {
         }
 
         // 3. Preparar datos de contacto básicos
-        const givenName = `Cócteles - ${data.firstName}`;
+        let prefix = data.confirmed ? 'Cócteles' : 'Cotización';
+        
+        // Evitar "downgrade" si un cliente confirmado (Cócteles) hace una nueva cotización borrador
+        if (!data.confirmed && existingGivenName.startsWith('Cócteles')) {
+            prefix = 'Cócteles';
+        }
+
+        const givenName = `${prefix} - ${data.firstName}`;
         const contactData: any = {
             names: [{ givenName, familyName: data.lastName || '' }],
         };
