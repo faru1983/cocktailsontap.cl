@@ -3,6 +3,7 @@
 import * as React from 'react';
 import { Resend } from 'resend';
 import { CreateQuoteSchema } from '@/lib/types';
+import { render } from '@react-email/components';
 import type { WizardState, CocktailForWizard, Comuna } from '@/lib/types';
 import { ADMIN_EMAIL, FROM_EMAIL } from '@/lib/config';
 
@@ -69,11 +70,16 @@ export async function createQuote(input: CreateQuoteInput): Promise<CreateQuoteR
                     quote_items: createResult.quoteItems
                 };
 
-                const { render } = await import('@react-email/components');
-                const QuoteEmailComponent = (await import('@/components/emails/QuoteEmail')).default;
+                const isDirect = state.serviceType === 'direct';
+                let EmailComponent;
+                if (isDirect) {
+                    EmailComponent = (await import('@/components/emails/DirectSaleEmail')).default;
+                } else {
+                    EmailComponent = (await import('@/components/emails/QuoteEmail')).default;
+                }
 
-                const clientHtml = await render(React.createElement(QuoteEmailComponent, { quote: fullQuote, isAdmin: false }));
-                const adminHtml = await render(React.createElement(QuoteEmailComponent, { quote: fullQuote, isAdmin: true }));
+                const clientHtml = await render(React.createElement(EmailComponent, { quote: fullQuote, isAdmin: false }));
+                const adminHtml = await render(React.createElement(EmailComponent, { quote: fullQuote, isAdmin: true }));
 
                 const eventDate = fullQuote.event_date
                     ? new Date(fullQuote.event_date + 'T12:00:00').toLocaleDateString('es-CL', { day: '2-digit', month: 'long', year: 'numeric' })
@@ -87,15 +93,15 @@ export async function createQuote(input: CreateQuoteInput): Promise<CreateQuoteR
                 };
 
                 const clientSubject = await SettingsService.getResolvedValue(
-                    'email_quote_draft_subject',
+                    isDirect ? 'email_direct_sale_subject' : 'email_quote_draft_subject',
                     emailVars,
-                    `🍸 Tu cotización – ${eventDate}`
+                    isDirect ? `📦 Tu pedido de compra directa – ${eventDate}` : `🍸 Tu cotización – ${eventDate}`
                 );
 
                 const adminSubject = await SettingsService.getResolvedValue(
-                    'email_quote_draft_admin_subject',
+                    isDirect ? 'email_direct_sale_admin_subject' : 'email_quote_draft_admin_subject',
                     emailVars,
-                    `[Nueva Cotización] ${fullName} – ${eventDate}`
+                    isDirect ? `[Nuevo Pedido] ${fullName} – ${eventDate}` : `[Nueva Cotización] ${fullName} – ${eventDate}`
                 );
 
                 await Promise.allSettled([

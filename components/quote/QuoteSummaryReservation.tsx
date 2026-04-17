@@ -52,7 +52,7 @@ export default function QuoteSummaryReservation({ data }: Props) {
                     </div>
                 </div>
 
-                {/* Columna 2: Evento */}
+                {/* Columna 2: Evento / Despacho */}
                 <div className="space-y-2">
                     <div className="flex items-start gap-2">
                         <span className="font-bold text-brand-text-muted min-w-[85px]">Evento:</span>

@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useRef, useEffect, useMemo } from 'react';
-import { calculateSmartConfig } from '@/hooks/useWizard';
+import { useRef, useMemo } from 'react';
 import type { useWizard } from '@/hooks/useWizard';
 import type { CocktailForWizard, Product, ICart } from '@/lib/types';
 import ProductCatalog from '@/components/catalog/ProductCatalog';
+import { Box, Plus } from 'lucide-react';
 
 type WizardHook = ReturnType<typeof useWizard>;
 
@@ -14,9 +14,8 @@ interface Props {
     categories: string[];
 }
 
-export default function WizardStep3({ wizard, cocktails, categories }: Props) {
+export default function DirectStep1Products({ wizard, cocktails, categories }: Props) {
     const { state, updateQuantity, toggleCategory } = wizard;
-    const { config: suggestedConfig, liters: suggestedLiters } = calculateSmartConfig(state.consumption.guests, state.consumption.drinksPerPerson);
 
     // Mantenemos la categoría activa del wizard o la primera disponible
     const currentCategory = state.expandedCategoryId || categories[0] || '';
@@ -25,7 +24,6 @@ export default function WizardStep3({ wizard, cocktails, categories }: Props) {
     // Función para cambiar de categoría y hacer scroll manual al catálogo
     const handleCategoryChange = (cat: string) => {
         if (cat === currentCategory) return;
-
         toggleCategory(cat);
 
         // Hacemos el scroll manual solo cuando el usuario selecciona una categoría
@@ -41,9 +39,8 @@ export default function WizardStep3({ wizard, cocktails, categories }: Props) {
         }
     };
 
-    // 1. Mapeamos CocktailForWizard a Product con useMemo para rendimiento
+    // 1. Mapeamos CocktailForWizard a Product con useMemo para rendimiento (Solo desechables 5L)
     const mappedProducts: Product[] = useMemo(() => cocktails.map(c => {
-        // Encontramos si ya hay una selección de este cóctel para marcar el tamaño por defecto
         const existingSelection = state.selections.find(s => s.id === c.id);
 
         return {
@@ -52,9 +49,9 @@ export default function WizardStep3({ wizard, cocktails, categories }: Props) {
             description: c.desc,
             image: c.image,
             category: c.category,
-            selectedSize: existingSelection?.size, // Esto recordará el último tamaño del carrito
+            selectedSize: existingSelection?.size, 
             sizes: Object.entries(c.prices)
-                .filter(([size]) => !size.includes('desechable'))
+                .filter(([size]) => size.includes('desechable') || c.category === 'Otros') // Permitir Otros sin keyword desechable
                 .map(([size, p]) => ({
                     size,
                     price: p.price,
@@ -79,28 +76,29 @@ export default function WizardStep3({ wizard, cocktails, categories }: Props) {
 
     return (
         <div className="flex flex-col">
-            <h3 className="text-2xl font-extrabold text-brand-text mb-2">3. Selección de Cócteles</h3>
-            <p className="text-brand-text-muted text-[0.95rem] mb-8 leading-relaxed">Elige las variedades y tamaños que prefieras para tu evento.</p>
-
-            <div className="mb-8">
-                <div className="text-center mb-6">
-                    <span className="text-[0.85rem] uppercase text-primary font-extrabold tracking-[1px]">Sugerencia de Volumen</span>
-                    <div className="text-[1.5rem] font-black text-brand-text mt-1">{suggestedConfig} ({suggestedLiters}L)</div>
-                </div>
-                <div className="flex flex-col gap-3">
-                    <div className="text-center">
-                        <span className="text-[0.7rem] uppercase font-bold text-slate-400 tracking-widest">Rendimientos Apróximados:</span>
+            <h3 className="text-2xl font-extrabold text-brand-text mb-2">1. Barriles Desechables (5L)</h3>
+            
+            {currentCategory === 'Otros' ? (
+                <div className="bg-blue-50 rounded-2xl p-5 border border-blue-200 mb-8 flex gap-4 items-start shadow-sm animate-fade-in">
+                    <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0 mt-1">
+                        <Plus className="w-5 h-5 text-blue-600" />
                     </div>
-                    <div className="grid grid-cols-2 gap-4 bg-[#f8fafc] p-5 rounded-2xl border border-[#edf2f7]">
-                        {[{ l: '5L', t: '25 cócteles' }, { l: '10L', t: '50 cócteles' }, { l: '20L', t: '100 cócteles' }, { l: '30L', t: '150 cócteles' }].map((r, i) => (
-                            <div key={r.l} className={`text-center ${i % 2 === 1 ? 'border-l border-[#e2e8f0]' : ''} ${i >= 2 ? 'border-t border-[#e2e8f0] pt-3' : ''}`}>
-                                <div className="font-extrabold text-primary text-[1.1rem]">{r.l}</div>
-                                <div className="text-[0.75rem] text-brand-text-muted uppercase font-bold tracking-wider">{r.t}</div>
-                            </div>
-                        ))}
+                    <div className="text-[0.95rem] text-brand-text-muted leading-relaxed">
+                        <p className="mb-2"><strong className="text-blue-700 font-bold">¡Complementa tu pedido!</strong> Aquí encontrarás hielo y decoraciones para tus cócteles.</p>
+                        <p>Asegúrate de tener todo lo necesario para disfrutar la mejor experiencia.</p>
                     </div>
                 </div>
-            </div>
+            ) : (
+                <div className="bg-[#fffbf0] rounded-2xl p-5 border border-primary/20 mb-8 flex gap-4 items-start shadow-sm">
+                    <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0 mt-1">
+                        <Box className="w-5 h-5 text-primary" />
+                    </div>
+                    <div className="text-[0.95rem] text-brand-text-muted leading-relaxed">
+                        <p className="mb-2">Nuestros barriles desechables de 5L rinden <strong className="text-primary font-bold">25 cócteles (aprox)</strong> cada uno.</p>
+                        <p>Son de un solo uso, <strong className="text-brand-text">no requieren retorno ni máquina dispensadora</strong>, incluyen una válvula dosificadora (solo enfría y sirve).</p>
+                    </div>
+                </div>
+            )}
 
             {/* Barra de categorías */}
             <div className="sticky top-[-1px] bg-white z-10 -mx-6 mb-6 px-6 py-3 border-b border-brand-border">

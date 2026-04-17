@@ -20,11 +20,17 @@ export function getTodayString(): string {
  * Extrae el número de litros de un string (ej: "10L" -> 10).
  */
 export function getSizeLiters(size: string): number {
-    if (size.includes('30L')) return 30;
-    if (size.includes('20L')) return 20;
-    if (size.includes('10L')) return 10;
-    if (size.includes('5L')) return 5;
-    return 10; // Default por seguridad
+    const s = size.toUpperCase();
+    
+    // El label ahora es consistente: "5L", "10L", "5L DESECHABLE"
+    // Buscamos un número seguido inmediatamente de una L
+    const match = s.match(/^(\d+(?:\.\d+)?)L(?:\s|$)/);
+    
+    if (match) {
+        return parseFloat(match[1]);
+    }
+    
+    return 0; // Si no es litros, no suma volumen líquido
 }
 
 /**
@@ -59,8 +65,22 @@ export function formatEventDate(dateStr: string): string {
  * - Cantidad de invitados.
  * - Promedio de tragos por persona (determina la variedad necesaria).
  */
-export function calculateSmartConfig(guests: number, avgDrinks: number) {
+export function calculateSmartConfig(guests: number, avgDrinks: number, isDirect: boolean = false) {
     const totalLitersRequired = (guests * avgDrinks) / 5; // Rendimiento: 1L = 5 Tragos
+
+    if (isDirect) {
+        const numBarrels = Math.ceil(totalLitersRequired / 5);
+        const totalLiters = numBarrels * 5;
+        const totalDrinks = totalLiters * 5;
+        const label = numBarrels === 1 ? '1 Barril Desechable' : `${numBarrels} Barriles Desechables`;
+        
+        return {
+            config: `${label} de 5L`,
+            liters: totalLiters,
+            totalDrinks: totalDrinks
+        };
+    }
+
     const numVarieties = Math.max(1, avgDrinks); 
 
     const idealLitersPerBarrel = totalLitersRequired / numVarieties;
@@ -111,6 +131,7 @@ export interface SummaryData {
     formattedPickupDate: string;
     canHaveMuro: boolean;
     manualDiscount: number;
+    totalCocktails: number; // Nuevo: Para centralizar el cálculo de rendimiento
 }
 
 export function calculateSummaryData(
@@ -127,7 +148,7 @@ export function calculateSummaryData(
     // Mapear selecciones del estado a items con precios calculados
     const items = state.selections.map((s: WizardSelection) => {
         const cocktail = cocktailsById.get(s.id);
-        const priceData = cocktail?.prices[s.size] ?? { price: 0, offerPrice: 0 };
+        const priceData = cocktail?.prices[s.size] ?? { price: 0, offerPrice: 0, sizeValue: 0, unit: '', isDisposable: false };
         
         // Use custom price if provided (for admin overrides), otherwise use standard offer price
         const unitPrice = s.customPrice !== undefined ? s.customPrice : priceData.offerPrice;
@@ -137,20 +158,29 @@ export function calculateSummaryData(
         
         totalNormalPrice += itemNormal;
         totalOfferPrice += itemOffer;
-        totalLiters += getSizeLiters(s.size) * s.quantity;
+
+        // SOLO sumar litros si la unidad es 'L' (Litros)
+        if (priceData.unit === 'L') {
+            totalLiters += priceData.sizeValue * s.quantity;
+        }
         
-        return { ...cocktail!, selectedSize: s.size, quantity: s.quantity, totalNormalPrice: itemNormal, totalOfferPrice: itemOffer };
+        return { ...cocktail!, selectedSize: s.size, quantity: s.quantity, totalNormalPrice: itemNormal, totalOfferPrice: itemOffer, priceData };
     });
 
-    // Lógica dinámica de Envío Gratis
+    // Lógica dinámica de Envío Gratis o Venta Directa
     const selectedComuna = comunasByName.get(state.contact.comuna);
     let shippingCost = 0;
     let shippingLabel = 'Por calcular';
     if (selectedComuna && state.contact.comuna !== 'Otra') {
-        // Verifica si alcanza el umbral de envío gratis definido en la DB para esa comuna.
-        const isFree = selectedComuna.freeFrom !== null && totalLiters >= selectedComuna.freeFrom;
-        shippingCost = isFree ? 0 : (selectedComuna.cost ?? 0);
-        shippingLabel = shippingCost === 0 ? '¡Gratis!' : formatCurrency(shippingCost);
+        if (state.serviceType === 'direct') {
+            shippingCost = selectedComuna.directSaleDeliveryCost ?? 5000;
+            shippingLabel = formatCurrency(shippingCost);
+        } else {
+            // Verifica si alcanza el umbral de envío gratis definido en la DB para esa comuna.
+            const isFree = selectedComuna.freeFrom !== null && totalLiters >= selectedComuna.freeFrom;
+            shippingCost = isFree ? 0 : (selectedComuna.cost ?? 0);
+            shippingLabel = shippingCost === 0 ? '¡Gratis!' : formatCurrency(shippingCost);
+        }
     } else if (state.contact.comuna === 'Otra') {
         shippingLabel = 'Pendiente de factibilidad';
     }
@@ -159,10 +189,12 @@ export function calculateSummaryData(
     const comunaDisplay = state.contact.comuna === 'Otra' ? state.contact.otherComuna : (state.contact.comuna || 'No especificada');
 
     // Lógica del Muro de Coctelería
-    // REGLA: No debe tener barriles de 5L y debe sumar al menos MURO_MIN_LITERS.
-    const hasIncompatibleSize = state.selections.some((s: WizardSelection) => {
-        const liters = getSizeLiters(s.size);
-        return !MURO_COMPATIBLE_SIZES.includes(liters);
+    // REGLA: No debe tener barriles de formato incompatible y debe sumar al menos MURO_MIN_LITERS.
+    // Solo consideramos items de tipo líquido (L) para esta validación.
+    const hasIncompatibleSize = items.some((item) => {
+        const pd = (item as any).priceData;
+        if (pd.unit !== 'L') return false; // Items no líquidos no bloquean el muro
+        return !MURO_COMPATIBLE_SIZES.includes(pd.sizeValue);
     });
     const canHaveMuro = !hasIncompatibleSize && totalLiters >= MURO_MIN_LITERS;
     
@@ -188,7 +220,8 @@ export function calculateSummaryData(
         formattedDate: formatEventDate(state.eventData.date),
         formattedPickupDate: formatEventDate(state.eventData.pickupDate),
         canHaveMuro,
-        manualDiscount: 0
+        manualDiscount: 0,
+        totalCocktails: totalLiters * 5 // 1L = 5 cócteles
     };
 }
 
@@ -218,9 +251,15 @@ export function buildWhatsAppMessage(state: WizardState, data: SummaryData, toke
     msg += `*${data.dispenserLabel}:* ${data.installationCost === 0 ? '¡Gratis!' : formatCurrency(data.installationCost)}\n`;
     msg += `*TOTAL: ${formatCurrency(data.totalPrice)}*\n\n`;
 
-    if (guests > 0 && data.totalLiters > 0) {
+    // Solo mostrar el rendimiento si realmente hay litros acumulados
+    if (data.totalLiters > 0) {
         msg += `*Notas:* \n`;
-        msg += `_Estas cotizando ${data.totalLiters}L con rendimiento total aprox. de ${totalDrinks} cócteles._\n_Para ${guests} invitados tienes en promedio de ${avgDrinks} cócteles x pers._\n\n`;
+        msg += `_Estas cotizando ${data.totalLiters}L con rendimiento total aprox. de ${data.totalCocktails} cócteles._\n`;
+        
+        if (guests > 0) {
+            const avgDrinks = (data.totalCocktails / guests).toFixed(1);
+            msg += `_Para ${guests} invitados tienes en promedio ${avgDrinks} cócteles x pers._\n\n`;
+        }
     }
 
     if (token) {

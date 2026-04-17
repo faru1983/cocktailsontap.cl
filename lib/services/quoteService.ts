@@ -128,12 +128,15 @@ export const QuoteService = {
         const cocktailsById = new Map(cocktails.map((c) => [c.id, c]));
         const itemsToInsert = state.selections.map((sel) => {
             const cocktail = cocktailsById.get(sel.id);
-            const priceData = cocktail?.prices[sel.size] ?? { price: 0, offerPrice: 0 };
+            const priceData = cocktail?.prices[sel.size] ?? { price: 0, offerPrice: 0, sizeValue: 0, unitId: null, isDisposable: false };
             return {
                 quote_id: quote.id,
                 product_id: sel.id,
                 product_name: cocktail?.name ?? 'Producto desconocido',
                 size: sel.size,
+                size_value: priceData.sizeValue,
+                unit_id: priceData.unitId,
+                is_disposable: priceData.isDisposable,
                 quantity: sel.quantity,
                 price_at_time: priceData.price,
                 offer_price_at_time: sel.customPrice !== undefined ? sel.customPrice : priceData.offerPrice,

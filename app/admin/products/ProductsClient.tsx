@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useTransition, useEffect } from 'react';
-import { saveCategory, toggleCategoryStatus, saveProduct, toggleProductStatus, reorderItems } from '@/app/actions/admin/productActions';
+import { saveCategory, toggleCategoryStatus, saveProduct, toggleProductStatus, reorderItems, saveUnit, toggleUnitStatus } from '@/app/actions/admin/productActions';
 import Modal from '@/components/admin/Modal';
 import { supabase } from '@/lib/supabase';
 import { 
@@ -22,8 +22,8 @@ import {
     PlusCircle
 } from 'lucide-react';
 
-export default function ProductsClient({ products, categories }: { products: any[]; categories: any[] }) {
-    const [tab, setTab] = useState<'products' | 'categories' | 'gallery'>('products');
+export default function ProductsClient({ products, categories, measurementUnits }: { products: any[]; categories: any[]; measurementUnits: any[] }) {
+    const [tab, setTab] = useState<'products' | 'categories' | 'gallery' | 'units'>('products');
     const [isPending, startTransition] = useTransition();
     const DEFAULT_IMG = '/assets/barril_sin_imagen.webp';
 
@@ -31,14 +31,17 @@ export default function ProductsClient({ products, categories }: { products: any
     const itemsWithIndex = (arr: any[]) => arr.map((item, idx) => ({ ...item, _idx: idx }));
     const [indexedProducts, setIndexedProducts] = useState(itemsWithIndex(products));
     const [indexedCategories, setIndexedCategories] = useState(itemsWithIndex(categories));
+    const [indexedUnits, setIndexedUnits] = useState(itemsWithIndex(measurementUnits));
     
     const [sortProd, setSortProd] = useState<{ key: string, dir: 'asc' | 'desc' }>({ key: 'index', dir: 'asc' });
     const [sortCat, setSortCat] = useState<{ key: string, dir: 'asc' | 'desc' }>({ key: 'index', dir: 'asc' });
+    const [sortUnit, setSortUnit] = useState<{ key: string, dir: 'asc' | 'desc' }>({ key: 'index', dir: 'asc' });
 
     useEffect(() => {
         setIndexedProducts(itemsWithIndex(products));
         setIndexedCategories(itemsWithIndex(categories));
-    }, [products, categories]);
+        setIndexedUnits(itemsWithIndex(measurementUnits));
+    }, [products, categories, measurementUnits]);
 
     const sortedProducts = [...indexedProducts].sort((a, b) => {
         let valA, valB;
@@ -83,10 +86,19 @@ export default function ProductsClient({ products, categories }: { products: any
         e.preventDefault();
     };
 
-    const onDrop = async (idx: number, type: 'products' | 'categories') => {
+    const onDrop = async (idx: number, type: 'products' | 'categories' | 'measurement_units' | 'product_prices') => {
         if (dragIndex === null || dragIndex === idx) return;
         
-        const list = type === 'products' ? [...sortedProducts] : [...sortedCategories];
+        if (type === 'product_prices') {
+            const list = [...modalProduct.prices];
+            const movedItem = list.splice(dragIndex, 1)[0];
+            list.splice(idx, 0, movedItem);
+            setModalProduct(prev => ({ ...prev, prices: list }));
+            setDragIndex(null);
+            return;
+        }
+
+        const list = type === 'products' ? [...sortedProducts] : type === 'categories' ? [...sortedCategories] : [...indexedUnits].sort((a,b) => a.display_order - b.display_order);
         const movedItem = list.splice(dragIndex, 1)[0];
         list.splice(idx, 0, movedItem);
 
@@ -97,7 +109,7 @@ export default function ProductsClient({ products, categories }: { products: any
 
         startTransition(async () => {
             const updates = reordered.map(item => ({ id: item.id, display_order: item.display_order }));
-            await reorderItems(type, updates);
+            await reorderItems(type as any, updates);
         });
         
         setDragIndex(null);
@@ -113,6 +125,7 @@ export default function ProductsClient({ products, categories }: { products: any
     // ─── Modal States ────────────────────────────────────────────────────────
     const [modalCategory, setModalCategory] = useState<{ isOpen: boolean; data: any }>({ isOpen: false, data: null });
     const [modalProduct, setModalProduct] = useState<{ isOpen: boolean; data: any; prices: any[] }>({ isOpen: false, data: null, prices: [] });
+    const [modalUnit, setModalUnit] = useState<{ isOpen: boolean; data: any }>({ isOpen: false, data: null });
     const [modalGallery, setModalGallery] = useState<{ isOpen: boolean; onSelect?: (url: string) => void }>({ isOpen: false });
 
     // ─── Gallery Data ────────────────────────────────────────────────────────
@@ -154,7 +167,24 @@ export default function ProductsClient({ products, categories }: { products: any
         setModalProduct({ 
             isOpen: true, 
             data: prod || { name: '', description: '', image_url: '', display_order: 0, category_id: categories[0]?.id || '', is_active: true },
-            prices: prod ? [...prod.product_prices] : [{ size: '', price: 0, offer_price: null }]
+            prices: prod ? p_normalize(prod.product_prices) : [{ size: '', size_value: 0, unit_id: measurementUnits.find(u => u.abbreviation === 'L')?.id || '', is_disposable: false, price: 0, offer_price: null }]
+        });
+    }
+
+    const p_normalize = (prices: any[]) => {
+        return [...prices].sort((a, b) => (a.display_order || 0) - (b.display_order || 0)).map(p => ({
+            ...p,
+            size_value: p.size_value || 0,
+            unit_id: p.unit_id || measurementUnits.find(u => u.abbreviation === 'L')?.id || '',
+            is_disposable: p.is_disposable ?? false,
+            is_active: p.is_active ?? true
+        }));
+    }
+
+    const openUnitModal = (unit: any = null) => {
+        setModalUnit({
+            isOpen: true,
+            data: unit || { name: '', abbreviation: '', display_order: 0, is_active: true }
         });
     }
 
@@ -170,20 +200,41 @@ export default function ProductsClient({ products, categories }: { products: any
     const submitProduct = async (e: React.FormEvent) => {
         e.preventDefault();
         startTransition(async () => {
-            await saveProduct(modalProduct.data, modalProduct.prices);
+            // Generar el string 'size' heredado para compatibilidad si es necesario, 
+            // aunque ahora usaremos los campos estructurados.
+            const updatedPrices = modalProduct.prices.map(p => {
+                const unitAbbr = measurementUnits.find(u => u.id === p.unit_id)?.abbreviation || 'L';
+                return {
+                    ...p,
+                    size: `${p.size_value}${unitAbbr}${p.is_disposable ? ' desechable' : ''}`
+                };
+            });
+            await saveProduct(modalProduct.data, updatedPrices);
             setModalProduct({ isOpen: false, data: null, prices: [] });
         });
     }
 
-    const toggleStatus = (id: string, type: 'prod' | 'cat', current: boolean) => {
+    const submitUnit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        startTransition(async () => {
+            await saveUnit(modalUnit.data);
+            setModalUnit({ isOpen: false, data: null });
+        });
+    }
+
+    const toggleStatus = (id: string, type: 'prod' | 'cat' | 'unit', current: boolean) => {
         startTransition(async () => {
             if (type === 'cat') await toggleCategoryStatus(id, current);
+            else if (type === 'unit') await toggleUnitStatus(id, current);
             else await toggleProductStatus(id, current);
         });
     }
 
     const addPriceRow = () => {
-        setModalProduct(prev => ({ ...prev, prices: [...prev.prices, { size: '', price: 0, offer_price: null }] }));
+        setModalProduct(prev => ({ 
+            ...prev, 
+            prices: [...prev.prices, { size: '', size_value: 0, unit_id: measurementUnits.find(u => u.abbreviation === 'L')?.id || '', is_disposable: false, price: 0, offer_price: null, is_active: true }] 
+        }));
     }
 
     const removePriceRow = (index: number) => {
@@ -225,19 +276,23 @@ export default function ProductsClient({ products, categories }: { products: any
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
                 <div>
                     <h1 className="text-white text-2xl font-black mb-1 capitalize">
-                        {tab === 'products' ? 'Catálogo de Productos' : tab === 'categories' ? 'Categorías' : 'Gestión de Imágenes'}
+                        {tab === 'products' ? 'Catálogo de Productos' : tab === 'categories' ? 'Categorías' : tab === 'units' ? 'Unidades de Medida' : 'Gestión de Imágenes'}
                     </h1>
                     <p className="text-slate-500 text-sm">
-                        Total: {tab === 'products' ? sortedProducts.length : tab === 'categories' ? sortedCategories.length : galleryImages.length} registros
+                        Total: {tab === 'products' ? sortedProducts.length : tab === 'categories' ? sortedCategories.length : tab === 'units' ? indexedUnits.length : galleryImages.length} registros
                     </p>
                 </div>
                 <div className="flex items-center gap-3">
                     {tab !== 'gallery' && (
                         <button 
                             className="bg-[#E2A049] text-black px-5 py-2.5 rounded-xl font-black text-sm flex items-center justify-center gap-2 transition-transform active:scale-95 shadow-lg shadow-[#E2A049]/10"
-                            onClick={() => tab === 'products' ? openProductModal() : openCategoryModal()}
+                            onClick={() => {
+                                if (tab === 'products') openProductModal();
+                                else if (tab === 'categories') openCategoryModal();
+                                else if (tab === 'units') openUnitModal();
+                            }}
                         >
-                           <Plus size={18} /> {tab === 'products' ? 'Añadir Producto' : 'Añadir Categoría'}
+                           <Plus size={18} /> {tab === 'products' ? 'Añadir Producto' : tab === 'categories' ? 'Añadir Categoría' : 'Añadir Unidad'}
                         </button>
                     )}
                 </div>
@@ -260,6 +315,14 @@ export default function ProductsClient({ products, categories }: { products: any
                     onClick={() => setTab('categories')}
                 >
                     Categorías
+                </button>
+                <button 
+                    className={`px-4 py-2 rounded-lg text-sm font-bold transition-all whitespace-nowrap cursor-pointer ${
+                        tab === 'units' ? 'bg-[#E2A049]/10 text-[#E2A049]' : 'text-slate-500 hover:text-slate-300'
+                    }`} 
+                    onClick={() => setTab('units')}
+                >
+                    Unidades
                 </button>
                 <button 
                     className={`px-4 py-2 rounded-lg text-sm font-bold transition-all whitespace-nowrap cursor-pointer ${
@@ -384,6 +447,26 @@ export default function ProductsClient({ products, categories }: { products: any
                         </div>
                     </div>
                 )}
+
+                {tab === 'units' && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {[...indexedUnits].sort((a,b) => a.display_order - b.display_order).map((u, idx) => (
+                            <div key={u.id} className="bg-[#1e2433] rounded-2xl border border-white/5 p-4 flex gap-4 items-center shadow-xl hover:border-[#E2A049]/20 transition-all group">
+                                <div className="cursor-grab active:cursor-grabbing text-slate-600" draggable onDragStart={() => onDragStart(idx)} onDragOver={(e) => onDragOver(e, idx)} onDrop={() => onDrop(idx, 'measurement_units')}><GripVertical size={16}/></div>
+                                <div className="flex-1 min-w-0">
+                                    <div className="text-white font-black text-lg truncate mb-1">{u.name} <span className="text-xs text-[#E2A049] opacity-70">({u.abbreviation})</span></div>
+                                    <div className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Orden: {u.display_order}</div>
+                                </div>
+                                <div className="flex gap-2 shrink-0">
+                                    <button onClick={() => toggleStatus(u.id, 'unit', u.is_active)} className={`p-2 rounded-lg ${u.is_active ? 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20' : 'bg-rose-500/10 text-rose-400 hover:bg-rose-500/20'}`}>
+                                        {u.is_active ? <Check size={16}/> : <X size={16}/>}
+                                    </button>
+                                    <button onClick={() => openUnitModal(u)} className="p-2 bg-white/5 text-slate-400 rounded-lg hover:text-[#E2A049] hover:bg-white/10"><Pencil size={16} /></button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
             </div>
 
             {/* MODALS REFACTORED */}
@@ -440,33 +523,86 @@ export default function ProductsClient({ products, categories }: { products: any
                         </div>
                         <div className="space-y-3">
                             {modalProduct.prices.map((p: any, i: number) => (
-                                <div key={i} className="grid grid-cols-12 gap-2 bg-black/20 p-3 rounded-xl border border-white/5 items-center">
-                                    <div className="col-span-3">
-                                        <select 
-                                            className="w-full bg-black/40 border border-white/5 rounded-lg px-2 py-2 text-[11px] font-bold text-white outline-none focus:border-[#E2A049] appearance-none cursor-pointer" 
-                                            value={p.size} 
-                                            onChange={e => { 
-                                                const np = [...modalProduct.prices]; 
-                                                np[i].size = e.target.value; 
-                                                setModalProduct({ ...modalProduct, prices: np }) 
-                                            }} 
-                                            required
+                                <div 
+                                    key={i} 
+                                    className={`flex flex-col gap-3 bg-black/20 p-4 rounded-xl border border-white/5 relative group transition-opacity ${!p.is_active ? 'opacity-60 grayscale-[0.5]' : ''}`}
+                                    onDragOver={(e) => onDragOver(e, i)}
+                                    onDrop={() => onDrop(i, 'product_prices')}
+                                >
+                                    <div className="flex items-center gap-2">
+                                        <div 
+                                            className="cursor-grab active:cursor-grabbing text-slate-700 hover:text-slate-500 pr-1"
+                                            draggable
+                                            onDragStart={() => setDragIndex(i)}
                                         >
-                                            <option value="" disabled>Seleccionar</option>
-                                            <option value="5L">5L</option>
-                                            <option value="10L">10L</option>
-                                            <option value="20L">20L</option>
-                                            <option value="30L">30L</option>
-                                        </select>
+                                            <GripVertical size={16} />
+                                        </div>
+                                        <div className="flex-1 flex gap-2">
+                                            <input 
+                                                className="w-20 bg-black/40 border border-white/5 rounded-lg px-2 py-2 text-xs text-white outline-none focus:border-[#E2A049]" 
+                                                type="number" 
+                                                step="any"
+                                                value={p.size_value || ''} 
+                                                onChange={e => { 
+                                                    const val = e.target.value; 
+                                                    const np = [...modalProduct.prices]; 
+                                                    np[i].size_value = val === '' ? 0 : parseFloat(val); 
+                                                    setModalProduct({ ...modalProduct, prices: np }) 
+                                                }} 
+                                                placeholder="Cant." 
+                                                required 
+                                            />
+                                            <select 
+                                                className="flex-1 bg-black/40 border border-white/5 rounded-lg px-2 py-2 text-[11px] font-bold text-white outline-none focus:border-[#E2A049] appearance-none" 
+                                                value={p.unit_id} 
+                                                onChange={e => { 
+                                                    const np = [...modalProduct.prices]; 
+                                                    np[i].unit_id = e.target.value; 
+                                                    setModalProduct({ ...modalProduct, prices: np }) 
+                                                }} 
+                                                required
+                                            >
+                                                {measurementUnits.map(unit => (
+                                                    <option key={unit.id} value={unit.id}>{unit.name} ({unit.abbreviation})</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                        <button 
+                                            type="button" 
+                                            onClick={() => {
+                                                const np = [...modalProduct.prices];
+                                                np[i].is_disposable = !np[i].is_disposable;
+                                                setModalProduct({ ...modalProduct, prices: np });
+                                            }}
+                                            className={`px-3 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${p.is_disposable ? 'bg-[#E2A049] text-black' : 'bg-white/5 text-slate-500'}`}
+                                        >
+                                            Desechable
+                                        </button>
+                                        <div className="flex gap-1 bg-black/40 p-1 rounded-lg">
+                                            <button 
+                                                type="button" 
+                                                onClick={() => {
+                                                    const np = [...modalProduct.prices];
+                                                    np[i].is_active = !np[i].is_active;
+                                                    setModalProduct({ ...modalProduct, prices: np });
+                                                }}
+                                                className={`p-1.5 rounded-md transition-all ${p.is_active ? 'bg-emerald-500/20 text-emerald-400' : 'text-slate-600 hover:text-rose-400'}`}
+                                                title={p.is_active ? 'Formato Activo' : 'Formato Inactivo'}
+                                            >
+                                                {p.is_active ? <Check size={14}/> : <X size={14}/>}
+                                            </button>
+                                            <button type="button" onClick={() => removePriceRow(i)} className="text-slate-600 hover:text-rose-500 p-1.5 transition-colors"><Trash2 size={14}/></button>
+                                        </div>
                                     </div>
-                                    <div className="col-span-4">
-                                        <input className="w-full bg-black/40 border border-white/5 rounded-lg px-2 py-2 text-xs text-white" type="number" value={p.price || ''} onChange={e => { const val = e.target.value; const np = [...modalProduct.prices]; np[i].price = val === '' ? 0 : parseInt(val); setModalProduct({ ...modalProduct, prices: np }) }} placeholder="Costo" required />
-                                    </div>
-                                    <div className="col-span-4">
-                                        <input className="w-full bg-black/40 border border-white/5 rounded-lg px-2 py-2 text-xs text-emerald-400 placeholder:text-slate-700" type="number" value={p.offer_price || ''} onChange={e => { const np = [...modalProduct.prices]; np[i].offer_price = e.target.value ? parseInt(e.target.value) : null; setModalProduct({ ...modalProduct, prices: np }) }} placeholder="Oferta" />
-                                    </div>
-                                    <div className="col-span-1 text-right">
-                                        <button type="button" onClick={() => removePriceRow(i)} className="text-rose-500 hover:text-rose-400 p-1"><Trash2 size={14}/></button>
+                                    <div className="grid grid-cols-2 gap-3 pl-7">
+                                        <div>
+                                            <label className="block text-[9px] text-slate-600 font-bold uppercase mb-1">Precio Normal</label>
+                                            <input className="w-full bg-black/40 border border-white/5 rounded-lg px-3 py-2 text-xs text-white" type="number" value={p.price || ''} onChange={e => { const val = e.target.value; const np = [...modalProduct.prices]; np[i].price = val === '' ? 0 : parseInt(val); setModalProduct({ ...modalProduct, prices: np }) }} placeholder="Precio" required />
+                                        </div>
+                                        <div>
+                                            <label className="block text-[9px] text-slate-600 font-bold uppercase mb-1">Precio Oferta</label>
+                                            <input className="w-full bg-black/40 border border-white/5 rounded-lg px-3 py-2 text-xs text-emerald-400 placeholder:text-slate-700" type="number" value={p.offer_price || ''} onChange={e => { const np = [...modalProduct.prices]; np[i].offer_price = e.target.value ? parseInt(e.target.value) : null; setModalProduct({ ...modalProduct, prices: np }) }} placeholder="Oferta" />
+                                        </div>
                                     </div>
                                 </div>
                             ))}
@@ -476,6 +612,25 @@ export default function ProductsClient({ products, categories }: { products: any
                     <button type="submit" disabled={isPending} className="w-full py-4 mt-6 bg-[#E2A049] text-black rounded-2xl font-black text-sm active:scale-95 transition-transform flex items-center justify-center gap-2">
                         {isPending ? <RefreshCw className="animate-spin" size={18}/> : <Check size={18}/>}
                         {isPending ? 'Procesando...' : 'Guardar Ficha'}
+                    </button>
+                </form>
+            </Modal>
+ 
+            <Modal isOpen={modalUnit.isOpen} onClose={() => setModalUnit({ isOpen: false, data: null })} title={modalUnit.data?.id ? 'Editar Unidad' : 'Nueva Unidad'}>
+                <form onSubmit={submitUnit} className="space-y-6 px-1">
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-slate-500 text-[10px] font-black uppercase tracking-widest mb-3">Nombre</label>
+                            <input className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3.5 text-white outline-none focus:border-[#E2A049] transition-colors" value={modalUnit.data?.name || ''} onChange={e => setModalUnit({ ...modalUnit, data: { ...modalUnit.data, name: e.target.value } })} placeholder="Ej: Litros" required />
+                        </div>
+                        <div>
+                            <label className="block text-slate-500 text-[10px] font-black uppercase tracking-widest mb-3">Abreviación</label>
+                            <input className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3.5 text-white outline-none focus:border-[#E2A049] transition-colors" value={modalUnit.data?.abbreviation || ''} onChange={e => setModalUnit({ ...modalUnit, data: { ...modalUnit.data, abbreviation: e.target.value } })} placeholder="Ej: L" required />
+                        </div>
+                    </div>
+                    <button type="submit" disabled={isPending} className="w-full py-4 bg-[#E2A049] text-black rounded-2xl font-black text-sm active:scale-95 transition-transform flex items-center justify-center gap-2">
+                        {isPending ? <RefreshCw className="animate-spin" size={18}/> : <Check size={18}/>}
+                        {isPending ? 'Guardando...' : 'Guardar Unidad'}
                     </button>
                 </form>
             </Modal>

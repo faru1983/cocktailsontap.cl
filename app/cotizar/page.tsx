@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
-import WizardShell from '@/components/wizard/WizardShell';
+import CotizarGateway from '@/components/wizard/CotizarGateway';
 import { fetchAllProductData } from '@/lib/serverData';
 
 export const metadata: Metadata = {
@@ -16,20 +16,10 @@ export default async function CotizarPage() {
 
     return (
         <main data-page="cotizar" className="min-h-screen bg-brand-bg relative flex flex-col pt-8 md:pt-12">
-            <div className="w-full max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 mb-6">
-                <Link
-                    href="/"
-                    className="group inline-flex items-center gap-3 text-brand-text-muted no-underline font-semibold text-[0.95rem] transition-all hover:text-primary"
-                >
-                    <div className="p-2.5 rounded-full bg-white border border-brand-border group-hover:border-primary/30 group-hover:bg-primary/5 transition-all shadow-sm group-hover:shadow-md">
-                        <ArrowLeft className="w-4 h-4 text-brand-text-muted group-hover:text-primary transition-transform group-hover:-translate-x-0.5" />
-                    </div>
-                    <span className="border-b border-transparent group-hover:border-primary/30 pb-0.5">Volver al inicio</span>
-                </Link>
-            </div>
+
 
             <div className="flex-1">
-                <WizardShell
+                <CotizarGateway
                     cocktails={cocktails}
                     eventTypes={eventTypes}
                     comunas={comunas}

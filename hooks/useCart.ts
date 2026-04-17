@@ -13,11 +13,11 @@ export function useCart() {
     const [items, setItems] = useState<CartItem[]>([]);
 
     const addItem = useCallback(
-        (productId: string, productName: string, size: string, price: number, offerPrice: number) => {
+        (productId: string, productName: string, size: string, price: number, offerPrice: number, sizeValue: number, unitId: string | null, isDisposable: boolean) => {
             setItems((prev) => {
                 const existing = prev.find((i) => i.productId === productId && i.size === size);
                 if (existing) return prev.map((i) => (i.productId === productId && i.size === size ? { ...i, quantity: i.quantity + 1 } : i));
-                return [...prev, { productId, productName, size, price, offerPrice, quantity: 1 }];
+                return [...prev, { productId, productName, size, price, offerPrice, sizeValue, unitId, isDisposable, quantity: 1 }];
             });
         },
         []

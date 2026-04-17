@@ -16,6 +16,7 @@ export interface QuoteSummaryItem {
 export interface QuoteSummaryData {
     items: QuoteSummaryItem[];
     totalLiters: number;
+    totalCocktails: number; // Nuevo
     totalNormalPrice: number;
     totalOfferPrice: number;
     totalDiscount: number;
@@ -102,7 +103,7 @@ export default function QuoteSummaryProducts({ data, isEditable = false, onUpdat
                                             compact
                                             value={item.quantity}
                                             onChange={(delta) => onUpdateQuantity(item.id, item.selectedSize, delta)}
-                                            min={1}
+                                            min={0}
                                         />
                                     ) : (
                                         <span className="font-medium text-brand-text">Cant: {item.quantity}</span>
@@ -129,13 +130,15 @@ export default function QuoteSummaryProducts({ data, isEditable = false, onUpdat
             </div>
 
             {/* Metrics */}
-            {data.items.length > 0 && (
+            {data.items.length > 0 && data.totalLiters > 0 && (
                 <div className="flex justify-between items-center bg-[#f1f5f9] text-brand-text p-4 rounded-xl mb-8 border border-[#e2e8f0]">
                     {[
                         { val: `${data.totalLiters}L`, label: 'Volumen' },
-                        { val: String(data.totalLiters * 5), label: 'Cócteles' },
-                        { val: ((data.totalLiters * 5) / (data.guests || 1)).toFixed(1), label: 'x Persona' },
-                    ].map((m, i) => (
+                        { val: String(data.totalCocktails), label: 'Cócteles' },
+                        { val: (data.totalCocktails / (data.guests || 1)).toFixed(1), label: 'x Persona' },
+                    ]
+                    .filter(m => !(m.label === 'x Persona' && (!data.guests || data.guests === 0)))
+                    .map((m, i) => (
                         <div key={m.label} className={`text-center flex-1 ${i > 0 ? 'border-l border-[#cbd5e1]' : ''}`}>
                             <span className="block text-[1.25rem] font-black text-primary">{m.val}</span>
                             <span className="text-[0.65rem] uppercase font-bold text-[#64748b] tracking-wider">{m.label}</span>
@@ -168,27 +171,29 @@ export default function QuoteSummaryProducts({ data, isEditable = false, onUpdat
                         <span className={`font-bold ${data.shippingCost === 0 ? 'text-primary' : 'text-brand-text'}`}>{data.shippingLabel}</span>
                     </div>
                 )}
-                <div 
-                    className={`flex justify-between py-2 px-3 -mx-3 rounded-xl transition-all ${
-                        canToggle 
-                        ? 'cursor-pointer hover:bg-primary/5 active:scale-[0.98] border border-transparent hover:border-primary/20' 
-                        : 'text-brand-text-muted font-medium'
-                    }`}
-                    onClick={() => canToggle && onToggleDispenser?.()}
-                    title={canToggle ? 'Click para cambiar tipo de dispensador' : ''}
-                >
-                    <div className="flex flex-col">
-                        <span className={`text-[0.95rem] ${canToggle ? 'font-black text-brand-text' : ''}`}>{data.dispenserLabel}</span>
-                        {canToggle && (
-                            <span className="text-[0.6rem] text-primary font-bold uppercase tracking-wider">
-                                Click para cambiar a {isMuro ? 'Dispensador Portátil' : 'Muro de Coctelería'}
-                            </span>
-                        )}
+                {!isDesechable && (
+                    <div 
+                        className={`flex justify-between py-2 px-3 -mx-3 rounded-xl transition-all ${
+                            canToggle 
+                            ? 'cursor-pointer hover:bg-primary/5 active:scale-[0.98] border border-transparent hover:border-primary/20' 
+                            : 'text-brand-text-muted font-medium'
+                        }`}
+                        onClick={() => canToggle && onToggleDispenser?.()}
+                        title={canToggle ? 'Click para cambiar tipo de dispensador' : ''}
+                    >
+                        <div className="flex flex-col">
+                            <span className={`text-[0.95rem] ${canToggle ? 'font-black text-brand-text' : ''}`}>{data.dispenserLabel}</span>
+                            {canToggle && (
+                                <span className="text-[0.6rem] text-primary font-bold uppercase tracking-wider">
+                                    Click para cambiar a {isMuro ? 'Dispensador Portátil' : 'Muro de Coctelería'}
+                                </span>
+                            )}
+                        </div>
+                        <span className={`text-[0.95rem] font-bold ${data.installationCost === 0 ? 'text-primary' : 'text-brand-text'}`}>
+                            {data.installationCost === 0 ? '¡Gratis!' : formatCurrency(data.installationCost)}
+                        </span>
                     </div>
-                    <span className={`text-[0.95rem] font-bold ${data.installationCost === 0 ? 'text-primary' : 'text-brand-text'}`}>
-                        {data.installationCost === 0 ? '¡Gratis!' : formatCurrency(data.installationCost)}
-                    </span>
-                </div>
+                )}
                 <div className="flex justify-between pt-4 mt-2 border-t-2 border-primary items-center">
                     <span className="font-black text-brand-text text-[1rem]">TOTAL</span>
                     <span className="text-2xl font-black text-primary">{formatCurrency(data.totalPrice)}</span>

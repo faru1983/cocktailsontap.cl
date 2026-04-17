@@ -24,11 +24,15 @@ export default function WizardStep1({ wizard, eventTypes }: Props) {
     const minPickupDate = state.eventData.date;
     const maxPickupDate = calculateMaxPickupDate(state.eventData.date);
     const today = getTodayString();
+    
+    let minDate = today;
 
     return (
         <div className="flex flex-col">
-            <h3 className="text-2xl font-extrabold text-brand-text mb-2">1. Datos del Evento</h3>
-            <p className="text-brand-text-muted text-[0.95rem] mb-8 leading-relaxed">Cuéntanos sobre tu celebración para personalizar tu experiencia.</p>
+            <h3 className="text-2xl font-extrabold text-brand-text mb-2">1. Detalles del Evento</h3>
+            <p className="text-brand-text-muted text-[0.95rem] mb-8 leading-relaxed">
+                Cuéntanos sobre tu celebración para personalizar tu experiencia.
+            </p>
 
             {/* Temática */}
             <div className="mb-8">
@@ -75,15 +79,17 @@ export default function WizardStep1({ wizard, eventTypes }: Props) {
             </div>
 
             {/* Fecha y Hora de Inicio */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 mb-8">
+            <div className={`grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 mb-8`}>
                 <div className="flex flex-col">
-                    <label htmlFor="wizard-date" className="block font-bold mb-2 text-brand-text text-[0.9rem] sm:text-[0.95rem]">Fecha del Evento <span className="text-primary">*</span></label>
+                    <label htmlFor="wizard-date" className="block font-bold mb-2 text-brand-text text-[0.9rem] sm:text-[0.95rem]">
+                        Fecha del Evento <span className="text-primary">*</span>
+                    </label>
                     <div className="relative group/input">
                         <input
                             id="wizard-date"
                             type="date"
                             required
-                            min={today}
+                            min={minDate}
                             className="w-full px-3 py-3 sm:p-4 border-2 border-brand-border rounded-2xl text-[0.95rem] sm:text-[1rem] font-sans text-brand-text bg-white transition-all focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 hover:border-primary/30 [appearance:none] min-h-[52px] sm:min-h-[58px]"
                             value={state.eventData.date}
                             onChange={(e) => {
@@ -95,55 +101,55 @@ export default function WizardStep1({ wizard, eventTypes }: Props) {
                     </div>
                 </div>
                 <div className="flex flex-col">
-                    <label htmlFor="wizard-start-time" className="block font-bold mb-2 text-brand-text text-[0.9rem] sm:text-[0.95rem]">Hora de Inicio</label>
-                    <div className="relative group/input">
-                        <input
-                            id="wizard-start-time"
-                            type="time"
-                            className="w-full px-3 py-3 sm:p-4 border-2 border-brand-border rounded-2xl text-[0.95rem] sm:text-[1rem] font-sans text-brand-text bg-white transition-all focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 hover:border-primary/30 [appearance:none] min-h-[52px] sm:min-h-[58px]"
-                            value={state.eventData.startTime}
-                            onChange={(e) => updateEventData('startTime', e.target.value)}
-                            onClick={(e) => e.currentTarget.showPicker?.()}
-                        />
-                    </div>
-                </div>
-            </div>
-
-            {/* Retiro del Equipo */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
-                {state.eventData.startTime && (
-                    <div className="animate-fade-in flex flex-col">
-                        <label htmlFor="wizard-pickup-date" className="block font-bold mb-2 text-brand-text text-[0.9rem] sm:text-[0.95rem]">Fecha de Retiro</label>
+                        <label htmlFor="wizard-start-time" className="block font-bold mb-2 text-brand-text text-[0.9rem] sm:text-[0.95rem]">Hora de Inicio</label>
                         <div className="relative group/input">
                             <input
-                                id="wizard-pickup-date"
-                                type="date"
-                                min={minPickupDate}
-                                max={maxPickupDate}
+                                id="wizard-start-time"
+                                type="time"
                                 className="w-full px-3 py-3 sm:p-4 border-2 border-brand-border rounded-2xl text-[0.95rem] sm:text-[1rem] font-sans text-brand-text bg-white transition-all focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 hover:border-primary/30 [appearance:none] min-h-[52px] sm:min-h-[58px]"
-                                value={state.eventData.pickupDate}
-                                onChange={(e) => updateEventData('pickupDate', e.target.value)}
+                                value={state.eventData.startTime}
+                                onChange={(e) => updateEventData('startTime', e.target.value)}
                                 onClick={(e) => e.currentTarget.showPicker?.()}
                             />
                         </div>
                     </div>
-                )}
-                {state.eventData.pickupDate && state.eventData.pickupDate !== state.eventData.date && (
-                    <div className="animate-fade-in flex flex-col">
-                        <label htmlFor="wizard-pickup-time" className="block font-bold mb-2 text-brand-text text-[0.9rem] sm:text-[0.95rem]">Horario de Retiro</label>
-                        <SelectField
-                            id="wizard-pickup-time"
-                            value={state.eventData.pickupTime}
-                            onChange={(v: string) => updateEventData('pickupTime', v)}
-                            placeholder="Seleccionar..."
-                        >
-                            <option value="12:00 a 14:00">12:00 a 14:00</option>
-                            <option value="14:00 a 16:00">14:00 a 16:00</option>
-                            <option value="16:00 a 18:00">16:00 a 18:00</option>
-                        </SelectField>
-                    </div>
-                )}
-            </div>
+                </div>
+
+            {/* Retiro del Equipo */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+                    {state.eventData.startTime && (
+                        <div className="animate-fade-in flex flex-col">
+                            <label htmlFor="wizard-pickup-date" className="block font-bold mb-2 text-brand-text text-[0.9rem] sm:text-[0.95rem]">Fecha de Retiro</label>
+                            <div className="relative group/input">
+                                <input
+                                    id="wizard-pickup-date"
+                                    type="date"
+                                    min={minPickupDate}
+                                    max={maxPickupDate}
+                                    className="w-full px-3 py-3 sm:p-4 border-2 border-brand-border rounded-2xl text-[0.95rem] sm:text-[1rem] font-sans text-brand-text bg-white transition-all focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 hover:border-primary/30 [appearance:none] min-h-[52px] sm:min-h-[58px]"
+                                    value={state.eventData.pickupDate}
+                                    onChange={(e) => updateEventData('pickupDate', e.target.value)}
+                                    onClick={(e) => e.currentTarget.showPicker?.()}
+                                />
+                            </div>
+                        </div>
+                    )}
+                    {state.eventData.pickupDate && state.eventData.pickupDate !== state.eventData.date && (
+                        <div className="animate-fade-in flex flex-col">
+                            <label htmlFor="wizard-pickup-time" className="block font-bold mb-2 text-brand-text text-[0.9rem] sm:text-[0.95rem]">Horario de Retiro</label>
+                            <SelectField
+                                id="wizard-pickup-time"
+                                value={state.eventData.pickupTime}
+                                onChange={(v: string) => updateEventData('pickupTime', v)}
+                                placeholder="Seleccionar..."
+                            >
+                                <option value="12:00 a 14:00">12:00 a 14:00</option>
+                                <option value="14:00 a 16:00">14:00 a 16:00</option>
+                                <option value="16:00 a 18:00">16:00 a 18:00</option>
+                            </SelectField>
+                        </div>
+                    )}
+                </div>
         </div>
     );
 }

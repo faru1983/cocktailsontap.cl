@@ -75,7 +75,16 @@ export default function ProductCard({ product, cart }: ProductCardProps) {
                     <button
                         type="button"
                         className="w-full p-[0.85rem] rounded-xl font-bold text-[1rem] bg-brand-text text-white transition-all duration-300 hover:bg-primary hover:-translate-y-0.5 hover:shadow-[0_4px_15px_rgba(226,160,73,0.3)]"
-                        onClick={() => cart.addItem(product.id, product.name, selectedSize, sizeInfo.price, sizeInfo.offerPrice)}
+                        onClick={() => cart.addItem(
+                            product.id, 
+                            product.name, 
+                            selectedSize, 
+                            sizeInfo.price, 
+                            sizeInfo.offerPrice,
+                            sizeInfo.sizeValue,
+                            sizeInfo.unitId,
+                            sizeInfo.isDisposable
+                        )}
                     >
                         Agregar
                     </button>
@@ -84,7 +93,7 @@ export default function ProductCard({ product, cart }: ProductCardProps) {
                         <QuantitySelector
                             value={quantity}
                             onChange={(delta) => cart.updateQuantity(product.id, selectedSize, quantity + delta)}
-                            min={1}
+                            min={0}
                             className="w-full max-w-[180px] h-full"
                             compact={false}
                         />

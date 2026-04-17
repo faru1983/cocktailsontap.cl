@@ -30,9 +30,37 @@ Next.js 16 · React 19 · Tailwind CSS v4 · Supabase · Resend · Google APIs �
 - **Admin Dashboard**: ✅ Completo con módulos de cotizaciones, clientes, productos, gastos, estadísticas, logs, recordatorios y settings
 - **SEO**: ✅ robots.ts + sitemap.ts + OpenGraph + GA4 + Meta Pixel
 
+
+---
+
+## 📐 Arquitectura Avanzada y Detalles de Sistema
+- **Drag & Drop Nativo**: Implementado sin librerías externas en `ProductsClient.tsx` para productos, categorías, unidades y precios/formatos.
+- **Gestión Relacional de Unidades**: Soporte completo para unidades de medida (`measurement_units`) con abreviaciones y gestión de orden.
+- **Cerebro Central (Variables)**: Sistema Dinámico de Resolución de Variables (`SettingsService`) para plantillas de Google Calendar y Contacts, soportando `{{total_liters}}`, `{{payments_summary}}`, `{{pickup_time}}`, etc.
+- **Logística de Compra Directa**: Costos de envío diferenciados en la tabla `comunas` y uso del calendario dedicado `GOOGLE_CALENDAR_DESECHABLE_ID`.
+- **Iconografía Admin**: Catálogo configurable en `lib/icons.tsx` para la representación visual de temas de evento.
+- **Selector de Galería**: Integración de picker de imágenes en el flujo de edición de productos para reutilizar assets de Supabase Storage.
+
 ---
 
 ## 🔄 Últimos Cambios (Historial de Sesiones)
+
+### 📅 14-04-2026 — Desacople Arquitectónico de Flujos (Evento vs. Compra Directa)
+- **Archivos creados/modificados**:
+  - `app/cotizar/page.tsx` — Enrutador actualizado para usar el nuevo `CotizarGateway`.
+  - `components/wizard/CotizarGateway.tsx` — Nuevo componente de entrada (Paso 0) que permite al usuario escoger el tipo de servicio antes de inicializar ningún estado.
+  - `components/wizard/WizardShell.tsx` y `components/wizard/WizardStep*.tsx` — Se revirtieron a su estado original (solo eventos), removiendo 100% las condicionales y mutaciones `isDirect`.
+  - `components/wizard/direct/*` — Se finalizó la suite exclusiva para "Venta Directa" con su propio orquestador (`DirectWizardShell`), selector de productos limitados a 5L, formulario de despacho sin hora específica, y resumen simplificado, logrando aislamiento total de lógica.
+  - `hooks/useWizard.ts` — Adaptado para recibir `initialServiceType` e inicializar el estado del flujo seleccionado apropiadamente.
+- **Resumen**: Se completó el desacople propuesto para el módulo de reserva. Ahora la cotización de eventos (consultiva/reserva) corre por un Shell totalmente separado del flujo de compra directa (transaccional de barriles desechables). Esto resolvió el problema de escalabilidad del código y eliminó múltiples componentes altamente acoplados con condicionales visuales, garantizando que futuras modificaciones a la venta directa no impacten negativamente las reservas de muro/portátil.
+
+### 📅 14-04-2026 — Integración Compra Directa (Barril Desechable) Part 1
+- **Archivos creados/modificados**:
+  - `components/wizard/*` — Paso 0 agregado para bifurcar Flujo (Evento vs Compra Directa). Paso 1, 3 y 6 adaptados para manejar el nuevo tipo de despacho (`isDirect`) y reestructurar formularios. Se bloqueó la fecha pre-existente o presente para envíos de desechables.
+  - `components/quote/*` — Modulo `QuoteView` adaptado para que el pago de compras directas sea 100% upfront con un contrato de reserva específico para el Delivery de desechables.
+  - `app/actions/createQuote.ts`, `app/actions/confirmQuote.ts` — Lógica adaptada para sincronización de correos y eventos de calendario usando un ID nuevo `GOOGLE_CALENDAR_DESECHABLE_ID`.
+  - `components/emails/DirectSaleEmail.tsx`, `components/emails/ConfirmationEmail.tsx` — Textos de emails cambiados a "Compra/Pedido Confirmado" con flujo distinto (no se requiere pagar 50% extra sino el total previamente).
+- **Resumen**: Se completó la primera iteración de la venta de barriles desechables (5L) bajo una figura de compra directa (sin retorno ni instalación). El flujo enruta las lógicas de precios de `quote`, manda emails específicos adaptados, e impacta el Dashboard con estados en calendarios logísticos correspondientes.
 
 ### 📅 09-04-2026 — Optimización de Cotización Manual, Precios Custom y Correcciones UI
 - **Archivos creados/modificados**:
@@ -81,4 +109,12 @@ Next.js 16 · React 19 · Tailwind CSS v4 · Supabase · Resend · Google APIs �
 
 ---
 
-*Última actualización: 09-04-2026 (Fin de Sesión)*
+### 📅 17-04-2026 — Sincronización y Refinado de Venta Directa
+- **Refinado de Emails**: Se desacopló profundamente el flujo de **Compra Directa** en `EmailShared.tsx`, ocultando métricas irrelevantes (tragos x pers., invitados, temática) y eliminando la fila de dispensador/instalación para este flujo.
+- **Rendimiento Inteligente**: Se validó que el cálculo de `total_liters` solo sume productos líquidos (unidad 'L'), asegurando que ítems como hielo o decoraciones no inflen las métricas del correo.
+- **Infraestructura de Tests**: Se creó la carpeta `/tests` en la raíz y se implementó `test_direct_sale_emails.ts` para disparar pruebas reales de los 4 escenarios de correo (Cliente/Admin, Borrador/Confirmado) vía `Resend`.
+- **UI/UX**: Se simplificó la "Fecha Despacho" en correos directos para mostrar solo la fecha y ocultar la hora, alineándose con el modelo de negocio transaccional.
+
+---
+
+*Última actualización: 17-04-2026 (Fin de Sesión)*

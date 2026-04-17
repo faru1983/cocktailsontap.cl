@@ -80,7 +80,7 @@ export default function SettingsClient({
             type,
             data: item || (
                 type === 'event' ? { name: '', icon: 'GlassWater', display_order: 0 } : 
-                type === 'comuna' ? { name: '', cost: 0, free_from: null, display_order: 0 } :
+                type === 'comuna' ? { name: '', cost: 0, free_from: null, display_order: 0, direct_sale_delivery_cost: 0 } :
                 { key: '', value: '', category: 'global', is_active: true, description: '' }
             )
         });
@@ -302,6 +302,7 @@ export default function SettingsClient({
                                     <tr className="bg-white/[0.02]">
                                         <th className="px-6 py-4 text-slate-500 text-[10px] font-black uppercase tracking-widest border-b border-white/5">Ubicación</th>
                                         <th className="px-6 py-4 text-slate-500 text-[10px] font-black uppercase tracking-widest border-b border-white/5">Tarifa Normal</th>
+                                        <th className="px-6 py-4 text-slate-500 text-[10px] font-black uppercase tracking-widest border-b border-white/5">Traslado Directo</th>
                                         <th className="px-6 py-4 text-slate-500 text-[10px] font-black uppercase tracking-widest border-b border-white/5">Beneficio Mayorista</th>
                                         <th className="text-right px-6 py-4 text-slate-500 text-[10px] font-black uppercase tracking-widest border-b border-white/5">Acciones</th>
                                     </tr>
@@ -311,6 +312,7 @@ export default function SettingsClient({
                                         <tr key={item.id} className="border-t border-white/[0.03] hover:bg-white/[0.01] transition-colors">
                                             <td className="px-6 py-4 text-white font-bold text-sm">{item.name}</td>
                                             <td className="px-6 py-4 text-[#E2A049] font-black text-sm">{formatCLP(item.cost)}</td>
+                                            <td className="px-6 py-4 text-sky-400 font-black text-sm">{formatCLP(item.direct_sale_delivery_cost)}</td>
                                             <td className="px-6 py-4 text-slate-400 text-xs font-bold">
                                                 {item.free_from ? <span className="bg-emerald-500/10 text-emerald-400 px-2 py-1 rounded-md">Envío sin costo {'>'} {item.free_from}L</span> : <span className="text-slate-600 italic">No aplica</span>}
                                             </td>
@@ -333,7 +335,8 @@ export default function SettingsClient({
                                     <div>
                                         <div className="text-white font-black text-base mb-1">{item.name}</div>
                                         <div className="flex flex-col gap-1">
-                                            <span className="text-[#E2A049] font-black text-sm">{formatCLP(item.cost)}</span>
+                                            <span className="text-[#E2A049] font-black text-sm">{formatCLP(item.cost)} <span className="text-slate-600 font-bold ml-1">/ Evento</span></span>
+                                            <span className="text-sky-400 font-black text-[10px]">{formatCLP(item.direct_sale_delivery_cost)} <span className="text-slate-600 font-bold ml-1">/ Directo</span></span>
                                             {item.free_from && (
                                                 <span className="text-emerald-400 text-[10px] font-black uppercase tracking-widest drop-shadow-sm">Envio gratis desde {item.free_from}L</span>
                                             )}
@@ -453,12 +456,18 @@ export default function SettingsClient({
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-slate-500 text-[10px] font-black uppercase tracking-widest mb-3 text-left">Exención Comercial (L)</label>
-                                        <input type="number" value={modalData.data.free_from || ''} onChange={e => setModalData({ ...modalData, data: { ...modalData.data, free_from: e.target.value ? Number(e.target.value) : null } })} 
-                                            className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-emerald-400 outline-none focus:border-emerald-500 transition-colors text-sm font-black" 
-                                            placeholder="Litros para despacho gratis"
+                                        <label className="block text-slate-500 text-[10px] font-black uppercase tracking-widest mb-3 text-left">Tarifa Directo ($)</label>
+                                        <input type="number" required value={modalData.data.direct_sale_delivery_cost} onChange={e => setModalData({ ...modalData, data: { ...modalData.data, direct_sale_delivery_cost: Number(e.target.value) } })} 
+                                            className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-sky-400 outline-none focus:border-sky-500 transition-colors text-sm font-black" 
                                         />
                                     </div>
+                                </div>
+                                <div>
+                                    <label className="block text-slate-500 text-[10px] font-black uppercase tracking-widest mb-3 text-left">Exención Comercial (L)</label>
+                                    <input type="number" value={modalData.data.free_from || ''} onChange={e => setModalData({ ...modalData, data: { ...modalData.data, free_from: e.target.value ? Number(e.target.value) : null } })} 
+                                        className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-emerald-400 outline-none focus:border-emerald-500 transition-colors text-sm font-black" 
+                                        placeholder="Litros para despacho gratis"
+                                    />
                                 </div>
                                 <div>
                                     <label className="block text-slate-500 text-[10px] font-black uppercase tracking-widest mb-3 text-left">Posición en Formulario</label>

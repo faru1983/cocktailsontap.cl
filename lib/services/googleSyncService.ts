@@ -1,4 +1,4 @@
-import { syncGoogleContact, syncGoogleEvent, CALENDAR_RESERVA_ID, CALENDAR_RETIRO_ID } from '@/lib/googleSync';
+import { syncGoogleContact, syncGoogleEvent, CALENDAR_RESERVA_ID, CALENDAR_RETIRO_ID, CALENDAR_DESECHABLE_ID } from '@/lib/googleSync';
 import { SITE_URL } from '@/lib/config';
 import type { WizardState, Quote } from '@/lib/types';
 import { QuoteService } from './quoteService';
@@ -46,7 +46,12 @@ export const GoogleSyncService = {
                  notes: state.contact.comments?.trim() || undefined,
                  eventDate: state.eventData.date,
                  quoteUrl: quoteUrl,
-                 confirmed: false
+                 confirmed: false,
+                 noteLabel: await SettingsService.getResolvedValue(
+                     state.serviceType === 'direct' ? 'google_contacts_direct_sale_note_draft_template' : 'google_contacts_note_draft_template',
+                     { date_formatted: state.eventData.date?.split('-').reverse().join('/') || 'S/F', quote_url: quoteUrl },
+                     state.serviceType === 'direct' ? 'Pedido Directo' : 'Evento'
+                 )
              });
 
              if (googleContactId && googleContactId !== clientData?.google_contact_id) {
@@ -88,7 +93,12 @@ export const GoogleSyncService = {
                  notes: quote.comments || undefined,
                  eventDate: quote.event_date,
                  quoteUrl: quoteUrl,
-                 confirmed: true
+                 confirmed: true,
+                 noteLabel: await SettingsService.getResolvedValue(
+                     quote.service_type === 'direct' ? 'google_contacts_direct_sale_note_confirmed_template' : 'google_contacts_note_confirmed_template',
+                     { date_formatted: quote.event_date?.split('-').reverse().join('/') || 'S/F', quote_url: quoteUrl },
+                     quote.service_type === 'direct' ? 'Pedido Directo (Confirmado)' : 'Evento (Confirmado)'
+                 )
              });
 
              // Si es un contacto nuevo que no teniamos el ID, guardarlo
@@ -163,8 +173,10 @@ export const GoogleSyncService = {
                 total_liters: quote.total_liters || '0',
             };
 
+            const isDirectSale = quote.service_type === 'direct';
+
             const sharedDescription = await SettingsService.getResolvedValue(
-                'calendar_event_description_template', 
+                isDirectSale ? 'calendar_direct_sale_description_template' : 'calendar_event_description_template', 
                 variables,
                 `${commentsText}Celular: ${quote.client_phone || ''}\nVer Cotización: ${link}\n\nPRODUCTOS:\n${itemsText}\nTransporte: ${formatClp(quote.shipping_cost || 0)}\nInstalación (${dispenserLabel}): ${formatClp(quote.installation_cost || 0)}\nTotal: ${formatClp(quote.total_price || 0)}\n${paymentsSummary}`
             );
@@ -176,19 +188,24 @@ export const GoogleSyncService = {
             let eventId = options?.updateEventId || (quote as any).google_event_id;
             let pickupEventId = options?.updatePickupEventId || (quote as any).google_pickup_event_id;
 
-            // 1. Create Service Event (Reserva Calendar)
-            if (CALENDAR_RESERVA_ID && quote.event_date) {
+            const isDesechable = quote.dispenser === 'desechable';
+            const targetCalendarId = isDesechable ? CALENDAR_DESECHABLE_ID : CALENDAR_RESERVA_ID;
+
+            // 1. Create Service/Delivery Event
+            if (targetCalendarId && quote.event_date) {
+                const isDirect = quote.service_type === 'direct';
+
                 const serviceSummary = await SettingsService.getResolvedValue(
-                    'calendar_event_summary_template',
+                    isDirect ? 'calendar_direct_sale_summary_template' : (isDesechable ? 'calendar_desechable_summary_template' : 'calendar_event_summary_template'),
                     variables,
-                    `Cócteles - ${fullName} ${quote.guests}px`
+                    isDirect ? `Pedido Directo - ${fullName}` : (isDesechable ? `Despacho - ${fullName}` : `Cócteles - ${fullName} ${quote.guests}px`)
                 );
                 
                 let startISO, endISO, isAllDay;
 
-                if (hasStartTime) {
+                // Para desechables siempre es todo el día por defecto (o según lógica de negocio)
+                if (!isDesechable && hasStartTime) {
                     startISO = formatLiteral(quote.event_date, quote.start_time as string);
-                    // Duración del evento de reserva = 0.
                     endISO = startISO;
                     isAllDay = false;
                 } else {
@@ -197,7 +214,7 @@ export const GoogleSyncService = {
                     isAllDay = true;
                 }
 
-                const created = await syncGoogleEvent(CALENDAR_RESERVA_ID, {
+                const created = await syncGoogleEvent(targetCalendarId, {
                     eventId: eventId, 
                     summary: serviceSummary,
                     location: fullLocation,
@@ -210,8 +227,8 @@ export const GoogleSyncService = {
                 eventId = created?.id || undefined;
             }
 
-            // 2. Create Pickup Event (Retiro Calendar)
-            if (CALENDAR_RETIRO_ID && quote.pickup_date) {
+            // 2. Create Pickup Event (SOLO SI NO ES DESECHABLE)
+            if (!isDesechable && CALENDAR_RETIRO_ID && quote.pickup_date) {
                 const pickupSummary = await SettingsService.getResolvedValue(
                     'calendar_pickup_summary_template',
                     variables,

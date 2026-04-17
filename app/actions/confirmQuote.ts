@@ -5,7 +5,6 @@ import { Resend } from 'resend';
 import { revalidatePath } from 'next/cache';
 import { ConfirmQuoteSchema } from '@/lib/types';
 import type { Quote, QuoteItem } from '@/lib/types';
-import { getSizeLiters } from '@/lib/wizardLogic';
 import { 
     ADMIN_EMAIL, 
     FROM_EMAIL, 
@@ -17,7 +16,9 @@ import {
 import { QuoteService } from '@/lib/services/quoteService';
 import { GoogleSyncService } from '@/lib/services/googleSyncService';
 import { SettingsService } from '@/lib/services/settingsService';
-import { createServerClient } from '@/lib/supabaseServer'; // temporal while some logic resides here
+import { createServerClient } from '@/lib/supabaseServer';
+import { fetchAllProductData, fetchComunas } from '@/lib/serverData';
+import { calculateSummaryData } from '@/lib/wizardLogic';
 
 interface ConfirmQuoteResult {
     success: boolean;
@@ -43,45 +44,44 @@ export async function confirmQuote(input: any): Promise<ConfirmQuoteResult> {
         }
         const quote = confirmResult.quote;
 
-        // ─── 3. RECALCULO DE SEGURIDAD (Server-Side) ──────────────────────────
-        let totalNormalPrice = 0;
-        let totalOfferPrice = 0;
-        let totalLiters = 0;
+        // ─── 3. RECALCULO DE SEGURIDAD (Server-Side Zero Trust) ─────────────
+        // Fetch current data to ensure calculations use the latest prices/rules
+        const [cocktails, comunas] = await Promise.all([
+            fetchAllProductData(),
+            fetchComunas()
+        ]);
 
-        for (const item of data.items) {
-            totalNormalPrice += item.price_at_time * item.quantity;
-            totalOfferPrice += item.offer_price_at_time * item.quantity;
-            totalLiters += getSizeLiters(item.size) * item.quantity;
-        }
+        const summary = calculateSummaryData({
+            selections: data.items.map(i => ({
+                id: i.product_id!,
+                size: i.size,
+                quantity: i.quantity,
+                customPrice: i.offer_price_at_time
+            })),
+            eventData: {
+                date: data.event_date,
+                startTime: data.start_time,
+                guests: data.guests,
+                eventType: data.event_type_id,
+            },
+            contact: {
+                firstName: quote.client_name,
+                lastName: data.client_lastname || '',
+                email: quote.client_email || '',
+                phone: data.client_phone,
+                address: data.client_address,
+                comuna: data.comuna_name,
+                otherComuna: data.comuna_other || '',
+            },
+            dispenser: data.dispenser as any
+        }, cocktails, comunas);
 
-        // Recalcular costo de envío (respetando manual overrides si la comuna no cambió)
-        let finalShippingCost = quote.shipping_cost;
-        const { data: comunaData } = await db.from('comunas').select().eq('name', data.comuna_name).single();
-        
-        if (comunaData) {
-            const qualifiesForFree = comunaData.free_from !== null && totalLiters >= comunaData.free_from;
-            
-            if (qualifiesForFree) {
-                finalShippingCost = 0;
-            } else if (data.comuna_name !== quote.comuna_name) {
-                // Si el usuario cambió la comuna en el paso final, usamos el costo estándar
-                finalShippingCost = comunaData.cost || 0;
-            } else {
-                // Es la misma comuna. Si el costo guardado es 0 pero ya no califica para gratis, volvemos al base.
-                // De lo contrario, respetamos el valor manual que pudo setear el admin.
-                if (quote.shipping_cost === 0 && !qualifiesForFree) {
-                    finalShippingCost = comunaData.cost || 0;
-                } else {
-                    finalShippingCost = quote.shipping_cost;
-                }
-            }
-        }
-
-        // Recalcular instalación del Muro
-        const hasIncompatibleSize = data.items.some(i => !MURO_COMPATIBLE_SIZES.includes(getSizeLiters(i.size)));
-        const canHaveMuro = !hasIncompatibleSize && totalLiters >= MURO_MIN_LITERS;
-        const finalInstallationCost = (data.dispenser === 'muro' && canHaveMuro) ? MURO_INSTALLATION_COST : 0;
-        const finalTotalPrice = totalOfferPrice + finalShippingCost + finalInstallationCost;
+        const totalNormalPrice = summary.totalNormalPrice;
+        const totalOfferPrice = summary.totalOfferPrice;
+        const totalLiters = summary.totalLiters;
+        const finalShippingCost = summary.shippingCost;
+        const finalInstallationCost = summary.installationCost;
+        const finalTotalPrice = summary.totalPrice;
 
         // ─── 4. PERSISTENCIA EN BASE DE DATOS (Items y Metadata) ─────────────
         
@@ -99,6 +99,9 @@ export async function confirmQuote(input: any): Promise<ConfirmQuoteResult> {
                     product_id: item.product_id,
                     product_name: item.product_name,
                     size: item.size,
+                    size_value: item.size_value,
+                    unit_id: item.unit_id,
+                    is_disposable: item.is_disposable,
                     quantity: item.quantity,
                     price_at_time: item.price_at_time,
                     offer_price_at_time: item.offer_price_at_time
@@ -195,16 +198,18 @@ export async function confirmQuote(input: any): Promise<ConfirmQuoteResult> {
                     event_date: eventDate
                 };
 
+                const isDirect = fullQuote.service_type === 'direct';
+
                 const adminSubject = await SettingsService.getResolvedValue(
-                    'email_quote_confirmed_admin_subject',
+                    isDirect ? 'email_direct_sale_confirmed_admin_subject' : 'email_quote_confirmed_admin_subject',
                     emailVars,
-                    `✅ [Reserva Confirmada] ${fullName} – ${eventDate}`
+                    isDirect ? `✅ [Compra Confirmada] ${fullName} – ${eventDate}` : `✅ [Reserva Confirmada] ${fullName} – ${eventDate}`
                 );
 
                 const clientSubject = await SettingsService.getResolvedValue(
-                    'email_quote_confirmed_subject',
+                    isDirect ? 'email_direct_sale_confirmed_subject' : 'email_quote_confirmed_subject',
                     emailVars,
-                    `✅ Reserva confirmada – ${eventDate}`
+                    isDirect ? `✅ Compra confirmada – ${eventDate}` : `✅ Reserva confirmada – ${eventDate}`
                 );
 
                 emailPromises.push(resend.emails.send({

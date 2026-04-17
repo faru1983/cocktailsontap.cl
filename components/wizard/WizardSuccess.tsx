@@ -134,12 +134,12 @@ export default function WizardSuccess({ token, clientEmail, onReset }: WizardSuc
                     >
                         <RefreshCw className="w-5 h-5" /> Nueva Cotización
                     </button>
-                    <a
-                        href="/"
+                    <button
+                        onClick={onReset}
                         className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-10 py-4 rounded-2xl bg-brand-dark text-white font-bold transition-all hover:bg-black active:scale-95 shadow-lg shadow-black/10"
                     >
                         Volver al Inicio <ArrowRight className="w-5 h-5" />
-                    </a>
+                    </button>
                 </div>
             </div>
         </div>

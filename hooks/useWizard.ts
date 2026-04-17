@@ -9,6 +9,7 @@ export { calculateSmartConfig };
 
 const INITIAL_STATE: WizardState = {
     step: 1,
+    serviceType: '',
     eventData: {
         type: '',
         otherType: '',
@@ -37,8 +38,8 @@ const INITIAL_STATE: WizardState = {
     expandedCategoryId: '',
 };
 
-export function useWizard(cocktails: CocktailForWizard[], comunas: Comuna[], categories: string[]) {
-    const [state, setState] = useState<WizardState>(INITIAL_STATE);
+export function useWizard(cocktails: CocktailForWizard[], comunas: Comuna[], categories: string[], initialServiceType: '' | 'event' | 'direct' = '') {
+    const [state, setState] = useState<WizardState>({ ...INITIAL_STATE, serviceType: initialServiceType });
 
     const initCategory = useCallback((cats: string[]) => {
         if (cats.length > 0) setState(prev => ({ ...prev, expandedCategoryId: prev.expandedCategoryId || cats[0] }));
@@ -81,7 +82,17 @@ export function useWizard(cocktails: CocktailForWizard[], comunas: Comuna[], cat
         setState((prev) => ({ ...prev, expandedCategoryId: prev.expandedCategoryId === id ? '' : id }));
     }, []);
 
-    const updateDispenser = useCallback((id: 'portatil' | 'muro') => {
+    const updateServiceType = useCallback((type: 'event' | 'direct') => {
+        setState((prev) => ({ 
+            ...prev, 
+            serviceType: type, 
+            dispenser: type === 'direct' ? 'desechable' : 'portatil',
+            step: 1 // Avanzar automáticamente al paso 1
+        }));
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }, []);
+
+    const updateDispenser = useCallback((id: 'portatil' | 'muro' | 'desechable') => {
         setState((prev) => ({ ...prev, dispenser: id }));
     }, []);
 
@@ -90,15 +101,22 @@ export function useWizard(cocktails: CocktailForWizard[], comunas: Comuna[], cat
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }, []);
 
-    const reset = useCallback(() => setState({ ...INITIAL_STATE, expandedCategoryId: categories[0] ?? '' }), [categories]);
+    const reset = useCallback(() => {
+        setState({ ...INITIAL_STATE, serviceType: initialServiceType, expandedCategoryId: categories[0] || '' });
+    }, [categories, initialServiceType]);
 
     function validateStep(step: number): { valid: boolean; message?: string } {
+        if (step === 0) {
+            if (!state.serviceType) return { valid: false, message: 'Selecciona una modalidad para continuar.' };
+        }
         if (step === 1) {
             const e = state.eventData;
-            if (!e.type.trim()) return { valid: false, message: 'Selecciona la temática del evento.' };
-            if (e.type === 'Otro' && !e.otherType.trim()) return { valid: false, message: 'Especifica la temática del evento.' };
-            if (!e.date.trim()) return { valid: false, message: 'Indica la fecha del evento.' };
-            if (state.consumption.guests < 10) return { valid: false, message: 'La cantidad de invitados debe ser al menos 10.' };
+            if (state.serviceType === 'event') {
+                if (!e.type.trim()) return { valid: false, message: 'Selecciona la temática del evento.' };
+                if (e.type === 'Otro' && !e.otherType.trim()) return { valid: false, message: 'Especifica la temática del evento.' };
+                if (state.consumption.guests < 10) return { valid: false, message: 'La cantidad de invitados debe ser al menos 10.' };
+            }
+            if (!e.date.trim()) return { valid: false, message: state.serviceType === 'direct' ? 'Indica la fecha de entrega.' : 'Indica la fecha del evento.' };
         }
         if (step === 5) {
             const c = state.contact;
@@ -137,6 +155,6 @@ export function useWizard(cocktails: CocktailForWizard[], comunas: Comuna[], cat
         state, updateEventData, updateConsumption, updateContact,
         updateQuantity, toggleCocktail, toggleCategory, goToStep, reset,
         validateStep, calculateSummaryData: calculateSummaryDataBound, calculateSmartConfig, sendWhatsAppQuote,
-        initCategory, updateDispenser,
+        initCategory, updateDispenser, updateServiceType
     };
 }

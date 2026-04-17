@@ -8,9 +8,10 @@ const REFRESH_TOKEN = process.env.GOOGLE_REFRESH_TOKEN;
 // IDs de los Calendarios
 const CALENDAR_RESERVA_ID = process.env.GOOGLE_CALENDAR_RESERVA_ID;
 const CALENDAR_RETIRO_ID = process.env.GOOGLE_CALENDAR_RETIRO_ID;
+const CALENDAR_DESECHABLE_ID = process.env.GOOGLE_CALENDAR_DESECHABLE_ID;
 
-if (!CALENDAR_RESERVA_ID || !CALENDAR_RETIRO_ID) {
-    console.error('CRITICAL: GOOGLE_CALENDAR_RESERVA_ID or GOOGLE_CALENDAR_RETIRO_ID is not defined in environment variables.');
+if (!CALENDAR_RESERVA_ID || !CALENDAR_RETIRO_ID || !CALENDAR_DESECHABLE_ID) {
+    console.error('CRITICAL: One or more GOOGLE_CALENDAR IDs are not defined in environment variables.');
 }
 
 const oauth2Client = new google.auth.OAuth2(
@@ -40,6 +41,7 @@ export async function syncGoogleContact(data: {
     eventDate?: string;
     quoteUrl?: string;
     confirmed?: boolean;
+    noteLabel?: string;
 }) {
     if (!data.email && !data.resourceName && !data.phone) return null;
 
@@ -136,7 +138,7 @@ export async function syncGoogleContact(data: {
                 dateFormatted = dateFormatted.split('-').reverse().join('/');
             }
 
-            const label = data.confirmed ? 'Evento (Confirmado)' : 'Evento';
+            const label = data.noteLabel || (data.confirmed ? 'Evento (Confirmado)' : 'Evento');
             const linkStr = data.quoteUrl ? ` - ${data.quoteUrl}` : '';
             newNoteEntry = `${label}: ${dateFormatted}${linkStr}`;
         }
@@ -254,4 +256,4 @@ export async function syncGoogleEvent(calendarId: string, event: {
     }
 }
 
-export { CALENDAR_RESERVA_ID, CALENDAR_RETIRO_ID };
+export { CALENDAR_RESERVA_ID, CALENDAR_RETIRO_ID, CALENDAR_DESECHABLE_ID };

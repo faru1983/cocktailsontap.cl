@@ -10,23 +10,31 @@ export default async function ProductsPage() {
         .select('*')
         .order('display_order', { ascending: true });
 
+    // Fetch measurement units
+    const { data: units } = await db
+        .from('measurement_units')
+        .select('*')
+        .order('display_order', { ascending: true });
+
     // Fetch products with their prices
     const { data: products } = await db
         .from('products')
         .select(`
             *,
             categories(name),
-            product_prices(*)
+            product_prices(
+                *,
+                measurement_units(*)
+            )
         `)
         .order('display_order', { ascending: true });
 
     return (
         <div style={{ paddingBottom: '40px' }}>
-
-
             <ProductsClient 
                 products={products || []} 
-                categories={categories || []} 
+                categories={categories || []}
+                measurementUnits={units || []}
             />
         </div>
     );

@@ -1,5 +1,12 @@
 import { z } from 'zod';
 
+export interface MeasurementUnit {
+    id: string;
+    name: string;
+    abbreviation: string;
+    is_active: boolean;
+}
+
 export interface SupabaseProduct {
     id: string;
     name: string;
@@ -8,13 +15,27 @@ export interface SupabaseProduct {
     categories: { name: string } | null;
     product_prices: {
         size: string;
+        size_value: number | null;
+        unit_id: string | null;
+        is_disposable: boolean | null;
         price: number;
         offer_price: number | null;
+        display_order: number | null;
+        is_active: boolean;
+        measurement_units?: {
+            id: string;
+            name: string;
+            abbreviation: string;
+        } | null;
     }[];
 }
 
 export interface ProductPrice {
     size: string;
+    sizeValue: number;
+    unit: string;
+    unitId: string | null;
+    isDisposable: boolean;
     price: number;
     offerPrice: number;
 }
@@ -35,7 +56,14 @@ export interface CocktailForWizard {
     category: string;
     desc: string;
     image: string;
-    prices: Record<string, { price: number; offerPrice: number }>;
+    prices: Record<string, { 
+        price: number; 
+        offerPrice: number;
+        sizeValue: number;
+        unit: string;
+        unitId: string | null;
+        isDisposable: boolean;
+    }>;
 }
 
 export interface EventType {
@@ -48,6 +76,7 @@ export interface Comuna {
     name: string;
     cost: number | null;
     freeFrom: number | null;
+    directSaleDeliveryCost: number | null;
 }
 
 export interface WizardSelection {
@@ -59,6 +88,7 @@ export interface WizardSelection {
 
 export interface WizardState {
     step: number;
+    serviceType: 'event' | 'direct' | '';
     eventData: {
         type: string;
         otherType: string;
@@ -91,13 +121,16 @@ export interface CartItem {
     productId: string;
     productName: string;
     size: string;
+    sizeValue: number;
+    unitId: string | null;
+    isDisposable: boolean;
     price: number;
     offerPrice: number;
     quantity: number;
 }
 
 export interface ICart {
-    addItem: (productId: string, productName: string, size: string, price: number, offerPrice: number) => void;
+    addItem: (productId: string, productName: string, size: string, price: number, offerPrice: number, sizeValue: number, unitId: string | null, isDisposable: boolean) => void;
     removeItem: (productId: string, size: string) => void;
     updateQuantity: (productId: string, size: string, quantity: number) => void;
     getQuantity: (productId: string, size: string) => number;
@@ -122,6 +155,9 @@ export interface QuoteItem {
     product_id: string | null;
     product_name: string;
     size: string;
+    size_value: number;
+    unit_id: string | null;
+    is_disposable: boolean;
     quantity: number;
     price_at_time: number;
     offer_price_at_time: number;
@@ -191,7 +227,7 @@ export const CreateQuoteSchema = z.object({
             comments: z.string().nullable().optional().or(z.literal('')),
         }),
         eventData: z.object({
-            type: z.string(),
+            type: z.string().nullable().optional().or(z.literal('')),
             otherType: z.string().nullable().optional().or(z.literal('')),
             date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Fecha inválida'),
             startTime: z.string().nullable().optional().or(z.literal('')),
@@ -199,8 +235,8 @@ export const CreateQuoteSchema = z.object({
             pickupTime: z.string().nullable().optional().or(z.literal('')),
         }),
         consumption: z.object({
-            guests: z.number().min(1),
-            drinksPerPerson: z.number(),
+            guests: z.number().nullable().optional().or(z.number().min(0)),
+            drinksPerPerson: z.number().nullable().optional().or(z.number().min(0)),
         }),
         selections: z.array(z.object({
             id: z.string(),
@@ -234,6 +270,9 @@ export const ConfirmQuoteSchema = z.object({
         product_id: z.string().nullable(),
         product_name: z.string(),
         size: z.string(),
+        size_value: z.number().optional(),
+        unit_id: z.string().nullable().optional(),
+        is_disposable: z.boolean().optional(),
         quantity: z.number().min(1),
         price_at_time: z.number(),
         offer_price_at_time: z.number(),

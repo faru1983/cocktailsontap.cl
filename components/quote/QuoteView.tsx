@@ -79,10 +79,33 @@ export default function QuoteView({ quote, comunas, availableCocktails, categori
 
     // Lógica de Muro de Coctelería
     const canHaveMuro = useMemo(() => {
-        const totalLiters = items.reduce((acc, item) => acc + (getSizeLiters(item.size) * item.quantity), 0);
-        const has5L = items.some(item => item.size.includes('5L') && item.quantity > 0);
-        return totalLiters >= 30 && !has5L;
-    }, [items]);
+        let liters = 0;
+        let hasIncompatible = false;
+
+        items.forEach(item => {
+            const cocktail = availableCocktails.find(c => c.id === item.product_id);
+            const priceData = cocktail?.prices[item.size];
+
+            if (priceData && priceData.unit === 'L') {
+                liters += priceData.sizeValue * item.quantity;
+                if (priceData.sizeValue === 5) hasIncompatible = true;
+            } else if (!priceData) {
+                // Fallback structured data in item (if priceData not found because product was deleted)
+                if (item.unit_id || item.size_value) {
+                    // We don't have the unit abbreviation here easily without a join, 
+                    // but we can check if it's likely liters (legacy was mostly L)
+                    // or just check our new is_disposable flag (which indicates 5L usually)
+                    liters += (item.size_value || 0) * item.quantity;
+                    if (item.is_disposable || item.size_value === 5) hasIncompatible = true;
+                } else if (item.size.includes('5L')) {
+                    // Fallback para items guardados sin metadata legacy
+                    hasIncompatible = true;
+                }
+            }
+        });
+
+        return liters >= 30 && !hasIncompatible;
+    }, [items, availableCocktails]);
 
     // Auto-ajuste de dispensador (Solo en borrador para validación del cliente)
     useEffect(() => {
@@ -101,7 +124,23 @@ export default function QuoteView({ quote, comunas, availableCocktails, categori
         items.forEach(item => {
             totalNormal += item.price_at_time * item.quantity;
             totalOffer += item.offer_price_at_time * item.quantity;
-            totalLiters += getSizeLiters(item.size) * item.quantity;
+
+            // Buscar el cocktail y el precio estructurado para obtener la unidad real
+            const cocktail = availableCocktails.find(c => c.id === item.product_id);
+            const priceData = cocktail?.prices[item.size];
+
+            if (priceData && priceData.unit === 'L') {
+                totalLiters += priceData.sizeValue * item.quantity;
+            } else if (!priceData) {
+                // Use structured data directly from the item if available
+                if (item.size_value) {
+                    // Since we don't have the unit abbreviation, we assume it's liters if it has a value 
+                    // (most products are liters, units like 'un' don't reach here usually)
+                    totalLiters += item.size_value * item.quantity;
+                } else {
+                    totalLiters += getSizeLiters(item.size) * item.quantity;
+                }
+            }
         });
 
         // Recalcular envío dinámicamente
@@ -131,14 +170,17 @@ export default function QuoteView({ quote, comunas, availableCocktails, categori
         const installationCost = dispenser === 'muro' ? MURO_INSTALLATION_COST : 0;
         const totalFinal = totalOffer + shipping + (isDraft ? installationCost : quote.installation_cost) - (quote.manual_discount || 0);
         const totalDiscount = totalNormal - totalOffer;
+        const totalCocktails = totalLiters * 5;
 
-        return { totalNormal, totalOffer, totalFinal, totalLiters, shipping, totalDiscount, installationCost };
+        return { totalNormal, totalOffer, totalFinal, totalLiters, totalCocktails, shipping, totalDiscount, installationCost };
     };
 
     const totals = calculateTotals();
     const totalPaid = (quote.payments || []).reduce((sum: number, p: any) => sum + (Number(p.amount) || 0), 0);
-    const balance = totals.totalFinal - totalPaid;
+    const isDesechable = dispenser === 'desechable';
     const halfAmount = totals.totalFinal / 2;
+    const advanceAmount = isDesechable ? totals.totalFinal : halfAmount;
+    const advancePercentText = isDesechable ? '100%' : '50%';
     const isSameDayPickup = pickupDate === eventDate;
 
     const validateAllFields = () => {
@@ -213,6 +255,7 @@ export default function QuoteView({ quote, comunas, availableCocktails, categori
                 totalOfferPrice: i.offer_price_at_time * i.quantity
             })),
             totalLiters: totals.totalLiters,
+            totalCocktails: totals.totalCocktails,
             totalNormalPrice: totals.totalNormal,
             totalOfferPrice: totals.totalOffer,
             totalDiscount: totals.totalDiscount,
@@ -241,9 +284,10 @@ export default function QuoteView({ quote, comunas, availableCocktails, categori
             startTime: startTime,
             formattedPickupDate: pickupDate ? formatEventDate(pickupDate) : undefined,
             pickupTime: pickupTime,
-            comments: comments
+            comments: comments,
+            isDirect: isDesechable
         };
-    }, [quote.client_name, quote.client_lastname, quote.client_email, phone, address, comuna, comunaOther, eventType, otherType, eventTypes, guests, eventDate, startTime, pickupDate, pickupTime, comments]);
+    }, [quote.client_name, quote.client_lastname, quote.client_email, phone, address, comuna, comunaOther, eventType, otherType, eventTypes, guests, eventDate, startTime, pickupDate, pickupTime, comments, isDesechable]);
 
     // 1. Mapeamos availableCocktails a Product (para el modal)
     const mappedProducts: Product[] = useMemo(() => availableCocktails.map(c => ({
@@ -252,17 +296,23 @@ export default function QuoteView({ quote, comunas, availableCocktails, categori
         description: c.desc,
         image: c.image,
         category: c.category,
-        sizes: Object.entries(c.prices).map(([size, p]) => ({
-            size,
-            price: p.price,
-            offerPrice: p.offerPrice
-        }))
-    })), [availableCocktails]);
+        sizes: Object.entries(c.prices)
+            .filter(([size]) => isDesechable ? size.includes('desechable') : !size.includes('desechable'))
+            .map(([size, p]) => ({
+                size,
+                price: p.price,
+                offerPrice: p.offerPrice,
+                sizeValue: p.sizeValue,
+                unitId: p.unitId,
+                isDisposable: p.isDisposable,
+                unit: p.unit
+            }))
+    })), [availableCocktails, isDesechable]);
 
 
     // 2. Definimos el cart para ProductCatalog
     const quoteCart: ICart = {
-        addItem: (productId, productName, size, price, offerPrice) => {
+        addItem: (productId, productName, size, price, offerPrice, sizeValue, unitId, isDisposable) => {
             setItems(prev => {
                 const existing = prev.find(i => i.product_id === productId && i.size === size);
                 if (existing) {
@@ -274,6 +324,9 @@ export default function QuoteView({ quote, comunas, availableCocktails, categori
                     product_id: productId,
                     product_name: productName,
                     size: size,
+                    size_value: sizeValue,
+                    unit_id: unitId,
+                    is_disposable: isDisposable,
                     quantity: 1,
                     price_at_time: price,
                     offer_price_at_time: offerPrice
@@ -305,6 +358,9 @@ export default function QuoteView({ quote, comunas, availableCocktails, categori
                     product_id: productId,
                     product_name: cocktail.name,
                     size: size,
+                    size_value: prices.sizeValue,
+                    unit_id: prices.unitId,
+                    is_disposable: prices.isDisposable,
                     quantity: quantity,
                     price_at_time: prices.price,
                     offer_price_at_time: prices.offerPrice
@@ -370,12 +426,12 @@ export default function QuoteView({ quote, comunas, availableCocktails, categori
                 </div>
                 <h1 className="text-3xl font-black text-brand-text mb-3 tracking-tight">¡Reserva confirmada!</h1>
                 <p className="text-brand-text-muted text-[1.05rem] mb-8 max-w-md mx-auto leading-relaxed">
-                    Te enviamos un email con todos los detalles y las instrucciones para el abono del 50%.
+                    Te enviamos un email con todos los detalles y las instrucciones para el pago del {advancePercentText}.
                 </p>
                 <div className="bg-green-50 border-2 border-green-200 rounded-3xl p-8 max-w-sm mx-auto text-left shadow-lg overflow-hidden relative group">
                     <div className="absolute top-0 right-0 w-32 h-32 bg-green-200/20 rounded-full -mr-16 -mt-16" />
-                    <p className="text-green-800 font-black text-center mb-1 uppercase tracking-widest text-[0.7rem]">Monto a depositar (50%)</p>
-                    <p className="text-green-600 font-black text-4xl text-center mb-6">{formatCurrency(halfAmount)}</p>
+                    <p className="text-green-800 font-black text-center mb-1 uppercase tracking-widest text-[0.7rem]">Monto a depositar ({advancePercentText})</p>
+                    <p className="text-green-600 font-black text-4xl text-center mb-6">{formatCurrency(advanceAmount)}</p>
                     <div className="text-[0.9rem] text-green-800 space-y-2 border-t border-green-200 pt-6">
                         <p className="flex justify-between"><strong>Banco:</strong> <span>Mercado Pago</span></p>
                         <p className="flex justify-between"><strong>Cuenta Vista:</strong> <span>1098081647</span></p>
@@ -392,7 +448,9 @@ export default function QuoteView({ quote, comunas, availableCocktails, categori
                     >
                         <Copy className="w-4 h-4" /> Copiar Datos de Cuenta
                     </button>
-                    <p className="text-[0.8rem] text-green-700 mt-4 text-center italic opacity-80 underline underline-offset-4 decoration-green-300">El 50% restante se paga el día del montaje.</p>
+                    {!isDesechable && (
+                        <p className="text-[0.8rem] text-green-700 mt-4 text-center italic opacity-80 underline underline-offset-4 decoration-green-300">El 50% restante se paga el día del montaje.</p>
+                    )}
                 </div>
 
                 {/* Link Card de Seguimiento */}
@@ -432,6 +490,8 @@ export default function QuoteView({ quote, comunas, availableCocktails, categori
             </div>
         );
     }
+
+    const balance = totals.totalFinal - totalPaid;
 
     return (
         <div className="flex flex-col gap-4 sm:gap-6">
@@ -533,7 +593,7 @@ export default function QuoteView({ quote, comunas, availableCocktails, categori
                     {balance > 0 && (
                         <div className="mt-8 p-6 bg-amber-50 rounded-[1.5rem] border-2 border-dashed border-amber-200 text-center">
                             <p className="text-[0.8rem] text-amber-800 font-bold mb-4">
-                                Recuerda que para asegurar tu reserva debes haber abonado al menos el 50% ({formatCurrency(totals.totalFinal / 2)}).
+                                Recuerda que para asegurar tu reserva debes haber abonado al menos el {advancePercentText} ({formatCurrency(advanceAmount)}).
                             </p>
                             <button 
                                 onClick={() => {
@@ -926,12 +986,14 @@ export default function QuoteView({ quote, comunas, availableCocktails, categori
 
                         <div className="text-center sm:text-left relative z-10">
                             <p className="text-[0.7rem] font-black text-brand-text-muted uppercase tracking-[0.2em] mb-2 flex items-center justify-center sm:justify-start gap-2">
-                                <Clock className="w-3.5 h-3.5" /> Abono para confirmar (50%)
+                                <Clock className="w-3.5 h-3.5" /> Abono para confirmar ({advancePercentText})
                             </p>
-                            <p className="text-4xl font-black text-brand-text tracking-tight">{formatCurrency(halfAmount)}</p>
-                            <p className="text-[0.85rem] text-brand-text-muted mt-2 font-medium">
-                                El monto restante se abona el día del montaje.
-                            </p>
+                            <p className="text-4xl font-black text-brand-text tracking-tight">{formatCurrency(advanceAmount)}</p>
+                            {!isDesechable && (
+                                <p className="text-[0.85rem] text-brand-text-muted mt-2 font-medium">
+                                    El monto restante se abona el día del montaje.
+                                </p>
+                            )}
                         </div>
 
                         <div className="w-full sm:w-auto relative z-10">
@@ -975,7 +1037,7 @@ export default function QuoteView({ quote, comunas, availableCocktails, categori
                             {/* 1. Datos de Transferencia (Prioridad Alta) */}
                             <div className="space-y-4">
                                 <h3 className="text-[0.75rem] font-black text-brand-text flex items-center gap-2 uppercase tracking-widest">
-                                    <CreditCard className="w-4 h-4 text-primary" /> 1. Datos para el Abono (50%)
+                                    <CreditCard className="w-4 h-4 text-primary" /> 1. Datos para el Abono ({advancePercentText})
                                 </h3>
                                 <div className="bg-slate-50 border-2 border-brand-border rounded-[1.75rem] p-6 relative group overflow-hidden shadow-sm">
                                     <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
@@ -1002,31 +1064,49 @@ export default function QuoteView({ quote, comunas, availableCocktails, categori
                             {/* 2. Resumen del Monto */}
                             <div className="text-center py-2">
                                 <p className="text-brand-text-muted text-[0.7rem] font-black uppercase tracking-[0.2em] mb-1">Monto del Abono</p>
-                                <p className="text-primary font-black text-5xl tracking-tighter">{formatCurrency(halfAmount)}</p>
+                                <p className="text-primary font-black text-5xl tracking-tighter">{formatCurrency(advanceAmount)}</p>
                             </div>
 
                             {/* 3. Contrato de Servicio con Scroll Propio */}
                             <div className="space-y-4">
                                 <h3 className="text-[0.75rem] font-black text-brand-text flex items-center gap-2 uppercase tracking-widest">
-                                    <FileText className="w-4 h-4 text-primary" /> 2. Contrato de Servicio
+                                    <FileText className="w-4 h-4 text-primary" /> 2. {isDesechable ? 'Términos de Despacho' : 'Contrato de Servicio'}
                                 </h3>
                                 <div className="bg-slate-50 border-2 border-brand-border rounded-2xl overflow-hidden shadow-inner">
                                     <div className="p-6 text-[0.85rem] text-brand-text-muted leading-relaxed bg-white/50">
-                                        <div className="text-center font-black mb-6 uppercase tracking-[0.3em] border-b-2 border-brand-border/30 pb-3 text-brand-text text-[0.75rem]">CONTRATO DE SERVICIO</div>
-                                        <p className="mb-4">
-                                            Entre <strong>Cocktails on Tap Chile</strong>, en adelante “El Arrendador”, y don/doña: <strong>{quote.client_name} {lastName}</strong>, en adelante “El Arrendatario”, se acuerda lo siguiente:
-                                        </p>
-                                        <p className="font-black text-brand-text mb-2 mt-4">1. Objeto del contrato</p>
-                                        <p className="mb-4">El Arrendador proporcionará al Arrendatario un servicio de cócteles listos para servir en formato autoservicio, incluyendo barriles, dispensadores y cristalería.</p>
-                                        <p className="font-black text-brand-text mb-2">2. Responsabilidad por daños</p>
-                                        <ul className="list-disc pl-5 mb-4 space-y-2">
-                                            <li>$1.000 (mil pesos) por vaso extraviado o dañado.</li>
-                                            <li>$2.000 (dos mil pesos) por copa extraviada o dañada.</li>
-                                            <li>Hasta $500.000 (quinientos mil pesos) por dispensador extraviado o dañado.</li>
-                                        </ul>
-                                        <p className="font-black text-brand-text mb-2">3. Aceptación y Pago</p>
-                                        <p className="mb-2">Se entiende aceptado al confirmar la reserva mediante el abono del <strong>50% del total</strong>.</p>
-                                        <p>El saldo restante deberá ser cancelado en su totalidad al momento del montaje del equipo.</p>
+                                        
+                                        {!isDesechable ? (
+                                            <>
+                                                <div className="text-center font-black mb-6 uppercase tracking-[0.3em] border-b-2 border-brand-border/30 pb-3 text-brand-text text-[0.75rem]">CONTRATO DE SERVICIO</div>
+                                                <p className="mb-4">
+                                                    Entre <strong>Cocktails on Tap Chile</strong>, en adelante “El Arrendador”, y don/doña: <strong>{quote.client_name} {lastName}</strong>, en adelante “El Arrendatario”, se acuerda lo siguiente:
+                                                </p>
+                                                <p className="font-black text-brand-text mb-2 mt-4">1. Objeto del contrato</p>
+                                                <p className="mb-4">El Arrendador proporcionará al Arrendatario un servicio de cócteles listos para servir en formato autoservicio, incluyendo barriles, dispensadores y cristalería.</p>
+                                                <p className="font-black text-brand-text mb-2">2. Responsabilidad por daños</p>
+                                                <ul className="list-disc pl-5 mb-4 space-y-2">
+                                                    <li>$1.000 (mil pesos) por vaso extraviado o dañado.</li>
+                                                    <li>$2.000 (dos mil pesos) por copa extraviada o dañada.</li>
+                                                    <li>Hasta $500.000 (quinientos mil pesos) por dispensador extraviado o dañado.</li>
+                                                </ul>
+                                                <p className="font-black text-brand-text mb-2">3. Aceptación y Pago</p>
+                                                <p className="mb-2">Se entiende aceptado al confirmar la reserva mediante el abono del <strong>50% del total</strong>.</p>
+                                                <p>El saldo restante deberá ser cancelado en su totalidad al momento del montaje del equipo.</p>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <div className="text-center font-black mb-6 uppercase tracking-[0.3em] border-b-2 border-brand-border/30 pb-3 text-brand-text text-[0.75rem]">TÉRMINOS DE COMPRA DIRECTA</div>
+                                                <p className="mb-4">
+                                                    Servicio Delivery de formato Barbón Desechable de 5L a nombre de <strong>{quote.client_name} {lastName}</strong>.
+                                                </p>
+                                                <p className="font-black text-brand-text mb-2 mt-4">1. Despacho y Entrega</p>
+                                                <p className="mb-4">El despacho se realizará en la fecha seleccionada. Nos pondremos en contacto contigo para coordinar el horario de llegada.</p>
+                                                <p className="font-black text-brand-text mb-2">2. Pago del Pedido</p>
+                                                <p className="mb-2">El pago íntegro (100%) es necesario para confirmar y agendar la preparación de tus cócteles, asegurando nuestra disponibilidad para esa fecha.</p>
+                                                <p>El formato 5L es completamente desechable e incluye una válvula dispensadora en el mismo producto; no requiere equipo retornable.</p>
+                                            </>
+                                        )}
+                                        
                                     </div>
                                     <div className="p-4 bg-primary/5 flex items-center gap-3 border-t border-brand-border">
                                         <label className="flex items-center gap-3 cursor-pointer group w-full">

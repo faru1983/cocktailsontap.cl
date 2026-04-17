@@ -7,6 +7,7 @@ import { revalidatePath, revalidateTag } from 'next/cache';
 import { FROM_EMAIL, SITE_URL } from '@/lib/config';
 import { GoogleSyncService } from '@/lib/services/googleSyncService';
 import { validateSession } from '@/lib/adminAuth';
+import type { Quote, QuoteItem } from '@/lib/types';
 
 async function checkAuth() {
     const isAuth = await validateSession();
@@ -59,8 +60,24 @@ export async function updateQuoteItemsAdmin(
         const incomingIds = data.items.map(i => i.id).filter(Boolean);
         const idsToDelete = existingIds.filter(id => !incomingIds.includes(id));
 
-        // 2. Perform DB operations in parallel
-        const subtotal = data.items.reduce((acc, item) => acc + (item.offer_price_at_time * item.quantity), 0);
+        // 2. Perform DB operations with accurate volume calculation
+        const { fetchAllProductData } = await import('@/lib/serverData');
+        const cocktails = await fetchAllProductData();
+        
+        let totalLiters = 0;
+        let subtotal = 0;
+
+        data.items.forEach(item => {
+            subtotal += item.offer_price_at_time * item.quantity;
+            
+            // Calculate liters using structured price metadata
+            const cocktail = cocktails.find(c => c.id === item.product_id);
+            const priceData = cocktail?.prices[item.size];
+            if (priceData && priceData.unit === 'L') {
+                totalLiters += priceData.sizeValue * item.quantity;
+            }
+        });
+
         const newTotal = subtotal + Number(data.shipping_cost) + Number(data.installation_cost) - Number(data.manual_discount);
 
         const promises: Promise<any>[] = [];
@@ -82,6 +99,7 @@ export async function updateQuoteItemsAdmin(
         // Update Quote Total and Costs
         promises.push(db.from('quotes').update({
             total_price: newTotal,
+            total_liters: totalLiters,
             manual_discount: data.manual_discount,
             shipping_cost: data.shipping_cost,
             installation_cost: data.installation_cost,

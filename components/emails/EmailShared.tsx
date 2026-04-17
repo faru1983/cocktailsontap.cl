@@ -96,7 +96,7 @@ export const ItemsTable: React.FC<{ items: QuoteItem[] }> = ({ items }) => (
   </table>
 );
 
-export const YieldsSection: React.FC<{ quote: Quote }> = ({ quote }) => {
+export const YieldsSection: React.FC<{ quote: Quote, isDirect?: boolean }> = ({ quote, isDirect = false }) => {
   const totalLiters = quote.total_liters ?? 0;
   const totalDrinks = totalLiters * 5;
   const guests = Math.max(quote.guests, 1);
@@ -108,28 +108,32 @@ export const YieldsSection: React.FC<{ quote: Quote }> = ({ quote }) => {
       <table width="100%" cellPadding="0" cellSpacing="0">
         <tbody>
           <tr>
-            <td style={{ width: '33%', padding: '0 4px' }}>
+            <td style={{ width: isDirect ? '50%' : '33%', padding: '0 4px' }}>
               <div style={{ fontSize: '18px', fontWeight: 900, color: brandColor }}>{totalLiters}L</div>
               <div style={{ fontSize: '10px', color: gray, textTransform: 'uppercase', fontWeight: 700 }}>Volumen Total</div>
             </td>
-            <td style={{ width: '34%', padding: '0 4px', borderLeft: `1px solid ${borderColor}`, borderRight: `1px solid ${borderColor}` }}>
+            <td style={{ width: isDirect ? '50%' : '34%', padding: '0 4px', borderLeft: `1px solid ${borderColor}`, borderRight: isDirect ? 'none' : `1px solid ${borderColor}` }}>
               <div style={{ fontSize: '18px', fontWeight: 900, color: brandColor }}>{totalDrinks}</div>
               <div style={{ fontSize: '10px', color: gray, textTransform: 'uppercase', fontWeight: 700 }}>Cócteles Totales</div>
             </td>
-            <td style={{ width: '33%', padding: '0 4px' }}>
-              <div style={{ fontSize: '18px', fontWeight: 900, color: brandColor }}>{avgDrinks}</div>
-              <div style={{ fontSize: '10px', color: gray, textTransform: 'uppercase', fontWeight: 700 }}>Tragos x Persona</div>
-            </td>
+            {!isDirect && (
+              <td style={{ width: '33%', padding: '0 4px' }}>
+                <div style={{ fontSize: '18px', fontWeight: 900, color: brandColor }}>{avgDrinks}</div>
+                <div style={{ fontSize: '10px', color: gray, textTransform: 'uppercase', fontWeight: 700 }}>Tragos x Persona</div>
+              </td>
+            )}
           </tr>
         </tbody>
       </table>
-      <Text style={{ color: gray, fontSize: '11px', margin: '12px 0 0', fontStyle: 'italic' }}>*Rendimiento basado en vasos estándar con 200ml de cóctel.</Text>
+      {!isDirect && <Text style={{ color: gray, fontSize: '11px', margin: '12px 0 0', fontStyle: 'italic' }}>*Rendimiento basado en vasos estándar con 200ml de cóctel.</Text>}
     </Section>
   );
 };
 
-export const PriceBreakdownSection: React.FC<{ quote: Quote }> = ({ quote }) => {
-  const dispenserLabel = quote.dispenser === 'muro' ? 'Muro de Coctelería' : 'Dispensador Portátil';
+export const PriceBreakdownSection: React.FC<{ quote: Quote, isDirect?: boolean }> = ({ quote, isDirect = false }) => {
+  let dispenserLabel = quote.dispenser === 'muro' ? 'Muro de Coctelería' : 'Dispensador Portátil';
+  if (isDirect || quote.dispenser === 'desechable') dispenserLabel = 'Barril Desechable';
+  
   const hasDiscount = quote.total_normal_price > quote.total_offer_price;
   const isOtra = quote.comuna_name === 'Otra';
 
@@ -169,10 +173,12 @@ export const PriceBreakdownSection: React.FC<{ quote: Quote }> = ({ quote }) => 
           <td style={{ fontSize: '13px', color: gray, padding: '3px 0' }}>Transporte</td>
           <td style={{ fontSize: '13px', color: shippingColor, textAlign: 'right' }}>{shippingLabel}</td>
         </tr>
-        <tr>
-          <td style={{ fontSize: '13px', color: gray, padding: '3px 0' }}>{dispenserLabel}</td>
-          <td style={{ fontSize: '13px', color: quote.installation_cost === 0 ? greenColor : gray, textAlign: 'right' }}>{quote.installation_cost === 0 ? '¡Gratis!' : formatCurrency(quote.installation_cost)}</td>
-        </tr>
+        {!isDirect && (
+          <tr>
+            <td style={{ fontSize: '13px', color: gray, padding: '3px 0' }}>{dispenserLabel}</td>
+            <td style={{ fontSize: '13px', color: quote.installation_cost === 0 ? greenColor : gray, textAlign: 'right' }}>{quote.installation_cost === 0 ? '¡Gratis!' : formatCurrency(quote.installation_cost)}</td>
+          </tr>
+        )}
         <tr style={{ borderTop: `1px solid ${borderColor}` }}>
           <td style={{ fontSize: '17px', color: brandDark, fontWeight: 900, padding: '10px 0 0' }}>TOTAL</td>
           <td style={{ fontSize: '17px', color: brandDark, fontWeight: 900, textAlign: 'right', padding: '10px 0 0' }}>{formatCurrency(quote.total_price)}</td>
@@ -182,7 +188,8 @@ export const PriceBreakdownSection: React.FC<{ quote: Quote }> = ({ quote }) => 
   );
 };
 
-export const ReservationInfoSection: React.FC<{ quote: Quote }> = ({ quote }) => {
+export const ReservationInfoSection: React.FC<{ quote: Quote, isDirect?: boolean }> = ({ quote, isDirect = false }) => {
+  const directMode = isDirect || (quote as any).isDirect || quote.dispenser === 'desechable';
   const comunaDisplay = quote.comuna_name === 'Otra' ? (quote.comuna_other || '') : (quote.comuna_name || '');
   const fullAddress   = [quote.client_address, comunaDisplay].filter(Boolean).join(', ');
   const eventDate     = quote.event_date
@@ -207,9 +214,9 @@ export const ReservationInfoSection: React.FC<{ quote: Quote }> = ({ quote }) =>
             <Row label="Email" value={quote.client_email || ''} />
             {quote.client_phone && <Row label="Celular" value={quote.client_phone} />}
             {fullAddress && <Row label="Dirección" value={fullAddress} />}
-            <Row label="Evento" value={`${quote.event_type_other || quote.event_type_id || 'No especificado'} • ${quote.guests} pers.`} />
-            <Row label="Fecha" value={`${eventDate}${quote.start_time && quote.start_time !== '--:--' ? ` • ${quote.start_time}` : ''}`} />
-            {quote.pickup_date && <Row label="Retiro" value={`${new Date(quote.pickup_date + 'T12:00:00').toLocaleDateString('es-CL', { day: '2-digit', month: 'long', year: 'numeric' })}${quote.pickup_time ? ` • ${quote.pickup_time}` : ''}`} />}
+            {!directMode && <Row label="Evento" value={`${quote.event_type_other || quote.event_type_id || 'No especificado'} • ${quote.guests} pers.`} />}
+            <Row label={directMode ? "Fecha Despacho" : "Fecha"} value={`${eventDate}${(!directMode && quote.start_time && quote.start_time !== '--:--') ? ` • ${quote.start_time}` : ''}`} />
+            {!directMode && quote.pickup_date && <Row label="Retiro" value={`${new Date(quote.pickup_date + 'T12:00:00').toLocaleDateString('es-CL', { day: '2-digit', month: 'long', year: 'numeric' })}${quote.pickup_time ? ` • ${quote.pickup_time}` : ''}`} />}
           </tbody>
         </table>
       </Section>

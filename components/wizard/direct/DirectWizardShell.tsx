@@ -6,19 +6,15 @@ import { AlertCircle, ArrowLeft, ArrowRight, Loader2 } from 'lucide-react';
 import { WhatsappIcon } from '@/components/icons';
 import type { CocktailForWizard, EventType, Comuna } from '@/lib/types';
 import { createQuote } from '@/app/actions/createQuote';
-import { SITE_URL, WHATSAPP_URL } from '@/lib/config';
+import { WHATSAPP_URL } from '@/lib/config';
 
-import WizardStep1 from './WizardStep1';
-import WizardStep2 from './WizardStep2';
-import WizardStep3 from './WizardStep3';
-import WizardStep4 from './WizardStep4';
-import WizardStep5 from './WizardStep5';
-import WizardStep6 from './WizardStep6';
-import WizardSuccess from './WizardSuccess';
+import DirectStep1Products from './DirectStep1Products';
+import DirectStep2Delivery from './DirectStep2Delivery';
+import DirectStep3Summary from './DirectStep3Summary';
+import WizardSuccess from '../WizardSuccess';
 
 interface Props {
     cocktails: CocktailForWizard[];
-    eventTypes: EventType[];
     comunas: Comuna[];
     categories: string[];
     initialServiceType?: '' | 'event' | 'direct';
@@ -26,7 +22,7 @@ interface Props {
 
 type SendStatus = 'idle' | 'saving' | 'saved' | 'error';
 
-export default function WizardShell({ cocktails, eventTypes, comunas, categories, initialServiceType }: Props) {
+export default function DirectWizardShell({ cocktails, comunas, categories, initialServiceType }: Props) {
     const wizard = useWizard(cocktails, comunas, categories, initialServiceType);
     const { state } = wizard;
 
@@ -37,22 +33,41 @@ export default function WizardShell({ cocktails, eventTypes, comunas, categories
 
     useEffect(() => {
         wizard.initCategory(categories);
+        // Force dispenser to desechable for direct sale
+        wizard.updateDispenser('desechable');
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [categories]);
 
-    const progress = (state.step / 6) * 100;
+    // Progress adjusted for 3 steps
+    const progress = (state.step / 3) * 100;
 
     const handleNext = () => {
-        const result = wizard.validateStep(state.step);
-        if (result.valid) {
-            setValidationError('');
-            if (state.step === 6) {
-                // Do nothing, it's handled by handleCotizar
-            } else {
-                wizard.goToStep(state.step + 1);
+        // We need custom validation logic here or adapt validateStep
+        let isValid = true;
+        let message = '';
+
+        if (state.step === 1) {
+            if (state.selections.length === 0) {
+                isValid = false; message = 'Selecciona al menos un barril para continuar.';
             }
+        }
+        if (state.step === 2) {
+            const c = state.contact;
+            const e = state.eventData;
+            if (!c.firstName.trim()) { isValid = false; message = 'El nombre es obligatorio.'; }
+            else if (!c.lastName.trim()) { isValid = false; message = 'El apellido es obligatorio.'; }
+            else if (!c.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(c.email)) { isValid = false; message = 'Ingresa un email válido.'; }
+            else if (!c.phone.trim() || c.phone === '+569') { isValid = false; message = 'El celular es obligatorio.'; }
+            else if (!c.comuna.trim()) { isValid = false; message = 'Selecciona la comuna de entrega.'; }
+            else if (!c.address.trim()) { isValid = false; message = 'La dirección de entrega es obligatoria.'; }
+            else if (!e.date.trim()) { isValid = false; message = 'Indica la fecha de entrega.'; }
+        }
+
+        if (isValid) {
+            setValidationError('');
+            wizard.goToStep(state.step + 1);
         } else {
-            setValidationError(result.message ?? '');
+            setValidationError(message);
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
     };
@@ -69,14 +84,11 @@ export default function WizardShell({ cocktails, eventTypes, comunas, categories
             setQuoteToken(result.token);
             setSendStatus('saved');
         } else {
-            setSaveError(result.error ?? 'Error guardando la cotización.');
+            setSaveError(result.error ?? 'Error procesando tu compra.');
             setSendStatus('error');
         }
 
-        // Subir al top para ver el mensaje de confirmación
         window.scrollTo({ top: 0, behavior: 'smooth' });
-
-        // Siempre abrir WhatsApp independiente del resultado del guardado, pasando el token si existe
         wizard.sendWhatsAppQuote(result.token);
     };
 
@@ -85,26 +97,21 @@ export default function WizardShell({ cocktails, eventTypes, comunas, categories
         setQuoteToken(null);
         setValidationError('');
         wizard.reset();
-        // Since step 0 is now the Gateway, we navigate to /cotizar to reload the page state and reset gateway
         window.location.href = '/cotizar';
     };
 
     const renderStep = () => {
+        // Force state step mapping for Direct Sale since we decoupled from WizardStep0 which sits at 0 now. Wait, WizardStep0 will route to here and we'll start at step 1.
         switch (state.step) {
-            case 1: return <WizardStep1 wizard={wizard} eventTypes={eventTypes} comunas={comunas} />;
-            case 2: return <WizardStep2 wizard={wizard} />;
-            case 3: return <WizardStep3 wizard={wizard} cocktails={cocktails} categories={categories} />;
-            case 4: return <WizardStep4 wizard={wizard} cocktails={cocktails} comunas={comunas} />;
-            case 5: return <WizardStep5 wizard={wizard} comunas={comunas} />;
-            case 6: return <WizardStep6 wizard={wizard} cocktails={cocktails} comunas={comunas} />;
-            default: return null;
+            case 1: return <DirectStep1Products wizard={wizard} cocktails={cocktails} categories={categories} />;
+            case 2: return <DirectStep2Delivery wizard={wizard} comunas={comunas} />;
+            case 3: return <DirectStep3Summary wizard={wizard} cocktails={cocktails} comunas={comunas} />;
+            default: return null; // WizardStep0 or success are handled elsewhere or mapped to 1
         }
     };
 
-
     return (
         <div className="flex flex-col min-h-[600px]">
-
             {/* Header / Volver */}
             <div className="w-full max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 mb-6">
                 <button
@@ -127,6 +134,7 @@ export default function WizardShell({ cocktails, eventTypes, comunas, categories
                     </div>
                 </div>
             </div>
+
             {/* Content */}
             <div className="w-full max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-2 md:py-8 flex-1">
                 {validationError && (
@@ -138,9 +146,10 @@ export default function WizardShell({ cocktails, eventTypes, comunas, categories
                     </div>
                 )}
 
-                {state.step === 6 && sendStatus === 'error' && saveError && (
+                {state.step === 3 && sendStatus === 'error' && saveError && (
                     <div className="bg-amber-50 border border-amber-200 text-amber-800 rounded-2xl px-5 py-4 mb-6 text-[0.9rem] animate-slide-up">
-                        <strong>Nota:</strong> {saveError} Tu solicitud igual fue enviada por WhatsApp.
+                        <span className="font-bold">Aviso:</span> {saveError}
+                        <div className="mt-2 opacity-80 text-[0.8rem]">De todas formas puedes intentar enviar la información a través de WhatsApp.</div>
                     </div>
                 )}
 
@@ -154,32 +163,27 @@ export default function WizardShell({ cocktails, eventTypes, comunas, categories
                     ) : (
                         renderStep()
                     )}
-                    {/* Navigation - UI/UX MEJORADO PROFESIONAL */}
+
+                    {/* Navigation - MISMO ESTILO QUE WIZARDSHELL */}
                     {sendStatus !== 'saved' && state.step > 0 && (
                         <div className="mt-12 mb-12 sm:mb-20">
                             <div className="bg-white/50 backdrop-blur-sm border border-brand-border rounded-[2.5rem] p-4 sm:p-6 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-[0_10px_30px_rgba(0,0,0,0.03)] hover:shadow-[0_15px_40px_rgba(0,0,0,0.06)] transition-all duration-500">
                                 <div className="order-2 sm:order-1 w-full sm:w-auto">
-                                    {state.step > 0 && (
-                                        <button
-                                            type="button"
-                                            className="group w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-2xl border-2 border-brand-border text-brand-text-muted font-bold text-[0.95rem] transition-all hover:border-primary/50 hover:text-primary active:scale-[0.98] bg-white/80"
-                                            onClick={() => { 
-                                                setValidationError(''); 
-                                                if (state.step === 5 && state.serviceType === 'direct') {
-                                                    wizard.goToStep(3);
-                                                } else {
-                                                    wizard.goToStep(state.step - 1); 
-                                                }
-                                            }}
-                                        >
-                                            <ArrowLeft className="w-4 h-4 transition-transform group-hover:-translate-x-1" />
-                                            <span>Anterior</span>
-                                        </button>
-                                    )}
+                                    <button
+                                        type="button"
+                                        className="group w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-2xl border-2 border-brand-border text-brand-text-muted font-bold text-[0.95rem] transition-all hover:border-primary/50 hover:text-primary active:scale-[0.98] bg-white/80"
+                                        onClick={() => {
+                                            setValidationError('');
+                                            wizard.goToStep(state.step - 1);
+                                        }}
+                                    >
+                                        <ArrowLeft className="w-4 h-4 transition-transform group-hover:-translate-x-1" />
+                                        <span>Anterior</span>
+                                    </button>
                                 </div>
 
                                 <div className="order-1 sm:order-2 w-full sm:w-auto">
-                                    {state.step < 6 ? (
+                                    {state.step < 3 ? (
                                         <button
                                             type="button"
                                             className="group w-full sm:w-auto inline-flex items-center justify-center gap-3 px-10 py-3.5 rounded-2xl bg-primary text-white font-black text-[1.1rem] transition-all hover:bg-primary-dark active:scale-[0.98] shadow-[0_4px_20px_rgba(226,160,73,0.3)] hover:shadow-[0_8px_30px_rgba(226,160,73,0.4)]"
@@ -198,18 +202,18 @@ export default function WizardShell({ cocktails, eventTypes, comunas, categories
                                             {sendStatus === 'saving' ? (
                                                 <><Loader2 className="w-5 h-5 animate-spin" /> <span>Guardando...</span></>
                                             ) : (
-                                                <><WhatsappIcon className="w-5 h-5" /> <span>Cotizar</span></>
+                                                <><WhatsappIcon className="w-5 h-5" /> <span>Hacer Pedido</span></>
                                             )}
                                         </button>
                                     )}
                                 </div>
                             </div>
-                            
-                            {/* Indicador de ayuda/soporte adicional debajo del nav */}
+
+                            {/* Indicador de ayuda */}
                             <div className="mt-8 text-center animate-fade-in delay-500">
                                 <p className="text-[0.8rem] text-brand-text-muted font-medium italic">
-                                    ¿Necesitas ayuda con tu cotización? 
-                                    <a href={WHATSAPP_URL} target="_blank" className="ml-1.5 text-primary hover:underline font-bold">Háblanos por WhatsApp</a>
+                                    ¿Tienes dudas con tu pedido? 
+                                    <a href={WHATSAPP_URL} target="_blank" className="ml-1.5 text-primary hover:underline font-bold">Consúltanos por WhatsApp</a>
                                 </p>
                             </div>
                         </div>

@@ -103,7 +103,8 @@ export default function CreateQuoteManualClient({ allProducts, comunas, eventTyp
         selections,
         dispenser,
         expandedCocktailId: null,
-        expandedCategoryId: ''
+        expandedCategoryId: '',
+        serviceType: ''
     }), [eventData, consumption, contact, selections, dispenser]);
 
     // Summary Data (Prices, Delivery, Rules)

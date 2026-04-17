@@ -58,16 +58,42 @@ export async function saveProduct(product: any, prices: any[]) {
         }
 
         // 2. Optimized Batch Upsert for all current prices
-        const priceUpdates = prices.map(pr => ({
-            ...pr,
-            product_id: productId
-        }));
+        const priceUpdates = prices.map((pr, index) => {
+            const { measurement_units, ...pClean } = pr; // Remove join data if present
+            return {
+                ...pClean,
+                product_id: productId,
+                display_order: index // Use the array index as the order
+            };
+        });
         
         if (priceUpdates.length > 0) {
             const { error: priceErr } = await db.from('product_prices').upsert(priceUpdates);
             if (priceErr) throw new Error('Error al guardar precios: ' + priceErr.message);
         }
     }
+    revalidatePath('/admin/products');
+}
+
+export async function saveUnit(unit: any) {
+    await checkAuth();
+    const db = createServerClient();
+    const { id, ...data } = unit;
+    
+    if (id) {
+        const { error } = await db.from('measurement_units').update(data).eq('id', id);
+        if (error) throw new Error(error.message);
+    } else {
+        const { error } = await db.from('measurement_units').insert(data);
+        if (error) throw new Error(error.message);
+    }
+    revalidatePath('/admin/products');
+}
+
+export async function toggleUnitStatus(id: string, current: boolean) {
+    await checkAuth();
+    const db = createServerClient();
+    await db.from('measurement_units').update({ is_active: !current }).eq('id', id);
     revalidatePath('/admin/products');
 }
 
@@ -78,15 +104,13 @@ export async function toggleProductStatus(id: string, current: boolean) {
     revalidatePath('/admin/products');
 }
 
-export async function reorderItems(type: 'products' | 'categories', updates: { id: string; display_order: number }[]) {
+export async function reorderItems(type: 'products' | 'categories' | 'measurement_units', updates: { id: string; display_order: number }[]) {
     await checkAuth();
     const db = createServerClient();
     
-    // Use parallel updates instead of upsert to avoid NOT NULL violations 
-    // on unrelated columns (like 'name') during a partial update.
     const results = await Promise.all(
         updates.map(u => 
-            db.from(type)
+            db.from(type as any)
               .update({ display_order: u.display_order })
               .eq('id', u.id)
         )
