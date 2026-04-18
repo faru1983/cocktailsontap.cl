@@ -62,7 +62,7 @@ export async function updateQuoteItemsAdmin(
 
         // 2. Perform DB operations with accurate volume calculation
         const { fetchAllProductData } = await import('@/lib/serverData');
-        const cocktails = await fetchAllProductData();
+        const { cocktails } = await fetchAllProductData();
         
         let totalLiters = 0;
         let subtotal = 0;
