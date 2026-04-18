@@ -66,9 +66,9 @@ export async function confirmQuote(input: any): Promise<ConfirmQuoteResult> {
             })),
             eventData: {
                 date: data.event_date,
-                startTime: data.start_time,
-                guests: data.guests,
-                eventType: data.event_type_id,
+                startTime: data.start_time || '',
+                guests: data.guests || 0,
+                eventType: data.event_type_id || '',
             },
             contact: {
                 firstName: quote.client_name,
