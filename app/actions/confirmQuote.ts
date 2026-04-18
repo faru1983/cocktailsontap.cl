@@ -65,10 +65,16 @@ export async function confirmQuote(input: any): Promise<ConfirmQuoteResult> {
                 customPrice: i.offer_price_at_time
             })),
             eventData: {
-                date: data.event_date,
+                type: data.event_type_id || '',
+                otherType: '',
+                date: data.event_date || '',
                 startTime: data.start_time || '',
+                pickupDate: data.pickup_date || '',
+                pickupTime: '',
+            },
+            consumption: {
                 guests: data.guests || 0,
-                eventType: data.event_type_id || '',
+                drinksPerPerson: 3,
             },
             contact: {
                 firstName: quote.client_name,
@@ -78,8 +84,13 @@ export async function confirmQuote(input: any): Promise<ConfirmQuoteResult> {
                 address: data.client_address,
                 comuna: data.comuna_name,
                 otherComuna: data.comuna_other || '',
+                comments: '',
             },
-            dispenser: data.dispenser as any
+            dispenser: data.dispenser as any,
+            step: 0,
+            serviceType: data.dispenser === 'desechable' ? 'direct' : 'event',
+            expandedCocktailId: null,
+            expandedCategoryId: '',
         }, cocktails, comunas);
 
         const totalNormalPrice = summary.totalNormalPrice;

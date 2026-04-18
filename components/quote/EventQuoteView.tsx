@@ -260,7 +260,7 @@ export default function EventQuoteView({ quote, comunas, availableCocktails, cat
             shippingCost: totals.shipping,
             shippingLabel: comuna === 'Otra' && totals.shipping === 0 ? 'Pendiente de factibilidad' : (totals.shipping === 0 ? '¡Gratis!' : formatCurrency(totals.shipping)),
             installationCost: isDraft ? totals.installationCost : quote.installation_cost,
-            dispenserLabel: dispenser === 'muro' ? 'Muro de Coctelería' : (dispenser === 'desechable' ? 'Barril Desechable' : 'Dispensador Portátil'),
+            dispenserLabel: dispenser === 'muro' ? 'Muro de Coctelería' : 'Dispensador Portátil',
             manualDiscount: quote.manual_discount || 0,
             totalPrice: totals.totalFinal,
             guests: guests,

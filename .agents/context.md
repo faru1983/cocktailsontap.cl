@@ -124,6 +124,8 @@ Next.js 16 · React 19 · Tailwind CSS v4 · Supabase · Resend · Google APIs �
   - `lib/types.ts` — Relajado `ConfirmQuoteSchema` para soportar ambos flujos.
   - `app/actions/confirmQuote.ts` — Se corrigió un error de importación (`fetchComunas` no existía), se optimizó la carga de datos y se agregaron fallbacks para propiedades opcionales (`guests`, `startTime`) para evitar errores de tipo en el build.
   - `app/actions/admin/adminActions.ts` — Se corrigió un error de tipo (TypeScript) en el desestructurado de `fetchAllProductData`.
+  - `components/wizard/direct/DirectStep1Products.tsx` y `components/wizard/WizardStep3.tsx` — Se resolvieron problemas de tipado agregando los campos faltantes (`sizeValue`, `unitId`, `isDisposable`, `unit`) en el mapeo de `ProductPrice` hacia `ICart`.
+  - `lib/services/googleSyncService.ts` — Se reemplazaron las llamadas al atributo inexistente `service_type` por la lógica correcta de negocio evaluando `dispenser === 'desechable'`.
 - **Resumen**: Se eliminó el código "spaghetti" que mezclaba eventos y ventas directas en la vista pública de cotizaciones. Ahora cada flujo tiene su propio componente aislado, lo que permite reglas de negocio diferenciadas (como la obligatoriedad de incluir al menos un cóctel en ventas directas) y una experiencia de usuario mucho más limpia y coherente. Se resolvieron errores de compilación críticos tanto en las acciones de cliente como de administración para asegurar el despliegue en Vercel.
 
 ---

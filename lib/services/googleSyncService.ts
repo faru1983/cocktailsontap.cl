@@ -95,9 +95,9 @@ export const GoogleSyncService = {
                  quoteUrl: quoteUrl,
                  confirmed: true,
                  noteLabel: await SettingsService.getResolvedValue(
-                     quote.service_type === 'direct' ? 'google_contacts_direct_sale_note_confirmed_template' : 'google_contacts_note_confirmed_template',
+                     quote.dispenser === 'desechable' ? 'google_contacts_direct_sale_note_confirmed_template' : 'google_contacts_note_confirmed_template',
                      { date_formatted: quote.event_date?.split('-').reverse().join('/') || 'S/F', quote_url: quoteUrl },
-                     quote.service_type === 'direct' ? 'Pedido Directo (Confirmado)' : 'Evento (Confirmado)'
+                     quote.dispenser === 'desechable' ? 'Pedido Directo (Confirmado)' : 'Evento (Confirmado)'
                  )
              });
 
@@ -173,7 +173,7 @@ export const GoogleSyncService = {
                 total_liters: quote.total_liters || '0',
             };
 
-            const isDirectSale = quote.service_type === 'direct';
+            const isDirectSale = quote.dispenser === 'desechable';
 
             const sharedDescription = await SettingsService.getResolvedValue(
                 isDirectSale ? 'calendar_direct_sale_description_template' : 'calendar_event_description_template', 
@@ -193,7 +193,7 @@ export const GoogleSyncService = {
 
             // 1. Create Service/Delivery Event
             if (targetCalendarId && quote.event_date) {
-                const isDirect = quote.service_type === 'direct';
+                const isDirect = quote.dispenser === 'desechable';
 
                 const serviceSummary = await SettingsService.getResolvedValue(
                     isDirect ? 'calendar_direct_sale_summary_template' : (isDesechable ? 'calendar_desechable_summary_template' : 'calendar_event_summary_template'),
