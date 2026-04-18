@@ -115,6 +115,16 @@ Next.js 16 · React 19 · Tailwind CSS v4 · Supabase · Resend · Google APIs �
 - **Infraestructura de Tests**: Se creó la carpeta `/tests` en la raíz y se implementó `test_direct_sale_emails.ts` para disparar pruebas reales de los 4 escenarios de correo (Cliente/Admin, Borrador/Confirmado) vía `Resend`.
 - **UI/UX**: Se simplificó la "Fecha Despacho" en correos directos para mostrar solo la fecha y ocultar la hora, alineándose con el modelo de negocio transaccional.
 
+### 📅 18-04-2026 — Desacople de Vistas Públicas (EventQuoteView vs. DirectQuoteView)
+- **Archivos creados/modificados**:
+  - `components/quote/EventQuoteView.tsx` — Versión especializada para eventos, eliminando lógica de venta directa.
+  - `components/quote/DirectQuoteView.tsx` — Nueva vista simplificada para ventas directas (100% pago, sin muro, términos específicos).
+  - `app/cotizar/[token]/page.tsx` — Implementado "switcher" de componentes basado en el tipo de dispensador.
+  - `app/actions/confirmQuote.ts` — Validación condicional server-side y corrección en la detección de tipo de venta.
+  - `lib/types.ts` — Relajado `ConfirmQuoteSchema` para soportar ambos flujos.
+  - `app/actions/confirmQuote.ts` — Se corrigió un error de importación (`fetchComunas` no existía) y se optimizó la carga de datos.
+- **Resumen**: Se eliminó el código "spaghetti" que mezclaba eventos y ventas directas en la vista pública de cotizaciones. Ahora cada flujo tiene su propio componente aislado, lo que permite reglas de negocio diferenciadas (como la obligatoriedad de incluir al menos un cóctel en ventas directas) y una experiencia de usuario mucho más limpia y coherente. Se resolvió un error de compilación crítico en las acciones de servidor.
+
 ---
 
-*Última actualización: 17-04-2026 (Fin de Sesión)*
+*Última actualización: 18-04-2026 (Fin de Sesión)*

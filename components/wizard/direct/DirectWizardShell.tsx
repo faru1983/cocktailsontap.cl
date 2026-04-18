@@ -49,6 +49,17 @@ export default function DirectWizardShell({ cocktails, comunas, categories, init
         if (state.step === 1) {
             if (state.selections.length === 0) {
                 isValid = false; message = 'Selecciona al menos un barril para continuar.';
+            } else {
+                // Validar que no solo lleve productos de categoría "Otros" (hielo, vasos, etc)
+                const hasMainProduct = state.selections.some(sel => {
+                    const product = cocktails.find(c => c.id === sel.id);
+                    return product && product.category !== 'Otros';
+                });
+
+                if (!hasMainProduct) {
+                    isValid = false;
+                    message = 'Debes seleccionar al menos un barril para continuar (el hielo y decoraciones son productos complementarios).';
+                }
             }
         }
         if (state.step === 2) {

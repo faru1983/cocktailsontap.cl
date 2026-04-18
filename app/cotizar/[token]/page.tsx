@@ -2,7 +2,8 @@ import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import { createServerClient } from '@/lib/supabaseServer';
 import type { Quote, QuoteItem } from '@/lib/types';
-import QuoteView from '@/components/quote/QuoteView';
+import EventQuoteView from '@/components/quote/EventQuoteView';
+import DirectQuoteView from '@/components/quote/DirectQuoteView';
 
 interface Props {
     params: Promise<{ token: string }>;
@@ -40,17 +41,28 @@ export default async function QuoteTokenPage({ params }: Props) {
     }
 
     const quote = data as Quote & { quote_items: QuoteItem[] };
+    const isDirectSale = quote.dispenser === 'desechable';
 
     return (
         <main className="min-h-screen bg-brand-bg py-12 px-4 pb-32">
             <div className="max-w-4xl mx-auto">
-                <QuoteView
-                    quote={quote}
-                    comunas={comunas}
-                    availableCocktails={cocktails}
-                    categories={categories}
-                    eventTypes={eventTypes}
-                />
+                {isDirectSale ? (
+                    <DirectQuoteView
+                        quote={quote}
+                        comunas={comunas}
+                        availableCocktails={cocktails}
+                        categories={categories}
+                        eventTypes={eventTypes}
+                    />
+                ) : (
+                    <EventQuoteView
+                        quote={quote}
+                        comunas={comunas}
+                        availableCocktails={cocktails}
+                        categories={categories}
+                        eventTypes={eventTypes}
+                    />
+                )}
             </div>
         </main>
     );

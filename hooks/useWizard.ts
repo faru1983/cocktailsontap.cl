@@ -131,6 +131,16 @@ export function useWizard(cocktails: CocktailForWizard[], comunas: Comuna[], cat
         }
         if (step === 3) {
             if (state.selections.length === 0) return { valid: false, message: 'Selecciona al menos un cóctel para continuar.' };
+            
+            // Validar que no solo lleve productos de categoría "Otros"
+            const hasMainProduct = state.selections.some(sel => {
+                const product = cocktails.find(c => c.id === sel.id);
+                return product && product.category !== 'Otros';
+            });
+            
+            if (!hasMainProduct) {
+                return { valid: false, message: 'Debes seleccionar al menos un producto principal (Cóctel, Mocktail o Combinado).' };
+            }
         }
         if (step === 4) {
             if (!state.dispenser) return { valid: false, message: 'Selecciona un sistema de dispensación.' };

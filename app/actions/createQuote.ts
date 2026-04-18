@@ -41,6 +41,19 @@ export async function createQuote(input: CreateQuoteInput): Promise<CreateQuoteR
                 return { success: false, error: `Datos de cotización inválidos (${errorMsg}).` };
             }
         }
+        
+        // ─── 1.1 Validación lógica de productos (Zero Trust) ──────────────────
+        // No permitir pedidos que solo contengan productos de la categoría "Otros" (hielo, vasos, etc.)
+        if (cocktails) {
+            const hasMainProduct = state.selections.some(sel => {
+                const product = cocktails.find(c => c.id === sel.id);
+                return product && product.category !== 'Otros';
+            });
+
+            if (!hasMainProduct) {
+                return { success: false, error: 'Debes incluir al menos un producto principal en tu pedido.' };
+            }
+        }
 
         // ─── 2. Upsert Cliente (CRM) ──────────────────────────────────────────
         const clientId = await QuoteService.upsertClient(state);

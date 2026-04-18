@@ -17,7 +17,7 @@ import { QuoteService } from '@/lib/services/quoteService';
 import { GoogleSyncService } from '@/lib/services/googleSyncService';
 import { SettingsService } from '@/lib/services/settingsService';
 import { createServerClient } from '@/lib/supabaseServer';
-import { fetchAllProductData, fetchComunas } from '@/lib/serverData';
+import { fetchAllProductData } from '@/lib/serverData';
 import { calculateSummaryData } from '@/lib/wizardLogic';
 
 interface ConfirmQuoteResult {
@@ -35,6 +35,15 @@ export async function confirmQuote(input: any): Promise<ConfirmQuoteResult> {
         }
 
         const data = validation.data;
+
+        // ─── 1.5 VALIDACIÓN CONDICIONAL (Eventos) ──────────────────────────────
+        if (data.dispenser !== 'desechable') {
+            if (!data.guests || (data.guests && data.guests < 10)) return { success: false, error: 'Mínimo 10 invitados para eventos.' };
+            if (!data.event_type_id) return { success: false, error: 'La temática es obligatoria para eventos.' };
+            if (!data.start_time || data.start_time.length < 4) return { success: false, error: 'La hora de inicio es obligatoria.' };
+            if (!data.pickup_date) return { success: false, error: 'La fecha de retiro es obligatoria.' };
+        }
+
         const db = createServerClient();
 
         // ─── 2. CARGA Y CONFIRMACIÓN BÁSICA DE COTIZACIÓN ─────────────────────
@@ -46,10 +55,7 @@ export async function confirmQuote(input: any): Promise<ConfirmQuoteResult> {
 
         // ─── 3. RECALCULO DE SEGURIDAD (Server-Side Zero Trust) ─────────────
         // Fetch current data to ensure calculations use the latest prices/rules
-        const [cocktails, comunas] = await Promise.all([
-            fetchAllProductData(),
-            fetchComunas()
-        ]);
+        const { cocktails, comunas } = await fetchAllProductData();
 
         const summary = calculateSummaryData({
             selections: data.items.map(i => ({
@@ -198,7 +204,7 @@ export async function confirmQuote(input: any): Promise<ConfirmQuoteResult> {
                     event_date: eventDate
                 };
 
-                const isDirect = fullQuote.service_type === 'direct';
+                const isDirect = fullQuote.dispenser === 'desechable';
 
                 const adminSubject = await SettingsService.getResolvedValue(
                     isDirect ? 'email_direct_sale_confirmed_admin_subject' : 'email_quote_confirmed_admin_subject',

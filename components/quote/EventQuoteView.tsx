@@ -31,7 +31,7 @@ const STATUS_CONFIG = {
     completed: { label: 'Completada', color: 'bg-blue-100 text-blue-800 border-blue-200', icon: CheckCircle },
 };
 
-export default function QuoteView({ quote, comunas, availableCocktails, categories, eventTypes }: Props) {
+export default function EventQuoteView({ quote, comunas, availableCocktails, categories, eventTypes }: Props) {
     const router = useRouter();
     const [showConfirmModal, setShowConfirmModal] = useState(false);
     const [showCatalog, setShowCatalog] = useState(false);
@@ -53,7 +53,7 @@ export default function QuoteView({ quote, comunas, availableCocktails, categori
     const [eventType, setEventType] = useState(quote.event_type_id ?? (quote.event_type_other ? 'Otro' : ''));
     const [otherType, setOtherType] = useState(quote.event_type_other ?? '');
     const [items, setItems] = useState<QuoteItem[]>(quote.quote_items);
-    const [dispenser, setDispenser] = useState<'portatil' | 'muro' | 'desechable'>(quote.dispenser as any || 'portatil');
+    const [dispenser, setDispenser] = useState<'portatil' | 'muro'>(quote.dispenser as any === 'muro' ? 'muro' : 'portatil');
 
     const [isConfirming, setIsConfirming] = useState(false);
     const [confirmError, setConfirmError] = useState('');
@@ -177,10 +177,8 @@ export default function QuoteView({ quote, comunas, availableCocktails, categori
 
     const totals = calculateTotals();
     const totalPaid = (quote.payments || []).reduce((sum: number, p: any) => sum + (Number(p.amount) || 0), 0);
-    const isDesechable = dispenser === 'desechable';
-    const halfAmount = totals.totalFinal / 2;
-    const advanceAmount = isDesechable ? totals.totalFinal : halfAmount;
-    const advancePercentText = isDesechable ? '100%' : '50%';
+    const advanceAmount = totals.totalFinal / 2;
+    const advancePercentText = '50%';
     const isSameDayPickup = pickupDate === eventDate;
 
     const validateAllFields = () => {
@@ -285,9 +283,9 @@ export default function QuoteView({ quote, comunas, availableCocktails, categori
             formattedPickupDate: pickupDate ? formatEventDate(pickupDate) : undefined,
             pickupTime: pickupTime,
             comments: comments,
-            isDirect: isDesechable
+            isDirect: false
         };
-    }, [quote.client_name, quote.client_lastname, quote.client_email, phone, address, comuna, comunaOther, eventType, otherType, eventTypes, guests, eventDate, startTime, pickupDate, pickupTime, comments, isDesechable]);
+    }, [quote.client_name, quote.client_lastname, quote.client_email, phone, address, comuna, comunaOther, eventType, otherType, eventTypes, guests, eventDate, startTime, pickupDate, pickupTime, comments]);
 
     // 1. Mapeamos availableCocktails a Product (para el modal)
     const mappedProducts: Product[] = useMemo(() => availableCocktails.map(c => ({
@@ -297,7 +295,7 @@ export default function QuoteView({ quote, comunas, availableCocktails, categori
         image: c.image,
         category: c.category,
         sizes: Object.entries(c.prices)
-            .filter(([size]) => isDesechable ? size.includes('desechable') : !size.includes('desechable'))
+            .filter(([size]) => !size.includes('desechable'))
             .map(([size, p]) => ({
                 size,
                 price: p.price,
@@ -307,7 +305,7 @@ export default function QuoteView({ quote, comunas, availableCocktails, categori
                 isDisposable: p.isDisposable,
                 unit: p.unit
             }))
-    })), [availableCocktails, isDesechable]);
+    })), [availableCocktails]);
 
 
     // 2. Definimos el cart para ProductCatalog
@@ -448,9 +446,7 @@ export default function QuoteView({ quote, comunas, availableCocktails, categori
                     >
                         <Copy className="w-4 h-4" /> Copiar Datos de Cuenta
                     </button>
-                    {!isDesechable && (
-                        <p className="text-[0.8rem] text-green-700 mt-4 text-center italic opacity-80 underline underline-offset-4 decoration-green-300">El 50% restante se paga el día del montaje.</p>
-                    )}
+                    <p className="text-[0.8rem] text-green-700 mt-4 text-center italic opacity-80 underline underline-offset-4 decoration-green-300">El 50% restante se paga el día del montaje.</p>
                 </div>
 
                 {/* Link Card de Seguimiento */}
@@ -989,11 +985,9 @@ export default function QuoteView({ quote, comunas, availableCocktails, categori
                                 <Clock className="w-3.5 h-3.5" /> Abono para confirmar ({advancePercentText})
                             </p>
                             <p className="text-4xl font-black text-brand-text tracking-tight">{formatCurrency(advanceAmount)}</p>
-                            {!isDesechable && (
-                                <p className="text-[0.85rem] text-brand-text-muted mt-2 font-medium">
-                                    El monto restante se abona el día del montaje.
-                                </p>
-                            )}
+                            <p className="text-[0.85rem] text-brand-text-muted mt-2 font-medium">
+                                El monto restante se abona el día del montaje.
+                            </p>
                         </div>
 
                         <div className="w-full sm:w-auto relative z-10">
@@ -1070,43 +1064,26 @@ export default function QuoteView({ quote, comunas, availableCocktails, categori
                             {/* 3. Contrato de Servicio con Scroll Propio */}
                             <div className="space-y-4">
                                 <h3 className="text-[0.75rem] font-black text-brand-text flex items-center gap-2 uppercase tracking-widest">
-                                    <FileText className="w-4 h-4 text-primary" /> 2. {isDesechable ? 'Términos de Despacho' : 'Contrato de Servicio'}
+                                    <FileText className="w-4 h-4 text-primary" /> 2. Contrato de Servicio
                                 </h3>
                                 <div className="bg-slate-50 border-2 border-brand-border rounded-2xl overflow-hidden shadow-inner">
                                     <div className="p-6 text-[0.85rem] text-brand-text-muted leading-relaxed bg-white/50">
                                         
-                                        {!isDesechable ? (
-                                            <>
-                                                <div className="text-center font-black mb-6 uppercase tracking-[0.3em] border-b-2 border-brand-border/30 pb-3 text-brand-text text-[0.75rem]">CONTRATO DE SERVICIO</div>
-                                                <p className="mb-4">
-                                                    Entre <strong>Cocktails on Tap Chile</strong>, en adelante “El Arrendador”, y don/doña: <strong>{quote.client_name} {lastName}</strong>, en adelante “El Arrendatario”, se acuerda lo siguiente:
-                                                </p>
-                                                <p className="font-black text-brand-text mb-2 mt-4">1. Objeto del contrato</p>
-                                                <p className="mb-4">El Arrendador proporcionará al Arrendatario un servicio de cócteles listos para servir en formato autoservicio, incluyendo barriles, dispensadores y cristalería.</p>
-                                                <p className="font-black text-brand-text mb-2">2. Responsabilidad por daños</p>
-                                                <ul className="list-disc pl-5 mb-4 space-y-2">
-                                                    <li>$1.000 (mil pesos) por vaso extraviado o dañado.</li>
-                                                    <li>$2.000 (dos mil pesos) por copa extraviada o dañada.</li>
-                                                    <li>Hasta $500.000 (quinientos mil pesos) por dispensador extraviado o dañado.</li>
-                                                </ul>
-                                                <p className="font-black text-brand-text mb-2">3. Aceptación y Pago</p>
-                                                <p className="mb-2">Se entiende aceptado al confirmar la reserva mediante el abono del <strong>50% del total</strong>.</p>
-                                                <p>El saldo restante deberá ser cancelado en su totalidad al momento del montaje del equipo.</p>
-                                            </>
-                                        ) : (
-                                            <>
-                                                <div className="text-center font-black mb-6 uppercase tracking-[0.3em] border-b-2 border-brand-border/30 pb-3 text-brand-text text-[0.75rem]">TÉRMINOS DE COMPRA DIRECTA</div>
-                                                <p className="mb-4">
-                                                    Servicio Delivery de formato Barbón Desechable de 5L a nombre de <strong>{quote.client_name} {lastName}</strong>.
-                                                </p>
-                                                <p className="font-black text-brand-text mb-2 mt-4">1. Despacho y Entrega</p>
-                                                <p className="mb-4">El despacho se realizará en la fecha seleccionada. Nos pondremos en contacto contigo para coordinar el horario de llegada.</p>
-                                                <p className="font-black text-brand-text mb-2">2. Pago del Pedido</p>
-                                                <p className="mb-2">El pago íntegro (100%) es necesario para confirmar y agendar la preparación de tus cócteles, asegurando nuestra disponibilidad para esa fecha.</p>
-                                                <p>El formato 5L es completamente desechable e incluye una válvula dispensadora en el mismo producto; no requiere equipo retornable.</p>
-                                            </>
-                                        )}
-                                        
+                                        <div className="text-center font-black mb-6 uppercase tracking-[0.3em] border-b-2 border-brand-border/30 pb-3 text-brand-text text-[0.75rem]">CONTRATO DE SERVICIO</div>
+                                        <p className="mb-4">
+                                            Entre <strong>Cocktails on Tap Chile</strong>, en adelante “El Arrendador”, y don/doña: <strong>{quote.client_name} {lastName}</strong>, en adelante “El Arrendatario”, se acuerda lo siguiente:
+                                        </p>
+                                        <p className="font-black text-brand-text mb-2 mt-4">1. Objeto del contrato</p>
+                                        <p className="mb-4">El Arrendador proporcionará al Arrendatario un servicio de cócteles listos para servir en formato autoservicio, incluyendo barriles, dispensadores y cristalería.</p>
+                                        <p className="font-black text-brand-text mb-2">2. Responsabilidad por daños</p>
+                                        <ul className="list-disc pl-5 mb-4 space-y-2">
+                                            <li>$1.000 (mil pesos) por vaso extraviado o dañado.</li>
+                                            <li>$2.000 (dos mil pesos) por copa extraviada o dañada.</li>
+                                            <li>Hasta $500.000 (quinientos mil pesos) por dispensador extraviado o dañado.</li>
+                                        </ul>
+                                        <p className="font-black text-brand-text mb-2">3. Aceptación y Pago</p>
+                                        <p className="mb-2">Se entiende aceptado al confirmar la reserva mediante el abono del <strong>50% del total</strong>.</p>
+                                        <p>El saldo restante deberá ser cancelado en su totalidad al momento del montaje del equipo.</p>
                                     </div>
                                     <div className="p-4 bg-primary/5 flex items-center gap-3 border-t border-brand-border">
                                         <label className="flex items-center gap-3 cursor-pointer group w-full">
