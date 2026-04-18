@@ -42,6 +42,16 @@ export default function WizardShell({ cocktails, eventTypes, comunas, categories
 
     const progress = (state.step / 6) * 100;
 
+    // Reset errors and status when step changes
+    useEffect(() => {
+        setValidationError('');
+        if (sendStatus === 'error') {
+            setSendStatus('idle');
+            setSaveError('');
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [state.step, state.selections]);
+
     const handleNext = () => {
         const result = wizard.validateStep(state.step);
         if (result.valid) {

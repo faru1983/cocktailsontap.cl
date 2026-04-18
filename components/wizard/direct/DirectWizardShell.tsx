@@ -41,6 +41,16 @@ export default function DirectWizardShell({ cocktails, comunas, categories, init
     // Progress adjusted for 3 steps
     const progress = (state.step / 3) * 100;
 
+    // Reset errors and status when step changes
+    useEffect(() => {
+        setValidationError('');
+        if (sendStatus === 'error') {
+            setSendStatus('idle');
+            setSaveError('');
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [state.step, state.selections]);
+
     const handleNext = () => {
         // We need custom validation logic here or adapt validateStep
         let isValid = true;
@@ -84,6 +94,19 @@ export default function DirectWizardShell({ cocktails, comunas, categories, init
     };
 
     const handleCotizar = async () => {
+        // ─── VALIDACIÓN PREVENCION ───────────────────────────────────────────
+        // Validar que no solo lleve productos de categoría "Otros" (hielo, vasos, etc)
+        const hasMainProduct = state.selections.some(sel => {
+            const product = cocktails.find(c => c.id === sel.id);
+            return product && product.category !== 'Otros';
+        });
+        
+        if (!hasMainProduct) {
+            setValidationError('Debes incluir al menos un barril de cóctel en tu pedido (el hielo y las decoraciones son productos complementarios).');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            return;
+        }
+
         setSendStatus('saving');
         setSaveError('');
         setQuoteToken(null);
