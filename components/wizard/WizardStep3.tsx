@@ -6,6 +6,7 @@ import { calculateSmartConfig } from '@/hooks/useWizard';
 import type { useWizard } from '@/hooks/useWizard';
 import type { Product, CocktailForWizard, ICart, ProductPrice } from '@/lib/types';
 import ProductCatalog from '@/components/catalog/ProductCatalog';
+import CategoryTabs from '../ui/CategoryTabs';
 
 type WizardHook = ReturnType<typeof useWizard>;
 
@@ -55,7 +56,7 @@ export default function WizardStep3({ wizard, cocktails, categories }: Props) {
             category: c.category,
             selectedSize: existingSelection?.size, // Esto recordará el último tamaño del carrito
             sizes: Object.entries(c.prices)
-                .filter(([size]) => !size.includes('desechable'))
+                .filter(([size]) => !size.toLowerCase().includes('desechable'))
                 .map(([size, p]) => ({
                     size,
                     price: p.price,
@@ -147,27 +148,14 @@ export default function WizardStep3({ wizard, cocktails, categories }: Props) {
                 </div>
             </div>
 
-            {/* Barra de categorías */}
-            <div className="sticky top-[-1px] bg-white z-10 -mx-6 mb-6 px-6 py-3 border-b border-brand-border">
-                <div className="flex justify-center">
-                    <div className="flex gap-2 overflow-x-auto pb-1 hide-scrollbar">
-                        {categories.map((cat) => (
-                            <button
-                                key={cat}
-                                type="button"
-                                className={`px-5 py-2.5 rounded-full font-bold text-[0.95rem] whitespace-nowrap transition-all duration-300 border-2 cursor-pointer
-                                    ${cat === currentCategory
-                                        ? 'bg-gradient-to-r from-primary to-primary-dark border-primary text-white shadow-[0_4px_15px_rgba(226,160,73,0.3)] shadow-primary/30'
-                                        : 'bg-white border-brand-border text-brand-text hover:border-primary/50 hover:bg-[#fffbf0]'
-                                    }`}
-                                onClick={() => handleCategoryChange(cat)}
-                            >
-                                {cat}
-                            </button>
-                        ))}
-                    </div>
-                </div>
-            </div>
+            {/* Barra de categorías shared */}
+            <CategoryTabs
+                categories={categories}
+                activeCategory={currentCategory}
+                onCategoryChange={handleCategoryChange}
+                stickyTop="top-[-1px]"
+                fullWidth={true}
+            />
 
             {/* Catálogo de productos */}
             <div className="w-full" ref={catalogRef}>

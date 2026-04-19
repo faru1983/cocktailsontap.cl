@@ -130,16 +130,20 @@ export function useWizard(cocktails: CocktailForWizard[], comunas: Comuna[], cat
             if (!c.comuna.trim()) return { valid: false, message: 'Selecciona la comuna.' };
         }
         if (step === 3) {
-            if (state.selections.length === 0) return { valid: false, message: 'Selecciona al menos un cóctel para continuar.' };
-            
-            // Validar que no solo lleve productos de categoría "Otros"
-            const hasMainProduct = state.selections.some(sel => {
-                const product = cocktails.find(c => c.id === sel.id);
-                return product && product.category !== 'Otros';
-            });
-            
-            if (!hasMainProduct) {
-                return { valid: false, message: 'Debes seleccionar al menos un producto principal (Cóctel, Mocktail o Combinado).' };
+            // Contamos cuántos productos "principales" (que no sean de la categoría Otros) hay en total
+            const mainProductsCount = state.selections.reduce((sum, sel) => {
+                const product = cocktails.find(p => p.id === sel.id);
+                if (product && product.category !== 'Otros') {
+                    return sum + sel.quantity;
+                }
+                return sum;
+            }, 0);
+
+            if (mainProductsCount < 2) {
+                return { 
+                    valid: false, 
+                    message: 'El pedido mínimo es de 2 barriles para contratar nuestros servicios.' 
+                };
             }
         }
         if (step === 4) {

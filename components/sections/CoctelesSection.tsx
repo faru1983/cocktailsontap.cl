@@ -6,6 +6,7 @@ import { useCart } from '@/hooks/useCart';
 import type { Product } from '@/lib/types';
 import ProductCatalog from '@/components/catalog/ProductCatalog';
 import CartModal from '../catalog/CartModal';
+import CategoryTabs from '../ui/CategoryTabs';
 
 const YIELDS = [
     { liters: '5L', count: 25 },
@@ -66,39 +67,26 @@ export default function CoctelesSection({ products, categories }: Props) {
                 </div>
             </div>
 
-            {/* Barra de categorías STICKY */}
-            <div className="sticky top-0 z-[89] py-2.5 bg-white/95 backdrop-blur-md border-b border-brand-border/50 shadow-sm" ref={stickyBarRef}>
-                <div className="max-w-[1200px] mx-auto px-6">
-                    <div className="flex items-center gap-4 flex-nowrap overflow-visible">
-                        <div className="flex-1 min-w-0 overflow-x-auto flex flex-nowrap gap-2 scrollbar-none [&::-webkit-scrollbar]:hidden">
-                            {categories.map((cat) => (
-                                <button
-                                    key={cat}
-                                    className={`px-5 py-2.5 rounded-full border-2 font-bold text-[0.9rem] cursor-pointer transition-all whitespace-nowrap ${cat === currentCategory
-                                        ? 'bg-primary border-primary text-white shadow-md'
-                                        : 'bg-white border-brand-border text-brand-text hover:bg-primary/5 hover:border-primary hover:text-primary'
-                                        }`}
-                                    onClick={() => handleCategoryChange(cat)}
-                                >
-                                    {cat}
-                                </button>
-                            ))}
-                        </div>
-                        <button
-                            className="bg-brand-text text-white border-none rounded-full px-5 py-2.5 flex items-center gap-2 text-[0.9rem] cursor-pointer transition-all hover:bg-primary hover:shadow-lg hover:-translate-y-0.5 shrink-0"
-                            onClick={() => setCartOpen(true)}
-                        >
-                            <ShoppingCart className="w-5 h-5" />
+            {/* Barra de categorías shared */}
+            <CategoryTabs
+                ref={stickyBarRef}
+                categories={categories}
+                activeCategory={currentCategory}
+                onCategoryChange={handleCategoryChange}
+            >
+                <button
+                    className="bg-brand-text text-white border-none rounded-full px-5 py-2.5 flex items-center gap-2 text-[0.9rem] cursor-pointer transition-all hover:bg-primary hover:shadow-lg hover:-translate-y-0.5 shrink-0"
+                    onClick={() => setCartOpen(true)}
+                >
+                    <ShoppingCart className="w-5 h-5" />
 
-                            {cart.getTotalItems() > 0 && (
-                                <span className="bg-primary text-white rounded-full w-5 h-5 flex items-center justify-center text-[0.7rem] font-extrabold ml-1 border border-white/20">
-                                    {cart.getTotalItems()}
-                                </span>
-                            )}
-                        </button>
-                    </div>
-                </div>
-            </div>
+                    {cart.getTotalItems() > 0 && (
+                        <span className="bg-primary text-white rounded-full w-5 h-5 flex items-center justify-center text-[0.7rem] font-extrabold ml-1 border border-white/20">
+                            {cart.getTotalItems()}
+                        </span>
+                    )}
+                </button>
+            </CategoryTabs>
 
             {/* Grid de productos */}
             <div className="max-w-[1200px] mx-auto px-6 pb-14" ref={gridRef}>

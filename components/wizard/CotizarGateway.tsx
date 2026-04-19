@@ -27,7 +27,7 @@ export default function CotizarGateway({ cocktails, eventTypes, comunas, categor
     }
 
     return (
-        <div className="flex flex-col animate-fade-in relative z-0">
+        <div className="flex flex-col animate-fade-in relative z-0 pb-20">
             <div className="text-center mb-10 pt-4">
                 <h3 className="text-3xl font-black text-brand-text mb-3">¿Qué servicio necesitas?</h3>
                 <p className="text-brand-text-muted text-[1rem] leading-relaxed max-w-lg mx-auto">
