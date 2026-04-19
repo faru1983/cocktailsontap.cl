@@ -328,19 +328,22 @@ export async function syncGoogleEvent(calendarId: string, event: {
             attendees: event.attendees ? event.attendees.map(email => ({ email })) : [],
         };
 
+        const isReserva = calendarId === CALENDAR_RESERVA_ID;
+        const queryParams = isReserva ? '?sendUpdates=all' : '';
+
         if (event.eventId) {
-            console.log(`Actualizando evento ${event.eventId} en calendario ${calendarId}`);
+            console.log(`Actualizando evento ${event.eventId} en calendario ${calendarId} (Notificar: ${isReserva})`);
             return await googleFetch<GoogleCalendarEvent>(
-                `https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events/${event.eventId}`,
+                `https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events/${event.eventId}${queryParams}`,
                 {
                     method: 'PUT',
                     body: JSON.stringify(body)
                 }
             );
         } else {
-            console.log(`Creando nuevo evento en calendario ${calendarId}`);
+            console.log(`Creando nuevo evento en calendario ${calendarId} (Notificar: ${isReserva})`);
             return await googleFetch<GoogleCalendarEvent>(
-                `https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events`,
+                `https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events${queryParams}`,
                 {
                     method: 'POST',
                     body: JSON.stringify(body)
