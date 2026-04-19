@@ -298,7 +298,7 @@ export function buildWhatsAppMessage(state: WizardState, data: SummaryData, toke
     }).join('\n');
 
     const isDirect = state.serviceType === 'direct';
-    let msg = isDirect ? `*NUEVO PEDIDO DIRECTO*\n\n` : `*SOLICITUD DE COTIZACIÓN*\n\n`;
+    let msg = isDirect ? `*NUEVO PEDIDO*\n\n` : `*SOLICITUD DE COTIZACIÓN*\n\n`;
 
     msg += `*PRODUCTOS:*\n${itemsText}\n`;
 

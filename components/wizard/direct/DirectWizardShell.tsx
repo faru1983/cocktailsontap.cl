@@ -121,13 +121,14 @@ export default function DirectWizardShell({ cocktails, comunas, categories, init
         if (result.success && result.token) {
             setQuoteToken(result.token);
             setSendStatus('saved');
+            // Desencadenar WhatsApp inmediatamente para aprovechar el gesto del usuario
+            wizard.sendWhatsAppQuote(result.token);
         } else {
             setSaveError(result.error ?? 'Error procesando tu compra.');
             setSendStatus('error');
         }
 
         window.scrollTo({ top: 0, behavior: 'smooth' });
-        wizard.sendWhatsAppQuote(result.token);
     };
 
     const handleReset = () => {
@@ -199,7 +200,6 @@ export default function DirectWizardShell({ cocktails, comunas, categories, init
                             cocktails={cocktails}
                             comunas={comunas}
                             onReset={handleReset} 
-                            onOpenWhatsApp={() => wizard.sendWhatsAppQuote(quoteToken)}
                         />
                     ) : (
                         renderStep()

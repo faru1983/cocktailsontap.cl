@@ -48,9 +48,9 @@ export const GoogleSyncService = {
                  quoteUrl: quoteUrl,
                  confirmed: false,
                  noteLabel: await SettingsService.getResolvedValue(
-                     state.serviceType === 'direct' ? 'google_contacts_direct_sale_note_draft_template' : 'google_contacts_note_draft_template',
+                     'google_contacts_note_draft_template',
                      { date_formatted: state.eventData.date?.split('-').reverse().join('/') || 'S/F', quote_url: quoteUrl },
-                     state.serviceType === 'direct' ? 'Pedido Directo' : 'Evento'
+                     'Evento'
                  )
              });
 

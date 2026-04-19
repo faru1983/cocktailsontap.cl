@@ -77,7 +77,7 @@ export const fetchAllProductData = unstable_cache(
                 .sort((a, b) => (a.display_order || 0) - (b.display_order || 0))
                 .map((s) => {
                     const unitAbbr = s.measurement_units?.abbreviation || 'L';
-                    const sizeLabel = `${s.size_value}${unitAbbr}${s.is_disposable ? ' (desechable)' : ''}`;
+                    const sizeLabel = `${s.size_value}${unitAbbr}${s.is_disposable ? ' - Desechable' : ''}`;
                     return {
                         size: sizeLabel, 
                         sizeValue: s.size_value ? Number(s.size_value) : 0,

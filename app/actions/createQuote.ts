@@ -66,15 +66,18 @@ export async function createQuote(input: CreateQuoteInput): Promise<CreateQuoteR
         }
 
         // ─── 5. Sincronización proactiva con Google Contacts ─────────────────
+        const isDirect = state.serviceType === 'direct' || state.dispenser === 'desechable';
+        const resendKey = process.env.RESEND_API_KEY;
+
         try {
-            await GoogleSyncService.syncContactForQuote(state, createResult.token, clientId ?? undefined);
+            if (!isDirect) {
+                // Solo guardamos el 'borrador' en Google Contacts si es un Evento. 
+                // Las Compras Directas pasan directo a 'Confirmado' en el bloque siguiente.
+                await GoogleSyncService.syncContactForQuote(state, createResult.token, clientId ?? undefined);
+            }
         } catch (e) {
             console.error('Google Sync failed:', e);
         }
-
-        // ─── 6. Sync Google Events & Enviar emails ───────────────────────────────
-        const isDirect = state.serviceType === 'direct' || state.dispenser === 'desechable';
-        const resendKey = process.env.RESEND_API_KEY;
 
         const fullQuote = {
             ...createResult.quote,
@@ -105,11 +108,14 @@ export async function createQuote(input: CreateQuoteInput): Promise<CreateQuoteR
             try {
                 const resend = new Resend(resendKey);
 
-                const isDirect = state.serviceType === 'direct' || state.dispenser === 'desechable';
+                const isDirectSale = state.serviceType === 'direct' || state.dispenser === 'desechable';
                 let EmailComponent;
-                if (isDirect) {
+                
+                if (isDirectSale) {
+                    // Para compra directa usamos directamente el correo de confirmación
                     EmailComponent = (await import('@/components/emails/ConfirmationEmail')).default;
                 } else {
+                    // Para eventos regulares usamos el correo de borrador
                     EmailComponent = (await import('@/components/emails/QuoteEmail')).default;
                 }
 
@@ -121,22 +127,21 @@ export async function createQuote(input: CreateQuoteInput): Promise<CreateQuoteR
                     : '';
                 const fullName = `${fullQuote.client_name} ${fullQuote.client_lastname || ''}`.trim();
 
-
                 const emailVars = {
                     full_name: fullName,
                     event_date: eventDate
                 };
 
                 const clientSubject = await SettingsService.getResolvedValue(
-                    isDirect ? 'email_direct_sale_subject' : 'email_quote_draft_subject',
+                    isDirectSale ? 'email_direct_sale_subject' : 'email_quote_draft_subject',
                     emailVars,
-                    isDirect ? `✅ Tu pedido ha sido confirmado – ${eventDate}` : `🍸 Tu cotización – ${eventDate}`
+                    isDirectSale ? `✅ Tu pedido ha sido confirmado – ${eventDate}` : `🍸 Tu cotización – ${eventDate}`
                 );
 
                 const adminSubject = await SettingsService.getResolvedValue(
-                    isDirect ? 'email_direct_sale_admin_subject' : 'email_quote_draft_admin_subject',
+                    isDirectSale ? 'email_direct_sale_admin_subject' : 'email_quote_draft_admin_subject',
                     emailVars,
-                    isDirect ? `[Pedido Confirmado] ${fullName} – ${eventDate}` : `[Nueva Cotización] ${fullName} – ${eventDate}`
+                    isDirectSale ? `[Pedido Confirmado] ${fullName} – ${eventDate}` : `[Nueva Cotización] ${fullName} – ${eventDate}`
                 );
 
                 await Promise.allSettled([

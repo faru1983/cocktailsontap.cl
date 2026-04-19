@@ -370,21 +370,38 @@ export default function SettingsClient({
                                         {cat === 'emails' ? 'Plantillas de Correo' : cat === 'calendar' ? 'Eventos Google Calendar' : 'Integración G-Contacts'}
                                     </h3>
                                     <div className="flex flex-col gap-3 overflow-y-auto max-h-[500px] pr-1 scrollbar-thin scrollbar-thumb-white/10">
-                                        {siteSettings.filter((s: any) => s.category === cat).map((setting: any) => (
-                                            <div key={setting.id} onClick={() => openModal('system', setting)} 
-                                                className="group bg-black/20 hover:bg-black/40 p-4 rounded-xl border border-white/5 hover:border-[#E2A049]/30 cursor-pointer transition-all active:scale-[0.98]"
-                                            >
-                                                <div className="flex justify-between items-start mb-2">
-                                                    <span className="text-white text-xs font-black group-hover:text-[#E2A049] transition-colors">{setting.description || setting.key}</span>
-                                                    {!setting.is_active && (
-                                                        <span className="text-[8px] bg-rose-500/20 text-rose-400 px-2 py-0.5 rounded-md font-black tracking-widest uppercase">Inactivo</span>
-                                                    )}
+                                        {siteSettings.filter((s: any) => s.category === cat).map((setting: any) => {
+                                            const isDirect = setting.key.includes('direct_sale');
+                                            const isDraft = setting.key.includes('draft');
+                                            const isConfirmed = setting.key.includes('confirmed') && !isDirect;
+
+                                            return (
+                                                <div key={setting.id} onClick={() => openModal('system', setting)} 
+                                                    className="group bg-black/20 hover:bg-black/40 p-4 rounded-xl border border-white/5 hover:border-[#E2A049]/30 cursor-pointer transition-all active:scale-[0.98]"
+                                                >
+                                                    <div className="flex justify-between items-start mb-2">
+                                                        <div className="flex flex-col gap-1">
+                                                            <span className="text-white text-xs font-black group-hover:text-[#E2A049] transition-colors">{setting.description || setting.key}</span>
+                                                            <div className="flex gap-1.5 items-center">
+                                                                {isDirect ? (
+                                                                    <span className="text-[7px] bg-sky-500/20 text-sky-400 px-1.5 py-0.5 rounded font-black tracking-widest uppercase border border-sky-500/10">Compra Directa</span>
+                                                                ) : (
+                                                                    <span className="text-[7px] bg-emerald-500/20 text-emerald-400 px-1.5 py-0.5 rounded font-black tracking-widest uppercase border border-emerald-500/10">Evento</span>
+                                                                )}
+                                                                {isDraft && <span className="text-[7px] bg-white/10 text-white/40 px-1.5 py-0.5 rounded font-black tracking-widest uppercase">Borrador</span>}
+                                                                {isConfirmed && <span className="text-[7px] bg-white/10 text-white/40 px-1.5 py-0.5 rounded font-black tracking-widest uppercase">Confirmación</span>}
+                                                            </div>
+                                                        </div>
+                                                        {!setting.is_active && (
+                                                            <span className="text-[8px] bg-rose-500/20 text-rose-400 px-2 py-0.5 rounded-md font-black tracking-widest uppercase">Inactivo</span>
+                                                        )}
+                                                    </div>
+                                                    <p className="text-slate-400 text-[10px] leading-relaxed line-clamp-2 italic font-mono bg-black/40 p-2 rounded-lg border border-white/5">
+                                                        {setting.value}
+                                                    </p>
                                                 </div>
-                                                <p className="text-slate-400 text-xs leading-relaxed line-clamp-2 italic font-mono bg-black/40 p-2 rounded-lg border border-white/5">
-                                                    {setting.value}
-                                                </p>
-                                            </div>
-                                        ))}
+                                            );
+                                        })}
                                     </div>
                                 </div>
                             ))}

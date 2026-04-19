@@ -215,18 +215,18 @@ export async function confirmQuote(input: any): Promise<ConfirmQuoteResult> {
                     event_date: eventDate
                 };
 
-                const isDirect = fullQuote.dispenser === 'desechable';
-
+                // Note: The confirmQuote action is no longer executed for Direct Sales 
+                // because they are created in the "confirmed" status directly.
                 const adminSubject = await SettingsService.getResolvedValue(
-                    isDirect ? 'email_direct_sale_confirmed_admin_subject' : 'email_quote_confirmed_admin_subject',
+                    'email_quote_confirmed_admin_subject',
                     emailVars,
-                    isDirect ? `✅ [Compra Confirmada] ${fullName} – ${eventDate}` : `✅ [Reserva Confirmada] ${fullName} – ${eventDate}`
+                    `✅ [Reserva Confirmada] ${fullName} – ${eventDate}`
                 );
 
                 const clientSubject = await SettingsService.getResolvedValue(
-                    isDirect ? 'email_direct_sale_confirmed_subject' : 'email_quote_confirmed_subject',
+                    'email_quote_confirmed_subject',
                     emailVars,
-                    isDirect ? `✅ Compra confirmada – ${eventDate}` : `✅ Reserva confirmada – ${eventDate}`
+                    `✅ Reserva confirmada – ${eventDate}`
                 );
 
                 emailPromises.push(resend.emails.send({

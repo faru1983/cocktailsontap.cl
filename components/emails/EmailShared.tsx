@@ -207,7 +207,9 @@ export const ReservationInfoSection: React.FC<{ quote: Quote, isDirect?: boolean
   return (
     <>
       <Section style={{ backgroundColor: lightGray, borderRadius: '12px', padding: '16px 20px', marginBottom: '24px', border: `1px solid ${borderColor}` }}>
-        <Text style={{ color: brandDark, fontSize: '11px', margin: '0 0 6px', textTransform: 'uppercase', letterSpacing: '1.5px', fontWeight: 700 }}>Información de Reserva</Text>
+        <Text style={{ color: brandDark, fontSize: '11px', margin: '0 0 6px', textTransform: 'uppercase', letterSpacing: '1.5px', fontWeight: 700 }}>
+          {directMode ? 'Información de Contacto' : 'Información de Reserva'}
+        </Text>
         <table width="100%" cellPadding="0" cellSpacing="0">
           <tbody>
             <Row label="Nombre" value={clientFullName} />

@@ -13,7 +13,6 @@ interface Props {
     cocktails: CocktailForWizard[];
     comunas: Comuna[];
     onReset: () => void;
-    onOpenWhatsApp?: () => void;
 }
 
 export default function DirectWizardSuccess({ token, state, cocktails, comunas, onReset }: Props) {
@@ -90,25 +89,7 @@ export default function DirectWizardSuccess({ token, state, cocktails, comunas, 
                 </div>
             </div>
 
-            {/* Pasos Siguientes - WhatsApp */}
-            <div className="bg-white border border-brand-border rounded-3xl p-6 relative text-left shadow-sm mb-10 overflow-hidden group">
-                <div className="absolute top-0 right-0 w-24 h-24 bg-[#25d366]/5 rounded-full -mr-12 -mt-12 blur-xl" />
-                <h3 className="font-bold text-brand-dark text-[0.95rem] mb-2 flex items-center gap-2">
-                    <span className="p-1.5 bg-[#25d366]/10 text-[#25d366] rounded-lg"><CheckCircle className="w-4 h-4" /></span>
-                    Contacto por WhatsApp
-                </h3>
-                <p className="text-sm text-brand-text-muted mb-4 max-w-[90%] leading-relaxed">
-                    Hemos intentado enviar el resumen a tu WhatsApp automáticamente. Si no cargó la ventana, puedes enviar tu pedido manualmente aquí:
-                </p>
-                {onOpenWhatsApp && (
-                    <button 
-                        onClick={onOpenWhatsApp}
-                        className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-[#25d366] text-white font-bold text-sm rounded-xl hover:bg-[#128c7e] transition-all shadow-md hover:shadow-lg active:scale-95"
-                    >
-                        Abrir WhatsApp y Enviar 
-                    </button>
-                )}
-            </div>
+
 
             {/* Action Buttons */}
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
