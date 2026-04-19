@@ -133,7 +133,7 @@ export interface CartItem {
 }
 
 export interface ICart {
-    addItem: (productId: string, productName: string, size: string, price: number, offerPrice: number, sizeValue: number, unitId: string | null, isDisposable: boolean) => void;
+    addItem: (productId: string, productName: string, size: string, price: number, offerPrice: number, sizeValue: number, unitId: string | null, isDisposable: boolean, image?: string) => void;
     removeItem: (productId: string, size: string) => void;
     updateQuantity: (productId: string, size: string, quantity: number) => void;
     getQuantity: (productId: string, size: string) => number;

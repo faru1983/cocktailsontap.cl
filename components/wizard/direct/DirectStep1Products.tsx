@@ -66,7 +66,7 @@ export default function DirectStep1Products({ wizard, cocktails, categories }: P
 
     // 2. Objeto de "carrito" adaptado al Wizard
     const wizardCart: ICart = {
-        addItem: (id, name, size, price, offer, sizeValue, unitId, isDisposable) => updateQuantity(id, size, 1),
+        addItem: (id, name, size, price, offer, sizeValue, unitId, isDisposable, image) => updateQuantity(id, size, 1),
         removeItem: (id, size) => {
             const current = state.selections.find(s => s.id === id && s.size === size)?.quantity ?? 0;
             updateQuantity(id, size, -current);

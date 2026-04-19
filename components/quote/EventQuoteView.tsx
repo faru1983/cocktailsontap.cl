@@ -310,7 +310,7 @@ export default function EventQuoteView({ quote, comunas, availableCocktails, cat
 
     // 2. Definimos el cart para ProductCatalog
     const quoteCart: ICart = {
-        addItem: (productId, productName, size, price, offerPrice, sizeValue, unitId, isDisposable) => {
+        addItem: (productId, productName, size, price, offerPrice, sizeValue, unitId, isDisposable, image) => {
             setItems(prev => {
                 const existing = prev.find(i => i.product_id === productId && i.size === size);
                 if (existing) {

@@ -234,7 +234,7 @@ export default function DirectQuoteView({ quote, comunas, availableCocktails, ca
     })).filter(p => p.sizes.length > 0), [availableCocktails]);
 
     const quoteCart: ICart = {
-        addItem: (productId, productName, size, price, offerPrice, sizeValue, unitId, isDisposable) => {
+        addItem: (productId, productName, size, price, offerPrice, sizeValue, unitId, isDisposable, image) => {
             setItems(prev => {
                 const existing = prev.find(i => i.product_id === productId && i.size === size);
                 if (existing) return prev.map(i => (i.product_id === productId && i.size === size) ? { ...i, quantity: i.quantity + 1 } : i);
