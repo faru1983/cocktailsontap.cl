@@ -1,4 +1,3 @@
-import { google } from 'googleapis';
 import { PROJECT_TIMEZONE } from './config';
 
 const CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
@@ -14,18 +13,90 @@ if (!CALENDAR_RESERVA_ID || !CALENDAR_RETIRO_ID || !CALENDAR_DESECHABLE_ID) {
     console.error('CRITICAL: One or more GOOGLE_CALENDAR IDs are not defined in environment variables.');
 }
 
-const oauth2Client = new google.auth.OAuth2(
-    CLIENT_ID,
-    CLIENT_SECRET,
-    'https://developers.google.com/oauthplayground' // Redirect URI usado para obtener el token
-);
+/**
+ * Tipado básico para respuestas de Google
+ */
+interface GoogleTokenResponse {
+    access_token: string;
+    expires_in: number;
+    token_type: string;
+}
 
-oauth2Client.setCredentials({
-    refresh_token: REFRESH_TOKEN
-});
+interface GoogleErrorResponse {
+    error?: {
+        message: string;
+        code?: number;
+    };
+    error_description?: string;
+}
 
-const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
-const people = google.people({ version: 'v1', auth: oauth2Client });
+/**
+ * Helper para obtener el Access Token usando el Refresh Token (Fetch Nativo)
+ */
+async function getAccessToken(): Promise<string> {
+    const response = await fetch('https://oauth2.googleapis.com/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+            client_id: CLIENT_ID!,
+            client_secret: CLIENT_SECRET!,
+            refresh_token: REFRESH_TOKEN!,
+            grant_type: 'refresh_token',
+        }),
+    });
+
+    const data = await response.json() as GoogleTokenResponse & GoogleErrorResponse;
+    if (!response.ok) {
+        throw new Error(`Google OAuth2 Error: ${data.error_description || data.error?.message || response.statusText}`);
+    }
+    return data.access_token;
+}
+
+/**
+ * Cliente Genérico de Google API usando Fetch
+ */
+async function googleFetch<T>(url: string, options: RequestInit = {}): Promise<T> {
+    const token = await getAccessToken();
+    const response = await fetch(url, {
+        ...options,
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+            ...(options.headers || {}),
+        },
+    });
+
+    if (response.status === 204) return null as T;
+
+    const data = await response.json();
+    if (!response.ok) {
+        const errorData = data as GoogleErrorResponse;
+        throw new Error(`Google API Error [${response.status}]: ${errorData.error?.message || response.statusText}`);
+    }
+    return data as T;
+}
+
+interface GooglePerson {
+    resourceName: string;
+    etag: string;
+    names?: { givenName: string; familyName: string }[];
+    emailAddresses?: { value: string }[];
+    phoneNumbers?: { value: string }[];
+    addresses?: { streetAddress: string }[];
+    biographies?: { value: string }[];
+}
+
+interface GoogleSearchResponse {
+    results?: { person: GooglePerson }[];
+}
+
+interface GoogleCalendarEvent {
+    id: string;
+    summary: string;
+    location?: string;
+    description?: string;
+    // ... otros campos
+}
 
 /**
  * Crea o actualiza un contacto en Google Contacts con lógica inteligente para direcciones y notas.
@@ -55,14 +126,13 @@ export async function syncGoogleContact(data: {
         // 1. Obtener datos existentes (si hay resourceName o encontramos por búsqueda)
         const fetchExistingData = async (resourceName: string) => {
             try {
-                const response = await people.people.get({
-                    resourceName,
-                    personFields: 'names,emailAddresses,phoneNumbers,addresses,biographies',
-                });
-                existingAddresses = response.data.addresses || [];
-                existingBio = response.data.biographies?.[0]?.value || '';
-                existingGivenName = response.data.names?.[0]?.givenName || '';
-                return response.data.etag || undefined;
+                const data = await googleFetch<GooglePerson>(
+                    `https://people.googleapis.com/v1/${resourceName}?personFields=names,emailAddresses,phoneNumbers,addresses,biographies`
+                );
+                existingAddresses = data.addresses || [];
+                existingBio = data.biographies?.[0]?.value || '';
+                existingGivenName = data.names?.[0]?.givenName || '';
+                return data.etag || undefined;
             } catch (err) {
                 return undefined;
             }
@@ -77,11 +147,10 @@ export async function syncGoogleContact(data: {
         if (!existingResourceName) {
             const queries = [data.email, data.phone].filter(Boolean);
             for (const query of queries) {
-                const searchResponse = await people.people.searchContacts({
-                    query: query!,
-                    readMask: 'names,emailAddresses,phoneNumbers,addresses,biographies',
-                });
-                const foundPerson = searchResponse.data.results?.[0]?.person;
+                const searchResponse = await googleFetch<GoogleSearchResponse>(
+                    `https://people.googleapis.com/v1/people:searchContacts?readMask=names,emailAddresses,phoneNumbers,addresses,biographies&query=${encodeURIComponent(query!)}`
+                );
+                const foundPerson = searchResponse.results?.[0]?.person;
                 if (foundPerson && foundPerson.resourceName) {
                     existingResourceName = foundPerson.resourceName;
                     etag = await fetchExistingData(existingResourceName);
@@ -132,7 +201,6 @@ export async function syncGoogleContact(data: {
         // 5. Lógica de Notas (Bitácora: lo nuevo primero, deduplicando por URL)
         let newNoteEntry = '';
         if (data.eventDate || data.quoteUrl) {
-            // Formatear fecha a DD/MM/YYYY si viene como YYYY-MM-DD
             let dateFormatted = data.eventDate || 'S/F';
             if (dateFormatted.includes('-')) {
                 dateFormatted = dateFormatted.split('-').reverse().join('/');
@@ -146,7 +214,6 @@ export async function syncGoogleContact(data: {
         if (newNoteEntry) {
             let bioToUpdate = existingBio;
 
-            // Limpiar entradas previas para esta misma cotización (buscando por el link único)
             if (data.quoteUrl && bioToUpdate) {
                 const lines = bioToUpdate.split('\n');
                 const filteredLines: string[] = [];
@@ -157,10 +224,7 @@ export async function syncGoogleContact(data: {
                         skipNext = false;
                         continue;
                     }
-
-                    // Si la línea contiene el URL de esta cotización, la saltamos
                     if (lines[i].includes(data.quoteUrl)) {
-                        // Si la línea siguiente es de "Notas: ", también la saltamos
                         if (lines[i + 1]?.startsWith('Notas:')) {
                             skipNext = true;
                         }
@@ -182,22 +246,28 @@ export async function syncGoogleContact(data: {
         if (existingResourceName) {
             // 6. Actualizar
             console.log('Actualizando contacto inteligente (historial):', existingResourceName);
-            const response = await people.people.updateContact({
-                resourceName: existingResourceName,
-                updatePersonFields: updateFields.join(','),
-                requestBody: {
-                    ...contactData,
-                    etag: etag,
+            const response = await googleFetch<GooglePerson>(
+                `https://people.googleapis.com/v1/${existingResourceName}:updateContact?updatePersonFields=${updateFields.join(',')}`,
+                {
+                    method: 'PATCH',
+                    body: JSON.stringify({
+                        ...contactData,
+                        etag,
+                    })
                 }
-            });
-            return response.data.resourceName;
+            );
+            return response.resourceName;
         } else {
             // 7. Crear
             console.log('Creando nuevo contacto:', data.email || data.phone);
-            const response = await people.people.createContact({
-                requestBody: contactData,
-            });
-            return response.data.resourceName;
+            const response = await googleFetch<GooglePerson>(
+                `https://people.googleapis.com/v1/people:createContact`,
+                {
+                    method: 'POST',
+                    body: JSON.stringify(contactData)
+                }
+            );
+            return response.resourceName;
         }
     } catch (error) {
         console.error('Error syncing Google Contact inteligente:', error);
@@ -209,17 +279,17 @@ export async function syncGoogleContact(data: {
  * Crea o actualiza un evento en un calendario específico.
  */
 export async function syncGoogleEvent(calendarId: string, event: {
-    eventId?: string; // Si viene, se actualiza en lugar de crear
+    eventId?: string;
     summary: string;
     location: string;
     description: string;
     startISO: string;
     endISO: string;
     isAllDay?: boolean;
-    attendees?: string[]; // Lista de emails de invitados
+    attendees?: string[];
 }) {
     try {
-        const requestBody: any = {
+        const body: any = {
             summary: event.summary,
             location: event.location,
             description: event.description,
@@ -233,22 +303,23 @@ export async function syncGoogleEvent(calendarId: string, event: {
         };
 
         if (event.eventId) {
-            // Actualizar evento existente
             console.log(`Actualizando evento ${event.eventId} en calendario ${calendarId}`);
-            const response = await calendar.events.update({
-                calendarId: calendarId,
-                eventId: event.eventId,
-                requestBody: requestBody,
-            });
-            return response.data;
+            return await googleFetch<GoogleCalendarEvent>(
+                `https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events/${event.eventId}`,
+                {
+                    method: 'PUT',
+                    body: JSON.stringify(body)
+                }
+            );
         } else {
-            // Crear nuevo evento
             console.log(`Creando nuevo evento en calendario ${calendarId}`);
-            const response = await calendar.events.insert({
-                calendarId: calendarId,
-                requestBody: requestBody,
-            });
-            return response.data;
+            return await googleFetch<GoogleCalendarEvent>(
+                `https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events`,
+                {
+                    method: 'POST',
+                    body: JSON.stringify(body)
+                }
+            );
         }
     } catch (error) {
         console.error(`Error syncing event in calendar ${calendarId}:`, error);

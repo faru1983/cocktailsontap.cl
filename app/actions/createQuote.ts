@@ -119,9 +119,6 @@ export async function createQuote(input: CreateQuoteInput): Promise<CreateQuoteR
                     EmailComponent = (await import('@/components/emails/QuoteEmail')).default;
                 }
 
-                const clientHtml = await render(React.createElement(EmailComponent, { quote: fullQuote, isAdmin: false }));
-                const adminHtml = await render(React.createElement(EmailComponent, { quote: fullQuote, isAdmin: true }));
-
                 const eventDate = fullQuote.event_date
                     ? new Date(fullQuote.event_date + 'T12:00:00').toLocaleDateString('es-CL', { day: '2-digit', month: 'long', year: 'numeric' })
                     : '';
@@ -132,17 +129,20 @@ export async function createQuote(input: CreateQuoteInput): Promise<CreateQuoteR
                     event_date: eventDate
                 };
 
-                const clientSubject = await SettingsService.getResolvedValue(
-                    isDirectSale ? 'email_direct_sale_subject' : 'email_quote_draft_subject',
-                    emailVars,
-                    isDirectSale ? `✅ Tu pedido ha sido confirmado – ${eventDate}` : `🍸 Tu cotización – ${eventDate}`
-                );
-
-                const adminSubject = await SettingsService.getResolvedValue(
-                    isDirectSale ? 'email_direct_sale_admin_subject' : 'email_quote_draft_admin_subject',
-                    emailVars,
-                    isDirectSale ? `[Pedido Confirmado] ${fullName} – ${eventDate}` : `[Nueva Cotización] ${fullName} – ${eventDate}`
-                );
+                const [clientHtml, adminHtml, clientSubject, adminSubject] = await Promise.all([
+                    render(React.createElement(EmailComponent, { quote: fullQuote, isAdmin: false })),
+                    render(React.createElement(EmailComponent, { quote: fullQuote, isAdmin: true })),
+                    SettingsService.getResolvedValue(
+                        isDirectSale ? 'email_direct_sale_subject' : 'email_quote_draft_subject',
+                        emailVars,
+                        isDirectSale ? `✅ Tu pedido ha sido confirmado – ${eventDate}` : `🍸 Tu cotización – ${eventDate}`
+                    ),
+                    SettingsService.getResolvedValue(
+                        isDirectSale ? 'email_direct_sale_admin_subject' : 'email_quote_draft_admin_subject',
+                        emailVars,
+                        isDirectSale ? `[Pedido Confirmado] ${fullName} – ${eventDate}` : `[Nueva Cotización] ${fullName} – ${eventDate}`
+                    )
+                ]);
 
                 await Promise.allSettled([
                     resend.emails.send({

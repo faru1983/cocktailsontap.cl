@@ -5,7 +5,8 @@ const SESSION_COOKIE = 'admin_session';
 const SESSION_DURATION = 60 * 60 * 24 * 7; // 7 days in seconds
 
 function hashPassword(password: string): string {
-    return createHash('sha256').update(password + 'cot_salt_2026').digest('hex');
+    const salt = process.env.AUTH_SALT || 'development_otp_salt_2026'; // Reemplazar en producción vía .env
+    return createHash('sha256').update(password + salt).digest('hex');
 }
 
 export function getAdminPasswordHash(): string {
