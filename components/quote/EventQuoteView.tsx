@@ -303,7 +303,8 @@ export default function EventQuoteView({ quote, comunas, availableCocktails, cat
                 sizeValue: p.sizeValue,
                 unitId: p.unitId,
                 isDisposable: p.isDisposable,
-                unit: p.unit
+                unit: p.unit,
+                image: p.image
             }))
     })), [availableCocktails]);
 

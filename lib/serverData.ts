@@ -43,7 +43,7 @@ export const fetchAllProductData = unstable_cache(
                 id, name, description, image_url,
                 categories ( name ),
                 product_prices ( 
-                    size, size_value, unit_id, is_disposable, price, offer_price, display_order, is_active,
+                    size, size_value, unit_id, is_disposable, price, offer_price, display_order, is_active, image_url,
                     measurement_units ( id, name, abbreviation )
                 )
             `).eq('is_active', true)
@@ -78,6 +78,9 @@ export const fetchAllProductData = unstable_cache(
                 .map((s) => {
                     const unitAbbr = s.measurement_units?.abbreviation || 'L';
                     const sizeLabel = `${s.size_value}${unitAbbr}${s.is_disposable ? ' - Desechable' : ''}`;
+                    // En los tamaños, solo resolvemos si existe, si no dejamos undefined para que ProductCard use la imagen principal
+                    const sizeImg = s.image_url ? resolveImage(s.image_url) : undefined;
+                    
                     return {
                         size: sizeLabel, 
                         sizeValue: s.size_value ? Number(s.size_value) : 0,
@@ -86,7 +89,7 @@ export const fetchAllProductData = unstable_cache(
                         isDisposable: s.is_disposable ?? false,
                         price: s.price,
                         offerPrice: s.offer_price ?? s.price,
-                        image: resolveImage(s.image_url ?? null),
+                        image: sizeImg,
                     };
                 });
 

@@ -59,7 +59,8 @@ export default function DirectStep1Products({ wizard, cocktails, categories }: P
                     sizeValue: p.sizeValue,
                     unitId: p.unitId,
                     isDisposable: p.isDisposable,
-                    unit: p.unit
+                    unit: p.unit,
+                    image: p.image
                 }))
         };
     }), [cocktails, state.selections]);

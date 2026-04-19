@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, useMemo } from 'react';
 import { Sparkles } from 'lucide-react';
 import { calculateSmartConfig } from '@/hooks/useWizard';
 import type { useWizard } from '@/hooks/useWizard';
-import type { CocktailForWizard, Product, ICart } from '@/lib/types';
+import type { Product, CocktailForWizard, ICart, ProductPrice } from '@/lib/types';
 import ProductCatalog from '@/components/catalog/ProductCatalog';
 
 type WizardHook = ReturnType<typeof useWizard>;
@@ -63,7 +63,8 @@ export default function WizardStep3({ wizard, cocktails, categories }: Props) {
                     sizeValue: p.sizeValue,
                     unitId: p.unitId,
                     isDisposable: p.isDisposable,
-                    unit: p.unit
+                    unit: p.unit,
+                    image: p.image
                 }))
         };
     }), [cocktails, state.selections]);

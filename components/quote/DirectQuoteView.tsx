@@ -229,7 +229,8 @@ export default function DirectQuoteView({ quote, comunas, availableCocktails, ca
                 sizeValue: p.sizeValue,
                 unitId: p.unitId,
                 isDisposable: p.isDisposable,
-                unit: p.unit
+                unit: p.unit,
+                image: p.image
             }))
     })).filter(p => p.sizes.length > 0), [availableCocktails]);
 
