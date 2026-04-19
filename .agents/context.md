@@ -43,16 +43,17 @@ Next.js 16 · React 19 · Tailwind CSS v4 · Supabase · Resend · Google APIs �
 
 ## 🔄 Últimos Cambios (Historial de Sesiones)
 
-### 📅 19-04-2026 (Sesión Final) — Pulido de Negocio, Leadtimes y Smart Config Heuristics
-- **Logística y Ventas**:
-  - **Leadtime de Entrega**: Se implementó una restricción obligatoria de **2 días de anticipación** para el flujo de "Compra Directa" en `DirectStep2Delivery.tsx` y `DirectQuoteView.tsx`.
-  - **Dualidad de Rendimientos**: Refactorizado `calculateSmartConfig` en `lib/wizardLogic.ts` para usar **1L=6** en la planificación interna (seguridad) y **1L=5** para la visualización al cliente (transparencia).
+- **Logística y Google Sync (Optimización Pro)**:
+  - **Arquitectura Light**: Se eliminó la librería `googleapis`, reemplazándola por `fetch` nativo para reducir el bundle size y mejorar los cold starts en Vercel.
+  - **Fix de Calendario**: Corregido el bug de eventos de "Todo el día" mediante el cálculo de la **fecha de fin exclusiva (D+1)** que exige la API de Google.
+  - **Cache de Seguridad**: Implementado cache de `access_token` en memoria para evitar el agotamiento de cuotas de autenticación.
+  - **Reglas de Oro**: Se documentó y forzó que todos los eventos comiencen y terminen el mismo día, tratando los retiros de mismo día y ventas directas siempre como "All Day".
 - **Algoritmo de Recomendación (Smart Config)**:
-  - **Heurística de Variedad**: Ahora el sistema sugiere un número de variedades (barriles) igual a los tragos por persona solicitados, buscando el punto dulce entre variedad y eficiencia logística.
-  - **Capping de Seguridad**: Grupos de 10 personas o menos ahora se limitan automáticamente a **1 sola variedad** para evitar excesos de volumen innecesarios.
+  - **Heurística de Variedad**: Ahora el sistema sugiere un número de variedades (barriles) igual a los tragos por persona solicitados.
+  - **Rendimiento Dual**: Lógica de 1L:6 para planificación interna y 1L:5 para visualización al cliente.
 - **Mejoras UI/UX**:
-  - **Contexto en Paso 3**: Se agregó un recordatorio del número de invitados y tragos p/p en la sección de "Sugerencia del Experto" para dar coherencia a las variedades recomendadas.
-  - **Centralización**: Se creó la utilidad `getMinDateString(offset)` para centralizar cálculos de fechas con desvío por zona horaria.
+  - **Contexto en Paso 3**: Recordatorio del número de invitados y tragos p/p en la sección de "Sugerencia del Experto".
+  - **Leadtime**: Bloqueo de 2 días de anticipación para compras directas.
 
 ---
 

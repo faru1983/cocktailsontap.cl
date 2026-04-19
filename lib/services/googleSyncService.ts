@@ -206,7 +206,12 @@ export const GoogleSyncService = {
                 // Para desechables siempre es todo el día por defecto (o según lógica de negocio)
                 if (!isDesechable && hasStartTime) {
                     startISO = formatLiteral(quote.event_date, quote.start_time as string);
-                    endISO = startISO;
+                    
+                    // Añadimos una duración por defecto (ej: 3 horas) para que el evento se vea bien
+                    const startDateObj = new Date(startISO);
+                    startDateObj.setHours(startDateObj.getHours() + 3);
+                    endISO = new Date(startDateObj.getTime() - (startDateObj.getTimezoneOffset() * 60000)).toISOString().slice(0, 19);
+                    
                     isAllDay = false;
                 } else {
                     startISO = `${quote.event_date}`;

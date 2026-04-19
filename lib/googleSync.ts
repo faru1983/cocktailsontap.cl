@@ -30,10 +30,17 @@ interface GoogleErrorResponse {
     error_description?: string;
 }
 
+let cachedToken: { token: string; expiry: number } | null = null;
+
 /**
  * Helper para obtener el Access Token usando el Refresh Token (Fetch Nativo)
+ * Implementa cache en memoria para optimizar el consumo de la cuota de logs de Workspace.
  */
 async function getAccessToken(): Promise<string> {
+    if (cachedToken && cachedToken.expiry > Date.now()) {
+        return cachedToken.token;
+    }
+
     const response = await fetch('https://oauth2.googleapis.com/token', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -49,6 +56,13 @@ async function getAccessToken(): Promise<string> {
     if (!response.ok) {
         throw new Error(`Google OAuth2 Error: ${data.error_description || data.error?.message || response.statusText}`);
     }
+
+    // Cache por el tiempo de expiración menos un margen de seguridad de 2 minutos
+    cachedToken = { 
+        token: data.access_token, 
+        expiry: Date.now() + (data.expires_in - 120) * 1000 
+    };
+
     return data.access_token;
 }
 
@@ -71,6 +85,7 @@ async function googleFetch<T>(url: string, options: RequestInit = {}): Promise<T
     const data = await response.json();
     if (!response.ok) {
         const errorData = data as GoogleErrorResponse;
+        console.error(`Google API Error Detail [${url}]:`, JSON.stringify(data, null, 2));
         throw new Error(`Google API Error [${response.status}]: ${errorData.error?.message || response.statusText}`);
     }
     return data as T;
@@ -289,15 +304,26 @@ export async function syncGoogleEvent(calendarId: string, event: {
     attendees?: string[];
 }) {
     try {
+        // Ajuste para eventos de todo el día: Google requiere que la fecha de 'end' sea EXCLUSIVA.
+        // Ejem: Si el evento es el 2026-04-20, el fin debe ser 2026-04-21.
+        let startDateValue = event.startISO.split('T')[0];
+        let endDateValue = event.endISO.split('T')[0];
+
+        if (event.isAllDay) {
+            const dateObj = new Date(endDateValue + 'T12:00:00');
+            dateObj.setDate(dateObj.getDate() + 1);
+            endDateValue = dateObj.toISOString().split('T')[0];
+        }
+
         const body: any = {
             summary: event.summary,
             location: event.location,
             description: event.description,
             start: event.isAllDay 
-                ? { date: event.startISO.split('T')[0] } 
+                ? { date: startDateValue } 
                 : { dateTime: event.startISO, timeZone: PROJECT_TIMEZONE },
             end: event.isAllDay 
-                ? { date: event.endISO.split('T')[0] } 
+                ? { date: endDateValue } 
                 : { dateTime: event.endISO, timeZone: PROJECT_TIMEZONE },
             attendees: event.attendees ? event.attendees.map(email => ({ email })) : [],
         };
