@@ -38,7 +38,7 @@ export async function confirmQuote(input: any): Promise<ConfirmQuoteResult> {
 
         // ─── 1.5 VALIDACIÓN CONDICIONAL (Eventos) ──────────────────────────────
         if (data.dispenser !== 'desechable') {
-            if (!data.guests || (data.guests && data.guests < 10)) return { success: false, error: 'Mínimo 10 invitados para eventos.' };
+            if (!data.guests || (data.guests && data.guests < 1)) return { success: false, error: 'La cantidad de invitados debe ser al menos 1.' };
             if (!data.event_type_id) return { success: false, error: 'La temática es obligatoria para eventos.' };
             if (!data.start_time || data.start_time.length < 4) return { success: false, error: 'La hora de inicio es obligatoria.' };
             if (!data.pickup_date) return { success: false, error: 'La fecha de retiro es obligatoria.' };

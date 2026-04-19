@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useMemo } from 'react';
+import { Sparkles } from 'lucide-react';
 import { calculateSmartConfig } from '@/hooks/useWizard';
 import type { useWizard } from '@/hooks/useWizard';
 import type { CocktailForWizard, Product, ICart } from '@/lib/types';
@@ -86,20 +87,55 @@ export default function WizardStep3({ wizard, cocktails, categories }: Props) {
             <h3 className="text-2xl font-extrabold text-brand-text mb-2">3. Selección de Cócteles</h3>
             <p className="text-brand-text-muted text-[0.95rem] mb-8 leading-relaxed">Elige las variedades y tamaños que prefieras para tu evento.</p>
 
-            <div className="mb-8">
-                <div className="text-center mb-6">
-                    <span className="text-[0.85rem] uppercase text-primary font-extrabold tracking-[1px]">Sugerencia de Volumen</span>
-                    <div className="text-[1.5rem] font-black text-brand-text mt-1">{suggestedConfig} ({suggestedLiters}L)</div>
-                </div>
-                <div className="flex flex-col gap-3">
-                    <div className="text-center">
-                        <span className="text-[0.7rem] uppercase font-bold text-slate-400 tracking-widest">Rendimientos Apróximados:</span>
+            {/* Sección de Sugerencia y Rendimientos Rediseñada */}
+            <div className="mb-10 space-y-10">
+                {/* Cuadro de Sugerencia Premium */}
+                <div className="relative group overflow-hidden bg-gradient-to-br from-brand-text/5 to-primary/5 border-2 border-primary/20 rounded-[28px] p-8 shadow-sm transition-all hover:shadow-md hover:border-primary/40">
+                    <div className="absolute -top-12 -right-12 w-32 h-32 bg-primary/10 rounded-full blur-3xl group-hover:bg-primary/20 transition-all" />
+                    <div className="absolute -bottom-12 -left-12 w-32 h-32 bg-brand-text/5 rounded-full blur-3xl" />
+                    
+                    <div className="relative z-1 flex flex-col items-center text-center">
+                        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white border border-primary/20 shadow-sm mb-4">
+                            <Sparkles className="w-4 h-4 text-primary" />
+                            <span className="text-[0.75rem] uppercase text-primary font-black tracking-widest">Sugerencia del Experto</span>
+                        </div>
+                        
+                        <div className="text-[1.8rem] md:text-[2.2rem] font-black text-brand-text leading-[1.1] mb-2 text-balance">
+                            {suggestedConfig}
+                        </div>
+                        
+                        <div className="flex items-center gap-2 text-brand-text-muted font-bold text-[1rem]">
+                            <div className="w-8 h-[2px] bg-primary/30" />
+                            <span>Volumen Total: {suggestedLiters}L</span>
+                            <div className="w-8 h-[2px] bg-primary/30" />
+                        </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-4 bg-[#f8fafc] p-5 rounded-2xl border border-[#edf2f7]">
-                        {[{ l: '5L', t: '25 cócteles' }, { l: '10L', t: '50 cócteles' }, { l: '20L', t: '100 cócteles' }, { l: '30L', t: '150 cócteles' }].map((r, i) => (
-                            <div key={r.l} className={`text-center ${i % 2 === 1 ? 'border-l border-[#e2e8f0]' : ''} ${i >= 2 ? 'border-t border-[#e2e8f0] pt-3' : ''}`}>
-                                <div className="font-extrabold text-primary text-[1.1rem]">{r.l}</div>
-                                <div className="text-[0.75rem] text-brand-text-muted uppercase font-bold tracking-wider">{r.t}</div>
+                </div>
+
+                {/* Rendimientos Aproximados Estilo Landing */}
+                <div className="flex flex-col items-center">
+                    <div className="flex items-center gap-3 mb-8">
+                        <div className="h-[1px] w-12 bg-brand-border" />
+                        <span className="text-[0.75rem] uppercase font-bold text-brand-text-muted tracking-[2px]">Rendimientos por Formato</span>
+                        <div className="h-[1px] w-12 bg-brand-border" />
+                    </div>
+                    
+                    <div className="flex justify-center flex-wrap gap-4 md:gap-8 w-full max-w-[600px] mx-auto">
+                        {[
+                            { l: '5L', t: '25', delay: 0 },
+                            { l: '10L', t: '50', delay: 0.2 },
+                            { l: '20L', t: '100', delay: 0.4 },
+                            { l: '30L', t: '150', delay: 0.6 }
+                        ].map((r) => (
+                            <div key={r.l} className="flex-1 min-w-[75px] max-w-[110px]">
+                                <div 
+                                    className="w-full aspect-square rounded-full bg-white border-[3px] border-primary flex flex-col items-center justify-center p-2 text-center animate-pulse transition-all duration-300 hover:animate-none hover:scale-110 hover:border-primary-dark hover:bg-primary/10 hover:shadow-[0_8px_25px_rgba(226,160,73,0.3)] shadow-[0_4px_12px_rgba(226,160,73,0.15)]"
+                                    style={{ animationDelay: `${r.delay}s` }}
+                                >
+                                    <p className="text-primary font-black text-[1.1rem] md:text-[1.3rem] leading-none m-0">{r.l}</p>
+                                    <p className="text-brand-text font-black text-[0.9rem] md:text-[1rem] leading-[1.2] m-0">{r.t}</p>
+                                    <p className="text-brand-text-muted text-[0.55rem] md:text-[0.6rem] uppercase tracking-[0.5px] font-bold m-0 mt-0.5">Cócteles</p>
+                                </div>
                             </div>
                         ))}
                     </div>

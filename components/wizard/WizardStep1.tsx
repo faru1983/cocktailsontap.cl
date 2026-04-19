@@ -73,9 +73,8 @@ export default function WizardStep1({ wizard, eventTypes }: Props) {
                     value={state.consumption.guests || 0}
                     onChange={(delta) => updateConsumption('guests', Math.max(0, (state.consumption.guests || 0) + delta))}
                     min={0}
-                    step={10}
+                    step={1}
                 />
-                <p className="mt-3 text-[0.8rem] text-brand-text-muted font-medium">Mínimo 10 invitados para el servicio.</p>
             </div>
 
             {/* Fecha y Hora de Inicio */}

@@ -114,7 +114,7 @@ export function useWizard(cocktails: CocktailForWizard[], comunas: Comuna[], cat
             if (state.serviceType === 'event') {
                 if (!e.type.trim()) return { valid: false, message: 'Selecciona la temática del evento.' };
                 if (e.type === 'Otro' && !e.otherType.trim()) return { valid: false, message: 'Especifica la temática del evento.' };
-                if (state.consumption.guests < 10) return { valid: false, message: 'La cantidad de invitados debe ser al menos 10.' };
+                if (state.consumption.guests < 1) return { valid: false, message: 'La cantidad de invitados debe ser al menos 1.' };
             }
             if (!e.date.trim()) return { valid: false, message: state.serviceType === 'direct' ? 'Indica la fecha de entrega.' : 'Indica la fecha del evento.' };
         }

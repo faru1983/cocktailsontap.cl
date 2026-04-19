@@ -66,45 +66,101 @@ export function formatEventDate(dateStr: string): string {
  * - Promedio de tragos por persona (determina la variedad necesaria).
  */
 export function calculateSmartConfig(guests: number, avgDrinks: number, isDirect: boolean = false) {
-    const totalLitersRequired = (guests * avgDrinks) / 5; // Rendimiento: 1L = 5 Tragos
+    const totalRequired = Math.ceil(guests * avgDrinks);
+    const BARRIL_YIELDS = [
+        { size: 5, yield: 30 },   // Rinde up to 30
+        { size: 10, yield: 60 },  // Rinde up to 60
+        { size: 20, yield: 120 }, // Rinde up to 120
+        { size: 30, yield: 180 }  // Rinde up to 180
+    ];
 
+    // Si es Directo, mantenemos la lógica simple de barriles desechables de 5L
     if (isDirect) {
-        const numBarrels = Math.ceil(totalLitersRequired / 5);
+        const numBarrels = Math.ceil(totalRequired / 30);
         const totalLiters = numBarrels * 5;
-        const totalDrinks = totalLiters * 5;
-        const label = numBarrels === 1 ? '1 Barril Desechable' : `${numBarrels} Barriles Desechables`;
+        const totalDrinks = numBarrels * 30;
+        const labelText = numBarrels === 1 ? '1 Barril Desechable' : `${numBarrels} Barriles Desechables`;
         
         return {
-            config: `${label} de 5L`,
+            config: `${labelText} de 5L`,
             liters: totalLiters,
             totalDrinks: totalDrinks
         };
     }
 
-    const numVarieties = Math.max(1, avgDrinks); 
-
-    const idealLitersPerBarrel = totalLitersRequired / numVarieties;
-
-    // Clasificación comercial (5, 10, 20 o 30 Litros)
-    let selectedBarrelSize = 10;
-    if (idealLitersPerBarrel <= 7.5) {
-        selectedBarrelSize = 5;
-    } else if (idealLitersPerBarrel <= 15) {
-        selectedBarrelSize = 10;
-    } else if (idealLitersPerBarrel <= 25) {
-        selectedBarrelSize = 20;
-    } else {
-        selectedBarrelSize = 30;
+    interface Combination {
+        counts: { [key: number]: number };
+        totalYield: number;
+        variedad: number;
+        exceso: number;
     }
 
-    const totalLiters = selectedBarrelSize * numVarieties;
-    const totalDrinks = totalLiters * 5;
-    const labelVariety = numVarieties === 1 ? '1 Variedad' : `${numVarieties} Variedades`;
+    const combinations: Combination[] = [];
+
+    // Generamos combinaciones razonables de barriles (5, 10, 20, 30 litros).
+    for (let c30 = 0; c30 <= 3; c30++) {
+        for (let c20 = 0; c20 <= 4; c20++) {
+            for (let c10 = 0; c10 <= 6; c10++) {
+                for (let c5 = 0; c5 <= 10; c5++) {
+                    const yieldTotal = (c30 * 180) + (c20 * 120) + (c10 * 60) + (c5 * 30);
+                    const totalBarrels = c30 + c20 + c10 + c5;
+                    
+                    // CRITERIO DE VALIDEZ: 
+                    // 1. Debe haber al menos un barril.
+                    // 2. Limitamos a 10 barriles totales para no sobrecargar la logística.
+                    // 3. Tolerancia: Se permite sugerir una combinación que cubra hasta 5 cócteles menos.
+                    if (totalBarrels > 0 && totalBarrels <= 12 && yieldTotal >= totalRequired - 5) {
+                        combinations.push({
+                            counts: { 5: c5, 10: c10, 20: c20, 30: c30 },
+                            totalYield: yieldTotal,
+                            variedad: totalBarrels,
+                            exceso: yieldTotal - totalRequired
+                        });
+                    }
+                }
+            }
+        }
+    }
+
+    // SISTEMA DE SCORING
+    combinations.sort((a, b) => {
+        const aInIdealRange = a.exceso >= 0 && a.exceso <= 5;
+        const bInIdealRange = b.exceso >= 0 && b.exceso <= 5;
+
+        if (aInIdealRange && !bInIdealRange) return -1;
+        if (!aInIdealRange && bInIdealRange) return 1;
+
+        if (a.exceso >= 0 && b.exceso >= 0) {
+            if (a.exceso !== b.exceso) return a.exceso - b.exceso;
+        }
+
+        if (a.variedad !== b.variedad) return b.variedad - a.variedad;
+
+        if (a.exceso < 0 && b.exceso < 0) {
+             return b.exceso - a.exceso; 
+        }
+
+        return a.totalYield - b.totalYield;
+    });
+
+    const best = combinations[0] || { counts: { 30: Math.ceil(totalRequired/180) }, totalYield: Math.ceil(totalRequired/180)*180, variedad: Math.ceil(totalRequired/180), exceso: (Math.ceil(totalRequired/180)*180) - totalRequired };
+
+    // Formatear el label llamativo (ej: "2 Barriles de 5L + 1 Barril de 20L")
+    const parts: string[] = [];
+    [30, 20, 10, 5].forEach(size => {
+        const count = best.counts[size];
+        if (count > 0) {
+            const unitLabel = count === 1 ? 'Barril' : 'Barriles';
+            parts.push(`${count} ${unitLabel} de ${size}L`);
+        }
+    });
+
+    const finalLiters = (best.counts[5] * 5) + (best.counts[10] * 10) + (best.counts[20] * 20) + (best.counts[30] * 30);
 
     return {
-        config: `${labelVariety} de ${selectedBarrelSize}L`,
-        liters: totalLiters,
-        totalDrinks: totalDrinks
+        config: parts.length > 1 ? parts.join(' + ') : parts[0] || '1 Barril de 10L',
+        liters: finalLiters,
+        totalDrinks: finalLiters * 5 // Regla de negocio conservadora para visualización: 1L = 5 cócteles
     };
 }
 
