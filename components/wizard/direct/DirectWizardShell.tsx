@@ -199,6 +199,7 @@ export default function DirectWizardShell({ cocktails, comunas, categories, init
                             cocktails={cocktails}
                             comunas={comunas}
                             onReset={handleReset} 
+                            onOpenWhatsApp={() => wizard.sendWhatsAppQuote(quoteToken)}
                         />
                     ) : (
                         renderStep()

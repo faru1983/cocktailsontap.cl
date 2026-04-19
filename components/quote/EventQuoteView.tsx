@@ -588,8 +588,8 @@ export default function EventQuoteView({ quote, comunas, availableCocktails, cat
                     
                     {balance > 0 && (
                         <div className="mt-8 p-6 bg-amber-50 rounded-[1.5rem] border-2 border-dashed border-amber-200 text-center">
-                            <p className="text-[0.8rem] text-amber-800 font-bold mb-4">
-                                Recuerda que para asegurar tu reserva debes haber abonado al menos el {advancePercentText} ({formatCurrency(advanceAmount)}).
+                            <p className="text-[0.85rem] text-amber-800 font-bold mb-4">
+                                Si aún no realizas tu transferencia, recuerda que el saldo pendiente para asegurar tu reserva es de <strong>{formatCurrency(balance)}</strong>.
                             </p>
                             <button 
                                 onClick={() => {

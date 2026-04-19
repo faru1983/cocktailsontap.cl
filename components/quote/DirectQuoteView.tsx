@@ -395,31 +395,7 @@ export default function DirectQuoteView({ quote, comunas, availableCocktails, ca
                 )}
             </div>
 
-            {!isDraft && balance > 0 && (
-                <div className="bg-[#fffbf0] border-2 border-primary/20 rounded-[2.5rem] p-6 sm:p-8 flex flex-col items-center text-center shadow-sm">
-                    <p className="text-primary font-black uppercase text-[0.8rem] mb-2 tracking-widest">Validación de Pago Pendiente</p>
-                    <p className="text-brand-text text-[0.95rem] mb-6 max-w-lg leading-relaxed">
-                        Tu pedido ha sido recibido. Para iniciar la preparación, por favor transfiere el total y envíanos el comprobante vía WhatsApp o al correo.
-                    </p>
-                    <div className="bg-white rounded-2xl p-6 w-full max-w-sm mx-auto text-left shadow-sm border border-brand-border">
-                        <p className="text-primary font-black text-center mb-1 uppercase tracking-widest text-[0.7rem]">Monto a depositar (100%)</p>
-                        <p className="text-brand-text font-black text-4xl text-center mb-6">{formatCurrency(balance)}</p>
-                        <div className="text-[0.85rem] text-brand-text space-y-2 border-t border-brand-border/50 pt-4">
-                            <p className="flex justify-between"><strong>Banco:</strong> <span>Mercado Pago</span></p>
-                            <p className="flex justify-between"><strong>Nº Cuenta:</strong> <span>1098081647 (Vista)</span></p>
-                            <p className="flex justify-between"><strong>Nombre:</strong> <span>Felipe Ramírez</span></p>
-                            <p className="flex justify-between"><strong>RUT:</strong> <span>15.332.189-2</span></p>
-                            <p className="flex justify-between"><strong>Email:</strong> <span>contacto@cocktailsontap.cl</span></p>
-                        </div>
-                        <button onClick={() => {
-                                const text = `Banco: Mercado Pago\nCuenta Vista: 1098081647\nNombre: Felipe Ramírez\nRUT: 15.332.189-2\nE-mail: contacto@cocktailsontap.cl`;
-                                navigator.clipboard.writeText(text);
-                            }} className="w-full mt-6 inline-flex items-center justify-center gap-2 px-4 py-3 bg-white border border-primary/20 rounded-xl text-[0.85rem] font-black text-brand-text hover:border-primary hover:text-primary transition-all active:scale-95 shadow-sm">
-                            <Copy className="w-4 h-4" /> Copiar Datos
-                        </button>
-                    </div>
-                </div>
-            )}
+
 
             <div className={`flex items-start gap-4 border rounded-2xl px-5 py-4 ${isDraft ? 'bg-primary/5 border-primary/15' : 'bg-slate-50 border-brand-border/50'}`}>
                 <div className={`p-2 rounded-xl shrink-0 mt-0.5 ${isDraft ? 'bg-primary/10 text-primary' : 'bg-slate-100 text-brand-text-muted'}`}>
@@ -438,6 +414,80 @@ export default function DirectQuoteView({ quote, comunas, availableCocktails, ca
                     </p>
                 </div>
             </div>
+
+            {/* Resumen de Pagos (Solo si no es Borrador) - ESTILO PREMIUM IGUAL A EVENTQUOTEVEW */}
+            {!isDraft && (
+                <div className="bg-white rounded-[1.5rem] border border-brand-border p-5 sm:p-7 shadow-sm overflow-hidden relative">
+                    <div className="flex items-center justify-between mb-6 pb-2 border-b border-brand-border/50">
+                        <h2 className="text-[0.65rem] font-black text-primary uppercase tracking-[0.2em] flex items-center gap-2">
+                             <Tag className="w-3.5 h-3.5" /> Estado de Cuenta
+                        </h2>
+                        {balance <= 0 && (
+                            <span className="text-[0.6rem] font-black text-green-700 bg-green-50 px-2 py-0.5 rounded border border-green-100 uppercase">Pagado 👌</span>
+                        )}
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 mb-8">
+                        <div className="bg-slate-50 p-5 rounded-2xl border border-brand-border/50">
+                            <p className="text-[0.6rem] font-black text-brand-text-muted uppercase tracking-widest mb-1">Total Pedido</p>
+                            <p className="text-xl font-black text-brand-text">{formatCurrency(summaryData.totalPrice)}</p>
+                        </div>
+                        <div className="bg-green-50 p-5 rounded-2xl border border-green-100">
+                            <p className="text-[0.6rem] font-black text-green-700 uppercase tracking-widest mb-1">Total Pagado</p>
+                            <p className="text-xl font-black text-green-600">{formatCurrency(totalPaid)}</p>
+                        </div>
+                        <div className={`p-5 rounded-2xl border ${balance > 0 ? 'bg-amber-50 border-amber-100' : 'bg-blue-50 border-blue-100'}`}>
+                            <p className={`text-[0.6rem] font-black uppercase tracking-widest mb-1 ${balance > 0 ? 'text-amber-700' : 'text-blue-700'}`}>
+                                {balance > 0 ? 'Saldo Pendiente' : 'Saldo en $0'}
+                            </p>
+                            <p className={`text-xl font-black ${balance > 0 ? 'text-amber-600' : 'text-blue-600'}`}>
+                                {formatCurrency(Math.max(0, balance))}
+                            </p>
+                        </div>
+                    </div>
+
+                    {quote.payments && quote.payments.length > 0 && (
+                        <div className="space-y-3">
+                            <h3 className="text-[0.7rem] font-black text-brand-text mb-4 uppercase tracking-widest px-1">Historial de Transacciones</h3>
+                            {quote.payments.map((p, idx) => (
+                                <div key={idx} className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-brand-border/30">
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center text-green-600 font-black text-xs">
+                                            $
+                                        </div>
+                                        <div>
+                                            <p className="text-[0.9rem] font-black text-brand-text">{formatCurrency(p.amount)}</p>
+                                            <p className="text-[0.7rem] text-brand-text-muted font-bold">
+                                                {new Date(p.date + 'T12:00:00').toLocaleDateString('es-CL')} — {p.note}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div className="px-3 py-1 bg-white border border-brand-border rounded-lg text-[0.65rem] font-black text-brand-text-muted uppercase tracking-tighter shrink-0">
+                                        Recibido
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
+                    {balance > 0 && (
+                        <div className="mt-8 p-6 bg-amber-50 rounded-[1.5rem] border-2 border-dashed border-amber-200 text-center">
+                            <p className="text-[0.85rem] text-amber-800 font-bold mb-4">
+                                Si aún no realizas tu transferencia, recuerda que el monto total pendiente es de <strong>{formatCurrency(balance)}</strong>.
+                            </p>
+                            <button 
+                                onClick={() => {
+                                    const text = `Banco: Mercado Pago\nCuenta Vista: 1098081647\nNombre: Felipe Ramírez\nRUT: 15.332.189-2\nE-mail: contacto@cocktailsontap.cl`;
+                                    navigator.clipboard.writeText(text);
+                                }}
+                                className="inline-flex items-center gap-2 px-6 py-3 bg-white border border-amber-200 rounded-xl text-[0.85rem] font-black text-amber-700 hover:border-amber-400 transition-all active:scale-95 shadow-sm"
+                            >
+                                <Copy className="w-4 h-4" /> Copiar Datos para Transferir
+                            </button>
+                        </div>
+                    )}
+                </div>
+            )}
 
             {!isDraft ? (
                 <QuoteSummaryReservation data={reservationData} />
@@ -499,6 +549,8 @@ export default function DirectQuoteView({ quote, comunas, availableCocktails, ca
                 onUpdateQuantity={onSummaryUpdateQuantity}
                 onAddProductsClick={() => setShowCatalog(true)}
             />
+
+
 
             {showCatalog && (
                 <div className="fixed inset-0 z-[300] bg-black/60 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={() => setShowCatalog(false)}>

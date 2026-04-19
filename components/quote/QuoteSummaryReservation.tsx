@@ -23,7 +23,7 @@ export default function QuoteSummaryReservation({ data }: Props) {
     return (
         <div className="bg-white rounded-[20px] p-8 shadow-[0_4px_20px_rgba(0,0,0,0.07)] border border-brand-border">
             <div className="flex items-center gap-2 mb-6">
-                <h2 className="text-[0.7rem] sm:text-[0.75rem] font-black text-primary uppercase tracking-[0.2em]">Información de Reserva</h2>
+                <h2 className="text-[0.7rem] sm:text-[0.75rem] font-black text-primary uppercase tracking-[0.2em]">Información de Contacto</h2>
             </div>
 
             {/* Info Grid */}
@@ -54,10 +54,12 @@ export default function QuoteSummaryReservation({ data }: Props) {
 
                 {/* Columna 2: Evento / Despacho */}
                 <div className="space-y-2">
-                    <div className="flex items-start gap-2">
-                        <span className="font-bold text-brand-text-muted min-w-[85px]">Evento:</span>
-                        <span className="font-medium text-brand-text leading-tight">{data.eventTypeDisplay} ({data.guests} pers.)</span>
-                    </div>
+                    {data.eventTypeDisplay !== 'Venta Directa' && (
+                        <div className="flex items-start gap-2">
+                            <span className="font-bold text-brand-text-muted min-w-[85px]">Evento:</span>
+                            <span className="font-medium text-brand-text leading-tight">{data.eventTypeDisplay} ({data.guests} pers.)</span>
+                        </div>
+                    )}
                     <div className="flex items-start gap-2">
                         <span className="font-bold text-brand-text-muted min-w-[85px]">Fecha:</span>
                         <span className="font-medium text-brand-text leading-tight">

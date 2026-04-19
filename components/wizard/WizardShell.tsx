@@ -160,6 +160,7 @@ export default function WizardShell({ cocktails, eventTypes, comunas, categories
                             token={quoteToken} 
                             clientEmail={state.contact.email} 
                             onReset={handleReset} 
+                            onOpenWhatsApp={() => wizard.sendWhatsAppQuote(quoteToken)}
                         />
                     ) : (
                         renderStep()

@@ -11,7 +11,7 @@ async function getQuotes(status?: string, search?: string, sort = 'event_date', 
     const to = from + ITEMS_PER_PAGE - 1;
 
     let query = db.from('quotes')
-        .select('id, token, status, client_name, client_lastname, client_email, event_date, total_price, created_at, comuna_name', { count: 'exact' });
+        .select('id, token, status, client_name, client_lastname, client_email, event_date, total_price, created_at, comuna_name, dispenser', { count: 'exact' });
     
     if (status && status !== 'all') query = query.eq('status', status);
     if (search) query = query.or(`client_name.ilike.%${search}%,client_email.ilike.%${search}%,client_lastname.ilike.%${search}%`);

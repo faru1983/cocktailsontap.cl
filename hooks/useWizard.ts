@@ -19,7 +19,7 @@ const INITIAL_STATE: WizardState = {
         pickupTime: '',
     },
     consumption: {
-        guests: 50,
+        guests: 0,
         drinksPerPerson: 3,
     },
     contact: {

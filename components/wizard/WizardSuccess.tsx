@@ -9,6 +9,7 @@ interface WizardSuccessProps {
     token: string;
     clientEmail: string;
     onReset: () => void;
+    onOpenWhatsApp?: () => void;
 }
 
 export default function WizardSuccess({ token, clientEmail, onReset }: WizardSuccessProps) {
@@ -119,9 +120,17 @@ export default function WizardSuccess({ token, clientEmail, onReset }: WizardSuc
                         </div>
                         <div>
                             <h3 className="font-bold text-brand-dark text-sm">Chat iniciado</h3>
-                            <p className="text-xs text-brand-text-muted mt-1 leading-relaxed">
-                                Ya abrimos WhatsApp con tu cotización. Te responderemos a la brevedad.
+                            <p className="text-xs text-brand-text-muted mt-1 leading-relaxed mb-3">
+                                Intentamos abrir WhatsApp automáticamente. Si no cargó, puedes abrirlo manualmente:
                             </p>
+                            {onOpenWhatsApp && (
+                                <button 
+                                    onClick={onOpenWhatsApp}
+                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#25D366] text-white text-xs font-bold rounded-lg hover:bg-[#128C7E] transition-colors shadow-sm"
+                                >
+                                    <WhatsappIcon className="w-3.5 h-3.5" /> Abrir WhatsApp
+                                </button>
+                            )}
                         </div>
                     </div>
                 </div>
