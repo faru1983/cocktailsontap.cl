@@ -127,6 +127,7 @@ export default function ProductsClient({ products, categories, measurementUnits 
     const [modalProduct, setModalProduct] = useState<{ isOpen: boolean; data: any; prices: any[] }>({ isOpen: false, data: null, prices: [] });
     const [modalUnit, setModalUnit] = useState<{ isOpen: boolean; data: any }>({ isOpen: false, data: null });
     const [modalGallery, setModalGallery] = useState<{ isOpen: boolean; onSelect?: (url: string) => void }>({ isOpen: false });
+    const [galleryTarget, setGalleryTarget] = useState<{ index: number | 'product' | null }>({ index: null });
 
     // ─── Gallery Data ────────────────────────────────────────────────────────
     const [galleryImages, setGalleryImages] = useState<any[]>([]);
@@ -257,7 +258,13 @@ export default function ProductsClient({ products, categories, measurementUnits 
             const { data: { publicUrl } } = supabase.storage.from('product-images').getPublicUrl(fileName);
             
             if (insideProduct) {
-                setModalProduct(prev => ({ ...prev, data: { ...prev.data, image_url: publicUrl } }));
+                if (galleryTarget.index === 'product') {
+                    setModalProduct(prev => ({ ...prev, data: { ...prev.data, image_url: publicUrl } }));
+                } else if (typeof galleryTarget.index === 'number') {
+                    const np = [...modalProduct.prices];
+                    np[galleryTarget.index].image_url = publicUrl;
+                    setModalProduct(prev => ({ ...prev, prices: np }));
+                }
             } else {
                 await fetchGallery();
             }
@@ -501,10 +508,14 @@ export default function ProductsClient({ products, categories, measurementUnits 
                     <div className="p-6 bg-black/30 border border-white/5 rounded-2xl flex items-center gap-6">
                         <img src={modalProduct.data?.image_url || DEFAULT_IMG} className="w-20 h-20 rounded-2xl object-contain bg-black shadow-2xl border-2 border-white/5" alt="" />
                         <div className="flex flex-col gap-2">
-                             <button type="button" onClick={() => { fetchGallery(false); setModalGallery({ isOpen: true, onSelect: (url) => setModalProduct({ ...modalProduct, data: { ...modalProduct.data, image_url: url } }) }); }} className="text-sky-400 text-xs font-black uppercase flex items-center gap-2 hover:text-white transition-colors"><Layers size={14}/> Explorar Galería</button>
+                             <button type="button" onClick={() => { 
+                                fetchGallery(false); 
+                                setGalleryTarget({ index: 'product' });
+                                setModalGallery({ isOpen: true, onSelect: (url) => setModalProduct(prev => ({ ...prev, data: { ...prev.data, image_url: url } })) }); 
+                             }} className="text-sky-400 text-xs font-black uppercase flex items-center gap-2 hover:text-white transition-colors"><Layers size={14}/> Explorar Galería</button>
                              <div className="flex gap-4">
                                 <label className="text-[#E2A049] text-[10px] font-black uppercase cursor-pointer hover:underline"><PlusCircle size={12} className="inline mr-1"/> Subir
-                                    <input type="file" className="hidden" onChange={(e) => handleUpload(e, true)} />
+                                    <input type="file" className="hidden" onChange={(e) => { setGalleryTarget({ index: 'product' }); handleUpload(e, true); }} />
                                 </label>
                                 <button type="button" onClick={() => setModalProduct({ ...modalProduct, data: { ...modalProduct.data, image_url: '' } })} className="text-rose-500 text-[10px] font-black uppercase hover:underline">Eliminar</button>
                              </div>
@@ -595,13 +606,62 @@ export default function ProductsClient({ products, categories, measurementUnits 
                                         </div>
                                     </div>
                                     <div className="grid grid-cols-2 gap-3 pl-7">
-                                        <div>
-                                            <label className="block text-[9px] text-slate-600 font-bold uppercase mb-1">Precio Normal</label>
-                                            <input className="w-full bg-black/40 border border-white/5 rounded-lg px-3 py-2 text-xs text-white" type="number" value={p.price || ''} onChange={e => { const val = e.target.value; const np = [...modalProduct.prices]; np[i].price = val === '' ? 0 : parseInt(val); setModalProduct({ ...modalProduct, prices: np }) }} placeholder="Precio" required />
+                                        <div className="flex items-center gap-3 bg-black/40 p-2 rounded-lg border border-white/5">
+                                            <div className="w-10 h-10 rounded-lg bg-black flex-shrink-0 overflow-hidden border border-white/10 group-hover:border-[#E2A049]/30 transition-colors">
+                                                {p.image_url ? (
+                                                    <img src={p.image_url} className="w-full h-full object-contain" alt="" />
+                                                ) : (
+                                                    <div className="w-full h-full flex items-center justify-center text-slate-700 bg-slate-900/50">
+                                                        <ImageIcon size={14}/>
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <div className="flex flex-col gap-1">
+                                                <button 
+                                                    type="button" 
+                                                    onClick={() => {
+                                                        fetchGallery(false);
+                                                        setGalleryTarget({ index: i });
+                                                        setModalGallery({ isOpen: true, onSelect: (url) => {
+                                                            const np = [...modalProduct.prices];
+                                                            np[i].image_url = url;
+                                                            setModalProduct(prev => ({ ...prev, prices: np }));
+                                                        }});
+                                                    }}
+                                                    className="text-sky-400 text-[9px] font-black uppercase hover:text-white transition-colors flex items-center gap-1"
+                                                >
+                                                    <Layers size={10}/> Galería
+                                                </button>
+                                                <div className="flex gap-2">
+                                                    <label className="text-[#E2A049] text-[9px] font-black uppercase cursor-pointer hover:underline">
+                                                        <PlusCircle size={10} className="inline mr-1"/> Subir
+                                                        <input type="file" className="hidden" onChange={(e) => { setGalleryTarget({ index: i }); handleUpload(e, true); }} />
+                                                    </label>
+                                                    {p.image_url && (
+                                                        <button 
+                                                            type="button" 
+                                                            onClick={() => {
+                                                                const np = [...modalProduct.prices];
+                                                                np[i].image_url = null;
+                                                                setModalProduct(prev => ({ ...prev, prices: np }));
+                                                            }}
+                                                            className="text-rose-500 text-[9px] font-black uppercase hover:underline"
+                                                        >
+                                                            Limpiar
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </div>
                                         </div>
-                                        <div>
-                                            <label className="block text-[9px] text-slate-600 font-bold uppercase mb-1">Precio Oferta</label>
-                                            <input className="w-full bg-black/40 border border-white/5 rounded-lg px-3 py-2 text-xs text-emerald-400 placeholder:text-slate-700" type="number" value={p.offer_price || ''} onChange={e => { const np = [...modalProduct.prices]; np[i].offer_price = e.target.value ? parseInt(e.target.value) : null; setModalProduct({ ...modalProduct, prices: np }) }} placeholder="Oferta" />
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <div>
+                                                <label className="block text-[9px] text-slate-600 font-bold uppercase mb-1">Precio Normal</label>
+                                                <input className="w-full bg-black/40 border border-white/5 rounded-lg px-2 py-2 text-xs text-white" type="number" value={p.price || ''} onChange={e => { const val = e.target.value; const np = [...modalProduct.prices]; np[i].price = val === '' ? 0 : parseInt(val); setModalProduct({ ...modalProduct, prices: np }) }} placeholder="Precio" required />
+                                            </div>
+                                            <div>
+                                                <label className="block text-[9px] text-slate-600 font-bold uppercase mb-1">Precio Oferta</label>
+                                                <input className="w-full bg-black/40 border border-white/5 rounded-lg px-2 py-2 text-xs text-emerald-400" type="number" value={p.offer_price || ''} onChange={e => { const np = [...modalProduct.prices]; np[i].offer_price = e.target.value ? parseInt(e.target.value) : null; setModalProduct({ ...modalProduct, prices: np }) }} placeholder="Oferta" />
+                                            </div>
                                         </div>
                                     </div>
                                 </div>

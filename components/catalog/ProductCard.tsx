@@ -17,6 +17,9 @@ export default function ProductCard({ product, cart }: ProductCardProps) {
     const sizeInfo = product.sizes.find((s) => s.size === selectedSize) ?? product.sizes[0];
     if (!sizeInfo) return null;
 
+    // Determinar la imagen a mostrar: prioridad a la imagen del tamaño/formato, fallback a la general
+    const displayImage = sizeInfo.image || product.image;
+
     const hasOffer = sizeInfo.offerPrice < sizeInfo.price;
     const quantity = cart.getQuantity(product.id, selectedSize);
 
@@ -28,10 +31,11 @@ export default function ProductCard({ product, cart }: ProductCardProps) {
         <div className="bg-white rounded-2xl overflow-hidden flex flex-col transition-all duration-300 shadow-[0_4px_15px_rgba(0,0,0,0.05)] border border-brand-border h-full group hover:-translate-y-1 hover:shadow-[0_12px_25px_rgba(0,0,0,0.1)]">
             <div className="aspect-square overflow-hidden bg-[#f8fafc] relative">
                 <Image
-                    src={product.image}
+                    src={displayImage}
                     alt={product.name}
                     fill
-                    className="object-cover transition-transform duration-500 ease-[cubic-bezier(0.25,0.46,0.45,0.94)] group-hover:scale-110"
+                    key={displayImage} // Force re-animation on swap
+                    className="object-cover transition-all duration-700 ease-in-out group-hover:scale-110 animate-fade-in"
                     sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 20vw"
                 />
             </div>
@@ -83,7 +87,8 @@ export default function ProductCard({ product, cart }: ProductCardProps) {
                             sizeInfo.offerPrice,
                             sizeInfo.sizeValue,
                             sizeInfo.unitId,
-                            sizeInfo.isDisposable
+                            sizeInfo.isDisposable,
+                            displayImage
                         )}
                     >
                         Agregar

@@ -86,6 +86,7 @@ export const fetchAllProductData = unstable_cache(
                         isDisposable: s.is_disposable ?? false,
                         price: s.price,
                         offerPrice: s.offer_price ?? s.price,
+                        image: resolveImage(s.image_url),
                     };
                 });
 
@@ -114,7 +115,8 @@ export const fetchAllProductData = unstable_cache(
                         sizeValue: s.sizeValue,
                         unit: s.unit,
                         unitId: s.unitId,
-                        isDisposable: s.isDisposable
+                        isDisposable: s.isDisposable,
+                        image: s.image
                     };
                     return acc;
                 },

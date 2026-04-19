@@ -22,6 +22,7 @@ export interface SupabaseProduct {
         offer_price: number | null;
         display_order: number | null;
         is_active: boolean;
+        image_url?: string | null;
         measurement_units?: {
             id: string;
             name: string;
@@ -38,6 +39,7 @@ export interface ProductPrice {
     isDisposable: boolean;
     price: number;
     offerPrice: number;
+    image?: string;
 }
 
 export interface Product {
@@ -63,6 +65,7 @@ export interface CocktailForWizard {
         unit: string;
         unitId: string | null;
         isDisposable: boolean;
+        image?: string;
     }>;
 }
 
