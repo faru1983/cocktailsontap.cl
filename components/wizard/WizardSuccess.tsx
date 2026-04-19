@@ -12,7 +12,7 @@ interface WizardSuccessProps {
     onOpenWhatsApp?: () => void;
 }
 
-export default function WizardSuccess({ token, clientEmail, onReset }: WizardSuccessProps) {
+export default function WizardSuccess({ token, clientEmail, onReset, onOpenWhatsApp }: WizardSuccessProps) {
     const quoteLink = `${SITE_URL}/cotizar/${token}`;
 
     const copyToClipboard = () => {
