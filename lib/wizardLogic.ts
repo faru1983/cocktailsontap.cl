@@ -75,18 +75,18 @@ export function formatEventDate(dateStr: string): string {
  */
 export function calculateSmartConfig(guests: number, avgDrinks: number, isDirect: boolean = false) {
     const totalRequired = Math.ceil(guests * avgDrinks);
-    const BARRIL_YIELDS = [
-        { size: 5, yield: 30 },   // Rinde up to 30
-        { size: 10, yield: 60 },  // Rinde up to 60
-        { size: 20, yield: 120 }, // Rinde up to 120
-        { size: 30, yield: 180 }  // Rinde up to 180
-    ];
-
-    // Si es Directo, mantenemos la lógica simple de barriles desechables de 5L
+    
+    /**
+     * REGLA DE NEGOCIO - RENDIMIENTOS
+     * Para planificación (interno): 1L = 6 cócteles (30, 60, 120, 180)
+     * Para visualización (cliente): 1L = 5 cócteles (25, 50, 100, 150)
+     */
+    
+    // Si es Directo, mantenemos la lógica de barriles desechables de 5L mas simple
     if (isDirect) {
-        const numBarrels = Math.ceil(totalRequired / 30);
+        const numBarrels = Math.ceil(totalRequired / 30); // Usamos 30 para planificación
         const totalLiters = numBarrels * 5;
-        const totalDrinks = numBarrels * 30;
+        const totalDrinks = totalLiters * 5; // Mostramos 5 para el cliente
         const labelText = numBarrels === 1 ? '1 Barril Desechable' : `${numBarrels} Barriles Desechables`;
         
         return {
@@ -96,16 +96,22 @@ export function calculateSmartConfig(guests: number, avgDrinks: number, isDirect
         };
     }
 
+    // Target Variedad: Intentar ofrecer 1 variedad por cada trago por persona
+    let targetVariedad = Math.max(1, Math.round(avgDrinks));
+    
+    // Regla especial: Para 10 personas o menos, máximo 1 variedad
+    if (guests <= 10) targetVariedad = 1;
+
     interface Combination {
         counts: { [key: number]: number };
-        totalYield: number;
+        totalYield: number; // Basado en 1L = 6
         variedad: number;
         exceso: number;
     }
 
     const combinations: Combination[] = [];
 
-    // Generamos combinaciones razonables de barriles (5, 10, 20, 30 litros).
+    // Generamos combinaciones usando rendimiento de planificación 1L = 6
     for (let c30 = 0; c30 <= 3; c30++) {
         for (let c20 = 0; c20 <= 4; c20++) {
             for (let c10 = 0; c10 <= 6; c10++) {
@@ -113,11 +119,7 @@ export function calculateSmartConfig(guests: number, avgDrinks: number, isDirect
                     const yieldTotal = (c30 * 180) + (c20 * 120) + (c10 * 60) + (c5 * 30);
                     const totalBarrels = c30 + c20 + c10 + c5;
                     
-                    // CRITERIO DE VALIDEZ: 
-                    // 1. Debe haber al menos un barril.
-                    // 2. Limitamos a 10 barriles totales para no sobrecargar la logística.
-                    // 3. Tolerancia: Se permite sugerir una combinación que cubra hasta 5 cócteles menos.
-                    if (totalBarrels > 0 && totalBarrels <= 12 && yieldTotal >= totalRequired - 5) {
+                    if (totalBarrels > 0 && totalBarrels <= 12 && yieldTotal >= totalRequired) {
                         combinations.push({
                             counts: { 5: c5, 10: c10, 20: c20, 30: c30 },
                             totalYield: yieldTotal,
@@ -130,28 +132,26 @@ export function calculateSmartConfig(guests: number, avgDrinks: number, isDirect
         }
     }
 
-    // SISTEMA DE SCORING
+    // SISTEMA DE SCORING (Basado en variedad ideal y eficiencia)
     combinations.sort((a, b) => {
-        const aInIdealRange = a.exceso >= 0 && a.exceso <= 5;
-        const bInIdealRange = b.exceso >= 0 && b.exceso <= 5;
+        // 1. Cercanía a la variedad ideal (sabores = tragos por persona)
+        const aDiff = Math.abs(a.variedad - targetVariedad);
+        const bDiff = Math.abs(b.variedad - targetVariedad);
+        if (aDiff !== bDiff) return aDiff - bDiff;
 
-        if (aInIdealRange && !bInIdealRange) return -1;
-        if (!aInIdealRange && bInIdealRange) return 1;
+        // 2. Si empatan en variedad, preferir el que tenga MENOR exceso de litros (eficiencia)
+        if (a.exceso !== b.exceso) return a.exceso - b.exceso;
 
-        if (a.exceso >= 0 && b.exceso >= 0) {
-            if (a.exceso !== b.exceso) return a.exceso - b.exceso;
-        }
-
-        if (a.variedad !== b.variedad) return b.variedad - a.variedad;
-
-        if (a.exceso < 0 && b.exceso < 0) {
-             return b.exceso - a.exceso; 
-        }
-
-        return a.totalYield - b.totalYield;
+        // 3. Si empatan en exceso, preferir menos barriles físicos
+        return a.variedad - b.variedad;
     });
 
-    const best = combinations[0] || { counts: { 30: Math.ceil(totalRequired/180) }, totalYield: Math.ceil(totalRequired/180)*180, variedad: Math.ceil(totalRequired/180), exceso: (Math.ceil(totalRequired/180)*180) - totalRequired };
+    const best = combinations[0] || { 
+        counts: { 30: Math.ceil(totalRequired / 180) }, 
+        totalYield: Math.ceil(totalRequired / 180) * 180, 
+        variedad: Math.ceil(totalRequired / 180), 
+        exceso: (Math.ceil(totalRequired / 180) * 180) - totalRequired 
+    };
 
     // Formatear el label llamativo (ej: "2 Barriles de 5L + 1 Barril de 20L")
     const parts: string[] = [];

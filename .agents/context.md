@@ -43,31 +43,16 @@ Next.js 16 · React 19 · Tailwind CSS v4 · Supabase · Resend · Google APIs �
 
 ## 🔄 Últimos Cambios (Historial de Sesiones)
 
-### 📅 19-04-2026 — Seguridad, Hardening y Corrección de Imágenes (Sesión Actual)
-- **Seguridad e Infraestructura**:
-  - **Eliminación de Secretos**: Se removió la sal de hash hardcodeada en `lib/adminAuth.ts` y `proxy.ts`, reemplazándola por la variable de entorno `AUTH_SALT`.
-  - **Hardening de Repositorio**: El proyecto ahora es seguro para ser compartido públicamente en GitHub. Se creó `.env.example` como plantilla y se actualizó `.env.local` con las nuevas configuraciones.
-  - **Vercel**: Se requiere la configuración de `AUTH_SALT` en el panel de Vercel para el acceso administrativo.
-- **Visualización de Productos**:
-  - **Corrección de Imágenes**: Se actualizó `lib/serverData.ts` para recuperar `image_url` específico por tamaño/formato.
-  - **Lógica de Fallback**: Se implementó una lógica en `ProductCard` que prioriza la imagen del tamaño (`sizeInfo.image`) y, si no existe, cae automáticamente a la imagen principal del producto (`product.image`).
-  - **Consistencia Total**: Se sincronizaron los mapeos de productos en los Wizards (Evento y Directo) y las vistas de confirmación pública (`EventQuoteView`, `DirectQuoteView`) para asegurar que no aparezcan productos sin imagen.
-
-### 📅 19-04-2026 — Flexibilización de Invitados y Sugerencia Inteligente
-- **Cambios en Lógica de Negocio**:
-  - `lib/wizardLogic.ts`: Implementado nuevo algoritmo combinatorial para `calculateSmartConfig`. Ahora optimiza la mezcla de barriles (5L, 10L, 20L, 30L) buscando mínimo desperdicio y máxima variedad.
-  - **Flexibilidad Total**: Eliminada la restricción de 10 invitados mínimos. Ahora se permite cotizar eventos desde **1 invitado**.
+### 📅 19-04-2026 (Sesión Final) — Pulido de Negocio, Leadtimes y Smart Config Heuristics
+- **Logística y Ventas**:
+  - **Leadtime de Entrega**: Se implementó una restricción obligatoria de **2 días de anticipación** para el flujo de "Compra Directa" en `DirectStep2Delivery.tsx` y `DirectQuoteView.tsx`.
+  - **Dualidad de Rendimientos**: Refactorizado `calculateSmartConfig` en `lib/wizardLogic.ts` para usar **1L=6** en la planificación interna (seguridad) y **1L=5** para la visualización al cliente (transparencia).
+- **Algoritmo de Recomendación (Smart Config)**:
+  - **Heurística de Variedad**: Ahora el sistema sugiere un número de variedades (barriles) igual a los tragos por persona solicitados, buscando el punto dulce entre variedad y eficiencia logística.
+  - **Capping de Seguridad**: Grupos de 10 personas o menos ahora se limitan automáticamente a **1 sola variedad** para evitar excesos de volumen innecesarios.
 - **Mejoras UI/UX**:
-  - `components/wizard/WizardStep3.tsx`: Rediseño premium de la cabecera del catálogo con tarjeta de "Sugerencia del Experto" y gradientes animados.
-
-### 📅 18-04-2026 — Refinamiento Direct Sale y Desacople de Vistas
-- **Resumen**: Consolidación de flujo E-Commerce para Barriles Desechables. Desacople de vistas de confirmación y corrección de bloqueos de WhatsApp.
-
-### 📅 17-04-2026 — Sincronización y Refinado de Venta Directa
-- **Resumen**: Desacople de emails en `EmailShared.tsx`. Validación de cálculos de litros para solo sumar productos líquidos.
-
-### 📅 14-04-2026 — Desacople Arquitectónico Paso 0
-- **Resumen**: Implementado `CotizarGateway` para elección de servicio y aislamiento de `DirectWizardShell`.
+  - **Contexto en Paso 3**: Se agregó un recordatorio del número de invitados y tragos p/p en la sección de "Sugerencia del Experto" para dar coherencia a las variedades recomendadas.
+  - **Centralización**: Se creó la utilidad `getMinDateString(offset)` para centralizar cálculos de fechas con desvío por zona horaria.
 
 ---
 

@@ -100,6 +100,10 @@ export default function WizardStep3({ wizard, cocktails, categories }: Props) {
                             <Sparkles className="w-4 h-4 text-primary" />
                             <span className="text-[0.75rem] uppercase text-primary font-black tracking-widest">Sugerencia del Experto</span>
                         </div>
+
+                        <p className="text-brand-text-muted text-[0.85rem] font-black uppercase tracking-widest mb-2 opacity-80">
+                            Para {state.consumption.guests} invitados · {state.consumption.drinksPerPerson} tragos p/p
+                        </p>
                         
                         <div className="text-[1.8rem] md:text-[2.2rem] font-black text-brand-text leading-[1.1] mb-2 text-balance">
                             {suggestedConfig}
