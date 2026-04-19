@@ -85,7 +85,7 @@ export const QuoteService = {
         const { data: quote, error: quoteError } = await db
             .from('quotes')
             .insert({
-                status: 'draft',
+                status: state.dispenser === 'desechable' ? 'confirmed' : 'draft',
                 client_id: clientId,
                 client_name: state.contact.firstName.trim(),
                 client_lastname: state.contact.lastName?.trim() || null,

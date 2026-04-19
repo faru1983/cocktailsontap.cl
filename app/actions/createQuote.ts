@@ -72,21 +72,43 @@ export async function createQuote(input: CreateQuoteInput): Promise<CreateQuoteR
             console.error('Google Sync failed:', e);
         }
 
-        // ─── 6. Enviar emails (Condicional y Non-blocking) ───────────────────
+        // ─── 6. Sync Google Events & Enviar emails ───────────────────────────────
+        const isDirect = state.serviceType === 'direct' || state.dispenser === 'desechable';
         const resendKey = process.env.RESEND_API_KEY;
+
+        const fullQuote = {
+            ...createResult.quote,
+            quote_items: createResult.quoteItems ?? []
+        };
+
+        if (isDirect) {
+            // Google Sync for immediately confirmed direct sale
+            try {
+                const { GoogleSyncService } = await import('@/lib/services/googleSyncService');
+                await GoogleSyncService.updateContactConfirmedStatus(fullQuote as any);
+                const calResult = await GoogleSyncService.scheduleCalendarEvents(fullQuote as any); // cast safely
+                
+                if (calResult.eventId || calResult.pickupEventId) {
+                    const { createServerClient } = await import('@/lib/supabaseServer');
+                    const dbServer = createServerClient();
+                    await dbServer.from('quotes').update({
+                        google_event_id: calResult.eventId,
+                        google_pickup_event_id: calResult.pickupEventId
+                    }).eq('id', fullQuote.id);
+                }
+            } catch (syncErr) {
+                console.error('Error in Google Sync for Direct Sale during createQuote:', syncErr);
+            }
+        }
+
         if (!skipEmail && resendKey && state.contact.email && createResult.quoteItems) {
             try {
                 const resend = new Resend(resendKey);
-                // Reconstruct full quote for the email template
-                const fullQuote = {
-                    ...createResult.quote,
-                    quote_items: createResult.quoteItems
-                };
 
-                const isDirect = state.serviceType === 'direct';
+                const isDirect = state.serviceType === 'direct' || state.dispenser === 'desechable';
                 let EmailComponent;
                 if (isDirect) {
-                    EmailComponent = (await import('@/components/emails/DirectSaleEmail')).default;
+                    EmailComponent = (await import('@/components/emails/ConfirmationEmail')).default;
                 } else {
                     EmailComponent = (await import('@/components/emails/QuoteEmail')).default;
                 }
@@ -108,13 +130,13 @@ export async function createQuote(input: CreateQuoteInput): Promise<CreateQuoteR
                 const clientSubject = await SettingsService.getResolvedValue(
                     isDirect ? 'email_direct_sale_subject' : 'email_quote_draft_subject',
                     emailVars,
-                    isDirect ? `📦 Tu pedido de compra directa – ${eventDate}` : `🍸 Tu cotización – ${eventDate}`
+                    isDirect ? `✅ Tu pedido ha sido confirmado – ${eventDate}` : `🍸 Tu cotización – ${eventDate}`
                 );
 
                 const adminSubject = await SettingsService.getResolvedValue(
                     isDirect ? 'email_direct_sale_admin_subject' : 'email_quote_draft_admin_subject',
                     emailVars,
-                    isDirect ? `[Nuevo Pedido] ${fullName} – ${eventDate}` : `[Nueva Cotización] ${fullName} – ${eventDate}`
+                    isDirect ? `[Pedido Confirmado] ${fullName} – ${eventDate}` : `[Nueva Cotización] ${fullName} – ${eventDate}`
                 );
 
                 await Promise.allSettled([
@@ -131,6 +153,7 @@ export async function createQuote(input: CreateQuoteInput): Promise<CreateQuoteR
                         html: adminHtml,
                     }),
                 ]);
+
             } catch (emailErr) {
                 console.error('Error enviando emails:', emailErr);
             }

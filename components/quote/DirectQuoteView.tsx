@@ -395,6 +395,32 @@ export default function DirectQuoteView({ quote, comunas, availableCocktails, ca
                 )}
             </div>
 
+            {!isDraft && balance > 0 && (
+                <div className="bg-[#fffbf0] border-2 border-primary/20 rounded-[2.5rem] p-6 sm:p-8 flex flex-col items-center text-center shadow-sm">
+                    <p className="text-primary font-black uppercase text-[0.8rem] mb-2 tracking-widest">Validación de Pago Pendiente</p>
+                    <p className="text-brand-text text-[0.95rem] mb-6 max-w-lg leading-relaxed">
+                        Tu pedido ha sido recibido. Para iniciar la preparación, por favor transfiere el total y envíanos el comprobante vía WhatsApp o al correo.
+                    </p>
+                    <div className="bg-white rounded-2xl p-6 w-full max-w-sm mx-auto text-left shadow-sm border border-brand-border">
+                        <p className="text-primary font-black text-center mb-1 uppercase tracking-widest text-[0.7rem]">Monto a depositar (100%)</p>
+                        <p className="text-brand-text font-black text-4xl text-center mb-6">{formatCurrency(balance)}</p>
+                        <div className="text-[0.85rem] text-brand-text space-y-2 border-t border-brand-border/50 pt-4">
+                            <p className="flex justify-between"><strong>Banco:</strong> <span>Mercado Pago</span></p>
+                            <p className="flex justify-between"><strong>Nº Cuenta:</strong> <span>1098081647 (Vista)</span></p>
+                            <p className="flex justify-between"><strong>Nombre:</strong> <span>Felipe Ramírez</span></p>
+                            <p className="flex justify-between"><strong>RUT:</strong> <span>15.332.189-2</span></p>
+                            <p className="flex justify-between"><strong>Email:</strong> <span>contacto@cocktailsontap.cl</span></p>
+                        </div>
+                        <button onClick={() => {
+                                const text = `Banco: Mercado Pago\nCuenta Vista: 1098081647\nNombre: Felipe Ramírez\nRUT: 15.332.189-2\nE-mail: contacto@cocktailsontap.cl`;
+                                navigator.clipboard.writeText(text);
+                            }} className="w-full mt-6 inline-flex items-center justify-center gap-2 px-4 py-3 bg-white border border-primary/20 rounded-xl text-[0.85rem] font-black text-brand-text hover:border-primary hover:text-primary transition-all active:scale-95 shadow-sm">
+                            <Copy className="w-4 h-4" /> Copiar Datos
+                        </button>
+                    </div>
+                </div>
+            )}
+
             <div className={`flex items-start gap-4 border rounded-2xl px-5 py-4 ${isDraft ? 'bg-primary/5 border-primary/15' : 'bg-slate-50 border-brand-border/50'}`}>
                 <div className={`p-2 rounded-xl shrink-0 mt-0.5 ${isDraft ? 'bg-primary/10 text-primary' : 'bg-slate-100 text-brand-text-muted'}`}>
                     {isDraft ? <Info className="w-4 h-4" /> : <CheckCircle className="w-4 h-4" />}

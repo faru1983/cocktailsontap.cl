@@ -67,7 +67,8 @@ export default function CreateQuoteManualClient({ allProducts, comunas, eventTyp
         drinksPerPerson: 3 
     });
 
-    const [dispenser, setDispenser] = useState<'portatil' | 'muro' | 'desechable'>('portatil');
+    const [serviceType, setServiceType] = useState<'event' | 'direct'>('event');
+    const [dispenser, setDispenser] = useState<'portatil' | 'muro'>('portatil');
     const [selections, setSelections] = useState<{ id: string; size: string; quantity: number; customPrice?: number }[]>([]);
     
     // Overrides (undefined means use default)
@@ -101,11 +102,11 @@ export default function CreateQuoteManualClient({ allProducts, comunas, eventTyp
         consumption,
         contact,
         selections,
-        dispenser,
+        dispenser: serviceType === 'direct' ? 'desechable' : dispenser,
         expandedCocktailId: null,
         expandedCategoryId: '',
-        serviceType: ''
-    }), [eventData, consumption, contact, selections, dispenser]);
+        serviceType: serviceType
+    }), [eventData, consumption, contact, selections, dispenser, serviceType]);
 
     // Summary Data (Prices, Delivery, Rules)
     const summary = useMemo(() => 
@@ -283,6 +284,24 @@ export default function CreateQuoteManualClient({ allProducts, comunas, eventTyp
             <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-12 gap-10">
                 <div className="lg:col-span-8 space-y-10">
                     
+                    {/* TYPE TOGGLE */}
+                    <div className="flex bg-black/40 border border-white/5 p-1.5 rounded-2xl">
+                        <button
+                            type="button"
+                            onClick={() => setServiceType('event')}
+                            className={`flex-1 py-4 text-xs font-black uppercase tracking-widest rounded-xl transition-all ${serviceType === 'event' ? 'bg-[#E2A049] text-black shadow-lg shadow-[#E2A049]/20' : 'text-slate-500 hover:text-white'}`}
+                        >
+                            Reserva de Evento
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setServiceType('direct')}
+                            className={`flex-1 py-4 text-xs font-black uppercase tracking-widest rounded-xl transition-all ${serviceType === 'direct' ? 'bg-[#E2A049] text-black shadow-lg shadow-[#E2A049]/20' : 'text-slate-500 hover:text-white'}`}
+                        >
+                            Pedido Directo
+                        </button>
+                    </div>
+
                     <SectionBox title="Datos Personales" icon={<span className="w-1.5 h-6 bg-[#E2A049] rounded-full" />}>
                         <div className="mb-6 relative">
                             <label className="block text-slate-500 text-[10px] font-black uppercase tracking-widest mb-3">Buscar Cliente Existente</label>
@@ -335,88 +354,96 @@ export default function CreateQuoteManualClient({ allProducts, comunas, eventTyp
                         </div>
                     </SectionBox>
 
-                    <SectionBox title="Detalles del Evento" icon={<span className="w-1.5 h-6 bg-slate-600 rounded-full" />}>
+                    <SectionBox title={serviceType === 'direct' ? "Dirección de Despacho" : "Detalles del Evento"} icon={<span className="w-1.5 h-6 bg-slate-600 rounded-full" />}>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <Field label="Temática">
-                                <select value={eventData.type} onChange={e => setEventData(d => ({...d, type: e.target.value}))} className="admin-input appearance-none">
-                                    <option value="">Selecciona temática...</option>
-                                    {eventTypes.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                                </select>
-                            </Field>
-                            <Field label="N° Invitados">
-                                <input type="number" value={consumption.guests === 0 ? '' : consumption.guests} onChange={e => setConsumption(c => ({...c, guests: Number(e.target.value)}))} className="admin-input" placeholder="0" />
-                            </Field>
+                            {serviceType === 'event' && (
+                                <>
+                                    <Field label="Temática">
+                                        <select value={eventData.type} onChange={e => setEventData(d => ({...d, type: e.target.value}))} className="admin-input appearance-none">
+                                            <option value="">Selecciona temática...</option>
+                                            {eventTypes.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                                        </select>
+                                    </Field>
+                                    <Field label="N° Invitados">
+                                        <input type="number" value={consumption.guests === 0 ? '' : consumption.guests} onChange={e => setConsumption(c => ({...c, guests: Number(e.target.value)}))} className="admin-input" placeholder="0" />
+                                    </Field>
+                                </>
+                            )}
                             <Field label="Dirección (Calle y Número)" className="md:col-span-2">
                                 <input value={contact.address} onChange={e => setContact(c => ({...c, address: e.target.value}))} className="admin-input" placeholder="Av. Siempre Viva 123" />
                             </Field>
                             <Field label="Comuna">
-                                        <select value={contact.comuna} onChange={e => {
-                                            setContact(c => ({...c, comuna: e.target.value}));
-                                            setShippingOverride(undefined); // Reset override on change
-                                        }} className="admin-input appearance-none">
-                                            <option value="" disabled hidden>Selecciona comuna...</option>
-                                            {comunas.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
-                                        </select>
+                                <select value={contact.comuna} onChange={e => {
+                                    setContact(c => ({...c, comuna: e.target.value}));
+                                    setShippingOverride(undefined); // Reset override on change
+                                }} className="admin-input appearance-none">
+                                    <option value="" disabled hidden>Selecciona comuna...</option>
+                                    {comunas.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
+                                </select>
                             </Field>
                         </div>
                     </SectionBox>
 
-                    <SectionBox title="Logística y Horarios" icon={<span className="w-1.5 h-6 bg-slate-600 rounded-full" />}>
+                    <SectionBox title={serviceType === 'direct' ? "Programación de Despacho" : "Logística y Horarios"} icon={<span className="w-1.5 h-6 bg-slate-600 rounded-full" />}>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-8">
-                            <Field label="Fecha Evento">
+                            <Field label={serviceType === 'direct' ? "Fecha de Despacho" : "Fecha Evento"}>
                                 <input type="date" value={eventData.date} onChange={e => setEventData(d => ({...d, date: e.target.value}))} className="admin-input" />
                             </Field>
-                            <Field label="Hora Inicio (Evento)">
-                                <input type="time" value={eventData.startTime} onChange={e => setEventData(d => ({...d, startTime: e.target.value}))} className="admin-input" />
-                            </Field>
-                            <Field label="Fecha Retiro">
-                                <input type="date" value={eventData.pickupDate} onChange={e => setEventData(d => ({...d, pickupDate: e.target.value}))} className="admin-input" />
-                            </Field>
-                            
-                            <div className="flex flex-col gap-2">
-                                <label className="text-slate-500 text-[10px] font-black uppercase tracking-widest ml-1 flex items-center justify-between">
-                                    Horario Retiro
-                                    <label className="flex items-center gap-1.5 cursor-pointer hover:text-white transition-colors normal-case">
-                                        <input 
-                                            type="checkbox" 
-                                            checked={eventData.pickupTime === '--:--'} 
-                                            onChange={e => setEventData(d => ({...d, pickupTime: e.target.checked ? '--:--' : ''}))}
-                                            className="w-3.5 h-3.5 rounded border-white/10 bg-black/40 text-[#E2A049] focus:ring-0 focus:ring-offset-0"
-                                        />
-                                        <span className="text-[9px]">Todo el día</span>
-                                    </label>
-                                </label>
-                                
-                                {eventData.pickupTime === '--:--' ? (
-                                    <div className="admin-input flex items-center justify-center text-slate-500 font-bold bg-emerald-500/5 border-emerald-500/10">
-                                        TODO EL DÍA
+                            {serviceType === 'event' && (
+                                <>
+                                    <Field label="Hora Inicio (Evento)">
+                                        <input type="time" value={eventData.startTime} onChange={e => setEventData(d => ({...d, startTime: e.target.value}))} className="admin-input" />
+                                    </Field>
+                                    <Field label="Fecha Retiro">
+                                        <input type="date" value={eventData.pickupDate} onChange={e => setEventData(d => ({...d, pickupDate: e.target.value}))} className="admin-input" />
+                                    </Field>
+                                    
+                                    <div className="flex flex-col gap-2">
+                                        <label className="text-slate-500 text-[10px] font-black uppercase tracking-widest ml-1 flex items-center justify-between">
+                                            Horario Retiro
+                                            <label className="flex items-center gap-1.5 cursor-pointer hover:text-white transition-colors normal-case">
+                                                <input 
+                                                    type="checkbox" 
+                                                    checked={eventData.pickupTime === '--:--'} 
+                                                    onChange={e => setEventData(d => ({...d, pickupTime: e.target.checked ? '--:--' : ''}))}
+                                                    className="w-3.5 h-3.5 rounded border-white/10 bg-black/40 text-[#E2A049] focus:ring-0 focus:ring-offset-0"
+                                                />
+                                                <span className="text-[9px]">Todo el día</span>
+                                            </label>
+                                        </label>
+                                        
+                                        {eventData.pickupTime === '--:--' ? (
+                                            <div className="admin-input flex items-center justify-center text-slate-500 font-bold bg-emerald-500/5 border-emerald-500/10">
+                                                TODO EL DÍA
+                                            </div>
+                                        ) : (
+                                            <div className="flex items-center gap-2">
+                                                <input 
+                                                    type="time" 
+                                                    className="admin-input !py-2.5 !px-3 text-xs"
+                                                    value={eventData.pickupTime.includes(' a ') ? eventData.pickupTime.split(' a ')[0] : eventData.pickupTime}
+                                                    onChange={e => {
+                                                        const start = e.target.value;
+                                                        const end = eventData.pickupTime.includes(' a ') ? eventData.pickupTime.split(' a ')[1] : '';
+                                                        setEventData(d => ({...d, pickupTime: (start && end) ? `${start} a ${end}` : start}));
+                                                    }}
+                                                />
+                                                <span className="text-slate-600">-</span>
+                                                <input 
+                                                    type="time" 
+                                                    className="admin-input !py-2.5 !px-3 text-xs"
+                                                    value={eventData.pickupTime.includes(' a ') ? eventData.pickupTime.split(' a ')[1] : ''}
+                                                    onChange={e => {
+                                                        const start = eventData.pickupTime.includes(' a ') ? eventData.pickupTime.split(' a ')[0] : eventData.pickupTime;
+                                                        const end = e.target.value;
+                                                        setEventData(d => ({...d, pickupTime: (start && end) ? `${start} a ${end}` : end}));
+                                                    }}
+                                                />
+                                            </div>
+                                        )}
                                     </div>
-                                ) : (
-                                    <div className="flex items-center gap-2">
-                                        <input 
-                                            type="time" 
-                                            className="admin-input !py-2.5 !px-3 text-xs"
-                                            value={eventData.pickupTime.includes(' a ') ? eventData.pickupTime.split(' a ')[0] : eventData.pickupTime}
-                                            onChange={e => {
-                                                const start = e.target.value;
-                                                const end = eventData.pickupTime.includes(' a ') ? eventData.pickupTime.split(' a ')[1] : '';
-                                                setEventData(d => ({...d, pickupTime: (start && end) ? `${start} a ${end}` : start}));
-                                            }}
-                                        />
-                                        <span className="text-slate-600">-</span>
-                                        <input 
-                                            type="time" 
-                                            className="admin-input !py-2.5 !px-3 text-xs"
-                                            value={eventData.pickupTime.includes(' a ') ? eventData.pickupTime.split(' a ')[1] : ''}
-                                            onChange={e => {
-                                                const start = eventData.pickupTime.includes(' a ') ? eventData.pickupTime.split(' a ')[0] : eventData.pickupTime;
-                                                const end = e.target.value;
-                                                setEventData(d => ({...d, pickupTime: (start && end) ? `${start} a ${end}` : end}));
-                                            }}
-                                        />
-                                    </div>
-                                )}
-                            </div>
+                                </>
+                            )}
                         </div>
                     </SectionBox>
 
@@ -493,16 +520,17 @@ export default function CreateQuoteManualClient({ allProducts, comunas, eventTyp
 
                         <div className="space-y-4 mb-8 pt-6 border-t border-white/5">
                             {/* Dispensador (Moved from main form) */}
-                            <Field label="Tipo de Servicio">
-                                <select value={dispenser} onChange={e => {
-                                    setDispenser(e.target.value as any);
-                                    setInstallationOverride(undefined); // Reset override on change
-                                }} className="admin-input appearance-none font-bold text-[#E2A049] !bg-black/40 !py-3 !rounded-xl">
-                                    <option value="portatil">Dispensador Portátil</option>
-                                    <option value="muro">Muro de Coctelería</option>
-                                    <option value="desechable">Barril Desechable</option>
-                                </select>
-                            </Field>
+                            {serviceType === 'event' && (
+                                <Field label="Tipo de Servicio">
+                                    <select value={dispenser} onChange={e => {
+                                        setDispenser(e.target.value as any);
+                                        setInstallationOverride(undefined); // Reset override on change
+                                    }} className="admin-input appearance-none font-bold text-[#E2A049] !bg-black/40 !py-3 !rounded-xl">
+                                        <option value="portatil">Dispensador Portátil</option>
+                                        <option value="muro">Muro de Coctelería</option>
+                                    </select>
+                                </Field>
+                            )}
 
                             {/* Valor Traslado Override */}
                             <div className="flex flex-col gap-2">

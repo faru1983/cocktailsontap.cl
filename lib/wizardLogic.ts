@@ -241,7 +241,8 @@ export function buildWhatsAppMessage(state: WizardState, data: SummaryData, toke
         return `- x${s.quantity} ${s.name} (${s.selectedSize}): ${hasOffer ? `~$${N.format(s.totalNormalPrice)}~ ` : ''}*$${N.format(s.totalOfferPrice)}*`;
     }).join('\n');
 
-    let msg = `*SOLICITUD DE COTIZACIÓN*\n\n`;
+    const isDirect = state.serviceType === 'direct';
+    let msg = isDirect ? `*NUEVO PEDIDO DIRECTO*\n\n` : `*SOLICITUD DE COTIZACIÓN*\n\n`;
 
     msg += `*PRODUCTOS:*\n${itemsText}\n`;
 
@@ -263,7 +264,9 @@ export function buildWhatsAppMessage(state: WizardState, data: SummaryData, toke
     }
 
     if (token) {
-        msg += `*Confirma tu cotización aquí:* ${SITE_URL}/cotizar/${token}\n`;
+        msg += isDirect 
+            ? `*Comprobante de tu pedido aquí:* ${SITE_URL}/cotizar/${token}\n`
+            : `*Confirma tu cotización aquí:* ${SITE_URL}/cotizar/${token}\n`;
     }
 
     return msg;

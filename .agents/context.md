@@ -128,6 +128,21 @@ Next.js 16 · React 19 · Tailwind CSS v4 · Supabase · Resend · Google APIs �
   - `lib/services/googleSyncService.ts` — Se reemplazaron las llamadas al atributo inexistente `service_type` por la lógica correcta de negocio evaluando `dispenser === 'desechable'`.
 - **Resumen**: Se eliminó el código "spaghetti" que mezclaba eventos y ventas directas en la vista pública de cotizaciones. Ahora cada flujo tiene su propio componente aislado, lo que permite reglas de negocio diferenciadas (como la obligatoriedad de incluir al menos un cóctel en ventas directas) y una experiencia de usuario mucho más limpia y coherente. Se resolvieron errores de compilación críticos tanto en las acciones de cliente como de administración para asegurar el despliegue en Vercel.
 
+### 📅 18-04-2026 — Automatización y Flujo E-commerce (Venta Directa) Parte 2
+- **Archivos creados/modificados**:
+  - `components/wizard/direct/DirectWizardSuccess.tsx` — Nueva pantalla de éxito dedicada al flujo e-commerce que instruye al usuario a transferir el 100% del pago.
+  - `components/wizard/direct/DirectWizardShell.tsx` — Transición rediseñada para usar `DirectWizardSuccess`. Resolución del bug donde la advertencia de validación persistía al cambiar de paso.
+  - `components/quote/DirectQuoteView.tsx` — Añadido banner explícito de "Validación de Pago Pendiente" con detalle de cobro para cotizaciones aprobadas con saldo pendiente.
+  - `app/actions/createQuote.ts` — Corrección de tipado al invocar `updateContactConfirmedStatus` removiendo un parámetro depreciado.
+  - `lib/wizardLogic.ts` — Corrección de la plantilla auto-generada de WhatsApp para titularla adecuadamente como *NUEVO PEDIDO DIRECTO*.
+- **Resumen**: Se consolidó definitivamente el flujo E-Commerce transaccional para Barriles Desechables. Los clientes ahora enfrentan directrices explícitas sobre el 100% de pago por adelantado, complementado con flujos inmediatos de validación (Success Screen adaptado y directrices en DirectQuoteView).
+
+### 📅 18-04-2026 — Refactorización Admin UI Cotización Manual (Eventos vs Directa)
+- **Archivos creados/modificados**:
+  - `app/admin/quotes/new/CreateQuoteManualClient.tsx` — Se agregó un orquestador principal (Switch Botones) que permite dividir explícitamente el registro de datos entre "Reserva de Eventos" y "Pedido Directo", ocultando la carga cognitiva innecesaria (como invitados, tipos de evento, o ventanas horarias de retiro que no aplican). "Desechable" fue removido de la lista de opciones para eventos.
+  - `app/actions/createQuote.ts` — Se extrajo el bloque de sincronización de `GoogleSyncService` desde la protección estricta del envío de correos, permitiendo que las ventas directas creadas internamente sean registradas automáticamente en el calendario sin importar que sea una creación del tipo "skipEmail" (donde el admin luego presionaría enviar email). También se corrigieron strict TS type errors de objeto desestructurado `quote_items` para que pase la bandera a Vercel con éxito.
+- **Resumen**: Cumplimentaciones del lado administrativo del dashboard. La interfaz manual ahora refleja el modelo dualizado de operaciones (Evento Consultivo vs Transaccional Directo), aislando la toma de datos mediante renders condicionales; y mejorando el flujo centralizado para sincronizar eventos al crear pedidos directos manuales sin disparar emails falsos.
+
 ---
 
 *Última actualización: 18-04-2026 (Fin de Sesión)*

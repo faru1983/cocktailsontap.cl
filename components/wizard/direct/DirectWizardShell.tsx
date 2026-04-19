@@ -11,7 +11,7 @@ import { WHATSAPP_URL } from '@/lib/config';
 import DirectStep1Products from './DirectStep1Products';
 import DirectStep2Delivery from './DirectStep2Delivery';
 import DirectStep3Summary from './DirectStep3Summary';
-import WizardSuccess from '../WizardSuccess';
+import DirectWizardSuccess from './DirectWizardSuccess';
 
 interface Props {
     cocktails: CocktailForWizard[];
@@ -30,6 +30,10 @@ export default function DirectWizardShell({ cocktails, comunas, categories, init
     const [sendStatus, setSendStatus] = useState<SendStatus>('idle');
     const [quoteToken, setQuoteToken] = useState<string | null>(null);
     const [saveError, setSaveError] = useState('');
+
+    useEffect(() => {
+        setValidationError('');
+    }, [state.step]);
 
     useEffect(() => {
         wizard.initCategory(categories);
@@ -189,9 +193,11 @@ export default function DirectWizardShell({ cocktails, comunas, categories, init
 
                 <div className="animate-fade-in">
                     {sendStatus === 'saved' && quoteToken ? (
-                        <WizardSuccess 
+                        <DirectWizardSuccess 
                             token={quoteToken} 
-                            clientEmail={state.contact.email} 
+                            state={state}
+                            cocktails={cocktails}
+                            comunas={comunas}
                             onReset={handleReset} 
                         />
                     ) : (
