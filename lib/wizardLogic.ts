@@ -11,8 +11,16 @@ import { SITE_URL, MURO_INSTALLATION_COST, MURO_COMPATIBLE_SIZES, MURO_MIN_LITER
  * Retorna la fecha de hoy en formato 'YYYY-MM-DD' ajustada a la zona horaria chilena.
  */
 export function getTodayString(): string {
+    return getMinDateString(0);
+}
+
+/**
+ * Retorna una fecha en formato 'YYYY-MM-DD' con un offset de días, ajustada a la zona horaria chilena.
+ */
+export function getMinDateString(offsetDays: number = 0): string {
     const now = new Date();
     const chileTime = new Date(now.toLocaleString('en-US', { timeZone: PROJECT_TIMEZONE }));
+    chileTime.setDate(chileTime.getDate() + offsetDays);
     return chileTime.toISOString().split('T')[0];
 }
 

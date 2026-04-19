@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { formatCurrency, formatPhoneNumber } from '@/lib/utils';
-import { formatEventDate, getTodayString } from '@/lib/wizardLogic';
+import { formatEventDate, getTodayString, getMinDateString } from '@/lib/wizardLogic';
 import { confirmQuote } from '@/app/actions/confirmQuote';
 import {
     CheckCircle, Clock, XCircle, AlertCircle, ShoppingCart,
@@ -523,7 +523,7 @@ export default function DirectQuoteView({ quote, comunas, availableCocktails, ca
                         <div className="space-y-4">
                             <div className="flex flex-col gap-1">
                                 <label className="text-[0.65rem] font-black text-brand-text-muted flex items-center gap-1.5 uppercase"><Calendar className="w-3 h-3" /> Fecha de Entrega <span className="text-red-500">*</span></label>
-                                <input id="field-eventDate" type="date" value={eventDate} min={getTodayString()} onChange={(e) => { setEventDate(e.target.value); setValidationErrors(prev => ({ ...prev, eventDate: false })); }} className={`w-full px-3 py-2.5 bg-slate-50 border rounded-xl text-[0.95rem] font-bold focus:outline-none focus:border-primary shadow-sm ${validationErrors.eventDate ? 'border-red-500 bg-red-50/30' : 'border-brand-border'}`} />
+                                <input id="field-eventDate" type="date" value={eventDate} min={getMinDateString(2)} onChange={(e) => { setEventDate(e.target.value); setValidationErrors(prev => ({ ...prev, eventDate: false })); }} className={`w-full px-3 py-2.5 bg-slate-50 border rounded-xl text-[0.95rem] font-bold focus:outline-none focus:border-primary shadow-sm ${validationErrors.eventDate ? 'border-red-500 bg-red-50/30' : 'border-brand-border'}`} />
                             </div>
                             <div className="flex flex-col gap-1">
                                 <label className="text-[0.65rem] font-black text-brand-text-muted flex items-center gap-1.5 uppercase"><MapPin className="w-3 h-3" /> Comuna <span className="text-red-500">*</span></label>

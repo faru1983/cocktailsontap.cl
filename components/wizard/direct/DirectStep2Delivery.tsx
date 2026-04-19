@@ -3,7 +3,7 @@
 import type { useWizard } from '@/hooks/useWizard';
 import type { Comuna } from '@/lib/types';
 import { formatPhoneNumber } from '@/lib/utils';
-import { getTodayString } from '@/lib/wizardLogic';
+import { getTodayString, getMinDateString } from '@/lib/wizardLogic';
 
 type WizardHook = ReturnType<typeof useWizard>;
 
@@ -15,14 +15,7 @@ interface Props {
 export default function DirectStep2Delivery({ wizard, comunas }: Props) {
     const { state, updateContact, updateEventData } = wizard;
 
-    const today = getTodayString();
-    
-    // Calculate tomorrow 
-    let minDate = today;
-    const now = new Date();
-    const chileTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/Santiago' }));
-    chileTime.setDate(chileTime.getDate() + 1);
-    minDate = chileTime.toISOString().split('T')[0];
+    const minDate = getMinDateString(2);
 
     return (
         <div className="flex flex-col space-y-6">
