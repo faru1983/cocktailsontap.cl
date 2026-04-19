@@ -86,7 +86,7 @@ export const fetchAllProductData = unstable_cache(
                         isDisposable: s.is_disposable ?? false,
                         price: s.price,
                         offerPrice: s.offer_price ?? s.price,
-                        image: resolveImage(s.image_url),
+                        image: resolveImage(s.image_url ?? null),
                     };
                 });
 
