@@ -51,7 +51,7 @@ export default function DirectStep1Products({ wizard, cocktails, categories }: P
             category: c.category,
             selectedSize: existingSelection?.size, 
             sizes: Object.entries(c.prices)
-                .filter(([size]) => size.includes('desechable') || c.category === 'Otros') // Permitir Otros sin keyword desechable
+                .filter(([_, p]) => p.isDisposable || c.category === 'Otros') // Permitir Otros o productos desechables
                 .map(([size, p]) => ({
                     size,
                     price: p.price,

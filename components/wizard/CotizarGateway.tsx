@@ -22,7 +22,7 @@ export default function CotizarGateway({ cocktails, eventTypes, comunas, categor
     }
 
     if (serviceType === 'direct') {
-        const directCategories = categories.filter(c => c === 'Otros' || cocktails.some(cocktail => cocktail.category === c && Object.keys(cocktail.prices).some(p => p.includes('desechable'))));
+        const directCategories = categories.filter(c => c === 'Otros' || cocktails.some(cocktail => cocktail.category === c && Object.values(cocktail.prices).some(p => p.isDisposable)));
         return <DirectWizardShell cocktails={cocktails} comunas={comunas} categories={directCategories} initialServiceType="direct" />;
     }
 
