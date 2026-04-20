@@ -173,8 +173,11 @@ export const GoogleSyncService = {
                 total_liters: quote.total_liters || '0',
             };
 
-            const isDirectSale = quote.dispenser === 'desechable';
-
+            const isDirectSale = quote.service_type === 'direct' || quote.dispenser === 'desechable';
+            const isDesechable = quote.dispenser === 'desechable';
+            
+            const targetCalendarId = isDesechable ? CALENDAR_DESECHABLE_ID : CALENDAR_RESERVA_ID;
+            
             const sharedDescription = await SettingsService.getResolvedValue(
                 isDirectSale ? 'calendar_direct_sale_description_template' : 'calendar_event_description_template', 
                 variables,
@@ -183,31 +186,24 @@ export const GoogleSyncService = {
 
             // Determine if times are provided, else fallback to ALL DAY events.
             const hasStartTime = quote.start_time && quote.start_time !== '--:--';
-            const hasPickupTime = quote.pickup_time && quote.pickup_time !== '--:--';
-
+            
             let eventId = options?.updateEventId || (quote as any).google_event_id;
             let pickupEventId = options?.updatePickupEventId || (quote as any).google_pickup_event_id;
 
-            const isDesechable = quote.dispenser === 'desechable';
-            const targetCalendarId = isDesechable ? CALENDAR_DESECHABLE_ID : CALENDAR_RESERVA_ID;
-
             // 1. Create Service/Delivery Event
             if (targetCalendarId && quote.event_date) {
-                const isDirect = quote.dispenser === 'desechable';
-
                 const serviceSummary = await SettingsService.getResolvedValue(
-                    isDirect ? 'calendar_direct_sale_summary_template' : (isDesechable ? 'calendar_desechable_summary_template' : 'calendar_event_summary_template'),
+                    isDirectSale ? 'calendar_direct_sale_summary_template' : (isDesechable ? 'calendar_desechable_summary_template' : 'calendar_event_summary_template'),
                     variables,
-                    isDirect ? `Pedido Directo - ${fullName}` : (isDesechable ? `Despacho - ${fullName}` : `Cócteles - ${fullName} ${quote.guests}px`)
+                    isDirectSale ? `Pedido Directo - ${fullName}` : (isDesechable ? `Despacho - ${fullName}` : `Cócteles - ${fullName} ${quote.guests}px`)
                 );
                 
                 let startISO, endISO, isAllDay;
 
-                // Para desechables siempre es todo el día por defecto (o según lógica de negocio)
-                if (!isDesechable && hasStartTime) {
+                // Para directos/desechables siempre es todo el día por defecto (o según lógica de negocio)
+                if (!isDirectSale && hasStartTime) {
                     startISO = formatLiteral(quote.event_date, quote.start_time as string);
                     
-                    // Añadimos una duración por defecto (ej: 3 horas) para que el evento se vea bien
                     const startDateObj = new Date(startISO);
                     startDateObj.setHours(startDateObj.getHours() + 3);
                     endISO = new Date(startDateObj.getTime() - (startDateObj.getTimezoneOffset() * 60000)).toISOString().slice(0, 19);
@@ -232,8 +228,8 @@ export const GoogleSyncService = {
                 eventId = created?.id || undefined;
             }
 
-            // 2. Create Pickup Event (SOLO SI NO ES DESECHABLE)
-            if (!isDesechable && CALENDAR_RETIRO_ID && quote.pickup_date) {
+            // 2. Create Pickup Event (SOLO SI NO ES VENTA DIRECTA)
+            if (!isDirectSale && CALENDAR_RETIRO_ID && quote.pickup_date) {
                 const pickupSummary = await SettingsService.getResolvedValue(
                     'calendar_pickup_summary_template',
                     variables,

@@ -115,6 +115,7 @@ export const QuoteService = {
                 manual_discount: finalDiscount,
                 total_price: finalTotalPrice,
                 total_liters: data.totalLiters,
+                service_type: state.serviceType || (state.dispenser === 'desechable' ? 'direct' : 'event'),
             })
             .select('*')
             .single();

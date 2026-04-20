@@ -65,14 +65,13 @@ export async function createQuote(input: CreateQuoteInput): Promise<CreateQuoteR
             return { success: false, error: createResult.error || 'No se pudo guardar la cotización.' };
         }
 
-        // ─── 5. Sincronización proactiva con Google Contacts ─────────────────
         const isDirect = state.serviceType === 'direct' || state.dispenser === 'desechable';
         const resendKey = process.env.RESEND_API_KEY;
 
+        // ─── 5. Sincronización proactiva con Google Contacts ─────────────────
         try {
             if (!isDirect) {
                 // Solo guardamos el 'borrador' en Google Contacts si es un Evento. 
-                // Las Compras Directas pasan directo a 'Confirmado' en el bloque siguiente.
                 await GoogleSyncService.syncContactForQuote(state, createResult.token, clientId ?? undefined);
             }
         } catch (e) {
@@ -84,83 +83,83 @@ export async function createQuote(input: CreateQuoteInput): Promise<CreateQuoteR
             quote_items: createResult.quoteItems ?? []
         };
 
-        if (isDirect) {
-            // Google Sync for immediately confirmed direct sale
-            try {
-                const { GoogleSyncService } = await import('@/lib/services/googleSyncService');
-                await GoogleSyncService.updateContactConfirmedStatus(fullQuote as any);
-                const calResult = await GoogleSyncService.scheduleCalendarEvents(fullQuote as any); // cast safely
-                
-                if (calResult.eventId || calResult.pickupEventId) {
-                    const { createServerClient } = await import('@/lib/supabaseServer');
-                    const dbServer = createServerClient();
-                    await dbServer.from('quotes').update({
-                        google_event_id: calResult.eventId,
-                        google_pickup_event_id: calResult.pickupEventId
-                    }).eq('id', fullQuote.id);
+        // ─── 6. Automatizaciones (SOLO SI NO ES ADMIN) ────────────────────────
+        if (!isAdmin) {
+            if (isDirect) {
+                // Google Sync for immediately confirmed direct sale (Solo Public Wizard)
+                try {
+                    await GoogleSyncService.updateContactConfirmedStatus(fullQuote as any);
+                    const calResult = await GoogleSyncService.scheduleCalendarEvents(fullQuote as any);
+                    
+                    if (calResult.eventId || calResult.pickupEventId) {
+                        const { createServerClient } = await import('@/lib/supabaseServer');
+                        const dbServer = createServerClient();
+                        await dbServer.from('quotes').update({
+                            google_event_id: calResult.eventId,
+                            google_pickup_event_id: calResult.pickupEventId
+                        }).eq('id', fullQuote.id);
+                    }
+                } catch (syncErr) {
+                    console.error('Error in Google Sync for Direct Sale during createQuote:', syncErr);
                 }
-            } catch (syncErr) {
-                console.error('Error in Google Sync for Direct Sale during createQuote:', syncErr);
             }
-        }
 
-        if (!skipEmail && resendKey && state.contact.email && createResult.quoteItems) {
-            try {
-                const resend = new Resend(resendKey);
+            if (!skipEmail && resendKey && state.contact.email && createResult.quoteItems) {
+                try {
+                    const resend = new Resend(resendKey);
 
-                const isDirectSale = state.serviceType === 'direct' || state.dispenser === 'desechable';
-                let EmailComponent;
-                
-                if (isDirectSale) {
-                    // Para compra directa usamos directamente el correo de confirmación
-                    EmailComponent = (await import('@/components/emails/ConfirmationEmail')).default;
-                } else {
-                    // Para eventos regulares usamos el correo de borrador
-                    EmailComponent = (await import('@/components/emails/QuoteEmail')).default;
+                    const isDirectSale = state.serviceType === 'direct' || state.dispenser === 'desechable';
+                    let EmailComponent;
+                    
+                    if (isDirectSale) {
+                        EmailComponent = (await import('@/components/emails/ConfirmationEmail')).default;
+                    } else {
+                        EmailComponent = (await import('@/components/emails/QuoteEmail')).default;
+                    }
+
+                    const eventDate = fullQuote.event_date
+                        ? new Date(fullQuote.event_date + 'T12:00:00').toLocaleDateString('es-CL', { day: '2-digit', month: 'long', year: 'numeric' })
+                        : '';
+                    const fullName = `${fullQuote.client_name} ${fullQuote.client_lastname || ''}`.trim();
+
+                    const emailVars = {
+                        full_name: fullName,
+                        event_date: eventDate
+                    };
+
+                    const [clientHtml, adminHtml, clientSubject, adminSubject] = await Promise.all([
+                        render(React.createElement(EmailComponent, { quote: fullQuote, isAdmin: false })),
+                        render(React.createElement(EmailComponent, { quote: fullQuote, isAdmin: true })),
+                        SettingsService.getResolvedValue(
+                            isDirectSale ? 'email_direct_sale_subject' : 'email_quote_draft_subject',
+                            emailVars,
+                            isDirectSale ? `✅ Tu pedido ha sido confirmado – ${eventDate}` : `🍸 Tu cotización – ${eventDate}`
+                        ),
+                        SettingsService.getResolvedValue(
+                            isDirectSale ? 'email_direct_sale_admin_subject' : 'email_quote_draft_admin_subject',
+                            emailVars,
+                            isDirectSale ? `[Pedido Confirmado] ${fullName} – ${eventDate}` : `[Nueva Cotización] ${fullName} – ${eventDate}`
+                        )
+                    ]);
+
+                    await Promise.allSettled([
+                        resend.emails.send({
+                            from: FROM_EMAIL,
+                            to: state.contact.email,
+                            subject: clientSubject,
+                            html: clientHtml,
+                        }),
+                        resend.emails.send({
+                            from: FROM_EMAIL,
+                            to: ADMIN_EMAIL,
+                            subject: adminSubject,
+                            html: adminHtml,
+                        }),
+                    ]);
+
+                } catch (emailErr) {
+                    console.error('Error enviando emails:', emailErr);
                 }
-
-                const eventDate = fullQuote.event_date
-                    ? new Date(fullQuote.event_date + 'T12:00:00').toLocaleDateString('es-CL', { day: '2-digit', month: 'long', year: 'numeric' })
-                    : '';
-                const fullName = `${fullQuote.client_name} ${fullQuote.client_lastname || ''}`.trim();
-
-                const emailVars = {
-                    full_name: fullName,
-                    event_date: eventDate
-                };
-
-                const [clientHtml, adminHtml, clientSubject, adminSubject] = await Promise.all([
-                    render(React.createElement(EmailComponent, { quote: fullQuote, isAdmin: false })),
-                    render(React.createElement(EmailComponent, { quote: fullQuote, isAdmin: true })),
-                    SettingsService.getResolvedValue(
-                        isDirectSale ? 'email_direct_sale_subject' : 'email_quote_draft_subject',
-                        emailVars,
-                        isDirectSale ? `✅ Tu pedido ha sido confirmado – ${eventDate}` : `🍸 Tu cotización – ${eventDate}`
-                    ),
-                    SettingsService.getResolvedValue(
-                        isDirectSale ? 'email_direct_sale_admin_subject' : 'email_quote_draft_admin_subject',
-                        emailVars,
-                        isDirectSale ? `[Pedido Confirmado] ${fullName} – ${eventDate}` : `[Nueva Cotización] ${fullName} – ${eventDate}`
-                    )
-                ]);
-
-                await Promise.allSettled([
-                    resend.emails.send({
-                        from: FROM_EMAIL,
-                        to: state.contact.email,
-                        subject: clientSubject,
-                        html: clientHtml,
-                    }),
-                    resend.emails.send({
-                        from: FROM_EMAIL,
-                        to: ADMIN_EMAIL,
-                        subject: adminSubject,
-                        html: adminHtml,
-                    }),
-                ]);
-
-            } catch (emailErr) {
-                console.error('Error enviando emails:', emailErr);
             }
         }
 

@@ -830,3 +830,94 @@ async function maybeAutoSendReview(quoteId: string, db: any) {
         await sendReviewEmail(quoteId);
     }
 }
+
+// ── Manual Sync & Email Triggers ───────────────────────────────────────────
+export async function sendQuoteEmailAdmin(quoteId: string, emailType: 'draft' | 'confirmation'): Promise<{ success: boolean; error?: string }> {
+    await checkAuth();
+    const db = createServerClient();
+    const { data: quote, error: fetchErr } = await db.from('quotes').select('*, quote_items(*)').eq('id', quoteId).single();
+    
+    if (fetchErr || !quote) return { success: false, error: 'Cotización no encontrada.' };
+    if (!quote.client_email) return { success: false, error: 'El cliente no tiene email registrado.' };
+
+    try {
+        const resend = new Resend(process.env.RESEND_API_KEY);
+        const { render } = await import('@react-email/components');
+        const { SettingsService } = await import('@/lib/services/settingsService');
+        const { ADMIN_EMAIL } = await import('@/lib/config');
+
+        let EmailComponent;
+        const isDirect = quote.service_type === 'direct' || quote.dispenser === 'desechable' || emailType === 'confirmation';
+
+        if (isDirect) {
+            EmailComponent = (await import('@/components/emails/ConfirmationEmail')).default;
+        } else {
+            EmailComponent = (await import('@/components/emails/QuoteEmail')).default;
+        }
+
+        const eventDate = quote.event_date
+            ? new Date(quote.event_date + 'T12:00:00').toLocaleDateString('es-CL', { day: '2-digit', month: 'long', year: 'numeric' })
+            : '';
+        const fullName = `${quote.client_name} ${quote.client_lastname || ''}`.trim();
+
+        const emailVars = {
+            full_name: fullName,
+            event_date: eventDate
+        };
+
+        const [clientHtml, adminHtml, clientSubject, adminSubject] = await Promise.all([
+            render(React.createElement(EmailComponent, { quote, isAdmin: false })),
+            render(React.createElement(EmailComponent, { quote, isAdmin: true })),
+            SettingsService.getResolvedValue(
+                isDirect ? 'email_direct_sale_subject' : 'email_quote_draft_subject',
+                emailVars,
+                isDirect ? `✅ Tu pedido ha sido confirmado – ${eventDate}` : `🍸 Tu cotización – ${eventDate}`
+            ),
+            SettingsService.getResolvedValue(
+                isDirect ? 'email_direct_sale_admin_subject' : 'email_quote_draft_admin_subject',
+                emailVars,
+                isDirect ? `[Pedido Confirmado] ${fullName} – ${eventDate}` : `[Nueva Cotización] ${fullName} – ${eventDate}`
+            )
+        ]);
+
+        await Promise.allSettled([
+            resend.emails.send({ from: FROM_EMAIL, to: quote.client_email, subject: clientSubject, html: clientHtml }),
+            resend.emails.send({ from: FROM_EMAIL, to: ADMIN_EMAIL, subject: adminSubject, html: adminHtml }),
+        ]);
+
+        revalidatePath(`/admin/quotes/${quoteId}`);
+        return { success: true };
+    } catch (e: any) {
+        console.error('Error enviando email manual:', e);
+        return { success: false, error: e.message };
+    }
+}
+
+export async function syncQuoteToCalendarAdmin(quoteId: string): Promise<{ success: boolean; error?: string }> {
+    await checkAuth();
+    const db = createServerClient();
+    const { data: quote, error: fetchErr } = await db.from('quotes').select('*, quote_items(*)').eq('id', quoteId).single();
+    
+    if (fetchErr || !quote) return { success: false, error: 'Cotización no encontrada.' };
+
+    try {
+        const { GoogleSyncService } = await import('@/lib/services/googleSyncService');
+        const calResult = await GoogleSyncService.scheduleCalendarEvents(quote as any, {
+            updateEventId: quote.google_event_id || undefined,
+            updatePickupEventId: quote.google_pickup_event_id || undefined
+        });
+
+        if (calResult.eventId || calResult.pickupEventId) {
+            await db.from('quotes').update({
+                google_event_id: calResult.eventId,
+                google_pickup_event_id: calResult.pickupEventId
+            }).eq('id', quoteId);
+        }
+
+        revalidatePath(`/admin/quotes/${quoteId}`);
+        return { success: true };
+    } catch (e: any) {
+        console.error('Error sincronizando calendario manual:', e);
+        return { success: false, error: e.message };
+    }
+}

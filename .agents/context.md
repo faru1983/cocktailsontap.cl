@@ -43,6 +43,16 @@ Next.js 16 · React 19 · Tailwind CSS v4 · Supabase · Resend · Google APIs �
 
 ## 🔄 Últimos Cambios (Historial de Sesiones)
 
+### 20-04-2026 — Desactivación de Automatizaciones en Admin y Control Manual
+- **Cambio Crítico**: Se desactivó el envío automático de emails y creación de eventos en Google Calendar para cotizaciones/ventas creadas desde el panel Admin.
+- **Ventas Directas**: Se ajustó la lógica para que las ventas directas (`service_type: 'direct'`) solo generen el evento de entrega en el calendario, omitiendo el de retiro.
+- **Base de Datos**: Se añadió la columna `service_type` a `quotes` para diferenciar entre eventos y ventas directas.
+- **UI Admin**: Se implementaron "Disparadores Manuales" en la vista de detalle de cotización para enviar emails y sincronizar con Calendar bajo demanda.
+- **Backend**: Refactorización de `GoogleSyncService` y `createQuote` para soportar el bypass administrativo y la lógica simplificada de calendario.
+
+### 07-04-2026 — Estado Inicial del Contexto
+- Implementación base del CRM y sistema de cotizaciones.
+
 - **Corrección de RLS en Carga de Imágenes (Admin)**:
   - **Problema**: Error "new row violates row-level security policy" al subir imágenes de productos desde el panel admin.
   - **Causa**: Se estaba usando el cliente de Supabase `anon` desde el lado del cliente (browser), el cual no tiene permisos `INSERT` en el bucket `product-images`.

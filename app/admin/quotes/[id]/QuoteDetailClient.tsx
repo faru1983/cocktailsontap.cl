@@ -4,15 +4,18 @@ import { useState, useTransition } from 'react';
 import Link from 'next/link';
 import { 
     updateQuoteStatus, sendDirectEmail, sendReviewEmail, updateQuoteAdmin, resendOrderEmail,
-    addQuotePayment, deleteQuotePayment, updateQuoteItemsAdmin
+    addQuotePayment, deleteQuotePayment, updateQuoteItemsAdmin,
+    sendQuoteEmailAdmin, syncQuoteToCalendarAdmin
 } from '@/app/actions/admin/adminActions';
 import { SITE_URL } from '@/lib/config';
 import type { QuoteItem, Product } from '@/lib/types';
 import { formatPhoneNumber } from '@/lib/utils';
 import { 
     FileText, ShoppingBag, CreditCard, Mail, Edit2, Save, Send,
-    Link as LinkIcon, Trash2, ArrowRight, MessageCircle, Star, ArrowLeft, X
+    Link as LinkIcon, Trash2, ArrowRight, MessageCircle, Star, ArrowLeft, X,
+    Calendar
 } from 'lucide-react';
+import type { Comuna } from '@/lib/types';
 
 const statusFlow = ['draft', 'confirmed', 'completed', 'cancelled'];
 const statusBadge: Record<string, { label: string; color: string; bg: string }> = {
@@ -31,7 +34,7 @@ const formatDateWithDashes = (dateString: string) => {
     return `${day}-${month}-${year}`;
 };
 
-export default function QuoteDetailClient({ quote: initial, allProducts, eventTypes }: { quote: any, allProducts: Product[], eventTypes: any[] }) {
+export default function QuoteDetailClient({ quote: initial, allProducts, eventTypes, comunas }: { quote: any, allProducts: Product[], eventTypes: any[], comunas: Comuna[] }) {
     const [quote, setQuote] = useState(initial);
     const [isPending, startTransition] = useTransition();
     const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
@@ -92,6 +95,27 @@ export default function QuoteDetailClient({ quote: initial, allProducts, eventTy
             const res = await resendOrderEmail(quote.id);
             if (res.success) showToast('Orden reenviada correctamente ✉️');
             else showToast(res.error || 'Error al reenviar', false);
+        });
+    };
+
+    const handleManualEmail = () => {
+        const type = quote.status === 'confirmed' || quote.service_type === 'direct' ? 'confirmation' : 'draft';
+        const msg = type === 'confirmation' ? '¿Enviar email de CONFIRMACIÓN?' : '¿Enviar email de COTIZACIÓN (Borrador)?';
+        if (!confirm(msg)) return;
+        
+        startTransition(async () => {
+            const res = await sendQuoteEmailAdmin(quote.id, type);
+            if (res.success) showToast('Email enviado correctamente ✉️');
+            else showToast(res.error || 'Error al enviar', false);
+        });
+    };
+
+    const handleManualCalendar = () => {
+        if (!confirm('¿Sincronizar con Google Calendar? (Se crearán/actualizarán los eventos)')) return;
+        startTransition(async () => {
+            const res = await syncQuoteToCalendarAdmin(quote.id);
+            if (res.success) showToast('Google Calendar sincronizado 📅');
+            else showToast(res.error || 'Error al sincronizar', false);
         });
     };
 
@@ -339,6 +363,41 @@ export default function QuoteDetailClient({ quote: initial, allProducts, eventTy
                 )}
             </div>
 
+            {/* Manual Triggers Section */}
+            <div style={{ 
+                background: 'rgba(226,160,73,0.05)', 
+                borderRadius: '16px', 
+                border: '1px solid rgba(226,160,73,0.15)', 
+                padding: '20px 24px', 
+                marginBottom: '24px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '14px'
+            }}>
+                <h3 style={{ color: '#E2A049', fontSize: '13px', fontWeight: 800, margin: 0, textTransform: 'uppercase', letterSpacing: '1px' }}>Disparadores Manuales</h3>
+                <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                    <button onClick={handleManualEmail} disabled={isPending} style={{
+                        flex: 1, minWidth: '200px', padding: '12px', borderRadius: '12px', fontSize: '13px', fontWeight: 700,
+                        background: '#E2A049', color: '#1a1a2e', border: 'none', cursor: 'pointer', transition: 'all 0.15s',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', opacity: isPending ? 0.6 : 1
+                    }}>
+                        <Mail size={16}/> Enviar Email de {quote.status === 'confirmed' || quote.service_type === 'direct' ? 'Confirmación' : 'Cotización'}
+                    </button>
+                    
+                    <button onClick={handleManualCalendar} disabled={isPending} style={{
+                        flex: 1, minWidth: '200px', padding: '12px', borderRadius: '12px', fontSize: '13px', fontWeight: 700,
+                        background: 'rgba(255,255,255,0.05)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)', 
+                        cursor: 'pointer', transition: 'all 0.15s',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', opacity: isPending ? 0.6 : 1
+                    }}>
+                        <Calendar size={16}/> {quote.google_event_id ? 'Actualizar en Calendar' : 'Sincronizar con Calendar'}
+                    </button>
+                </div>
+                <p style={{ margin: 0, fontSize: '11px', color: '#64748b', fontStyle: 'italic' }}>
+                    * Las automatizaciones automáticas están desactivadas para creaciones desde el Admin. Usa estos botones para dispararlas.
+                </p>
+            </div>
+
             {/* New Tabs Design */}
             <div className="q-tabs">
                 {[
@@ -497,17 +556,22 @@ export default function QuoteDetailClient({ quote: initial, allProducts, eventTy
                                                     </div>
                                                 ) : field.special === 'comuna' ? (
                                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                                                        <input 
+                                                        <select 
                                                             value={editInfo.comuna_name || ''} 
                                                             onChange={(e) => setEditInfo((prev: any) => ({ ...prev, comuna_name: e.target.value }))}
-                                                            className="q-input" 
-                                                        />
+                                                            className="q-input"
+                                                        >
+                                                            <option value="">Selecciona comuna...</option>
+                                                            {comunas.map((c: any) => (
+                                                                <option key={c.name} value={c.name}>{c.name}</option>
+                                                            ))}
+                                                        </select>
                                                         {editInfo.comuna_name === 'Otra' && (
                                                             <input 
                                                                 placeholder="Especificar comuna..."
                                                                 value={editInfo.comuna_other || ''} 
                                                                 onChange={(e) => setEditInfo((prev: any) => ({ ...prev, comuna_other: e.target.value }))}
-                                                                className="q-input" 
+                                                                className="q-input animate-in slide-in-from-top-1 duration-200" 
                                                             />
                                                         )}
                                                     </div>

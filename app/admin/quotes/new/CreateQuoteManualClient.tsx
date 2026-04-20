@@ -373,13 +373,23 @@ export default function CreateQuoteManualClient({ allProducts, comunas, eventTyp
                                 <input value={contact.address} onChange={e => setContact(c => ({...c, address: e.target.value}))} className="admin-input" placeholder="Av. Siempre Viva 123" />
                             </Field>
                             <Field label="Comuna">
-                                <select value={contact.comuna} onChange={e => {
-                                    setContact(c => ({...c, comuna: e.target.value}));
-                                    setShippingOverride(undefined); // Reset override on change
-                                }} className="admin-input appearance-none">
-                                    <option value="" disabled hidden>Selecciona comuna...</option>
-                                    {comunas.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
-                                </select>
+                                <div className="space-y-3">
+                                    <select value={contact.comuna} onChange={e => {
+                                        setContact(c => ({...c, comuna: e.target.value}));
+                                        setShippingOverride(undefined); // Reset override on change
+                                    }} className="admin-input appearance-none">
+                                        <option value="" disabled hidden>Selecciona comuna...</option>
+                                        {comunas.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
+                                    </select>
+                                    {contact.comuna === 'Otra' && (
+                                        <input 
+                                            value={contact.otherComuna} 
+                                            onChange={e => setContact(c => ({...c, otherComuna: e.target.value}))} 
+                                            className="admin-input animate-in slide-in-from-top-2 duration-200" 
+                                            placeholder="¿Cuál comuna?" 
+                                        />
+                                    )}
+                                </div>
                             </Field>
                         </div>
                     </SectionBox>

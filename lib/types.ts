@@ -209,6 +209,7 @@ export interface Quote {
     total_price: number;
     total_liters: number | null;
 
+    service_type?: 'event' | 'direct' | null;
     // Items y Relaciones
     client_id?: string | null;
     quote_items?: QuoteItem[];
