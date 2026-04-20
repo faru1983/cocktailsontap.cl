@@ -51,10 +51,20 @@ const CategoryTabs = React.forwardRef<HTMLDivElement, CategoryTabsProps>(({
   }, [checkScroll, categories]);
 
   // Asegurar que el botón activo sea visible al cambiar
+  const isFirstRender = useRef(true);
   useEffect(() => {
-    const activeBtn = scrollContainerRef.current?.querySelector('[data-active="true"]');
-    if (activeBtn) {
-      activeBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+    const activeBtn = scrollContainerRef.current?.querySelector('[data-active="true"]') as HTMLElement;
+    const container = scrollContainerRef.current;
+    
+    if (activeBtn && container) {
+      // Evitar scroll en la carga inicial si es el primer elemento (no es necesario y evita saltos de página)
+      if (isFirstRender.current) {
+        isFirstRender.current = false;
+        return;
+      }
+
+      const scrollLeft = activeBtn.offsetLeft - (container.clientWidth / 2) + (activeBtn.clientWidth / 2);
+      container.scrollTo({ left: scrollLeft, behavior: 'smooth' });
     }
   }, [activeCategory]);
 
