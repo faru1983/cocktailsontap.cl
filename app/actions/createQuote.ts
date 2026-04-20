@@ -66,29 +66,31 @@ export async function createQuote(input: CreateQuoteInput): Promise<CreateQuoteR
         }
 
         const isDirect = state.serviceType === 'direct' || state.dispenser === 'desechable';
-        const resendKey = process.env.RESEND_API_KEY;
-
-        // ─── 5. Sincronización proactiva con Google Contacts ─────────────────
-        try {
-            if (!isDirect) {
-                // Solo guardamos el 'borrador' en Google Contacts si es un Evento. 
-                await GoogleSyncService.syncContactForQuote(state, createResult.token, clientId ?? undefined);
-            }
-        } catch (e) {
-            console.error('Google Sync failed:', e);
-        }
-
         const fullQuote = {
             ...createResult.quote,
             quote_items: createResult.quoteItems ?? []
         };
 
-        // ─── 6. Automatizaciones (SOLO SI NO ES ADMIN) ────────────────────────
+        // ─── 5. Sincronización proactiva con Google Contacts ─────────────────
+        // Sincronizamos el contacto siempre, ya que es nuestra base de datos CRM (People API)
+        try {
+            if (isDirect) {
+                // Para venta directa, lo marcamos como confirmado de una vez en los contactos
+                await GoogleSyncService.updateContactConfirmedStatus(fullQuote as any);
+            } else {
+                // Para eventos, se sincroniza como borrador inicial
+                await GoogleSyncService.syncContactForQuote(state, createResult.token, clientId ?? undefined);
+            }
+        } catch (e) {
+            console.error('Google Contact Sync failed:', e);
+        }
+
+        // ─── 6. Automatizaciones reactivas (SOLO SI NO ES ADMIN) ────────────────────────
+        // Estas acciones disparan procesos externos "visibles" como emails o eventos de calendario
         if (!isAdmin) {
             if (isDirect) {
-                // Google Sync for immediately confirmed direct sale (Solo Public Wizard)
+                // Calendar Sync (Solo Public Wizard)
                 try {
-                    await GoogleSyncService.updateContactConfirmedStatus(fullQuote as any);
                     const calResult = await GoogleSyncService.scheduleCalendarEvents(fullQuote as any);
                     
                     if (calResult.eventId || calResult.pickupEventId) {
@@ -100,7 +102,7 @@ export async function createQuote(input: CreateQuoteInput): Promise<CreateQuoteR
                         }).eq('id', fullQuote.id);
                     }
                 } catch (syncErr) {
-                    console.error('Error in Google Sync for Direct Sale during createQuote:', syncErr);
+                    console.error('Error in Google Calendar Sync for Direct Sale during createQuote:', syncErr);
                 }
             }
 

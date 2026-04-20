@@ -3,7 +3,7 @@
 import { useState, useTransition, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Save, Plus, Trash2, Search, Check, AlertCircle, MessageCircle, RefreshCw, Copy } from 'lucide-react';
+import { ArrowLeft, Save, Plus, Trash2, Search, Check, AlertCircle, MessageCircle, RefreshCw, Copy, Calendar } from 'lucide-react';
 import { createQuote } from '@/app/actions/createQuote';
 import type { Product, Comuna, EventType, WizardState } from '@/lib/types';
 import { calculateSummaryData } from '@/lib/wizardLogic';
@@ -193,9 +193,24 @@ export default function CreateQuoteManualClient({ allProducts, comunas, eventTyp
     const handleSendEmail = async () => {
         if (!successData) return;
         startTransition(async () => {
-            const { resendOrderEmail } = await import('@/app/actions/admin/adminActions');
-            const res = await resendOrderEmail(successData.quoteId);
+            const { resendOrderEmail, sendQuoteEmailAdmin } = await import('@/app/actions/admin/adminActions');
+            // Si es un evento (draft), usamos la nueva acción de email de cotización
+            // Si es venta directa (confirmed), usamos el reenvío normal
+            const res = serviceType === 'event' 
+                ? await sendQuoteEmailAdmin(successData.quoteId)
+                : await resendOrderEmail(successData.quoteId);
+                
             if (res.success) alert('Email enviado correctamente ✉️');
+            else alert('Error: ' + res.error);
+        });
+    };
+
+    const handleAddToCalendar = async () => {
+        if (!successData) return;
+        startTransition(async () => {
+            const { syncQuoteToCalendarAdmin } = await import('@/app/actions/admin/adminActions');
+            const res = await syncQuoteToCalendarAdmin(successData.quoteId);
+            if (res.success) alert('Eventos sincronizados con Google Calendar 📅');
             else alert('Error: ' + res.error);
         });
     };
@@ -224,7 +239,10 @@ export default function CreateQuoteManualClient({ allProducts, comunas, eventTyp
                         <MessageCircle size={18} /> Compartir por WhatsApp
                     </a>
                     <button onClick={handleSendEmail} disabled={isPending} className="w-full bg-sky-500 hover:bg-sky-400 text-sky-950 py-4 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-3 transition-all active:scale-95 shadow-xl shadow-sky-500/20 disabled:opacity-50">
-                        <Save size={18} /> Enviar por Email Habitual
+                        <Save size={18} /> Enviar Email Confirmación
+                    </button>
+                    <button onClick={handleAddToCalendar} disabled={isPending} className="w-full bg-white hover:bg-slate-100 text-slate-950 py-4 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-3 transition-all active:scale-95 shadow-xl shadow-white/10 disabled:opacity-50">
+                        <Calendar size={18} /> Agregar a Google Calendar
                     </button>
 
                     <div className="mt-4 p-4 bg-black/40 border border-white/5 rounded-2xl">
@@ -282,7 +300,7 @@ export default function CreateQuoteManualClient({ allProducts, comunas, eventTyp
             )}
 
             <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-12 gap-10">
-                <div className="lg:col-span-8 space-y-10">
+                <div className="lg:col-span-7 space-y-10">
                     
                     {/* TYPE TOGGLE */}
                     <div className="flex bg-black/40 border border-white/5 p-1.5 rounded-2xl">
@@ -462,7 +480,7 @@ export default function CreateQuoteManualClient({ allProducts, comunas, eventTyp
                     </SectionBox>
                 </div>
 
-                <div className="lg:col-span-4 space-y-8">
+                <div className="lg:col-span-5 space-y-8">
                     <div className="bg-[#1e2433] border border-white/5 rounded-[32px] p-8 shadow-2xl shadow-black/20 sticky top-10 overflow-hidden">
                         <div className="absolute top-0 right-0 w-32 h-32 bg-[#E2A049]/5 rounded-full blur-3xl -mr-16 -mt-16"></div>
                         
@@ -493,35 +511,41 @@ export default function CreateQuoteManualClient({ allProducts, comunas, eventTyp
                             )}
                         </div>
 
-                        <div className="space-y-3 mb-10 max-h-[400px] overflow-y-auto scrollbar-none pr-1">
+                        <div className="space-y-4 mb-10 pr-1">
                             {selections.length === 0 ? (
                                 <div className="text-center py-10 text-slate-600 text-[10px] font-black uppercase tracking-widest border-2 border-dashed border-white/5 rounded-3xl opacity-50">Sin productos</div>
                             ) : selections.map(s => {
                                 const product = allProducts.find(p => p.id === s.id);
                                 return (
-                                    <div key={s.id + s.size} className="flex items-center justify-between p-4 bg-black/20 rounded-2xl border border-white/5 group hover:border-[#E2A049]/20 transition-colors">
-                                        <div className="flex-1 min-w-0 pr-3">
-                                            <div className="text-white font-bold text-xs truncate mb-0.5">{product?.name}</div>
-                                            <div className="flex items-center gap-2">
-                                                <span className="text-slate-600 text-[10px] font-black uppercase text-nowrap">{s.size} @</span>
-                                                <div className="flex items-center text-[#E2A049] text-[10px] font-black">
-                                                    <span className="mr-0.5">$</span>
-                                                    <input 
-                                                        type="number"
-                                                        value={s.customPrice ?? 0}
-                                                        onChange={(e) => updatePrice(s.id, s.size, parseInt(e.target.value))}
-                                                        className="bg-transparent border-b border-white/5 w-16 outline-none focus:border-[#E2A049] transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                                                    />
-                                                </div>
-                                            </div>
+                                    <div key={s.id + s.size} className="flex items-center justify-between p-4 bg-black/20 rounded-2xl border border-white/5 group hover:border-[#E2A049]/20 transition-all gap-4">
+                                        <div className="flex-1 min-w-0 pr-2">
+                                            <div className="text-white font-bold text-[11px] uppercase tracking-tight truncate leading-tight">{product?.name}</div>
+                                            <div className="text-slate-500 text-[9px] font-black uppercase tracking-widest mt-0.5">{s.size}</div>
                                         </div>
-                                        <div className="flex items-center gap-3">
-                                            <div className="flex items-center gap-2 bg-black/40 rounded-xl p-1 border border-white/5">
-                                                <button type="button" onClick={() => updateQuantity(s.id, s.size, -1)} className="w-6 h-6 flex items-center justify-center text-slate-500 hover:text-white transition-colors">-</button>
-                                                <span className="text-xs font-black text-[#E2A049] min-w-[14px] text-center">{s.quantity}</span>
-                                                <button type="button" onClick={() => updateQuantity(s.id, s.size, 1)} className="w-6 h-6 flex items-center justify-center text-slate-500 hover:text-white transition-colors">+</button>
+                                        
+                                        <div className="flex items-center gap-3 shrink-0">
+                                            {/* Input de Precio */}
+                                            <div className="flex items-center text-[#E2A049] text-[10px] font-black bg-black/40 px-2 py-1.5 rounded-lg border border-white/5 focus-within:border-[#E2A049]/40 transition-colors">
+                                                <span className="mr-1 opacity-40">$</span>
+                                                <input 
+                                                    type="number"
+                                                    value={s.customPrice ?? 0}
+                                                    onChange={(e) => updatePrice(s.id, s.size, parseInt(e.target.value))}
+                                                    className="bg-transparent w-14 outline-none focus:text-white transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                                />
                                             </div>
-                                            <button type="button" onClick={() => handleRemoveProduct(s.id, s.size)} className="text-rose-500/30 hover:text-rose-500 p-1 transition-colors"><Trash2 size={16} /></button>
+
+                                            {/* Controles de Cantidad */}
+                                            <div className="flex items-center gap-1 bg-black/60 rounded-xl p-0.5 border border-white/5">
+                                                <button type="button" onClick={() => updateQuantity(s.id, s.size, -1)} className="w-7 h-7 flex items-center justify-center text-slate-500 hover:text-white transition-colors">-</button>
+                                                <span className="text-xs font-black text-[#E2A049] min-w-[14px] text-center">{s.quantity}</span>
+                                                <button type="button" onClick={() => updateQuantity(s.id, s.size, 1)} className="w-7 h-7 flex items-center justify-center text-slate-500 hover:text-white transition-colors">+</button>
+                                            </div>
+
+                                            {/* Eliminar */}
+                                            <button type="button" onClick={() => handleRemoveProduct(s.id, s.size)} className="text-rose-500/30 hover:text-rose-500 p-1.5 transition-colors">
+                                                <Trash2 size={16} />
+                                            </button>
                                         </div>
                                     </div>
                                 );
