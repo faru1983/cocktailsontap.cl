@@ -43,10 +43,11 @@ Next.js 16 · React 19 · Tailwind CSS v4 · Supabase · Resend · Google APIs �
 
 ## 🔄 Últimos Cambios (Historial de Sesiones)
 
-- **Arquitectura de Rutas Específicas (/eventos y /barriles)**:
-  - **Nuevas Rutas**: Creadas rutas directas `app/eventos/page.tsx` y `app/barriles/page.tsx` para accesos directos profesionales.
-  - **Extensión de `CotizarGateway`**: Agregada prop `initialServiceType` para permitir el bypass de la selección manual y cargar el modo de wizard correspondiente inmediatamente.
-  - **Preservación de Legado**: Las rutas `/cotizar` (gateway) y `/cotizar/[token]` (visor de cotizaciones) se mantienen intactas para asegurar compatibilidad con links existentes.
+- **Corrección de RLS en Carga de Imágenes (Admin)**:
+  - **Problema**: Error "new row violates row-level security policy" al subir imágenes de productos desde el panel admin.
+  - **Causa**: Se estaba usando el cliente de Supabase `anon` desde el lado del cliente (browser), el cual no tiene permisos `INSERT` en el bucket `product-images`.
+  - **Solución**: Se movió la lógica de subida y eliminación de imágenes a **Server Actions** (`uploadImage` y `deleteImage` en `app/actions/admin/productActions.ts`) que utilizan el cliente `service_role`, el cual tiene permisos totales y bypass de RLS.
+  - **Refactorización**: Se actualizó `ProductsClient.tsx` para consumir estas nuevas acciones mediante `FormData` y `useTransition`.
 
 ---
 

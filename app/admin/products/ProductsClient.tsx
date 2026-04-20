@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useTransition, useEffect } from 'react';
-import { saveCategory, toggleCategoryStatus, saveProduct, toggleProductStatus, reorderItems, saveUnit, toggleUnitStatus } from '@/app/actions/admin/productActions';
+import { saveCategory, toggleCategoryStatus, saveProduct, toggleProductStatus, reorderItems, saveUnit, toggleUnitStatus, uploadImage, deleteImage } from '@/app/actions/admin/productActions';
 import Modal from '@/components/admin/Modal';
 import { supabase } from '@/lib/supabase';
 import { 
@@ -153,8 +153,14 @@ export default function ProductsClient({ products, categories, measurementUnits 
     const deleteFromGallery = async (name: string) => {
         if (!confirm('¿Eliminar esta imagen permanentemente?')) return;
         setLoadingGallery(true);
-        await supabase.storage.from('product-images').remove([name]);
-        await fetchGallery(true);
+        try {
+            await deleteImage(name);
+            await fetchGallery(true);
+        } catch (err: any) {
+            alert('Error: ' + err.message);
+        } finally {
+            setLoadingGallery(false);
+        }
     }
 
     const openCategoryModal = (cat: any = null) => {
@@ -250,12 +256,10 @@ export default function ProductsClient({ products, categories, measurementUnits 
         
         setUploading(true);
         try {
-            const fileExt = file.name.split('.').pop();
-            const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 7)}.${fileExt}`;
-            const { error } = await supabase.storage.from('product-images').upload(fileName, file);
-            if (error) throw error;
+            const formData = new FormData();
+            formData.append('file', file);
             
-            const { data: { publicUrl } } = supabase.storage.from('product-images').getPublicUrl(fileName);
+            const { publicUrl } = await uploadImage(formData);
             
             if (insideProduct) {
                 if (galleryTarget.index === 'product') {
@@ -266,7 +270,7 @@ export default function ProductsClient({ products, categories, measurementUnits 
                     setModalProduct(prev => ({ ...prev, prices: np }));
                 }
             } else {
-                await fetchGallery();
+                await fetchGallery(true);
             }
         } catch (err: any) {
             alert('Error: ' + err.message);

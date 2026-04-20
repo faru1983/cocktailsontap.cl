@@ -121,3 +121,35 @@ export async function reorderItems(type: 'products' | 'categories' | 'measuremen
     
     revalidatePath('/admin/products');
 }
+
+export async function uploadImage(formData: FormData) {
+    await checkAuth();
+    const file = formData.get('file') as File;
+    if (!file) throw new Error('No se encontró el archivo');
+
+    const db = createServerClient();
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 7)}.${fileExt}`;
+    
+    const buffer = await file.arrayBuffer();
+    
+    const { error } = await db.storage
+        .from('product-images')
+        .upload(fileName, buffer, {
+            contentType: file.type,
+            upsert: true
+        });
+
+    if (error) throw new Error('Error al subir imagen: ' + error.message);
+
+    const { data: { publicUrl } } = db.storage.from('product-images').getPublicUrl(fileName);
+    return { publicUrl, fileName };
+}
+
+export async function deleteImage(fileName: string) {
+    await checkAuth();
+    const db = createServerClient();
+    const { error } = await db.storage.from('product-images').remove([fileName]);
+    if (error) throw new Error('Error al eliminar imagen: ' + error.message);
+    revalidatePath('/admin/products');
+}
