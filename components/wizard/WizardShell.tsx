@@ -170,7 +170,7 @@ export default function WizardShell({ cocktails, eventTypes, comunas, categories
                         <div className="mt-12 mb-12 sm:mb-20">
                             <div className="bg-white/50 backdrop-blur-sm border border-brand-border rounded-[2.5rem] p-4 sm:p-6 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-[0_10px_30px_rgba(0,0,0,0.03)] hover:shadow-[0_15px_40px_rgba(0,0,0,0.06)] transition-all duration-500">
                                 <div className="order-2 sm:order-1 w-full sm:w-auto">
-                                    {state.step > 0 && (
+                                    {state.step > 1 && (
                                         <button
                                             type="button"
                                             className="group w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-2xl border-2 border-brand-border text-brand-text-muted font-bold text-[0.95rem] transition-all hover:border-primary/50 hover:text-primary active:scale-[0.98] bg-white/80"

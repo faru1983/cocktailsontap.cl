@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { GlassWater, Box, Package, ChevronRight } from 'lucide-react';
 import type { CocktailForWizard, EventType, Comuna } from '@/lib/types';
 import WizardShell from './WizardShell';
@@ -11,10 +12,12 @@ interface Props {
     eventTypes: EventType[];
     comunas: Comuna[];
     categories: string[];
+    initialServiceType?: 'event' | 'direct';
 }
 
-export default function CotizarGateway({ cocktails, eventTypes, comunas, categories }: Props) {
-    const [serviceType, setServiceType] = useState<'' | 'event' | 'direct'>('');
+export default function CotizarGateway({ cocktails, eventTypes, comunas, categories, initialServiceType }: Props) {
+    const [serviceType, setServiceType] = useState<'event' | 'direct' | ''>(initialServiceType || '');
+    const router = useRouter();
 
     if (serviceType === 'event') {
         const eventCategories = categories.filter(c => c !== 'Otros');
@@ -39,7 +42,7 @@ export default function CotizarGateway({ cocktails, eventTypes, comunas, categor
                 {/* Opción 1: Servicio de Eventos */}
                 <button
                     type="button"
-                    onClick={() => setServiceType('event')}
+                    onClick={() => router.push('/eventos')}
                     className="group relative flex flex-col items-center p-8 bg-white rounded-3xl border-2 border-brand-border hover:border-primary transition-all duration-300 text-left hover:shadow-xl hover:-translate-y-1 overflow-hidden"
                 >
                     <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-bl-[100px] -z-10 transition-transform group-hover:scale-110" />
@@ -62,7 +65,7 @@ export default function CotizarGateway({ cocktails, eventTypes, comunas, categor
                 {/* Opción 2: Compra Directa (Desechable) */}
                 <button
                     type="button"
-                    onClick={() => setServiceType('direct')}
+                    onClick={() => router.push('/barriles')}
                     className="group relative flex flex-col items-center p-8 bg-white rounded-3xl border-2 border-brand-border hover:border-blue-500 transition-all duration-300 text-left hover:shadow-xl hover:-translate-y-1 overflow-hidden"
                 >
                     <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 rounded-bl-[100px] -z-10 transition-transform group-hover:scale-110" />

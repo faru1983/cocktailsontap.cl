@@ -43,12 +43,10 @@ Next.js 16 · React 19 · Tailwind CSS v4 · Supabase · Resend · Google APIs �
 
 ## 🔄 Últimos Cambios (Historial de Sesiones)
 
-- **Unificación de Navegación y Reglas de Negocio (Consistencia Pro)**:
-  - **Componente `CategoryTabs`**: Creado componente compartido con diseño premium, efectos de degradado para scroll horizontal (mejora mobile) y comportamiento sticky inteligente.
-  - **Refactorización Global**: Unificada la barra de categorías en Home, Wizard de Eventos y Wizard de Venta Directa.
-  - **Validación de Pedido Mínimo**: Implementada regla unificada de **mínimo 2 barriles** para contratar cualquier servicio, con mensaje de error simplificado y profesional.
-  - **Logística de Barriles**: Corregido filtro de visibilidad de barriles desechables en eventos (ocultos) y normalización de la validación para permitir barriles de 5L estándar.
-  - **Ajustes Layout**: Corregido padding en el Gateway de cotización y breakout de contenedores para la barra de categorías en modo full-screen.
+- **Arquitectura de Rutas Específicas (/eventos y /barriles)**:
+  - **Nuevas Rutas**: Creadas rutas directas `app/eventos/page.tsx` y `app/barriles/page.tsx` para accesos directos profesionales.
+  - **Extensión de `CotizarGateway`**: Agregada prop `initialServiceType` para permitir el bypass de la selección manual y cargar el modo de wizard correspondiente inmediatamente.
+  - **Preservación de Legado**: Las rutas `/cotizar` (gateway) y `/cotizar/[token]` (visor de cotizaciones) se mantienen intactas para asegurar compatibilidad con links existentes.
 
 ---
 
@@ -69,5 +67,5 @@ Next.js 16 · React 19 · Tailwind CSS v4 · Supabase · Resend · Google APIs �
 | Sincronización Google | `lib/services/googleSyncService.ts` |
 | Configurar templates dinámicos | Tabla `site_settings` vía `/admin/settings` |
 
-*Última actualización: 19-04-2026*
+*Última actualización: 20-04-2026*
 
