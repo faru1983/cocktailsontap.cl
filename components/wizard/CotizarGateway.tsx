@@ -84,8 +84,13 @@ export default function CotizarGateway({ cocktails, eventTypes, comunas, categor
                         <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                     </div>
 
-                    <div className="absolute top-4 left-4 bg-amber-400 text-amber-900 text-[0.65rem] font-black uppercase tracking-wider px-3 py-1 rounded-full shadow-sm">
-                        ¡Nuevo Formato!
+                    <div className="absolute top-4 left-4 flex flex-col gap-1.5 items-start">
+                        <div className="bg-amber-400 text-amber-900 text-[0.65rem] font-black uppercase tracking-wider px-3 py-1 rounded-full shadow-sm">
+                            ¡Nuevo Formato!
+                        </div>
+                        <div className="bg-red-500 text-white text-[0.65rem] font-black uppercase tracking-wider px-3 py-1 rounded-full shadow-sm animate-pulse">
+                            20% OFF Lanzamiento
+                        </div>
                     </div>
                 </button>
             </div>
