@@ -66,6 +66,7 @@ export async function createQuote(input: CreateQuoteInput): Promise<CreateQuoteR
         }
 
         const isDirect = state.serviceType === 'direct' || state.dispenser === 'desechable';
+        const resendKey = process.env.RESEND_API_KEY;
         const fullQuote = {
             ...createResult.quote,
             quote_items: createResult.quoteItems ?? []
