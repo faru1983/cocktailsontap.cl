@@ -186,7 +186,7 @@ export const GoogleSyncService = {
 
             // Determine if times are provided, else fallback to ALL DAY events.
             const hasStartTime = quote.start_time && quote.start_time !== '--:--';
-            
+            const hasPickupTime = quote.pickup_time && quote.pickup_time !== '--:--';
             let eventId = options?.updateEventId || (quote as any).google_event_id;
             let pickupEventId = options?.updatePickupEventId || (quote as any).google_pickup_event_id;
 
