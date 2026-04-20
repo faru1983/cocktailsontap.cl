@@ -197,7 +197,7 @@ export default function CreateQuoteManualClient({ allProducts, comunas, eventTyp
             // Si es un evento (draft), usamos la nueva acción de email de cotización
             // Si es venta directa (confirmed), usamos el reenvío normal
             const res = serviceType === 'event' 
-                ? await sendQuoteEmailAdmin(successData.quoteId)
+                ? await sendQuoteEmailAdmin(successData.quoteId, 'draft')
                 : await resendOrderEmail(successData.quoteId);
                 
             if (res.success) alert('Email enviado correctamente ✉️');
