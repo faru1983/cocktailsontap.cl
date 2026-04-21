@@ -316,7 +316,7 @@ export default function CreateQuoteManualClient({ allProducts, comunas, eventTyp
                             onClick={() => setServiceType('direct')}
                             className={`flex-1 py-4 text-xs font-black uppercase tracking-widest rounded-xl transition-all ${serviceType === 'direct' ? 'bg-[#E2A049] text-black shadow-lg shadow-[#E2A049]/20' : 'text-slate-500 hover:text-white'}`}
                         >
-                            Pedido Directo
+                            Venta Desechables
                         </button>
                     </div>
 
