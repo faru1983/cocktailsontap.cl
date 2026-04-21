@@ -153,3 +153,11 @@ export async function deleteImage(fileName: string) {
     if (error) throw new Error('Error al eliminar imagen: ' + error.message);
     revalidatePath('/admin/products');
 }
+
+export async function updateQuickPrice(priceId: string, updates: { price?: number; offer_price?: number | null }) {
+    await checkAuth();
+    const db = createServerClient();
+    const { error } = await db.from('product_prices').update(updates).eq('id', priceId);
+    if (error) throw new Error(error.message);
+    revalidatePath('/admin/products');
+}

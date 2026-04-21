@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useTransition, useEffect } from 'react';
-import { saveCategory, toggleCategoryStatus, saveProduct, toggleProductStatus, reorderItems, saveUnit, toggleUnitStatus, uploadImage, deleteImage } from '@/app/actions/admin/productActions';
+import { saveCategory, toggleCategoryStatus, saveProduct, toggleProductStatus, reorderItems, saveUnit, toggleUnitStatus, uploadImage, deleteImage, updateQuickPrice } from '@/app/actions/admin/productActions';
 import Modal from '@/components/admin/Modal';
 import { supabase } from '@/lib/supabase';
 import { 
@@ -25,6 +25,7 @@ import {
 export default function ProductsClient({ products, categories, measurementUnits }: { products: any[]; categories: any[]; measurementUnits: any[] }) {
     const [tab, setTab] = useState<'products' | 'categories' | 'gallery' | 'units'>('products');
     const [isPending, startTransition] = useTransition();
+    const [savingId, setSavingId] = useState<string | null>(null);
     const DEFAULT_IMG = '/assets/barril_sin_imagen.webp';
 
     // ─── Sorting & Data ──────────────────────────────────────────────────────
@@ -51,6 +52,9 @@ export default function ProductsClient({ products, categories, measurementUnits 
         } else if (sortProd.key === 'price') {
             valA = a.product_prices?.[0]?.price || 0;
             valB = b.product_prices?.[0]?.price || 0;
+        } else if (sortProd.key === 'offer_price') {
+            valA = a.product_prices?.[0]?.offer_price || 0;
+            valB = b.product_prices?.[0]?.offer_price || 0;
         } else if (sortProd.key === 'index') {
             valA = a._idx;
             valB = b._idx;
@@ -248,6 +252,27 @@ export default function ProductsClient({ products, categories, measurementUnits 
         setModalProduct(prev => ({ ...prev, prices: prev.prices.filter((_, i) => i !== index) }));
     }
 
+    const handleQuickSave = async (priceId: string, field: 'price' | 'offer_price', value: string) => {
+        const numValue = value === '' ? (field === 'offer_price' ? null : 0) : parseInt(value);
+        
+        // Find current value in local state to avoid redundant calls
+        const product = products.find(p => p.product_prices?.some((pr: any) => pr.id === priceId));
+        const currentPrice = product?.product_prices?.find((pr: any) => pr.id === priceId);
+        
+        // If values match exactly (handling null for offer_price), don't save
+        if (currentPrice && currentPrice[field] === numValue) return;
+
+        setSavingId(`${priceId}-${field}`);
+        try {
+            await updateQuickPrice(priceId, { [field]: numValue });
+        } catch (err: any) {
+            console.error(err);
+            alert('Error al guardar: ' + err.message);
+        } finally {
+            setSavingId(null);
+        }
+    };
+
     const [uploading, setUploading] = useState(false);
 
     const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>, insideProduct = true) => {
@@ -375,6 +400,8 @@ export default function ProductsClient({ products, categories, measurementUnits 
                                         <th className="text-left py-4 px-6 text-slate-500 text-[11px] font-bold uppercase tracking-widest border-b border-white/5">Imagen</th>
                                         <th className="text-left py-4 px-6 text-slate-500 text-[11px] font-bold uppercase tracking-widest border-b border-white/5 cursor-pointer" onClick={() => toggleSortProd('name')}>Producto</th>
                                         <th className="text-left py-4 px-6 text-slate-500 text-[11px] font-bold uppercase tracking-widest border-b border-white/5 cursor-pointer" onClick={() => toggleSortProd('category')}>Categoría</th>
+                                        <th className="hidden lg:table-cell text-left py-4 px-6 text-slate-500 text-[11px] font-bold uppercase tracking-widest border-b border-white/5 cursor-pointer" onClick={() => toggleSortProd('price')}>P. Normal</th>
+                                        <th className="hidden lg:table-cell text-left py-4 px-6 text-slate-500 text-[11px] font-bold uppercase tracking-widest border-b border-white/5 cursor-pointer" onClick={() => toggleSortProd('offer_price')}>P. Oferta</th>
                                         <th className="text-left py-4 px-6 text-slate-500 text-[11px] font-bold uppercase tracking-widest border-b border-white/5 cursor-pointer" onClick={() => toggleSortProd('is_active')}>Estado</th>
                                         <th className="text-right py-4 px-6 text-slate-500 text-[11px] font-bold uppercase tracking-widest border-b border-white/5"></th>
                                     </tr>
@@ -387,6 +414,33 @@ export default function ProductsClient({ products, categories, measurementUnits 
                                             <td className="py-4 px-6"><img src={p.image_url || DEFAULT_IMG} className="w-10 h-10 rounded-lg object-contain bg-black/40 shadow-inner" alt="" /></td>
                                             <td className="py-4 px-6 text-white font-bold text-sm tracking-tight">{p.name}</td>
                                             <td className="py-4 px-6"><span className="bg-sky-500/10 text-sky-400 text-[10px] font-black uppercase px-2 py-0.5 rounded-full tracking-widest">{p.categories?.name}</span></td>
+                                            <td className="hidden lg:table-cell py-4 px-6">
+                                                <div className="flex items-center gap-1 group/input">
+                                                    <span className="text-slate-600 text-xs font-bold">$</span>
+                                                    <input 
+                                                        type="number"
+                                                        defaultValue={p.product_prices?.[0]?.price || 0}
+                                                        className={`bg-transparent border-none p-0 w-20 text-slate-400 text-sm font-medium focus:ring-0 outline-none hover:bg-white/5 rounded px-1 transition-all ${savingId === `${p.product_prices?.[0]?.id}-price` ? 'opacity-30' : ''}`}
+                                                        onBlur={(e) => p.product_prices?.[0] && handleQuickSave(p.product_prices[0].id, 'price', e.target.value)}
+                                                        onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
+                                                    />
+                                                    {savingId === `${p.product_prices?.[0]?.id}-price` && <RefreshCw size={10} className="text-[#E2A049] animate-spin" />}
+                                                </div>
+                                            </td>
+                                            <td className="hidden lg:table-cell py-4 px-6">
+                                                <div className="flex items-center gap-1 group/input">
+                                                    <span className="text-slate-600 text-xs font-bold">$</span>
+                                                    <input 
+                                                        type="number"
+                                                        defaultValue={p.product_prices?.[0]?.offer_price || ''}
+                                                        placeholder="-"
+                                                        className={`bg-transparent border-none p-0 w-20 text-emerald-400 text-sm font-bold focus:ring-0 outline-none hover:bg-white/5 rounded px-1 transition-all ${savingId === `${p.product_prices?.[0]?.id}-offer_price` ? 'opacity-30' : ''}`}
+                                                        onBlur={(e) => p.product_prices?.[0] && handleQuickSave(p.product_prices[0].id, 'offer_price', e.target.value)}
+                                                        onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
+                                                    />
+                                                    {savingId === `${p.product_prices?.[0]?.id}-offer_price` && <RefreshCw size={10} className="text-[#E2A049] animate-spin" />}
+                                                </div>
+                                            </td>
                                             <td className="py-4 px-6">
                                                 <button onClick={() => toggleStatus(p.id, 'prod', p.is_active)} className={`text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-lg transition-all ${p.is_active ? 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20' : 'bg-rose-500/10 text-rose-400 hover:bg-rose-500/20'}`}>
                                                     {p.is_active ? 'Publicado' : 'Oculto'}
