@@ -72,98 +72,88 @@ export async function createQuote(input: CreateQuoteInput): Promise<CreateQuoteR
             quote_items: createResult.quoteItems ?? []
         };
 
-        // ─── 5. Sincronización proactiva con Google Contacts ─────────────────
-        // Sincronizamos el contacto siempre, ya que es nuestra base de datos CRM (People API)
-        try {
-            if (isDirect) {
-                // Para venta directa, lo marcamos como confirmado de una vez en los contactos
-                await GoogleSyncService.updateContactConfirmedStatus(fullQuote as any);
-            } else {
-                // Para eventos, se sincroniza como borrador inicial
-                await GoogleSyncService.syncContactForQuote(state, createResult.token, clientId ?? undefined);
-            }
-        } catch (e) {
-            console.error('Google Contact Sync failed:', e);
-        }
-
-        // ─── 6. Automatizaciones reactivas (SOLO SI NO ES ADMIN) ────────────────────────
-        // Estas acciones disparan procesos externos "visibles" como emails o eventos de calendario
+        // ─── 5 & 6. Automatizaciones reactivas (Paralelizado y Optimizado) ────────────
+        // Estas acciones disparan procesos externos. Usamos Promise.allSettled para 
+        // maximizar la velocidad y evitar que un fallo en uno bloquee los demás.
         if (!isAdmin) {
+            const resend = resendKey ? new Resend(resendKey) : null;
+            
+            // Preparamos las tareas
+            const tasks: Promise<any>[] = [];
+
+            // Tarea 1: Sincronización de Contactos (People API)
+            tasks.push(isDirect 
+                ? GoogleSyncService.updateContactConfirmedStatus(fullQuote as any)
+                : GoogleSyncService.syncContactForQuote(state, createResult.token, clientId ?? undefined)
+            );
+
+            // Tarea 2: Sincronización de Calendario (Solo si es Directo)
             if (isDirect) {
-                // Calendar Sync (Solo Public Wizard)
-                try {
-                    const calResult = await GoogleSyncService.scheduleCalendarEvents(fullQuote as any);
-                    
-                    if (calResult.eventId || calResult.pickupEventId) {
+                tasks.push((async () => {
+                    try {
+                        const calResult = await GoogleSyncService.scheduleCalendarEvents(fullQuote as any);
+                        if (calResult?.eventId || calResult?.pickupEventId) {
+                            const { createServerClient } = await import('@/lib/supabaseServer');
+                            const dbServer = createServerClient();
+                            await dbServer.from('quotes').update({
+                                google_event_id: calResult.eventId,
+                                google_pickup_event_id: calResult.pickupEventId
+                            }).eq('id', fullQuote.id);
+                        }
+                    } catch (calErr: any) {
+                        console.error('Error auto-syncing calendar:', calErr);
                         const { createServerClient } = await import('@/lib/supabaseServer');
                         const dbServer = createServerClient();
-                        await dbServer.from('quotes').update({
-                            google_event_id: calResult.eventId,
-                            google_pickup_event_id: calResult.pickupEventId
-                        }).eq('id', fullQuote.id);
+                        await dbServer.from('sync_logs').insert({
+                            quote_id: fullQuote.id,
+                            type: 'google_calendar',
+                            status: 'error',
+                            error_msg: `Auto-sync failed: ${calErr.message || 'Unknown error'}`
+                        });
                     }
-                } catch (syncErr) {
-                    console.error('Error in Google Calendar Sync for Direct Sale during createQuote:', syncErr);
-                }
+                })());
             }
 
-            if (!skipEmail && resendKey && state.contact.email && createResult.quoteItems) {
-                try {
-                    const resend = new Resend(resendKey);
-
-                    const isDirectSale = state.serviceType === 'direct' || state.dispenser === 'desechable';
-                    let EmailComponent;
-                    
-                    if (isDirectSale) {
-                        EmailComponent = (await import('@/components/emails/ConfirmationEmail')).default;
-                    } else {
-                        EmailComponent = (await import('@/components/emails/QuoteEmail')).default;
-                    }
+            // Tarea 3: Envío de Emails (Resend)
+            if (!skipEmail && resend && state.contact.email && createResult.quoteItems) {
+                tasks.push((async () => {
+                    const EmailComponent = isDirect 
+                        ? (await import('@/components/emails/ConfirmationEmail')).default
+                        : (await import('@/components/emails/QuoteEmail')).default;
 
                     const eventDate = fullQuote.event_date
                         ? new Date(fullQuote.event_date + 'T12:00:00').toLocaleDateString('es-CL', { day: '2-digit', month: 'long', year: 'numeric' })
                         : '';
-                    const fullName = `${fullQuote.client_name} ${fullQuote.client_lastname || ''}`.trim();
+                    const fullNameClient = `${fullQuote.client_name} ${fullQuote.client_lastname || ''}`.trim();
 
-                    const emailVars = {
-                        full_name: fullName,
-                        event_date: eventDate
-                    };
+                    const emailVars = { full_name: fullNameClient, event_date: eventDate };
 
+                    // Renderizados en paralelo para ahorrar tiempo de CPU
                     const [clientHtml, adminHtml, clientSubject, adminSubject] = await Promise.all([
-                        render(React.createElement(EmailComponent, { quote: fullQuote, isAdmin: false })),
-                        render(React.createElement(EmailComponent, { quote: fullQuote, isAdmin: true })),
+                        render(React.createElement(EmailComponent, { quote: fullQuote as any, isAdmin: false })),
+                        render(React.createElement(EmailComponent, { quote: fullQuote as any, isAdmin: true })),
                         SettingsService.getResolvedValue(
-                            isDirectSale ? 'email_direct_sale_subject' : 'email_quote_draft_subject',
+                            isDirect ? 'email_direct_sale_subject' : 'email_quote_draft_subject',
                             emailVars,
-                            isDirectSale ? `✅ Tu pedido ha sido confirmado – ${eventDate}` : `🍸 Tu cotización – ${eventDate}`
+                            isDirect ? `✅ Tu pedido ha sido confirmado – ${eventDate}` : `🍸 Tu cotización – ${eventDate}`
                         ),
                         SettingsService.getResolvedValue(
-                            isDirectSale ? 'email_direct_sale_admin_subject' : 'email_quote_draft_admin_subject',
+                            isDirect ? 'email_direct_sale_admin_subject' : 'email_quote_draft_admin_subject',
                             emailVars,
-                            isDirectSale ? `[Pedido Confirmado] ${fullName} – ${eventDate}` : `[Nueva Cotización] ${fullName} – ${eventDate}`
+                            isDirect ? `[Pedido Confirmado] ${fullNameClient} – ${eventDate}` : `[Nueva Cotización] ${fullNameClient} – ${eventDate}`
                         )
                     ]);
 
-                    await Promise.allSettled([
-                        resend.emails.send({
-                            from: FROM_EMAIL,
-                            to: state.contact.email,
-                            subject: clientSubject,
-                            html: clientHtml,
-                        }),
-                        resend.emails.send({
-                            from: FROM_EMAIL,
-                            to: ADMIN_EMAIL,
-                            subject: adminSubject,
-                            html: adminHtml,
-                        }),
+                    return Promise.allSettled([
+                        resend.emails.send({ from: FROM_EMAIL, to: state.contact.email, subject: clientSubject, html: clientHtml }),
+                        resend.emails.send({ from: FROM_EMAIL, to: ADMIN_EMAIL, subject: adminSubject, html: adminHtml })
                     ]);
-
-                } catch (emailErr) {
-                    console.error('Error enviando emails:', emailErr);
-                }
+                })());
             }
+
+            // Ejecutamos todas las automatizaciones en paralelo
+            // Await asegura que Vercel no mate el proceso antes de terminar las llamadas externas
+            await Promise.allSettled(tasks);
         }
 
         return { success: true, token: createResult.token, quoteId: createResult.quote.id };

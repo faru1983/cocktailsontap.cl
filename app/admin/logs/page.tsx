@@ -5,6 +5,8 @@ import {
     RefreshCcw, Mail, Calendar, User, CheckCircle, XCircle, 
     AlertTriangle, Clock, ArrowUpDown
 } from 'lucide-react';
+import LogErrorCell from './LogErrorCell';
+
 
 async function getSyncLogs(sort: string = 'created_at', order: string = 'desc') {
     const db = createServerClient();
@@ -120,9 +122,11 @@ export default async function LogsPage({ searchParams }: { searchParams: SearchP
                                         </span>
                                     </td>
                                     <td className="px-6 py-4">
-                                        <div className="text-slate-500 text-xs font-mono max-w-[200px] truncate group-hover:text-slate-400 transition-colors">
-                                            {log.error_msg || '—'}
-                                        </div>
+                                        <LogErrorCell 
+                                            message={log.error_msg} 
+                                            clientName={`${log.quotes?.client_name} ${log.quotes?.client_lastname || ''}`}
+                                            typeLabel={typeLabels[log.type]?.label || log.type}
+                                        />
                                     </td>
                                     <td className="px-6 py-4 text-right">
                                         {log.status === 'failed' && <RetryButton logId={log.id} />}
@@ -169,8 +173,12 @@ export default async function LogsPage({ searchParams }: { searchParams: SearchP
                             </div>
 
                             {log.error_msg && (
-                                <div className="bg-rose-500/5 border border-rose-500/10 rounded-xl p-3 mt-4 text-rose-400/80 text-[11px] font-mono leading-relaxed">
-                                    {log.error_msg}
+                                <div className="mt-4">
+                                    <LogErrorCell 
+                                        message={log.error_msg} 
+                                        clientName={`${log.quotes?.client_name} ${log.quotes?.client_lastname || ''}`}
+                                        typeLabel={typeLabels[log.type]?.label || log.type}
+                                    />
                                 </div>
                             )}
 

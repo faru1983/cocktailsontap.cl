@@ -173,10 +173,11 @@ export const GoogleSyncService = {
                 total_liters: quote.total_liters || '0',
             };
 
-            const isDirectSale = quote.service_type === 'direct' || quote.dispenser === 'desechable';
             const isDesechable = quote.dispenser === 'desechable';
+            const isDirectSale = quote.service_type === 'direct' || isDesechable;
             
-            const targetCalendarId = isDesechable ? CALENDAR_DESECHABLE_ID : CALENDAR_RESERVA_ID;
+            // Fallback inteligente: si no hay calendario de desechables, usar el de reserva
+            const targetCalendarId = isDesechable ? (CALENDAR_DESECHABLE_ID || CALENDAR_RESERVA_ID) : CALENDAR_RESERVA_ID;
             
             const sharedDescription = await SettingsService.getResolvedValue(
                 isDirectSale ? 'calendar_direct_sale_description_template' : 'calendar_event_description_template', 
