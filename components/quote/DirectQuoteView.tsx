@@ -86,15 +86,12 @@ export default function DirectQuoteView({ quote, comunas, availableCocktails, ca
         const selectedComuna = comunas.find(c => c.name === comuna);
         
         if (selectedComuna && selectedComuna.name !== 'Otra') {
-            const qualifiesForFree = selectedComuna.freeFrom !== null && totalLiters >= selectedComuna.freeFrom;
-            if (qualifiesForFree) {
-                shipping = 0;
-            } else if (comuna !== quote.comuna_name) {
-                shipping = selectedComuna.cost || 0;
-            } else if (quote.shipping_cost === 0 && !qualifiesForFree) {
-                shipping = selectedComuna.cost || 0;
+            if (comuna !== quote.comuna_name) {
+                shipping = selectedComuna.directSaleDeliveryCost ?? 5000;
             } else {
-                shipping = quote.shipping_cost;
+                // En venta directa no hay envío gratis, si el costo guardado es 0 
+                // lo restauramos al costo de la comuna o al default.
+                shipping = quote.shipping_cost || (selectedComuna.directSaleDeliveryCost ?? 5000);
             }
         }
 
