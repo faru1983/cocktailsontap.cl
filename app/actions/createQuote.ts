@@ -65,7 +65,7 @@ export async function createQuote(input: CreateQuoteInput): Promise<CreateQuoteR
             return { success: false, error: createResult.error || 'No se pudo guardar la cotización.' };
         }
 
-        const isDirect = state.serviceType === 'direct' || state.dispenser === 'desechable';
+        const isDirect = state.serviceType === 'direct';
         const resendKey = process.env.RESEND_API_KEY;
         const fullQuote = {
             ...createResult.quote,
@@ -75,7 +75,7 @@ export async function createQuote(input: CreateQuoteInput): Promise<CreateQuoteR
         // ─── 5 & 6. Automatizaciones reactivas (Paralelizado y Optimizado) ────────────
         // Estas acciones disparan procesos externos. Usamos Promise.allSettled para 
         // maximizar la velocidad y evitar que un fallo en uno bloquee los demás.
-        if (!isAdmin) {
+        if (!isAdmin || isDirect) {
             const resend = resendKey ? new Resend(resendKey) : null;
             
             // Preparamos las tareas

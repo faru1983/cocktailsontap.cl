@@ -84,9 +84,9 @@ export function useWizard(cocktails: CocktailForWizard[], comunas: Comuna[], cat
 
     const updateServiceType = useCallback((type: 'event' | 'direct') => {
         setState((prev) => ({ 
-            ...prev, 
+            ...prev,
             serviceType: type, 
-            dispenser: type === 'direct' ? 'desechable' : 'portatil',
+            dispenser: 'portatil',
             step: 1 // Avanzar automáticamente al paso 1
         }));
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -102,7 +102,7 @@ export function useWizard(cocktails: CocktailForWizard[], comunas: Comuna[], cat
     }, []);
 
     const reset = useCallback(() => {
-        setState({ ...INITIAL_STATE, serviceType: initialServiceType, expandedCategoryId: categories[0] || '' });
+        setState({ ...INITIAL_STATE, serviceType: initialServiceType, dispenser: 'portatil', expandedCategoryId: categories[0] || '' });
     }, [categories, initialServiceType]);
 
     function validateStep(step: number): { valid: boolean; message?: string } {

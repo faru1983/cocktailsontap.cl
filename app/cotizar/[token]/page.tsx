@@ -41,7 +41,7 @@ export default async function QuoteTokenPage({ params }: Props) {
     }
 
     const quote = data as Quote & { quote_items: QuoteItem[] };
-    const isDirectSale = quote.dispenser === 'desechable';
+    const isDirectSale = quote.service_type === 'direct';
 
     return (
         <main className="min-h-screen bg-brand-bg py-12 px-4 pb-32">

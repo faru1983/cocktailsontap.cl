@@ -37,7 +37,9 @@ export async function confirmQuote(input: any): Promise<ConfirmQuoteResult> {
         const data = validation.data;
 
         // ─── 1.5 VALIDACIÓN CONDICIONAL (Eventos) ──────────────────────────────
-        if (data.dispenser !== 'desechable') {
+        // Si no es venta directa, validamos campos de evento
+        const isActuallyDirect = data.dispenser === 'desechable';
+        if (!isActuallyDirect) {
             if (!data.guests || (data.guests && data.guests < 1)) return { success: false, error: 'La cantidad de invitados debe ser al menos 1.' };
             if (!data.event_type_id) return { success: false, error: 'La temática es obligatoria para eventos.' };
             if (!data.start_time || data.start_time.length < 4) return { success: false, error: 'La hora de inicio es obligatoria.' };
@@ -88,7 +90,7 @@ export async function confirmQuote(input: any): Promise<ConfirmQuoteResult> {
             },
             dispenser: data.dispenser as any,
             step: 0,
-            serviceType: data.dispenser === 'desechable' ? 'direct' : 'event',
+            serviceType: quote.service_type || (data.dispenser === 'desechable' ? 'direct' : 'event'),
             expandedCocktailId: null,
             expandedCategoryId: '',
         }, cocktails, comunas);

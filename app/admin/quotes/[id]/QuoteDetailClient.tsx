@@ -310,7 +310,7 @@ export default function QuoteDetailClient({ quote: initial, allProducts, eventTy
                 <Link href="/admin/quotes" style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#E2A049', fontSize: '13px', textDecoration: 'none', whiteSpace: 'nowrap' }}><ArrowLeft size={16}/> Cotizaciones</Link>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                     <h1 style={{ color: '#f1f5f9', fontSize: '20px', fontWeight: 900, margin: 0 }}>
-                        {quote.dispenser === 'desechable' && <span style={{ marginRight: '10px' }} title="Venta Directa">📦</span>}
+                        {quote.service_type === 'direct' && <span style={{ marginRight: '10px' }} title="Venta Directa">📦</span>}
                         <Link href={`/admin/clients/${quote.client_id}`} style={{ color: 'inherit', textDecoration: 'none', borderBottom: '1px solid transparent', transition: 'border-color 0.15s' }} 
                             onMouseEnter={e => e.currentTarget.style.borderColor = 'rgba(226,160,73,0.5)'}
                             onMouseLeave={e => e.currentTarget.style.borderColor = 'transparent'}>
@@ -792,7 +792,7 @@ export default function QuoteDetailClient({ quote: initial, allProducts, eventTy
                                     ) : (
                                         <>
                                             <span style={{ color: '#94a3b8', fontSize: '13px' }}>
-                                                {quote.dispenser === 'muro' ? 'Muro de Cócteleria' : (quote.dispenser === 'desechable' ? 'Barril Desechable' : 'Dispensador Portátil')}
+                                                {quote.dispenser === 'muro' ? 'Muro de Cócteleria' : (quote.service_type === 'direct' ? 'Barril Desechable' : 'Dispensador Portátil')}
                                             </span>
                                             <span style={{ color: '#f1f5f9', fontWeight: 700 }}>{formatCLP(quote.installation_cost)}</span>
                                         </>

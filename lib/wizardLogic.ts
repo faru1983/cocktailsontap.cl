@@ -264,7 +264,7 @@ export function calculateSummaryData(
     
     let dispenserLabel = 'Dispensador Portátil';
     if (state.dispenser === 'muro' && canHaveMuro) dispenserLabel = 'Muro de Coctelería';
-    if (state.dispenser === 'desechable') dispenserLabel = 'Barril Desechable';
+    if (state.serviceType === 'direct') dispenserLabel = 'Barril Desechable';
 
     const installationCost = (state.dispenser === 'muro' && canHaveMuro) ? MURO_INSTALLATION_COST : 0;
 

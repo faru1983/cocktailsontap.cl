@@ -85,7 +85,7 @@ export const QuoteService = {
         const { data: quote, error: quoteError } = await db
             .from('quotes')
             .insert({
-                status: state.dispenser === 'desechable' ? 'confirmed' : 'draft',
+                status: state.serviceType === 'direct' ? 'confirmed' : 'draft',
                 client_id: clientId,
                 client_name: state.contact.firstName.trim(),
                 client_lastname: state.contact.lastName?.trim() || null,
@@ -115,7 +115,7 @@ export const QuoteService = {
                 manual_discount: finalDiscount,
                 total_price: finalTotalPrice,
                 total_liters: data.totalLiters,
-                service_type: state.serviceType || (state.dispenser === 'desechable' ? 'direct' : 'event'),
+                service_type: state.serviceType || 'event',
             })
             .select('*')
             .single();

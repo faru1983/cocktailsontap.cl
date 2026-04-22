@@ -37,8 +37,7 @@ export default function DirectWizardShell({ cocktails, comunas, categories, init
 
     useEffect(() => {
         wizard.initCategory(categories);
-        // Force dispenser to desechable for direct sale
-        wizard.updateDispenser('desechable');
+        // Dispenser is no longer forced to 'desechable' as it is deprecated
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [categories]);
 

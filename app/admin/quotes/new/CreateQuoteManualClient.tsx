@@ -102,7 +102,7 @@ export default function CreateQuoteManualClient({ allProducts, comunas, eventTyp
         consumption,
         contact,
         selections,
-        dispenser: serviceType === 'direct' ? 'desechable' : dispenser,
+        dispenser: dispenser,
         expandedCocktailId: null,
         expandedCategoryId: '',
         serviceType: serviceType

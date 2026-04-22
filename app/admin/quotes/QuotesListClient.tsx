@@ -220,7 +220,7 @@ export default function QuotesListClient({
                             <Link href={`/admin/quotes/${q.id}`} style={{ textDecoration: 'none', display: 'block' }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', paddingRight: '30px' }}>
                                     <span style={{ color: '#f1f5f9', fontSize: '15px', fontWeight: 700 }}>
-                                        {q.dispenser === 'desechable' && <span style={{ marginRight: '6px' }} title="Venta Directa">📦</span>}
+                                        {q.service_type === 'direct' && <span style={{ marginRight: '6px' }} title="Venta Directa">📦</span>}
                                         {q.client_name} {q.client_lastname || ''}
                                     </span>
                                     <span style={{ padding: '3px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 700, color: badge.color, background: badge.bg }}>{badge.label}</span>
@@ -231,7 +231,7 @@ export default function QuotesListClient({
                                         <span style={{ color: '#E2A049', fontSize: '15px', fontWeight: 900 }}>{formatCLP(Number(q.total_price))}</span>
                                     </div>
                                     <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                        <span style={{ color: '#475569', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase' }}>{q.dispenser === 'desechable' ? 'Entrega' : 'Fecha'}</span>
+                                        <span style={{ color: '#475569', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase' }}>{q.service_type === 'direct' ? 'Entrega' : 'Fecha'}</span>
                                         <span style={{ color: '#94a3b8', fontSize: '13px' }}>{q.event_date ? new Date(q.event_date + 'T12:00:00').toLocaleDateString('es-CL') : '—'}</span>
                                     </div>
                                     <div style={{ display: 'flex', flexDirection: 'column' }}>
@@ -276,7 +276,7 @@ export default function QuotesListClient({
                                     </td>
                                     <td style={{ padding: '14px 20px', color: '#f1f5f9', fontSize: '14px', fontWeight: 600 }}>
                                         <Link href={`/admin/quotes/${q.id}`} style={{ color: 'inherit', textDecoration: 'none' }}>
-                                            {q.dispenser === 'desechable' && <span style={{ marginRight: '6px' }} title="Venta Directa">📦</span>}
+                                            {q.service_type === 'direct' && <span style={{ marginRight: '6px' }} title="Venta Directa">📦</span>}
                                             {q.client_name} {q.client_lastname || ''}
                                         </Link>
                                     </td>

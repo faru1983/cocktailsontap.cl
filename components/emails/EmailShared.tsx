@@ -132,7 +132,7 @@ export const YieldsSection: React.FC<{ quote: Quote, isDirect?: boolean }> = ({ 
 
 export const PriceBreakdownSection: React.FC<{ quote: Quote, isDirect?: boolean }> = ({ quote, isDirect = false }) => {
   let dispenserLabel = quote.dispenser === 'muro' ? 'Muro de Coctelería' : 'Dispensador Portátil';
-  if (isDirect || quote.dispenser === 'desechable') dispenserLabel = 'Barril Desechable';
+  if (isDirect || quote.service_type === 'direct') dispenserLabel = 'Barril Desechable';
   
   const hasDiscount = quote.total_normal_price > quote.total_offer_price;
   const isOtra = quote.comuna_name === 'Otra';
@@ -189,7 +189,7 @@ export const PriceBreakdownSection: React.FC<{ quote: Quote, isDirect?: boolean 
 };
 
 export const ReservationInfoSection: React.FC<{ quote: Quote, isDirect?: boolean }> = ({ quote, isDirect = false }) => {
-  const directMode = isDirect || (quote as any).isDirect || quote.dispenser === 'desechable';
+  const directMode = isDirect || (quote as any).isDirect || quote.service_type === 'direct';
   const comunaDisplay = quote.comuna_name === 'Otra' ? (quote.comuna_other || '') : (quote.comuna_name || '');
   const fullAddress   = [quote.client_address, comunaDisplay].filter(Boolean).join(', ');
   const eventDate     = quote.event_date

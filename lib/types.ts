@@ -210,6 +210,8 @@ export interface Quote {
     total_liters: number | null;
 
     service_type?: 'event' | 'direct' | null;
+    google_event_id?: string | null;
+    google_pickup_event_id?: string | null;
     // Items y Relaciones
     client_id?: string | null;
     quote_items?: QuoteItem[];

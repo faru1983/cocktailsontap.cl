@@ -23,7 +23,7 @@ export const ConfirmationEmail: React.FC<Readonly<ConfirmationEmailProps>> = ({ 
   const clientName = fullName(quote);
   const halfAmount = (quote.total_price || 0) / 2;
 
-  const isDirect = quote.dispenser === 'desechable';
+  const isDirect = quote.service_type === 'direct';
 
   if (isAdmin) {
     return (

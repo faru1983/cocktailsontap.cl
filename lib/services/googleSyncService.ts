@@ -87,7 +87,7 @@ export const GoogleSyncService = {
                  resourceName: googleId || undefined,
                  firstName: quote.client_name,
                  lastName: quote.client_lastname || undefined,
-                 email: quote.client_email,
+                 email: quote.client_email || undefined,
                  phone: quote.client_phone || undefined,
                  address: isAddressComplete ? fullAddress : undefined,
                  notes: quote.comments || undefined,
@@ -95,9 +95,9 @@ export const GoogleSyncService = {
                  quoteUrl: quoteUrl,
                  confirmed: true,
                  noteLabel: await SettingsService.getResolvedValue(
-                     quote.dispenser === 'desechable' ? 'google_contacts_direct_sale_note_confirmed_template' : 'google_contacts_note_confirmed_template',
+                     quote.service_type === 'direct' ? 'google_contacts_direct_sale_note_confirmed_template' : 'google_contacts_note_confirmed_template',
                      { date_formatted: quote.event_date?.split('-').reverse().join('/') || 'S/F', quote_url: quoteUrl },
-                     quote.dispenser === 'desechable' ? 'Pedido Directo (Confirmado)' : 'Evento (Confirmado)'
+                     quote.service_type === 'direct' ? 'Pedido Directo (Confirmado)' : 'Evento (Confirmado)'
                  )
              });
 
@@ -130,18 +130,18 @@ export const GoogleSyncService = {
                 `${item.size} ${item.product_name} (x${item.quantity}) ${formatClp(item.offer_price_at_time * item.quantity)}`
             ).join('\n') || 'Sin productos';
 
-            const dispenserLabel = quote.dispenser === 'muro' ? 'Muro' : (quote.dispenser === 'desechable' ? 'Desechable' : 'Portátil');
+            const dispenserLabel = quote.dispenser === 'muro' ? 'Muro' : 'Portátil';
             
             const commentsText = quote.comments ? `Comentarios: ${quote.comments}\n` : '';
 
             // Resumen de pagos
-            const payments = Array.isArray(quote.payments) ? quote.payments : [];
-            const totalPaid = payments.reduce((sum: number, p: any) => sum + (Number(p.amount) || 0), 0);
-            const totalPending = Number(quote.total_price) - totalPaid;
+            const payments = quote.payments || [];
+            const totalPaid = payments.reduce((sum, p) => sum + (p.amount || 0), 0);
+            const totalPending = (quote.total_price || 0) - totalPaid;
 
             const paymentsSummary = payments.length > 0 
                 ? `\nREGISTRO DE PAGOS:\n` + 
-                  payments.map((p: any) => `- ${new Date(p.date + 'T12:00:00').toLocaleDateString('es-CL')}: ${formatClp(p.amount)} (${p.note || 'Pago'})`).join('\n') +
+                  payments.map((p) => `- ${new Date(p.date + 'T12:00:00').toLocaleDateString('es-CL')}: ${formatClp(p.amount)} (${p.note || 'Pago'})`).join('\n') +
                   `\nSaldo Pendiente: ${formatClp(totalPending < 0 ? 0 : totalPending)}`
                 : `\nREGISTRO DE PAGOS:\nSaldo Pendiente: ${formatClp(quote.total_price || 0)}`;
             
@@ -173,11 +173,10 @@ export const GoogleSyncService = {
                 total_liters: quote.total_liters || '0',
             };
 
-            const isDesechable = quote.dispenser === 'desechable';
-            const isDirectSale = quote.service_type === 'direct' || isDesechable;
+            const isDirectSale = quote.service_type === 'direct';
             
-            // Fallback inteligente: si no hay calendario de desechables, usar el de reserva
-            const targetCalendarId = isDesechable ? (CALENDAR_DESECHABLE_ID || CALENDAR_RESERVA_ID) : CALENDAR_RESERVA_ID;
+            // Si es venta directa (por tipo de servicio o por dispensador), usamos el calendario de desechables
+            const targetCalendarId = isDirectSale ? (CALENDAR_DESECHABLE_ID || CALENDAR_RESERVA_ID) : CALENDAR_RESERVA_ID;
             
             const sharedDescription = await SettingsService.getResolvedValue(
                 isDirectSale ? 'calendar_direct_sale_description_template' : 'calendar_event_description_template', 
@@ -188,15 +187,15 @@ export const GoogleSyncService = {
             // Determine if times are provided, else fallback to ALL DAY events.
             const hasStartTime = quote.start_time && quote.start_time !== '--:--';
             const hasPickupTime = quote.pickup_time && quote.pickup_time !== '--:--';
-            let eventId = options?.updateEventId || (quote as any).google_event_id;
-            let pickupEventId = options?.updatePickupEventId || (quote as any).google_pickup_event_id;
+            let eventId = options?.updateEventId || quote.google_event_id || undefined;
+            let pickupEventId = options?.updatePickupEventId || quote.google_pickup_event_id || undefined;
 
             // 1. Create Service/Delivery Event
             if (targetCalendarId && quote.event_date) {
                 const serviceSummary = await SettingsService.getResolvedValue(
-                    isDirectSale ? 'calendar_direct_sale_summary_template' : (isDesechable ? 'calendar_desechable_summary_template' : 'calendar_event_summary_template'),
+                    isDirectSale ? 'calendar_direct_sale_summary_template' : 'calendar_event_summary_template',
                     variables,
-                    isDirectSale ? `Pedido Directo - ${fullName}` : (isDesechable ? `Despacho - ${fullName}` : `Cócteles - ${fullName} ${quote.guests}px`)
+                    isDirectSale ? `Pedido Directo - ${fullName}` : `Cócteles - ${fullName} ${quote.guests}px`
                 );
                 
                 let startISO, endISO, isAllDay;
@@ -217,7 +216,7 @@ export const GoogleSyncService = {
                 }
 
                 const created = await syncGoogleEvent(targetCalendarId, {
-                    eventId: eventId, 
+                    eventId: eventId || undefined, 
                     summary: serviceSummary,
                     location: fullLocation,
                     description: sharedDescription,
@@ -262,7 +261,7 @@ export const GoogleSyncService = {
                 }
 
                 const createdPickup = await syncGoogleEvent(CALENDAR_RETIRO_ID, {
-                    eventId: pickupEventId,
+                    eventId: pickupEventId || undefined,
                     summary: pickupSummary,
                     location: fullLocation,
                     description: sharedDescription,
