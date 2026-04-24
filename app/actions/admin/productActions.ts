@@ -22,7 +22,7 @@ export async function saveCategory(category: any) {
         if (error) throw new Error(error.message);
     }
     revalidatePath('/admin/products');
-    revalidateTag('products', 'max');
+    revalidateTag('product-data', 'max');
 }
 
 export async function toggleCategoryStatus(id: string, current: boolean) {
@@ -30,7 +30,7 @@ export async function toggleCategoryStatus(id: string, current: boolean) {
     const db = createServerClient();
     await db.from('categories').update({ is_active: !current }).eq('id', id);
     revalidatePath('/admin/products');
-    revalidateTag('products', 'max');
+    revalidateTag('product-data', 'max');
 }
 
 export async function saveProduct(product: any, prices: any[]) {
@@ -75,7 +75,7 @@ export async function saveProduct(product: any, prices: any[]) {
         }
     }
     revalidatePath('/admin/products');
-    revalidateTag('products', 'max');
+    revalidateTag('product-data', 'max');
 }
 
 export async function saveUnit(unit: any) {
@@ -91,7 +91,7 @@ export async function saveUnit(unit: any) {
         if (error) throw new Error(error.message);
     }
     revalidatePath('/admin/products');
-    revalidateTag('products', 'max');
+    revalidateTag('product-data', 'max');
 }
 
 export async function toggleUnitStatus(id: string, current: boolean) {
@@ -99,7 +99,7 @@ export async function toggleUnitStatus(id: string, current: boolean) {
     const db = createServerClient();
     await db.from('measurement_units').update({ is_active: !current }).eq('id', id);
     revalidatePath('/admin/products');
-    revalidateTag('products', 'max');
+    revalidateTag('product-data', 'max');
 }
 
 export async function toggleProductStatus(id: string, current: boolean) {
@@ -107,7 +107,7 @@ export async function toggleProductStatus(id: string, current: boolean) {
     const db = createServerClient();
     await db.from('products').update({ is_active: !current }).eq('id', id);
     revalidatePath('/admin/products');
-    revalidateTag('products', 'max');
+    revalidateTag('product-data', 'max');
 }
 
 export async function reorderItems(type: 'products' | 'categories' | 'measurement_units', updates: { id: string; display_order: number }[]) {
@@ -126,7 +126,7 @@ export async function reorderItems(type: 'products' | 'categories' | 'measuremen
     if (firstError) throw new Error('Error al reordenar: ' + firstError.error?.message);
     
     revalidatePath('/admin/products');
-    revalidateTag('products', 'max');
+    revalidateTag('product-data', 'max');
 }
 
 export async function uploadImage(formData: FormData) {
@@ -159,7 +159,7 @@ export async function deleteImage(fileName: string) {
     const { error } = await db.storage.from('product-images').remove([fileName]);
     if (error) throw new Error('Error al eliminar imagen: ' + error.message);
     revalidatePath('/admin/products');
-    revalidateTag('products', 'max');
+    revalidateTag('product-data', 'max');
 }
 
 export async function updateQuickPrice(priceId: string, updates: { price?: number; offer_price?: number | null }) {
@@ -168,5 +168,5 @@ export async function updateQuickPrice(priceId: string, updates: { price?: numbe
     const { error } = await db.from('product_prices').update(updates).eq('id', priceId);
     if (error) throw new Error(error.message);
     revalidatePath('/admin/products');
-    revalidateTag('products', 'max');
+    revalidateTag('product-data', 'max');
 }
