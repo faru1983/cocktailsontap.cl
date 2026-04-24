@@ -99,7 +99,7 @@ export async function confirmQuote(formData: any): Promise<ConfirmQuoteResult> {
             db.from('quote_items')
               .delete()
               .eq('quote_id', quote.id)
-              .not('id', 'in', `(${updatedItemIds.join(',') || 'NULL'})`)
+              .not('id', 'in', `(${updatedItemIds.join(',') || 'NULL'})`) as any
         );
 
         const newItems = data.items.map(item => ({
@@ -116,7 +116,7 @@ export async function confirmQuote(formData: any): Promise<ConfirmQuoteResult> {
         }));
         
         if (newItems.length > 0) {
-            dbOps.push(db.from('quote_items').upsert(newItems, { onConflict: 'quote_id,product_id,size' }));
+            dbOps.push(db.from('quote_items').upsert(newItems, { onConflict: 'quote_id,product_id,size' }) as any);
         }
 
         // 4.b Actualizar Cliente
@@ -125,7 +125,7 @@ export async function confirmQuote(formData: any): Promise<ConfirmQuoteResult> {
             if (data.client_lastname?.trim()) clientUpdate.last_name = data.client_lastname.trim();
             if (data.client_phone?.trim()) clientUpdate.phone = data.client_phone.trim();
             if (Object.keys(clientUpdate).length > 0) {
-                dbOps.push(db.from('clients').update(clientUpdate).eq('id', quote.client_id));
+                dbOps.push(db.from('clients').update(clientUpdate).eq('id', quote.client_id) as any);
             }
         }
 
@@ -142,7 +142,7 @@ export async function confirmQuote(formData: any): Promise<ConfirmQuoteResult> {
             total_liters: summary.totalLiters,
             status: 'confirmed', 
             updated_at: new Date().toISOString()
-        }).eq('token', data.token));
+        }).eq('token', data.token) as any);
 
         console.log('[ConfirmQuote] Ejecutando operaciones de DB...');
         const dbResults = await Promise.all(dbOps);
