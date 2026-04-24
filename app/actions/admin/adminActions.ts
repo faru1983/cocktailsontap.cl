@@ -935,7 +935,7 @@ export async function syncQuoteToCalendarAdmin(quoteId: string): Promise<{ succe
         const calResult = await GoogleSyncService.scheduleCalendarEvents(quote as any, {
             updateEventId: quote.google_event_id || undefined,
             updatePickupEventId: quote.google_pickup_event_id || undefined,
-            isDirectSaleOverride: quote.service_type === 'direct' || quote.dispenser === 'desechable'
+            isDirectSaleOverride: quote.service_type === 'direct' || (quote.service_type === undefined && quote.dispenser === 'desechable')
         });
 
         if (calResult.eventId || calResult.pickupEventId) {

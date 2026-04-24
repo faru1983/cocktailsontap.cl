@@ -36,16 +36,6 @@ export async function confirmQuote(input: any): Promise<ConfirmQuoteResult> {
 
         const data = validation.data;
 
-        // ─── 1.5 VALIDACIÓN CONDICIONAL (Eventos) ──────────────────────────────
-        // Si no es venta directa, validamos campos de evento
-        const isActuallyDirect = data.dispenser === 'desechable';
-        if (!isActuallyDirect) {
-            if (!data.guests || (data.guests && data.guests < 1)) return { success: false, error: 'La cantidad de invitados debe ser al menos 1.' };
-            if (!data.event_type_id) return { success: false, error: 'La temática es obligatoria para eventos.' };
-            if (!data.start_time || data.start_time.length < 4) return { success: false, error: 'La hora de inicio es obligatoria.' };
-            if (!data.pickup_date) return { success: false, error: 'La fecha de retiro es obligatoria.' };
-        }
-
         const db = createServerClient();
 
         // ─── 2. CARGA Y CONFIRMACIÓN BÁSICA DE COTIZACIÓN ─────────────────────
@@ -54,6 +44,16 @@ export async function confirmQuote(input: any): Promise<ConfirmQuoteResult> {
              return { success: false, error: confirmResult.error || 'Error al confirmar la cotización.' };
         }
         const quote = confirmResult.quote;
+
+        // ─── 2.5 VALIDACIÓN CONDICIONAL (Uso de service_type como fuente de verdad) 
+        const isDirect = quote.service_type === 'direct';
+        
+        if (!isDirect) {
+            if (!data.guests || (data.guests && data.guests < 1)) return { success: false, error: 'La cantidad de invitados debe ser al menos 1.' };
+            if (!data.event_type_id) return { success: false, error: 'La temática es obligatoria para eventos.' };
+            if (!data.start_time || data.start_time.length < 4) return { success: false, error: 'La hora de inicio es obligatoria.' };
+            if (!data.pickup_date) return { success: false, error: 'La fecha de retiro es obligatoria.' };
+        }
 
         // ─── 3. RECALCULO DE SEGURIDAD (Server-Side Zero Trust) ─────────────
         // Fetch current data to ensure calculations use the latest prices/rules
@@ -90,7 +90,7 @@ export async function confirmQuote(input: any): Promise<ConfirmQuoteResult> {
             },
             dispenser: data.dispenser as any,
             step: 0,
-            serviceType: quote.service_type || (data.dispenser === 'desechable' ? 'direct' : 'event'),
+            serviceType: quote.service_type as any, // Prioridad absoluta al valor de la DB
             expandedCocktailId: null,
             expandedCategoryId: '',
         }, cocktails, comunas);
@@ -201,7 +201,7 @@ export async function confirmQuote(input: any): Promise<ConfirmQuoteResult> {
             (async () => {
                 try {
                     await GoogleSyncService.updateContactConfirmedStatus(fullQuote);
-                    const isDirect = summary.serviceType === 'direct' || data.dispenser === 'desechable';
+                    const isDirect = quote.service_type === 'direct';
                     const { eventId, pickupEventId } = await GoogleSyncService.scheduleCalendarEvents(fullQuote, { isDirectSaleOverride: isDirect });
                     if (eventId || pickupEventId) {
                         const db = createServerClient();

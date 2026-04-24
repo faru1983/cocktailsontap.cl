@@ -299,7 +299,7 @@ export default function DirectQuoteView({ quote, comunas, availableCocktails, ca
             pickup_time: '',
             comments: comments,
             items: items,
-            dispenser: 'portatil',
+            dispenser: 'desechable',
             installation_cost: 0
         });
         setIsConfirming(false);

@@ -175,7 +175,7 @@ export const GoogleSyncService = {
 
             const isDirectSale = options?.isDirectSaleOverride !== undefined 
                 ? options.isDirectSaleOverride 
-                : (quote.service_type === 'direct' || quote.dispenser === 'desechable');
+                : (quote.service_type === 'direct' || (quote.service_type === undefined && quote.dispenser === 'desechable'));
             
             // Si es venta directa usamos el calendario de desechables. Fallback al de Reserva si no está configurado.
             const targetCalendarId = isDirectSale ? (CALENDAR_DESECHABLE_ID || CALENDAR_RESERVA_ID) : CALENDAR_RESERVA_ID;
