@@ -38,12 +38,20 @@ export async function confirmQuote(input: any): Promise<ConfirmQuoteResult> {
 
         const db = createServerClient();
 
-        // ─── 2. CARGA Y CONFIRMACIÓN BÁSICA DE COTIZACIÓN ─────────────────────
-        const confirmResult = await QuoteService.confirmQuote(data.token);
-        if (!confirmResult.success || !confirmResult.quote) {
-             return { success: false, error: confirmResult.error || 'Error al confirmar la cotización.' };
+        // ─── 2. CARGA Y VALIDACIÓN DE ESTADO ─────────────────────────────────────
+        const { data: quote, error: fetchError } = await db
+            .from('quotes')
+            .select('*')
+            .eq('token', data.token)
+            .single();
+
+        if (fetchError || !quote) {
+            return { success: false, error: 'No se encontró la cotización especificada.' };
         }
-        const quote = confirmResult.quote;
+
+        if (quote.status === 'confirmed') {
+            return { success: false, error: 'Esta cotización ya fue confirmada anteriormente.' };
+        }
 
         // ─── 2.5 VALIDACIÓN CONDICIONAL (Uso de service_type como fuente de verdad) 
         const isDirect = quote.service_type === 'direct';
@@ -172,6 +180,7 @@ export async function confirmQuote(input: any): Promise<ConfirmQuoteResult> {
             shipping_cost: finalShippingCost,
             dispenser: data.dispenser,
             installation_cost: finalInstallationCost,
+            status: 'confirmed', // CONFIRMACIÓN ATÓMICA
         }).eq('token', data.token));
 
         // Wait for all DB updates to complete

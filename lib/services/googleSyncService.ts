@@ -7,7 +7,9 @@ import { createServerClient } from '@/lib/supabaseServer';
 import { SettingsService } from './settingsService';
 
 function formatLiteral(dateStr: string, timeStr: string): string {
-    return `${dateStr}T${timeStr}:00`;
+    // Limpiar cualquier texto no numérico (ej: "14:00hrs" -> "14:00")
+    const cleanTime = timeStr.replace(/[^0-9:]/g, '').trim();
+    return `${dateStr}T${cleanTime}:00`;
 }
 
 /**
@@ -251,7 +253,8 @@ export const GoogleSyncService = {
                         pEndISO = formatLiteral(quote.pickup_date, endPart.trim());
                     } else {
                         // Fallback original (+1h)
-                        pStartISO = formatLiteral(quote.pickup_date, timeValue);
+                        const cleanTime = timeValue.replace(/[^0-9:]/g, '').trim();
+                        pStartISO = formatLiteral(quote.pickup_date, cleanTime);
                         const pickupStartObj = new Date(pStartISO);
                         pickupStartObj.setHours(pickupStartObj.getHours() + 1); 
                         pEndISO = new Date(pickupStartObj.getTime() - (pickupStartObj.getTimezoneOffset() * 60000)).toISOString().slice(0, 19);
