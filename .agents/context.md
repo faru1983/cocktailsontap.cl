@@ -20,5 +20,13 @@
 - **Evento**: Draft -> Confirmado (via link único).
 - **Venta Directa (Desechables)**: Confirmado directamente (sin draft).
 
+
+## Últimos Cambios
+
+### 24-04-2026
+- **Build Fix**: Se resolvió un error que impedía el deploy en Vercel. El error era causado por el archivo de test `tests/test-confirm-sync.ts` que tenía tipos incompatibles con `QuoteItem`.
+- **Limpieza**: El usuario eliminó la carpeta `tests/` que ya no estaba en uso.
+- **Configuración**: Se revirtieron los cambios temporales en `tsconfig.json` tras la eliminación de la carpeta de tests.
+
 ---
 *Última actualización: 24-04-2026*
