@@ -333,13 +333,29 @@ export async function syncGoogleEvent(calendarId: string, event: {
 
         if (event.eventId) {
             console.log(`Actualizando evento ${event.eventId} en calendario ${calendarId} (Notificar: ${isReserva})`);
-            return await googleFetch<GoogleCalendarEvent>(
-                `https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events/${event.eventId}${queryParams}`,
-                {
-                    method: 'PUT',
-                    body: JSON.stringify(body)
+            try {
+                return await googleFetch<GoogleCalendarEvent>(
+                    `https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events/${event.eventId}${queryParams}`,
+                    {
+                        method: 'PUT',
+                        body: JSON.stringify(body)
+                    }
+                );
+            } catch (err: any) {
+                // Si el error es 404, el evento ya no existe o cambió de calendario.
+                // Reintentamos creándolo como nuevo.
+                if (err.message?.includes('[404]')) {
+                    console.warn(`Evento ${event.eventId} no encontrado (404). Reintentando como nuevo evento.`);
+                    return await googleFetch<GoogleCalendarEvent>(
+                        `https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events${queryParams}`,
+                        {
+                            method: 'POST',
+                            body: JSON.stringify(body)
+                        }
+                    );
                 }
-            );
+                throw err;
+            }
         } else {
             console.log(`Creando nuevo evento en calendario ${calendarId} (Notificar: ${isReserva})`);
             return await googleFetch<GoogleCalendarEvent>(

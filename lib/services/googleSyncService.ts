@@ -114,7 +114,7 @@ export const GoogleSyncService = {
      * Creates Google Calendar events for a confirmed quote.
      * Returns the created event IDs for persistence in the database.
      */
-    async scheduleCalendarEvents(quote: Quote, options?: { updateEventId?: string; updatePickupEventId?: string }): Promise<{ eventId?: string; pickupEventId?: string }> {
+    async scheduleCalendarEvents(quote: Quote, options?: { updateEventId?: string; updatePickupEventId?: string; isDirectSaleOverride?: boolean }): Promise<{ eventId?: string; pickupEventId?: string }> {
         try {
             const fullName = `${quote.client_name} ${quote.client_lastname || ''}`.trim();
             const comunaStr = quote.comuna_name === 'Otra' ? quote.comuna_other : quote.comuna_name;
@@ -173,10 +173,16 @@ export const GoogleSyncService = {
                 total_liters: quote.total_liters || '0',
             };
 
-            const isDirectSale = quote.service_type === 'direct';
+            const isDirectSale = options?.isDirectSaleOverride !== undefined 
+                ? options.isDirectSaleOverride 
+                : (quote.service_type === 'direct' || quote.dispenser === 'desechable');
             
-            // Si es venta directa (por tipo de servicio o por dispensador), usamos el calendario de desechables
+            // Si es venta directa usamos el calendario de desechables. Fallback al de Reserva si no está configurado.
             const targetCalendarId = isDirectSale ? (CALENDAR_DESECHABLE_ID || CALENDAR_RESERVA_ID) : CALENDAR_RESERVA_ID;
+
+            if (isDirectSale && !CALENDAR_DESECHABLE_ID) {
+                console.warn('GoogleSyncService - Advertencia: CALENDAR_DESECHABLE_ID no está definido. Se usará CALENDAR_RESERVA_ID como fallback para venta directa.');
+            }
             
             const sharedDescription = await SettingsService.getResolvedValue(
                 isDirectSale ? 'calendar_direct_sale_description_template' : 'calendar_event_description_template', 
@@ -200,13 +206,10 @@ export const GoogleSyncService = {
                 
                 let startISO, endISO, isAllDay;
 
-                // Para directos/desechables siempre es todo el día por defecto (o según lógica de negocio)
+                // Para eventos de reserva con hora definida, usamos la misma hora de inicio y fin
                 if (!isDirectSale && hasStartTime) {
                     startISO = formatLiteral(quote.event_date, quote.start_time as string);
-                    
-                    const startDateObj = new Date(startISO);
-                    startDateObj.setHours(startDateObj.getHours() + 3);
-                    endISO = new Date(startDateObj.getTime() - (startDateObj.getTimezoneOffset() * 60000)).toISOString().slice(0, 19);
+                    endISO = startISO;
                     
                     isAllDay = false;
                 } else {

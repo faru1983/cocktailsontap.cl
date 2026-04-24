@@ -43,6 +43,15 @@ Next.js 16 · React 19 · Tailwind CSS v4 · Supabase · Resend · Google APIs �
 
 ## 🔄 Últimos Cambios (Historial de Sesiones)
 
+### 24-04-2026 — Sesión: 24-04-2026
+*   **Implementación de Eliminación Permanente**: Se añadió la funcionalidad para borrar cotizaciones de forma definitiva desde el panel de administración.
+    *   **Acción**: Creada Server Action `deleteQuotePermanent` en `app/actions/admin/adminActions.ts` que limpia registros relacionados (`quote_items`, `sync_logs`, `reminder_logs`) antes de borrar la cotización.
+*   **Solución Definitiva al Flash 404**: Se implementó `redirect()` de `next/navigation` directamente en la Server Action `deleteQuotePermanent`. Esto instruye a Next.js a abortar el renderizado de la página actual (que ya no existe) y saltar inmediatamente al historial del cliente, eliminando el parpadeo de error 404 por completo.
+*   **Resiliencia Google Calendar (404 Error)**: Se modificó `syncGoogleEvent` en `lib/googleSync.ts` para capturar errores 404. Si un evento fue borrado manualmente o cambió de calendario, el sistema ahora reintenta automáticamente creando un nuevo evento en lugar de fallar.
+*   **Identificación de Servicio en Admin**: Se añadió una etiqueta clara ("Venta Directa" o "Servicio de Barra") en la cabecera del detalle de cotización en el admin para mejorar la visibilidad del tipo de servicio.
+*   **Sincronización de Lógica Admin**: Se actualizaron las Server Actions administrativas para pasar explícitamente el flag de `isDirectSaleOverride`, unificando la lógica con el wizard público.
+*   **Refinamiento de Calendarios**: Confirmada y estandarizada la creación de eventos en el calendario de Reserva con duración de 0 minutos (inicio=fin) para evitar bloqueos de horas.
+
 ### 20-04-2026 — Desactivación de Automatizaciones en Admin y Control Manual
 - **Cambio Crítico**: Se desactivó el envío automático de emails y creación de eventos en Google Calendar para cotizaciones/ventas creadas desde el panel Admin.
 - **Ventas Directas**: Se ajustó la lógica para que las ventas directas (`service_type: 'direct'`) solo generen el evento de entrega en el calendario, omitiendo el de retiro.

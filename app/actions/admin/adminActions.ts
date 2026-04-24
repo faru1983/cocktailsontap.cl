@@ -4,6 +4,7 @@ import { createServerClient } from '@/lib/supabaseServer';
 import { Resend } from 'resend';
 import * as React from 'react';
 import { revalidatePath, revalidateTag } from 'next/cache';
+import { redirect } from 'next/navigation';
 import { FROM_EMAIL, SITE_URL } from '@/lib/config';
 import { GoogleSyncService } from '@/lib/services/googleSyncService';
 import { validateSession } from '@/lib/adminAuth';
@@ -29,6 +30,34 @@ export async function updateQuoteStatus(quoteId: string, status: string): Promis
     revalidatePath('/admin/quotes');
     revalidatePath(`/admin/quotes/${quoteId}`);
     return { success: true };
+}
+
+// ── Delete Quote Permanent ──────────────────────────────────────────────────
+export async function deleteQuotePermanent(quoteId: string): Promise<{ success: boolean; error?: string }> {
+    await checkAuth();
+    const db = createServerClient();
+
+    // 0. Obtener el client_id antes de borrar para revalidar su perfil
+    const { data: quote } = await db.from('quotes').select('client_id').eq('id', quoteId).single();
+
+    // 1. Limpieza manual de tablas relacionadas (cascada manual)
+    await db.from('quote_items').delete().eq('quote_id', quoteId);
+    await db.from('sync_logs').delete().eq('quote_id', quoteId);
+    await db.from('reminder_logs').delete().eq('quote_id', quoteId);
+    
+    // 2. Borrar pagos asociados si existen
+    await db.from('quotes').update({ payments: [] }).eq('id', quoteId);
+
+    // 3. Borrar la cotización
+    const { error } = await db.from('quotes').delete().eq('id', quoteId);
+    if (error) return { success: false, error: error.message };
+
+    revalidatePath('/admin/quotes');
+    const target = quote?.client_id ? `/admin/clients/${quote.client_id}` : '/admin/quotes';
+    
+    // Al usar redirect() desde el servidor, Next.js cancela el renderizado de la página actual
+    // y realiza la navegación inmediatamente, evitando el flash del 404.
+    redirect(target);
 }
 
 // ── Update Items, Prices & Costs ───────────────────────────────────────────
@@ -115,6 +144,7 @@ export async function updateQuoteItemsAdmin(
             await GoogleSyncService.scheduleCalendarEvents(quote, {
                 updateEventId: quote.google_event_id,
                 updatePickupEventId: quote.google_pickup_event_id,
+                isDirectSaleOverride: quote.service_type === 'direct' || quote.dispenser === 'desechable'
             });
         }
 
@@ -904,7 +934,8 @@ export async function syncQuoteToCalendarAdmin(quoteId: string): Promise<{ succe
         const { GoogleSyncService } = await import('@/lib/services/googleSyncService');
         const calResult = await GoogleSyncService.scheduleCalendarEvents(quote as any, {
             updateEventId: quote.google_event_id || undefined,
-            updatePickupEventId: quote.google_pickup_event_id || undefined
+            updatePickupEventId: quote.google_pickup_event_id || undefined,
+            isDirectSaleOverride: quote.service_type === 'direct' || quote.dispenser === 'desechable'
         });
 
         if (calResult.eventId || calResult.pickupEventId) {

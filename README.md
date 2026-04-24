@@ -283,6 +283,7 @@ Crea un archivo `.env.local` en la raíz del proyecto con las siguientes variabl
 | `GOOGLE_REFRESH_TOKEN` | Secret | Token de refresco obtenido via OAuth Playground |
 | `GOOGLE_CALENDAR_RESERVA_ID` | Secret | ID del calendario para eventos de reserva/montaje |
 | `GOOGLE_CALENDAR_RETIRO_ID` | Secret | ID del calendario para eventos de retiro/logística |
+| `GOOGLE_CALENDAR_DESECHABLE_ID` | Secret | ID del calendario para entregas de venta directa (barriles desechables) |
 
 ### Email (Resend)
 

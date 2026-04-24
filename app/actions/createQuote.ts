@@ -91,7 +91,7 @@ export async function createQuote(input: CreateQuoteInput): Promise<CreateQuoteR
             if (isDirect) {
                 tasks.push((async () => {
                     try {
-                        const calResult = await GoogleSyncService.scheduleCalendarEvents(fullQuote as any);
+                        const calResult = await GoogleSyncService.scheduleCalendarEvents(fullQuote as any, { isDirectSaleOverride: isDirect });
                         if (calResult?.eventId || calResult?.pickupEventId) {
                             const { createServerClient } = await import('@/lib/supabaseServer');
                             const dbServer = createServerClient();

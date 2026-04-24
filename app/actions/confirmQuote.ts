@@ -201,7 +201,8 @@ export async function confirmQuote(input: any): Promise<ConfirmQuoteResult> {
             (async () => {
                 try {
                     await GoogleSyncService.updateContactConfirmedStatus(fullQuote);
-                    const { eventId, pickupEventId } = await GoogleSyncService.scheduleCalendarEvents(fullQuote);
+                    const isDirect = summary.serviceType === 'direct' || data.dispenser === 'desechable';
+                    const { eventId, pickupEventId } = await GoogleSyncService.scheduleCalendarEvents(fullQuote, { isDirectSaleOverride: isDirect });
                     if (eventId || pickupEventId) {
                         const db = createServerClient();
                         await db.from('quotes').update({

@@ -2,10 +2,11 @@
 
 import { useState, useTransition } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { 
     updateQuoteStatus, sendDirectEmail, sendReviewEmail, updateQuoteAdmin, resendOrderEmail,
     addQuotePayment, deleteQuotePayment, updateQuoteItemsAdmin,
-    sendQuoteEmailAdmin, syncQuoteToCalendarAdmin
+    sendQuoteEmailAdmin, syncQuoteToCalendarAdmin, deleteQuotePermanent
 } from '@/app/actions/admin/adminActions';
 import { SITE_URL } from '@/lib/config';
 import type { QuoteItem, Product } from '@/lib/types';
@@ -35,8 +36,10 @@ const formatDateWithDashes = (dateString: string) => {
 };
 
 export default function QuoteDetailClient({ quote: initial, allProducts, eventTypes, comunas }: { quote: any, allProducts: Product[], eventTypes: any[], comunas: Comuna[] }) {
+    const router = useRouter();
     const [quote, setQuote] = useState(initial);
     const [isPending, startTransition] = useTransition();
+    const [isDeleting, setIsDeleting] = useState(false);
     const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
     const [tab, setTab] = useState<'info' | 'email' | 'review' | 'payments'>('info');
     const [emailForm, setEmailForm] = useState({ subject: '', body: '' });
@@ -70,6 +73,29 @@ export default function QuoteDetailClient({ quote: initial, allProducts, eventTy
             const res = await updateQuoteStatus(quote.id, newStatus);
             if (res.success) { setQuote((q: any) => ({ ...q, status: newStatus })); showToast('Estado actualizado'); }
             else showToast(res.error || 'Error', false);
+        });
+    };
+
+    const handleDeleteQuote = () => {
+        if (!confirm('🚨 ¿ESTÁS SEGURO? Esta acción eliminará permanentemente la cotización y todos sus registros asociados de la base de datos (items, logs, pagos). No se puede deshacer.')) return;
+        
+        setIsDeleting(true);
+
+        startTransition(async () => {
+            try {
+                const res = await deleteQuotePermanent(quote.id);
+                // Si llegamos aquí y hay un error (no es redirect), lo mostramos
+                if (res && !res.success) {
+                    setIsDeleting(false);
+                    showToast(res.error || 'Error al eliminar', false);
+                }
+            } catch (err: any) {
+                // Next.js usa errores para el redirect, si no es un error de redirect, es un error real
+                if (err.message !== 'NEXT_REDIRECT') {
+                    setIsDeleting(false);
+                    console.error('Error delete:', err);
+                }
+            }
         });
     };
 
@@ -241,6 +267,19 @@ export default function QuoteDetailClient({ quote: initial, allProducts, eventTy
 
     const badge = statusBadge[quote.status] || statusBadge.draft;
 
+    if (isDeleting) {
+        return (
+            <div style={{ 
+                height: '60vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '20px',
+                color: '#94a3b8', textAlign: 'center'
+            }}>
+                <div style={{ width: '40px', height: '40px', border: '3px solid rgba(226,160,73,0.1)', borderTopColor: '#E2A049', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
+                <p style={{ fontSize: '16px', fontWeight: 600 }}>Eliminando cotización y redirigiendo...</p>
+                <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+            </div>
+        );
+    }
+
     return (
         <div style={{ position: 'relative' }}>
             {/* Toast */}
@@ -322,6 +361,15 @@ export default function QuoteDetailClient({ quote: initial, allProducts, eventTy
                         <span style={{ display: 'inline-block', padding: '4px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 700, color: badge.color, background: badge.bg }}>
                             {badge.label}
                         </span>
+                        {quote.service_type === 'direct' ? (
+                            <span style={{ display: 'inline-block', padding: '4px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 700, color: '#60a5fa', background: 'rgba(96,165,250,0.1)' }}>
+                                Venta Directa
+                            </span>
+                        ) : (
+                            <span style={{ display: 'inline-block', padding: '4px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 700, color: '#a78bfa', background: 'rgba(167,139,250,0.1)' }}>
+                                Servicio de Barra
+                            </span>
+                        )}
                     </div>
                 </div>
                 <button onClick={handleResendOrder} disabled={isPending} style={{
@@ -347,6 +395,15 @@ export default function QuoteDetailClient({ quote: initial, allProducts, eventTy
                             → {statusBadge[s]?.label}
                         </button>
                     ))}
+
+                    <button onClick={handleDeleteQuote} disabled={isPending} style={{
+                        marginLeft: 'auto', padding: '8px 16px', borderRadius: '10px', fontSize: '12px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
+                        background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)',
+                        color: '#ef4444', transition: 'all 0.15s', opacity: isPending ? 0.5 : 1,
+                        display: 'flex', alignItems: 'center', gap: '6px'
+                    }}>
+                        <Trash2 size={14}/> Eliminar Cotización
+                    </button>
                 </div>
 
                 {quote.status === 'completed' && (
