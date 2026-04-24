@@ -203,6 +203,8 @@ export const GoogleSyncService = {
             let eventId = options?.updateEventId || quote.google_event_id || undefined;
             let pickupEventId = options?.updatePickupEventId || quote.google_pickup_event_id || undefined;
 
+            let startISO: string, endISO: string, isAllDay: boolean;
+
             // 1. Create Service/Delivery Event
             if (targetCalendarId && quote.event_date) {
                 const serviceSummary = await SettingsService.getResolvedValue(
