@@ -65,12 +65,12 @@ export default function WizardSuccess({ token, clientEmail, onReset, onOpenWhats
                 </div>
 
                 {/* --- NUEVO: CTA de Confirmación Inmediata --- */}
-                <div className="relative mb-10 overflow-hidden rounded-[2rem] bg-gradient-to-br from-[#fdfcfb] to-[#e2d1c3] border-2 border-primary/20 p-8 shadow-[0_15px_30px_rgba(226,160,73,0.15)] group">
+                <div className="relative mb-10 overflow-hidden rounded-[3rem] bg-gradient-to-br from-[#fdfcfb] to-[#e2d1c3] border-2 border-primary/20 p-6 sm:p-10 shadow-[0_15px_40px_rgba(226,160,73,0.12)] group">
                     {/* Efectos visuales de fondo */}
                     <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 rounded-full -mr-16 -mt-16 blur-2xl group-hover:bg-primary/20 transition-all duration-500" />
                     <div className="absolute -bottom-4 -left-4 w-24 h-24 bg-primary/5 rounded-full blur-xl" />
                     
-                    <div className="relative z-10">
+                    <div className="relative z-10 flex flex-col items-center">
                         <div className="inline-flex items-center justify-center px-4 py-1.5 bg-primary/10 rounded-full text-primary font-black text-[0.7rem] uppercase tracking-widest mb-4 border border-primary/10 animate-pulse">
                             ¡Asegura tu fecha hoy!
                         </div>
@@ -83,7 +83,7 @@ export default function WizardSuccess({ token, clientEmail, onReset, onOpenWhats
                         
                         <a 
                             href={quoteLink}
-                            className="group inline-flex items-center justify-center gap-2 sm:gap-3 px-6 sm:px-10 py-4 sm:py-5 bg-primary text-white font-black text-lg sm:text-xl rounded-2xl shadow-[0_10px_25px_rgba(226,160,73,0.35)] hover:bg-primary-dark hover:shadow-[0_15px_35px_rgba(226,160,73,0.45)] hover:-translate-y-1 transition-all active:scale-95 whitespace-nowrap"
+                            className="group w-full sm:w-auto inline-flex items-center justify-center gap-2 sm:gap-3 px-6 sm:px-10 py-4 sm:py-5 bg-primary text-white font-black text-base sm:text-xl rounded-2xl shadow-[0_10px_25px_rgba(226,160,73,0.35)] hover:bg-primary-dark hover:shadow-[0_15px_35px_rgba(226,160,73,0.45)] hover:-translate-y-1 transition-all active:scale-95"
                         >
                             🚀 Confirmar Ahora
                             <ArrowRight className="w-5 h-5 sm:w-6 sm:h-6 transition-transform group-hover:translate-x-1" />
