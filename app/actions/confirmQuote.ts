@@ -1,6 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { after } from 'next/server';
 import * as React from 'react';
 import { Resend } from 'resend';
 import { ConfirmQuoteSchema, type Quote, type QuoteItem } from '@/lib/types';
@@ -130,9 +131,21 @@ export async function confirmQuote(formData: any): Promise<ConfirmQuoteResult> {
         }
 
         // 4.c Actualizar Cotización Principal (Estado CONFIRMED)
+        // Agregamos todos los campos editables que antes se perdían
         dbOps.push(db.from('quotes').update({
             client_lastname: data.client_lastname || quote.client_lastname,
             client_phone: data.client_phone || quote.client_phone,
+            client_address: data.client_address,
+            comuna_name: data.comuna_name,
+            comuna_other: data.comuna_other || null,
+            event_date: data.event_date,
+            start_time: data.start_time || null,
+            pickup_date: data.pickup_date || null,
+            pickup_time: data.pickup_time || null,
+            guests: data.guests ?? quote.guests,
+            event_type_id: data.event_type_id || null,
+            event_type_other: data.event_type_other || null,
+            comments: data.comments || null,
             dispenser: data.dispenser,
             total_normal_price: finalNormalPrice,
             total_offer_price: finalOfferPrice,
@@ -157,6 +170,17 @@ export async function confirmQuote(formData: any): Promise<ConfirmQuoteResult> {
             ...quote,
             client_lastname: data.client_lastname || quote.client_lastname,
             client_phone: data.client_phone || quote.client_phone,
+            client_address: data.client_address,
+            comuna_name: data.comuna_name,
+            comuna_other: data.comuna_other || null,
+            event_date: data.event_date,
+            start_time: data.start_time || null,
+            pickup_date: data.pickup_date || null,
+            pickup_time: data.pickup_time || null,
+            guests: data.guests ?? quote.guests,
+            event_type_id: data.event_type_id || null,
+            event_type_other: data.event_type_other || null,
+            comments: data.comments || null,
             dispenser: data.dispenser,
             total_normal_price: finalNormalPrice,
             total_offer_price: finalOfferPrice,
@@ -168,67 +192,70 @@ export async function confirmQuote(formData: any): Promise<ConfirmQuoteResult> {
             quote_items: data.items as any[]
         };
 
-        // 6. SINCRONIZACIÓN GOOGLE (Secuencial y Segura)
-        try {
-            console.log('[ConfirmQuote] Sincronizando con Google...');
-            await GoogleSyncService.updateContactConfirmedStatus(fullQuote);
-            const { eventId, pickupEventId } = await GoogleSyncService.scheduleCalendarEvents(fullQuote, { isDirectSaleOverride: isDirect });
+        // 6. TAREAS EN SEGUNDO PLANO (Evitar Timeout de Vercel)
+        after(async () => {
+            console.log('[ConfirmQuote:Background] Iniciando tareas asíncronas...');
             
-            if (eventId || pickupEventId) {
-                console.log('[ConfirmQuote] Google Sync OK. IDs:', { eventId, pickupEventId });
-                await db.from('quotes').update({
-                    ...(eventId && { google_event_id: eventId }),
-                    ...(pickupEventId && { google_pickup_event_id: pickupEventId }),
+            // 6.a Sincronización Google
+            try {
+                console.log('[ConfirmQuote:Background] Sincronizando con Google...');
+                await GoogleSyncService.updateContactConfirmedStatus(fullQuote);
+                const { eventId, pickupEventId } = await GoogleSyncService.scheduleCalendarEvents(fullQuote, { isDirectSaleOverride: isDirect });
+                
+                if (eventId || pickupEventId) {
+                    console.log('[ConfirmQuote:Background] Google Sync OK. IDs:', { eventId, pickupEventId });
+                    await db.from('quotes').update({
+                        ...(eventId && { google_event_id: eventId }),
+                        ...(pickupEventId && { google_pickup_event_id: pickupEventId }),
+                    }).eq('id', fullQuote.id);
+                }
+            } catch (syncError: any) {
+                console.error('[ConfirmQuote:Background] Error crítico en Google Sync:', syncError);
+                await db.from('quotes').update({ 
+                    comments: (fullQuote.comments || '') + `\n[LOG ERROR GOOGLE ${new Date().toISOString()}]: ${syncError.message || 'Error desconocido'}`
                 }).eq('id', fullQuote.id);
             }
-        } catch (syncError: any) {
-            console.error('[ConfirmQuote] Error crítico en Google Sync:', syncError);
-            await db.from('quotes').update({ 
-                comments: (fullQuote.comments || '') + `\n[LOG ERROR GOOGLE ${new Date().toISOString()}]: ${syncError.message || 'Error desconocido'}`
-            }).eq('id', fullQuote.id);
-        }
 
-        // 7. ENVÍO DE EMAILS (Secuencial y Segura)
-        console.log('[ConfirmQuote] Iniciando envío de emails...');
-        const resendKey = process.env.RESEND_API_KEY;
-        if (resendKey) {
-            try {
-                const resend = new Resend(resendKey);
-                const { render } = await import('@react-email/components');
-                const ConfirmationEmailComponent = (await import('@/components/emails/ConfirmationEmail')).default;
+            // 6.b Envío de Emails
+            const resendKey = process.env.RESEND_API_KEY;
+            if (resendKey) {
+                try {
+                    console.log('[ConfirmQuote:Background] Iniciando envío de emails...');
+                    const resend = new Resend(resendKey);
+                    const { render } = await import('@react-email/components');
+                    const ConfirmationEmailComponent = (await import('@/components/emails/ConfirmationEmail')).default;
 
-                const fullName = `${fullQuote.client_name} ${fullQuote.client_lastname || ''}`.trim();
-                const eventDate = fullQuote.event_date ? formatEventDate(fullQuote.event_date) : 'S/F';
-                const emailVars = { full_name: fullName, event_date: eventDate };
+                    const fullName = `${fullQuote.client_name} ${fullQuote.client_lastname || ''}`.trim();
+                    const eventDate = fullQuote.event_date ? formatEventDate(fullQuote.event_date) : 'S/F';
+                    const emailVars = { full_name: fullName, event_date: eventDate };
 
-                console.log('[ConfirmQuote] Renderizando plantillas de email...');
-                const [adminHtml, clientHtml, adminSubject, clientSubject] = await Promise.all([
-                    render(React.createElement(ConfirmationEmailComponent, { quote: fullQuote, isAdmin: true })),
-                    render(React.createElement(ConfirmationEmailComponent, { quote: fullQuote, isAdmin: false })),
-                    SettingsService.getResolvedValue('email_quote_confirmed_admin_subject', emailVars, `✅ [Reserva Confirmada] ${fullName} – ${eventDate}`),
-                    SettingsService.getResolvedValue('email_quote_confirmed_subject', emailVars, `✅ Reserva confirmada – ${eventDate}`)
-                ]);
+                    const [adminHtml, clientHtml, adminSubject, clientSubject] = await Promise.all([
+                        render(React.createElement(ConfirmationEmailComponent, { quote: fullQuote, isAdmin: true })),
+                        render(React.createElement(ConfirmationEmailComponent, { quote: fullQuote, isAdmin: false })),
+                        SettingsService.getResolvedValue('email_quote_confirmed_admin_subject', emailVars, `✅ [Reserva Confirmada] ${fullName} – ${eventDate}`),
+                        SettingsService.getResolvedValue('email_quote_confirmed_subject', emailVars, `✅ Reserva confirmada – ${eventDate}`)
+                    ]);
 
-                console.log('[ConfirmQuote] Enviando vía Resend...');
-                const emailResults = await Promise.allSettled([
-                    resend.emails.send({
-                        from: 'Cocktails on Tap <contacto@cocktailsontap.cl>',
-                        to: ['faru1983@gmail.com'],
-                        subject: adminSubject,
-                        html: adminHtml
-                    }),
-                    resend.emails.send({
-                        from: 'Cocktails on Tap <contacto@cocktailsontap.cl>',
-                        to: [fullQuote.client_email!],
-                        subject: clientSubject,
-                        html: clientHtml
-                    })
-                ]);
-                console.log('[ConfirmQuote] Resultado envíos:', emailResults);
-            } catch (emailError: any) {
-                console.error('[ConfirmQuote] Error crítico en Emails:', emailError);
+                    const emailResults = await Promise.allSettled([
+                        resend.emails.send({
+                            from: 'Cocktails on Tap <contacto@cocktailsontap.cl>',
+                            to: ['faru1983@gmail.com'],
+                            subject: adminSubject,
+                            html: adminHtml
+                        }),
+                        resend.emails.send({
+                            from: 'Cocktails on Tap <contacto@cocktailsontap.cl>',
+                            to: [fullQuote.client_email!],
+                            subject: clientSubject,
+                            html: clientHtml
+                        })
+                    ]);
+                    console.log('[ConfirmQuote:Background] Resultado envíos:', emailResults);
+                } catch (emailError: any) {
+                    console.error('[ConfirmQuote:Background] Error crítico en Emails:', emailError);
+                }
             }
-        }
+        });
 
         // 8. FINALIZAR
         console.log('[ConfirmQuote] Flujo finalizado con éxito para:', data.token);
