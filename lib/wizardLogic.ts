@@ -195,7 +195,8 @@ export interface SummaryData {
     formattedPickupDate: string;
     canHaveMuro: boolean;
     manualDiscount: number;
-    totalCocktails: number; // Nuevo: Para centralizar el cálculo de rendimiento
+    totalCocktails: number; 
+    serviceType?: 'event' | 'direct' | '';
 }
 
 export function calculateSummaryData(
@@ -285,7 +286,8 @@ export function calculateSummaryData(
         formattedPickupDate: formatEventDate(state.eventData.pickupDate),
         canHaveMuro,
         manualDiscount: 0,
-        totalCocktails: totalLiters * 5 // 1L = 5 cócteles
+        totalCocktails: totalLiters * 5,
+        serviceType: state.serviceType
     };
 }
 
