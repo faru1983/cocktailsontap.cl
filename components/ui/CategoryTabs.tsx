@@ -35,6 +35,15 @@ const CategoryTabs = React.forwardRef<HTMLDivElement, CategoryTabsProps>(({
     }
   }, []);
 
+  // Función para scroll manual mediante flechas
+  const scrollManual = (direction: 'left' | 'right') => {
+    const el = scrollContainerRef.current;
+    if (el) {
+      const scrollAmount = el.clientWidth * 0.6;
+      el.scrollBy({ left: direction === 'left' ? -scrollAmount : scrollAmount, behavior: 'smooth' });
+    }
+  };
+
   useEffect(() => {
     const el = scrollContainerRef.current;
     if (el) {
@@ -43,6 +52,16 @@ const CategoryTabs = React.forwardRef<HTMLDivElement, CategoryTabsProps>(({
       checkScroll();
       window.addEventListener('resize', checkScroll);
       
+      // Pequeño bounce de descubrimiento al cargar
+      setTimeout(() => {
+        if (el.scrollWidth > el.clientWidth) {
+          el.scrollBy({ left: 40, behavior: 'smooth' });
+          setTimeout(() => {
+            el.scrollBy({ left: -40, behavior: 'smooth' });
+          }, 400);
+        }
+      }, 800);
+
       return () => {
         el.removeEventListener('scroll', checkScroll);
         window.removeEventListener('resize', checkScroll);
@@ -76,13 +95,22 @@ const CategoryTabs = React.forwardRef<HTMLDivElement, CategoryTabsProps>(({
       `}
     >
       <div className="max-w-[1200px] mx-auto px-4 sm:px-6">
-        <div className="flex items-center gap-4 py-2.5">
+        <div className="flex items-center gap-2 sm:gap-4 py-2.5">
           
-          {/* Contenedor con degradados laterales */}
-          <div className="relative flex-1 min-w-0 overflow-hidden">
+          {/* Contenedor con degradados laterales y flechas */}
+          <div className="relative flex-1 min-w-0 overflow-hidden group">
             
-            {/* Fade Izquierdo */}
-            <div className={`absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-white to-transparent z-10 pointer-events-none transition-opacity duration-300 ${showLeftFade ? 'opacity-100' : 'opacity-0'}`} />
+            {/* Control Izquierdo (Fade + Flecha) */}
+            <div className={`absolute left-0 top-0 bottom-0 z-20 flex items-center transition-all duration-300 pointer-events-none ${showLeftFade ? 'opacity-100' : 'opacity-0'}`}>
+              <div className="w-12 h-full bg-gradient-to-r from-white via-white/80 to-transparent" />
+              <button 
+                onClick={() => scrollManual('left')}
+                className="absolute left-0 w-8 h-8 flex items-center justify-center bg-white rounded-full shadow-md border border-brand-border/50 text-primary pointer-events-auto hover:bg-primary hover:text-white transition-colors ml-1"
+                aria-label="Scroll izquierda"
+              >
+                <ChevronLeft size={20} />
+              </button>
+            </div>
             
             {/* Contenedor de scroll */}
             <div 
@@ -108,10 +136,21 @@ const CategoryTabs = React.forwardRef<HTMLDivElement, CategoryTabsProps>(({
                   </button>
                 );
               })}
+              {/* Espaciador final para permitir que el último item no quede tapado por el fade/flecha derecho */}
+              <div className="w-8 flex-shrink-0" />
             </div>
 
-            {/* Fade Derecho */}
-            <div className={`absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-white to-transparent z-10 pointer-events-none transition-opacity duration-300 ${showRightFade ? 'opacity-100' : 'opacity-0'}`} />
+            {/* Control Derecho (Fade + Flecha) */}
+            <div className={`absolute right-0 top-0 bottom-0 z-20 flex items-center transition-all duration-300 pointer-events-none ${showRightFade ? 'opacity-100' : 'opacity-0'}`}>
+              <div className="w-12 h-full bg-gradient-to-l from-white via-white/80 to-transparent" />
+              <button 
+                onClick={() => scrollManual('right')}
+                className="absolute right-0 w-8 h-8 flex items-center justify-center bg-white rounded-full shadow-md border border-brand-border/50 text-primary pointer-events-auto hover:bg-primary hover:text-white transition-colors mr-1"
+                aria-label="Scroll derecha"
+              >
+                <ChevronRight size={20} />
+              </button>
+            </div>
           </div>
 
           {/* Slot para el carrito o elementos adicionales */}
