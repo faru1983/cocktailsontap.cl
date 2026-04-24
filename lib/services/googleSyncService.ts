@@ -7,10 +7,14 @@ import { createServerClient } from '@/lib/supabaseServer';
 import { SettingsService } from './settingsService';
 
 function formatLiteral(dateStr: string, timeStr: string): string {
-    // Limpiar cualquier texto no numérico (ej: "14:00hrs" -> "14:00")
     const cleanTime = timeStr.replace(/[^0-9:]/g, '').trim();
-    // Añadimos el offset de Chile para asegurar compatibilidad RFC3339 total
     return `${dateStr}T${cleanTime}:00-04:00`;
+}
+
+function getNextDay(dateStr: string): string {
+    const d = new Date(dateStr + 'T12:00:00');
+    d.setDate(d.getDate() + 1);
+    return d.toISOString().split('T')[0];
 }
 
 /**
@@ -207,17 +211,15 @@ export const GoogleSyncService = {
                     isDirectSale ? `Pedido Directo - ${fullName}` : `Cócteles - ${fullName} ${quote.guests}px`
                 );
                 
-                let startISO, endISO, isAllDay;
-
-                // Para eventos de reserva con hora definida, usamos la misma hora de inicio y fin
+                // 1. Reserva de Evento: Duración 0 (Inicio y fin igual)
                 if (!isDirectSale && hasStartTime) {
-                    startISO = formatLiteral(quote.event_date, quote.start_time as string);
-                    endISO = startISO;
-                    
+                    const cleanTime = (quote.start_time as string).replace(/[^0-9:]/g, '').trim();
+                    startISO = `${quote.event_date}T${cleanTime}:00-04:00`;
+                    endISO = startISO; // Duración 0
                     isAllDay = false;
                 } else {
                     startISO = `${quote.event_date}`;
-                    endISO = startISO;
+                    endISO = getNextDay(quote.event_date); // Google requiere el día siguiente para All Day
                     isAllDay = true;
                 }
 
@@ -244,28 +246,27 @@ export const GoogleSyncService = {
                 
                 let pStartISO, pEndISO, pIsAllDay;
 
-                if (hasPickupTime) {
+                // 2. Retiro de Evento:
+                // REGLA: Si es el mismo día que el evento -> Todo el día.
+                if (quote.pickup_date === quote.event_date) {
+                    pStartISO = `${quote.pickup_date}`;
+                    pEndISO = getNextDay(quote.pickup_date);
+                    pIsAllDay = true;
+                } else if (hasPickupTime) {
                     const timeValue = (quote.pickup_time as string);
-                    
                     if (timeValue.includes(' a ')) {
-                        // Rango específico (12:00 a 14:00)
                         const [startPart, endPart] = timeValue.split(' a ');
                         pStartISO = formatLiteral(quote.pickup_date, startPart.trim());
                         pEndISO = formatLiteral(quote.pickup_date, endPart.trim());
                     } else {
-                        // Fallback: Si solo hay una hora, evento de 1 hora
                         const cleanTime = timeValue.replace(/[^0-9:]/g, '').trim();
                         pStartISO = formatLiteral(quote.pickup_date, cleanTime);
-                        
-                        // Calculamos fin (+1h) de forma segura
-                        const [hh, mm] = cleanTime.split(':').map(Number);
-                        const endHour = (hh + 1).toString().padStart(2, '0');
-                        pEndISO = `${quote.pickup_date}T${endHour}:${mm.toString().padStart(2, '0')}:00-04:00`;
+                        pEndISO = pStartISO; // Duración 0 si no hay rango
                     }
                     pIsAllDay = false;
                 } else {
                     pStartISO = `${quote.pickup_date}`;
-                    pEndISO = pStartISO; // All day
+                    pEndISO = getNextDay(quote.pickup_date);
                     pIsAllDay = true;
                 }
 

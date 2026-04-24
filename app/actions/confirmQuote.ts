@@ -1,19 +1,9 @@
 'use server';
 
+import { revalidatePath } from 'next/cache';
 import * as React from 'react';
 import { Resend } from 'resend';
-import { revalidatePath } from 'next/cache';
-import { ConfirmQuoteSchema } from '@/lib/types';
-import type { Quote, QuoteItem } from '@/lib/types';
-import { 
-    ADMIN_EMAIL, 
-    FROM_EMAIL, 
-    MURO_INSTALLATION_COST, 
-    MURO_COMPATIBLE_SIZES, 
-    MURO_MIN_LITERS 
-} from '@/lib/config';
-
-import { QuoteService } from '@/lib/services/quoteService';
+import { ConfirmQuoteSchema, type Quote, type QuoteItem } from '@/lib/types';
 import { GoogleSyncService } from '@/lib/services/googleSyncService';
 import { SettingsService } from '@/lib/services/settingsService';
 import { createServerClient } from '@/lib/supabaseServer';
@@ -22,168 +12,139 @@ import { calculateSummaryData, formatEventDate } from '@/lib/wizardLogic';
 
 interface ConfirmQuoteResult {
     success: boolean;
+    token?: string;
     error?: string;
 }
 
-export async function confirmQuote(input: any): Promise<ConfirmQuoteResult> {
+/**
+ * Server Action para confirmar una cotización borrador.
+ * Realiza el recálculo de seguridad, actualiza la BD y sincroniza servicios externos.
+ */
+export async function confirmQuote(formData: any): Promise<ConfirmQuoteResult> {
+    console.log('[ConfirmQuote] Iniciando flujo para token:', formData.token);
     try {
-        // ─── 1. VALIDACIÓN DE ESQUEMA (Zod) ───────────────────────────────────
-        const validation = ConfirmQuoteSchema.safeParse(input);
+        // 1. Validar Datos
+        const validation = ConfirmQuoteSchema.safeParse(formData);
         if (!validation.success) {
-            console.error('Validation Error:', validation.error.format());
-            return { success: false, error: 'Datos de confirmación incompletos o inválidos.' };
+            console.error('[ConfirmQuote] Validación fallida:', validation.error);
+            return { success: false, error: 'Datos de confirmación inválidos.' };
         }
 
-        const data = validation.data;
-
+        const { data } = validation;
         const db = createServerClient();
 
-        // ─── 2. CARGA Y VALIDACIÓN DE ESTADO ─────────────────────────────────────
-        const { data: quote, error: fetchError } = await db
-            .from('quotes')
-            .select('*')
-            .eq('token', data.token)
-            .single();
+        // 2. Fetch Quote actual y Catálogo (Recálculo Zero Trust)
+        const [ { data: quote, error: fetchError }, { cocktails, comunas } ] = await Promise.all([
+            db.from('quotes').select('*').eq('token', data.token).single(),
+            fetchAllProductData()
+        ]);
 
         if (fetchError || !quote) {
-            return { success: false, error: 'No se encontró la cotización especificada.' };
+            console.error('[ConfirmQuote] Error buscando cotización:', fetchError);
+            return { success: false, error: 'Cotización no encontrada.' };
         }
+
+        console.log('[ConfirmQuote] Cotización encontrada ID:', quote.id);
 
         if (quote.status === 'confirmed') {
             return { success: false, error: 'Esta cotización ya fue confirmada anteriormente.' };
         }
 
-        // ─── 2.5 VALIDACIÓN CONDICIONAL (Uso de service_type como fuente de verdad) 
-        const isDirect = quote.service_type === 'direct';
-        
-        if (!isDirect) {
-            if (!data.guests || (data.guests && data.guests < 1)) return { success: false, error: 'La cantidad de invitados debe ser al menos 1.' };
-            if (!data.event_type_id) return { success: false, error: 'La temática es obligatoria para eventos.' };
-            if (!data.start_time || data.start_time.length < 4) return { success: false, error: 'La hora de inicio es obligatoria.' };
-            if (!data.pickup_date) return { success: false, error: 'La fecha de retiro es obligatoria.' };
-        }
+        // Determinar tipo de servicio
+        const isDirect = quote.service_type === 'direct' || (quote.service_type === undefined && quote.dispenser === 'desechable');
 
-        // ─── 3. RECALCULO DE SEGURIDAD (Server-Side Zero Trust) ─────────────
-        // Fetch current data to ensure calculations use the latest prices/rules
-        const { cocktails, comunas } = await fetchAllProductData();
-
+        // 3. Recalcular Totales Server-Side (Seguridad Financiera)
         const summary = calculateSummaryData({
+            ...quote,
             selections: data.items.map(i => ({
-                id: i.product_id || 'manual', // EVITA CRASH si el ID es nulo (items manuales)
+                id: i.product_id || 'manual',
                 size: i.size,
                 quantity: i.quantity,
                 customPrice: i.offer_price_at_time
             })),
-            eventData: {
-                type: data.event_type_id || '',
-                otherType: '',
-                date: data.event_date || '',
-                startTime: data.start_time || '',
-                pickupDate: data.pickup_date || '',
-                pickupTime: '',
-            },
-            consumption: {
-                guests: data.guests || 0,
-                drinksPerPerson: 3,
-            },
+            serviceType: isDirect ? 'direct' : 'event',
             contact: {
+                ...quote,
                 firstName: quote.client_name,
-                lastName: data.client_lastname || quote.client_lastname || '',
-                email: quote.client_email || '',
-                phone: data.client_phone || quote.client_phone || '',
-                address: quote.client_address || '',
-                comuna: data.comuna_name || quote.comuna_name || '',
-                otherComuna: data.comuna_other || quote.comuna_other || '',
-                comments: quote.comments || '',
+                lastName: data.client_lastname || quote.client_lastname,
+                email: quote.client_email,
+                phone: data.client_phone || quote.client_phone,
+                address: quote.client_address,
+                comuna: quote.comuna_name,
+                otherComuna: quote.comuna_other,
+                comments: quote.comments
             },
             dispenser: data.dispenser as any,
-            step: 0,
-            serviceType: (quote.service_type as any) || (isDirect ? 'direct' : 'event'),
-            expandedCocktailId: null,
-            expandedCategoryId: '',
-        }, cocktails, comunas);
+            eventData: {
+                date: quote.event_date,
+                startTime: quote.start_time,
+                pickupDate: quote.pickup_date,
+                pickupTime: quote.pickup_time,
+                type: quote.event_type_id
+            }
+        } as any, cocktails, comunas);
 
-        const totalNormalPrice = summary.totalNormalPrice;
-        const totalOfferPrice = summary.totalOfferPrice;
-        const totalLiters = summary.totalLiters;
+        const finalNormalPrice = summary.totalNormalPrice;
+        const finalOfferPrice = summary.totalOfferPrice;
         const finalShippingCost = summary.shippingCost;
         const finalInstallationCost = summary.installationCost;
-        const finalTotalPrice = summary.totalPrice;
+        const finalTotalPrice = finalOfferPrice + finalShippingCost + finalInstallationCost - (quote.manual_discount || 0);
 
-        // ─── 4. PERSISTENCIA EN BASE DE DATOS (Items y Metadata) ─────────────
-        const dbOps = [];
-        
-        // a) Sincronizar Cotización Items
+        // 4. TRANSACCIÓN ATÓMICA EN BASE DE DATOS
+        const dbOps: Promise<any>[] = [];
+
+        // 4.a Actualizar Items (Eliminar antiguos, insertar nuevos con precios congelados)
         const updatedItemIds = data.items.filter(i => i.id && !i.id.includes('temp-')).map(i => i.id);
         dbOps.push(
             db.from('quote_items')
-                .delete()
-                .eq('quote_id', quote.id)
-                .not('id', 'in', `(${updatedItemIds.join(',') || 'NULL'})`)
+              .delete()
+              .eq('quote_id', quote.id)
+              .not('id', 'in', `(${updatedItemIds.join(',') || 'NULL'})`)
         );
 
-        const newItems = data.items.filter(i => !i.id || i.id.includes('temp-')).map(item => ({
+        const newItems = data.items.map(item => ({
             quote_id: quote.id,
             product_id: item.product_id,
             product_name: item.product_name,
             size: item.size,
-            size_value: item.size_value,
-            unit_id: item.unit_id,
-            is_disposable: item.is_disposable,
             quantity: item.quantity,
             price_at_time: item.price_at_time,
-            offer_price_at_time: item.offer_price_at_time
+            offer_price_at_time: item.offer_price_at_time,
+            size_value: item.size_value,
+            unit_id: item.unit_id,
+            is_disposable: item.is_disposable
         }));
-
+        
         if (newItems.length > 0) {
-            dbOps.push(db.from('quote_items').insert(newItems));
+            dbOps.push(db.from('quote_items').upsert(newItems, { onConflict: 'quote_id,product_id,size' }));
         }
 
-        const existingItemsToUpdate = data.items.filter(i => i.id && !i.id.includes('temp-'));
-        if (existingItemsToUpdate.length > 0) {
-            // Upsert works as a batch update if IDs are provided
-            dbOps.push(db.from('quote_items').upsert(
-                existingItemsToUpdate.map(i => ({ id: i.id, quantity: i.quantity }))
-            ));
-        }
-
-        // b) Actualizar datos maestros del Cliente (CRM)
+        // 4.b Actualizar Cliente
         if (quote.client_id) {
             const clientUpdate: any = {};
             if (data.client_lastname?.trim()) clientUpdate.last_name = data.client_lastname.trim();
             if (data.client_phone?.trim()) clientUpdate.phone = data.client_phone.trim();
-
             if (Object.keys(clientUpdate).length > 0) {
                 dbOps.push(db.from('clients').update(clientUpdate).eq('id', quote.client_id));
             }
         }
 
-        // c) Finalizar actualización de la Cotización Principal
+        // 4.c Actualizar Cotización Principal (Estado CONFIRMED)
         dbOps.push(db.from('quotes').update({
-            client_phone: data.client_phone,
-            client_lastname: data.client_lastname || null,
-            client_address: data.client_address,
-            comuna_name: data.comuna_name,
-            comuna_other: data.comuna_other || null,
-            guests: data.guests,
-            event_type_id: data.event_type_id,
-            event_type_other: data.event_type_other || null,
-            event_date: data.event_date,
-            start_time: data.start_time,
-            pickup_date: data.pickup_date,
-            pickup_time: data.pickup_time || null,
-            comments: data.comments || null,
-            total_normal_price: totalNormalPrice,
-            total_offer_price: totalOfferPrice,
-            total_price: finalTotalPrice,
-            total_liters: totalLiters,
-            shipping_cost: finalShippingCost,
+            client_lastname: data.client_lastname || quote.client_lastname,
+            client_phone: data.client_phone || quote.client_phone,
             dispenser: data.dispenser,
+            total_normal_price: finalNormalPrice,
+            total_offer_price: finalOfferPrice,
+            shipping_cost: finalShippingCost,
             installation_cost: finalInstallationCost,
-            status: 'confirmed', // CONFIRMACIÓN ATÓMICA
+            total_price: finalTotalPrice,
+            total_liters: summary.totalLiters,
+            status: 'confirmed', 
+            updated_at: new Date().toISOString()
         }).eq('token', data.token));
 
-        // Wait for all DB updates to complete
+        console.log('[ConfirmQuote] Ejecutando operaciones de DB...');
         const dbResults = await Promise.all(dbOps);
         const hasDbError = dbResults.some(r => r.error);
         if (hasDbError) {
@@ -191,93 +152,91 @@ export async function confirmQuote(input: any): Promise<ConfirmQuoteResult> {
             throw firstError;
         }
 
+        // 5. PREPARAR OBJETO COMPLETO PARA SINCRONIZACIÓN
         const fullQuote: Quote & { quote_items: QuoteItem[] } = {
             ...quote,
-            ...data,
-            status: 'confirmed',
-            total_price: finalTotalPrice,
+            client_lastname: data.client_lastname || quote.client_lastname,
+            client_phone: data.client_phone || quote.client_phone,
+            dispenser: data.dispenser,
+            total_normal_price: finalNormalPrice,
+            total_offer_price: finalOfferPrice,
             shipping_cost: finalShippingCost,
             installation_cost: finalInstallationCost,
-            quote_items: data.items as QuoteItem[],
+            total_price: finalTotalPrice,
+            total_liters: summary.totalLiters,
+            status: 'confirmed',
+            quote_items: data.items as any[]
         };
 
-        // ─── 5. SINCRONIZACIÓN Y COMUNICACIONES (Paralelizado) ────────────────
-        const resendKey = process.env.RESEND_API_KEY;
-        
-        // Ejecutamos Sync y Preparación de Emails en paralelo
-        const [syncResult, emailData] = await Promise.all([
-            // Google Sync
-            (async () => {
-                try {
-                    await GoogleSyncService.updateContactConfirmedStatus(fullQuote);
-                    const isDirect = quote.service_type === 'direct';
-                    const { eventId, pickupEventId } = await GoogleSyncService.scheduleCalendarEvents(fullQuote, { isDirectSaleOverride: isDirect });
-                    if (eventId || pickupEventId) {
-                        const db = createServerClient();
-                        await db.from('quotes').update({
-                            ...(eventId && { google_event_id: eventId }),
-                            ...(pickupEventId && { google_pickup_event_id: pickupEventId }),
-                        }).eq('id', fullQuote.id);
-                    }
-                } catch (e: any) {
-                    console.error('Google Sync failed in confirmQuote:', e);
-                    const db = createServerClient();
-                    await db.from('quotes').update({ 
-                        comments: (fullQuote.comments || '') + `\n[LOG ERROR GOOGLE ${new Date().toISOString()}]: ${e.message || 'Error desconocido'}`
-                    }).eq('id', fullQuote.id);
-                }
-            })(),
-            // Preparación de Emails (Render + Subjects)
-            (async () => {
-                if (!resendKey) return null;
-                try {
-                    const { render } = await import('@react-email/components');
-                    const ConfirmationEmailComponent = (await import('@/components/emails/ConfirmationEmail')).default;
-
-                    const fullName = `${fullQuote.client_name} ${fullQuote.client_lastname || ''}`.trim();
-                    const eventDate = fullQuote.event_date ? formatEventDate(fullQuote.event_date) : 'S/F';
-                    const emailVars = { full_name: fullName, event_date: eventDate };
-
-                    const [adminHtml, clientHtml, adminSubject, clientSubject] = await Promise.all([
-                        render(React.createElement(ConfirmationEmailComponent, { quote: fullQuote, isAdmin: true })),
-                        render(React.createElement(ConfirmationEmailComponent, { quote: fullQuote, isAdmin: false })),
-                        SettingsService.getResolvedValue('email_quote_confirmed_admin_subject', emailVars, `✅ [Reserva Confirmada] ${fullName} – ${eventDate}`),
-                        SettingsService.getResolvedValue('email_quote_confirmed_subject', emailVars, `✅ Reserva confirmada – ${eventDate}`)
-                    ]);
-
-                    return { adminHtml, clientHtml, adminSubject, clientSubject, fullName, eventDate };
-                } catch (err) {
-                    console.error('Email preparation error:', err);
-                    return null;
-                }
-            })()
-        ]);
-
-        // Envío final de correos (Acl para no bloquear el retorno exitoso)
-        if (resendKey && emailData) {
-            const resend = new Resend(resendKey);
-            Promise.allSettled([
-                resend.emails.send({
-                    from: FROM_EMAIL,
-                    to: ADMIN_EMAIL,
-                    subject: emailData.adminSubject,
-                    html: emailData.adminHtml,
-                }),
-                ...(fullQuote.client_email ? [
-                    resend.emails.send({
-                        from: FROM_EMAIL,
-                        to: fullQuote.client_email,
-                        subject: emailData.clientSubject,
-                        html: emailData.clientHtml,
-                    })
-                ] : [])
-            ]).catch(e => console.error('Final email send failed:', e));
+        // 6. SINCRONIZACIÓN GOOGLE (Secuencial y Segura)
+        try {
+            console.log('[ConfirmQuote] Sincronizando con Google...');
+            await GoogleSyncService.updateContactConfirmedStatus(fullQuote);
+            const { eventId, pickupEventId } = await GoogleSyncService.scheduleCalendarEvents(fullQuote, { isDirectSaleOverride: isDirect });
+            
+            if (eventId || pickupEventId) {
+                console.log('[ConfirmQuote] Google Sync OK. IDs:', { eventId, pickupEventId });
+                await db.from('quotes').update({
+                    ...(eventId && { google_event_id: eventId }),
+                    ...(pickupEventId && { google_pickup_event_id: pickupEventId }),
+                }).eq('id', fullQuote.id);
+            }
+        } catch (syncError: any) {
+            console.error('[ConfirmQuote] Error crítico en Google Sync:', syncError);
+            await db.from('quotes').update({ 
+                comments: (fullQuote.comments || '') + `\n[LOG ERROR GOOGLE ${new Date().toISOString()}]: ${syncError.message || 'Error desconocido'}`
+            }).eq('id', fullQuote.id);
         }
 
-        revalidatePath(`/cotizar/${validation.data.token}`);
-        return { success: true };
-    } catch (err) {
-        console.error('Error in confirmQuote:', err);
-        return { success: false, error: 'Error inesperado.' };
+        // 7. ENVÍO DE EMAILS (Secuencial y Segura)
+        console.log('[ConfirmQuote] Iniciando envío de emails...');
+        const resendKey = process.env.RESEND_API_KEY;
+        if (resendKey) {
+            try {
+                const resend = new Resend(resendKey);
+                const { render } = await import('@react-email/components');
+                const ConfirmationEmailComponent = (await import('@/components/emails/ConfirmationEmail')).default;
+
+                const fullName = `${fullQuote.client_name} ${fullQuote.client_lastname || ''}`.trim();
+                const eventDate = fullQuote.event_date ? formatEventDate(fullQuote.event_date) : 'S/F';
+                const emailVars = { full_name: fullName, event_date: eventDate };
+
+                console.log('[ConfirmQuote] Renderizando plantillas de email...');
+                const [adminHtml, clientHtml, adminSubject, clientSubject] = await Promise.all([
+                    render(React.createElement(ConfirmationEmailComponent, { quote: fullQuote, isAdmin: true })),
+                    render(React.createElement(ConfirmationEmailComponent, { quote: fullQuote, isAdmin: false })),
+                    SettingsService.getResolvedValue('email_quote_confirmed_admin_subject', emailVars, `✅ [Reserva Confirmada] ${fullName} – ${eventDate}`),
+                    SettingsService.getResolvedValue('email_quote_confirmed_subject', emailVars, `✅ Reserva confirmada – ${eventDate}`)
+                ]);
+
+                console.log('[ConfirmQuote] Enviando vía Resend...');
+                const emailResults = await Promise.allSettled([
+                    resend.emails.send({
+                        from: 'Cocktails on Tap <contacto@cocktailsontap.cl>',
+                        to: ['faru1983@gmail.com'],
+                        subject: adminSubject,
+                        html: adminHtml
+                    }),
+                    resend.emails.send({
+                        from: 'Cocktails on Tap <contacto@cocktailsontap.cl>',
+                        to: [fullQuote.client_email!],
+                        subject: clientSubject,
+                        html: clientHtml
+                    })
+                ]);
+                console.log('[ConfirmQuote] Resultado envíos:', emailResults);
+            } catch (emailError: any) {
+                console.error('[ConfirmQuote] Error crítico en Emails:', emailError);
+            }
+        }
+
+        // 8. FINALIZAR
+        console.log('[ConfirmQuote] Flujo finalizado con éxito para:', data.token);
+        revalidatePath(`/cotizar/${data.token}`);
+        return { success: true, token: data.token };
+
+    } catch (error: any) {
+        console.error('Error in confirmQuote Server Action:', error);
+        return { success: false, error: 'Ocurrió un error inesperado al confirmar la reserva.' };
     }
 }

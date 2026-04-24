@@ -1,91 +1,24 @@
-# 📋 Cocktails on Tap — Contexto AI Actualizado
+# Contexto de Negocio - Cocktails on Tap
 
-> Este archivo se actualiza al final de cada sesión de trabajo con IA.
-> **Léelo antes de hacer cualquier cambio para entender el estado actual del proyecto.**
+## Reglas Críticas de Calendario (Google Calendar)
 
----
+### 1. Reserva de Evento
+- **Con Hora**: El evento debe tener duración 0 (Hora de inicio y fin idénticas).
+- **Sin Hora**: Se marca como "Todo el día". La fecha de fin en Google API debe ser el día siguiente (exclusiva).
 
-## 🏗️ Resumen del Proyecto
+### 2. Retiro de Evento
+- **Mismo día que el evento**: Debe quedar siempre como **Todo el día** (independiente de si hay hora o no).
+- **Día siguiente**: 
+  - Si el cliente ingresa un rango (ej: "12:00 a 14:00"), se usa ese rango exacto.
+  - Si no hay rango, queda como duración 0 en la hora de inicio.
+  - Si no hay hora, queda como "Todo el día".
 
-**Cocktails on Tap Chile** es una plataforma fullstack (Next.js 16 + Supabase) para automatizar cotizaciones y gestión logística de un servicio de barra móvil de cócteles en barril.
+### 3. Sincronización
+- La base de datos es la prioridad. Si Google o Resend fallan, el error se loguea en el campo `comments` de la cotización para auditoría administrativa, pero no debe bloquear la experiencia del usuario.
 
-### Componentes Clave
-- **Landing Page**: Sitio público con catálogo de cócteles y CTA hacia el wizard.
-- **Wizard de Cotización**: Flujo interactivo de 6 pasos para que el cliente auto-cotice su evento.
-- **Sistema de Confirmación**: URL pública con token (`/cotizar/[token]`) donde el cliente confirma su reserva.
-- **Panel Admin** (`/admin`): Dashboard con KPIs, gestión de cotizaciones, clientes, productos, gastos, estadísticas, y configuración dinámica.
-- **Integraciones**: Google Contacts (CRM), Google Calendar (logística), Resend (emails transaccionales).
-
-### Stack
-Next.js 16 · React 19 · Tailwind CSS v4 · Supabase · Resend · Google APIs · TypeScript · Zod · lucide-react
-
----
-
-## 📊 Estado Actual del Proyecto
-
-- **Producción**: ✅ Desplegado en Vercel ([cocktailsontap.cl](https://cocktailsontap.cl))
-- **Base de datos**: ✅ Supabase productivo con todas las tablas
-- **Google Sync**: ✅ Contacts + Calendar funcionales
-- **Emails**: ✅ React Email operativo (4 tipos de email)
-- **Admin Dashboard**: ✅ Completo con módulos de cotizaciones, clientes, productos, gastos, estadísticas, logs, recordatorios y settings
-- **SEO**: ✅ robots.ts + sitemap.ts + OpenGraph + GA4 + Meta Pixel
+## Flujos de Venta
+- **Evento**: Draft -> Confirmado (via link único).
+- **Venta Directa (Desechables)**: Confirmado directamente (sin draft).
 
 ---
-
-## 📐 Arquitectura Avanzada y Detalles de Sistema
-- **Drag & Drop Nativo**: Implementado en el panel admin para productos, categorías y unidades.
-- **Algoritmo SmartConfig**: Motor de optimización combinatorial que sugiere la mejor mezcla de barriles basada en invitados y consumo.
-- **Dualidad de Flujos**: Separación completa de lógica entre "Reserva de Eventos" (consultiva) y "Compra Directa" (transaccional/e-commerce).
-- **Cerebro Central (Variables)**: Resolución dinámica de variables para sincronización con Google Sync.
-- **Logística 24h**: Soporte para fechas de retiro automáticas y ventanas horarias configurables.
-
----
-
-## 🔄 Últimos Cambios (Historial de Sesiones)
-
-### 24-04-2026 — Sesión: 24-04-2026
-*   **Implementación de Eliminación Permanente**: Se añadió la funcionalidad para borrar cotizaciones de forma definitiva desde el panel de administración.
-    *   **Acción**: Creada Server Action `deleteQuotePermanent` en `app/actions/admin/adminActions.ts` que limpia registros relacionados (`quote_items`, `sync_logs`, `reminder_logs`) antes de borrar la cotización.
-*   **Solución Definitiva al Flash 404**: Se implementó `redirect()` de `next/navigation` directamente en la Server Action `deleteQuotePermanent`. Esto instruye a Next.js a abortar el renderizado de la página actual (que ya no existe) y saltar inmediatamente al historial del cliente, eliminando el parpadeo de error 404 por completo.
-*   **Resiliencia Google Calendar (404 Error)**: Se modificó `syncGoogleEvent` en `lib/googleSync.ts` para capturar errores 404. Si un evento fue borrado manualmente o cambió de calendario, el sistema ahora reintenta automáticamente creando un nuevo evento en lugar de fallar.
-*   **Identificación de Servicio en Admin**: Se añadió una etiqueta clara ("Venta Directa" o "Servicio de Barra") en la cabecera del detalle de cotización en el admin para mejorar la visibilidad del tipo de servicio.
-*   **Sincronización de Lógica Admin**: Se actualizaron las Server Actions administrativas para pasar explícitamente el flag de `isDirectSaleOverride`, unificando la lógica con el wizard público.
-*   **Refinamiento de Calendarios**: Confirmada y estandarizada la creación de eventos en el calendario de Reserva con duración de 0 minutos (inicio=fin) para evitar bloqueos de horas.
-
-### 20-04-2026 — Desactivación de Automatizaciones en Admin y Control Manual
-- **Cambio Crítico**: Se desactivó el envío automático de emails y creación de eventos en Google Calendar para cotizaciones/ventas creadas desde el panel Admin.
-- **Ventas Directas**: Se ajustó la lógica para que las ventas directas (`service_type: 'direct'`) solo generen el evento de entrega en el calendario, omitiendo el de retiro.
-- **Base de Datos**: Se añadió la columna `service_type` a `quotes` para diferenciar entre eventos y ventas directas.
-- **UI Admin**: Se implementaron "Disparadores Manuales" en la vista de detalle de cotización para enviar emails y sincronizar con Calendar bajo demanda.
-- **Backend**: Refactorización de `GoogleSyncService` y `createQuote` para soportar el bypass administrativo y la lógica simplificada de calendario.
-
-### 07-04-2026 — Estado Inicial del Contexto
-- Implementación base del CRM y sistema de cotizaciones.
-
-- **Corrección de RLS en Carga de Imágenes (Admin)**:
-  - **Problema**: Error "new row violates row-level security policy" al subir imágenes de productos desde el panel admin.
-  - **Causa**: Se estaba usando el cliente de Supabase `anon` desde el lado del cliente (browser), el cual no tiene permisos `INSERT` en el bucket `product-images`.
-  - **Solución**: Se movió la lógica de subida y eliminación de imágenes a **Server Actions** (`uploadImage` y `deleteImage` en `app/actions/admin/productActions.ts`) que utilizan el cliente `service_role`, el cual tiene permisos totales y bypass de RLS.
-  - **Refactorización**: Se actualizó `ProductsClient.tsx` para consumir estas nuevas acciones mediante `FormData` y `useTransition`.
-
----
-
-## 🐛 Issues Conocidos / Pendientes
-
-- [ ] `lib/emails.ts` (HTML legacy) coexiste con React Email — pendiente migración completa.
-- [ ] Centralizar la lógica de `shipping_cost` reactivo en el admin.
-
----
-
-## 📁 Archivos Clave para Referencia Rápida
-
-| Necesitas... | Archivo |
-|-------------|---------|
-| Cambiar precios/constantes | `lib/config.ts` |
-| Agregar un campo a cotización | `lib/types.ts` + `lib/services/quoteService.ts` |
-| Lógica SmartConfig / Precios | `lib/wizardLogic.ts` |
-| Sincronización Google | `lib/services/googleSyncService.ts` |
-| Configurar templates dinámicos | Tabla `site_settings` vía `/admin/settings` |
-
-*Última actualización: 20-04-2026*
-
+*Última actualización: 24-04-2026*
