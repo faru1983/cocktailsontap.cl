@@ -18,7 +18,7 @@ import { GoogleSyncService } from '@/lib/services/googleSyncService';
 import { SettingsService } from '@/lib/services/settingsService';
 import { createServerClient } from '@/lib/supabaseServer';
 import { fetchAllProductData } from '@/lib/serverData';
-import { calculateSummaryData } from '@/lib/wizardLogic';
+import { calculateSummaryData, formatEventDate } from '@/lib/wizardLogic';
 
 interface ConfirmQuoteResult {
     success: boolean;
@@ -69,7 +69,7 @@ export async function confirmQuote(input: any): Promise<ConfirmQuoteResult> {
 
         const summary = calculateSummaryData({
             selections: data.items.map(i => ({
-                id: i.product_id!,
+                id: i.product_id || 'manual', // EVITA CRASH si el ID es nulo (items manuales)
                 size: i.size,
                 quantity: i.quantity,
                 customPrice: i.offer_price_at_time
@@ -88,17 +88,17 @@ export async function confirmQuote(input: any): Promise<ConfirmQuoteResult> {
             },
             contact: {
                 firstName: quote.client_name,
-                lastName: data.client_lastname || '',
+                lastName: data.client_lastname || quote.client_lastname || '',
                 email: quote.client_email || '',
-                phone: data.client_phone,
-                address: data.client_address,
-                comuna: data.comuna_name,
-                otherComuna: data.comuna_other || '',
-                comments: '',
+                phone: data.client_phone || quote.client_phone || '',
+                address: quote.client_address || '',
+                comuna: data.comuna_name || quote.comuna_name || '',
+                otherComuna: data.comuna_other || quote.comuna_other || '',
+                comments: quote.comments || '',
             },
             dispenser: data.dispenser as any,
             step: 0,
-            serviceType: quote.service_type as any, // Prioridad absoluta al valor de la DB
+            serviceType: (quote.service_type as any) || (isDirect ? 'direct' : 'event'),
             expandedCocktailId: null,
             expandedCategoryId: '',
         }, cocktails, comunas);
@@ -219,8 +219,12 @@ export async function confirmQuote(input: any): Promise<ConfirmQuoteResult> {
                             ...(pickupEventId && { google_pickup_event_id: pickupEventId }),
                         }).eq('id', fullQuote.id);
                     }
-                } catch (e) {
+                } catch (e: any) {
                     console.error('Google Sync failed in confirmQuote:', e);
+                    const db = createServerClient();
+                    await db.from('quotes').update({ 
+                        comments: (fullQuote.comments || '') + `\n[LOG ERROR GOOGLE ${new Date().toISOString()}]: ${e.message || 'Error desconocido'}`
+                    }).eq('id', fullQuote.id);
                 }
             })(),
             // Preparación de Emails (Render + Subjects)
@@ -230,10 +234,8 @@ export async function confirmQuote(input: any): Promise<ConfirmQuoteResult> {
                     const { render } = await import('@react-email/components');
                     const ConfirmationEmailComponent = (await import('@/components/emails/ConfirmationEmail')).default;
 
-                    const eventDate = fullQuote.event_date
-                        ? new Date(fullQuote.event_date + 'T12:00:00').toLocaleDateString('es-CL', { day: '2-digit', month: 'long', year: 'numeric' })
-                        : '';
                     const fullName = `${fullQuote.client_name} ${fullQuote.client_lastname || ''}`.trim();
+                    const eventDate = fullQuote.event_date ? formatEventDate(fullQuote.event_date) : 'S/F';
                     const emailVars = { full_name: fullName, event_date: eventDate };
 
                     const [adminHtml, clientHtml, adminSubject, clientSubject] = await Promise.all([

@@ -54,16 +54,21 @@ export function calculateMaxPickupDate(dateStr: string): string {
 /**
  * Formatea una fecha ISO a formato humano chileno (ej: "Lunes, 14 de Marzo de 2026").
  */
-export function formatEventDate(dateStr: string): string {
-    if (!dateStr) return 'No especificada';
-    const d = new Date(dateStr + 'T12:00:00');
-    const formatted = d.toLocaleDateString('es-CL', {
-        weekday: 'long',
-        day: '2-digit',
-        month: 'long',
-        year: 'numeric',
-    });
-    return formatted.charAt(0).toUpperCase() + formatted.slice(1);
+export function formatEventDate(dateStr: string | null | undefined): string {
+    if (!dateStr || dateStr === 'null') return 'No especificada';
+    try {
+        const d = new Date(dateStr + 'T12:00:00');
+        if (isNaN(d.getTime())) return 'Fecha inválida';
+        const formatted = d.toLocaleDateString('es-CL', {
+            weekday: 'long',
+            day: '2-digit',
+            month: 'long',
+            year: 'numeric',
+        });
+        return formatted.charAt(0).toUpperCase() + formatted.slice(1);
+    } catch (e) {
+        return 'Fecha inválida';
+    }
 }
 
 /**
@@ -213,7 +218,27 @@ export function calculateSummaryData(
     // Mapear selecciones del estado a items con precios calculados
     const items = state.selections.map((s: WizardSelection) => {
         const cocktail = cocktailsById.get(s.id);
-        const priceData = cocktail?.prices[s.size] ?? { price: 0, offerPrice: 0, sizeValue: 0, unit: '', isDisposable: false };
+        
+        // Blindaje contra IDs no encontrados o nulos
+        if (!cocktail) {
+            const unitPrice = s.customPrice || 0;
+            const itemTotal = unitPrice * s.quantity;
+            totalNormalPrice += itemTotal;
+            totalOfferPrice += itemTotal;
+            
+            return {
+                id: s.id || 'manual',
+                name: 'Producto Personalizado',
+                category_id: 'manual',
+                selectedSize: s.size,
+                quantity: s.quantity,
+                totalNormalPrice: itemTotal,
+                totalOfferPrice: itemTotal,
+                priceData: { price: unitPrice, offerPrice: unitPrice, sizeValue: getSizeLiters(s.size), unit: 'L', isDisposable: false }
+            };
+        }
+
+        const priceData = cocktail.prices[s.size] ?? { price: 0, offerPrice: 0, sizeValue: 0, unit: '', isDisposable: false };
         
         // Use custom price if provided (for admin overrides), otherwise use standard offer price
         const unitPrice = s.customPrice !== undefined ? s.customPrice : priceData.offerPrice;
@@ -229,7 +254,7 @@ export function calculateSummaryData(
             totalLiters += priceData.sizeValue * s.quantity;
         }
         
-        return { ...cocktail!, selectedSize: s.size, quantity: s.quantity, totalNormalPrice: itemNormal, totalOfferPrice: itemOffer, priceData };
+        return { ...cocktail, selectedSize: s.size, quantity: s.quantity, totalNormalPrice: itemNormal, totalOfferPrice: itemOffer, priceData };
     });
 
     // Lógica dinámica de Envío Gratis o Venta Directa

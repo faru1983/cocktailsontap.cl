@@ -9,7 +9,8 @@ import { SettingsService } from './settingsService';
 function formatLiteral(dateStr: string, timeStr: string): string {
     // Limpiar cualquier texto no numérico (ej: "14:00hrs" -> "14:00")
     const cleanTime = timeStr.replace(/[^0-9:]/g, '').trim();
-    return `${dateStr}T${cleanTime}:00`;
+    // Añadimos el offset de Chile para asegurar compatibilidad RFC3339 total
+    return `${dateStr}T${cleanTime}:00-04:00`;
 }
 
 /**
@@ -252,12 +253,14 @@ export const GoogleSyncService = {
                         pStartISO = formatLiteral(quote.pickup_date, startPart.trim());
                         pEndISO = formatLiteral(quote.pickup_date, endPart.trim());
                     } else {
-                        // Fallback original (+1h)
+                        // Fallback: Si solo hay una hora, evento de 1 hora
                         const cleanTime = timeValue.replace(/[^0-9:]/g, '').trim();
                         pStartISO = formatLiteral(quote.pickup_date, cleanTime);
-                        const pickupStartObj = new Date(pStartISO);
-                        pickupStartObj.setHours(pickupStartObj.getHours() + 1); 
-                        pEndISO = new Date(pickupStartObj.getTime() - (pickupStartObj.getTimezoneOffset() * 60000)).toISOString().slice(0, 19);
+                        
+                        // Calculamos fin (+1h) de forma segura
+                        const [hh, mm] = cleanTime.split(':').map(Number);
+                        const endHour = (hh + 1).toString().padStart(2, '0');
+                        pEndISO = `${quote.pickup_date}T${endHour}:${mm.toString().padStart(2, '0')}:00-04:00`;
                     }
                     pIsAllDay = false;
                 } else {
