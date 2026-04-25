@@ -4,14 +4,24 @@ import React, { useMemo } from 'react';
 import { CheckCircle, Copy, ExternalLink, RefreshCw, ArrowRight } from 'lucide-react';
 import { SITE_URL } from '@/lib/config';
 import { formatCurrency } from '@/lib/utils';
+import type { WizardState, CocktailForWizard, Comuna } from '@/lib/types';
+import { calculateSummaryData } from '@/lib/wizardLogic';
 
 interface DirectWizardSuccessProps {
     token: string;
-    totalPrice: number;
+    state: WizardState;
+    cocktails: CocktailForWizard[];
+    comunas: Comuna[];
+    onReset: () => void;
 }
 
-export default function DirectWizardSuccess({ token, totalPrice }: DirectWizardSuccessProps) {
+export default function DirectWizardSuccess({ token, state, cocktails, comunas, onReset }: DirectWizardSuccessProps) {
     const quoteUrl = `${SITE_URL}/cotizar/${token}`;
+
+    // Calculamos el resumen para obtener el precio total real
+    const summary = useMemo(() => {
+        return calculateSummaryData(state, cocktails, comunas);
+    }, [state, cocktails, comunas]);
 
     const copyToClipboard = () => {
         const text = `Banco: Mercado Pago\nCuenta Vista: 1098081647\nNombre: Felipe Ramírez\nRUT: 15.332.189-2\nE-mail: contacto@cocktailsontap.cl`;
@@ -34,7 +44,7 @@ export default function DirectWizardSuccess({ token, totalPrice }: DirectWizardS
 
                 <div className="bg-primary/5 border border-primary/20 rounded-2xl p-6 mb-8">
                     <p className="text-primary/60 text-[0.7rem] uppercase font-bold tracking-widest mb-1 text-center">Total a Transferir</p>
-                    <p className="text-brand-text font-black text-4xl text-center mb-6">{formatCurrency(totalPrice)}</p>
+                    <p className="text-brand-text font-black text-4xl text-center mb-6">{formatCurrency(summary.totalOfferPrice + summary.shippingCost)}</p>
                     
                     <div className="text-[0.85rem] text-brand-text space-y-2 border-t border-primary/20 pt-6">
                         <p className="flex justify-between"><strong>Banco:</strong> <span>Mercado Pago</span></p>
@@ -81,7 +91,7 @@ export default function DirectWizardSuccess({ token, totalPrice }: DirectWizardS
             
             <div className="mt-8 flex justify-center">
                 <button 
-                    onClick={() => window.location.href = '/'}
+                    onClick={onReset}
                     className="flex items-center gap-2 text-white/40 hover:text-white transition-colors text-sm font-bold uppercase tracking-widest"
                 >
                     <RefreshCw className="w-4 h-4" />
