@@ -309,11 +309,6 @@ export async function syncGoogleEvent(calendarId: string, event: {
         let startDateValue = event.startISO.split('T')[0];
         let endDateValue = event.endISO.split('T')[0];
 
-        if (event.isAllDay) {
-            const dateObj = new Date(endDateValue + 'T12:00:00');
-            dateObj.setDate(dateObj.getDate() + 1);
-            endDateValue = dateObj.toISOString().split('T')[0];
-        }
 
         const body: any = {
             summary: event.summary,
