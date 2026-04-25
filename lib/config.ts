@@ -1,28 +1,30 @@
 /**
  * Configuración centralizada del proyecto.
  * Importar desde aquí en vez de leer process.env directamente en cada archivo.
+ * 
+ * NOTA DE SEGURIDAD: Los valores reales deben estar en el archivo .env.local 
+ * o en las variables de entorno de Vercel. Los valores aquí son solo fallbacks genéricos.
  */
 
-/** URL base del sitio. En producción: https://cocktailsontap.cl */
-export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://cocktailsontap.cl';
+/** URL base del sitio. */
+export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://ejemplo.cl';
 
 /**
  * URL del logo, forzando siempre la URL de producción para emails
- * (Gmail no puede acceder a localhost al previsualizar correos).
  */
 export const LOGO_URL = SITE_URL.includes('localhost')
     ? 'https://cocktailsontap.cl/assets/logo2.webp'
     : `${SITE_URL}/assets/logo2.webp`;
 
-/** Datos de contacto y administración */
-export const CONTACT_EMAIL = 'contacto@cocktailsontap.cl';
-export const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? 'contacto@cocktailsontap.cl';
-export const FROM_EMAIL = 'Cocktails on Tap <contacto@cocktailsontap.cl>';
+/** Datos de contacto y administración (Leídos de env) */
+export const CONTACT_EMAIL = process.env.ADMIN_EMAIL ?? 'contacto@ejemplo.cl';
+export const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? 'admin@ejemplo.cl';
+export const FROM_EMAIL = `Cocktails on Tap <${ADMIN_EMAIL}>`;
 
 /** WhatsApp Business */
-export const WHATSAPP_NUMBER = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER ?? '56929672978';
+export const WHATSAPP_NUMBER = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER ?? '56900000000';
 export const WHATSAPP_URL = `https://wa.me/${WHATSAPP_NUMBER}`;
-export const WHATSAPP_LABEL = '+56 9 2967 2978';
+export const WHATSAPP_LABEL = '+56 9 ' + (process.env.NEXT_PUBLIC_WHATSAPP_NUMBER?.slice(3) || '0000 0000');
 
 /** Costo de instalación del Muro de Coctelería (en CLP) */
 export const MURO_INSTALLATION_COST = 50_000;

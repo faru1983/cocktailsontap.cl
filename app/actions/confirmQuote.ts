@@ -9,6 +9,7 @@ import { SettingsService } from '@/lib/services/settingsService';
 import { createServerClient } from '@/lib/supabaseServer';
 import { fetchAllProductData } from '@/lib/serverData';
 import { calculateSummaryData, formatEventDate } from '@/lib/wizardLogic';
+import { ADMIN_EMAIL, FROM_EMAIL } from '@/lib/config';
 
 interface ConfirmQuoteResult {
     success: boolean;
@@ -125,8 +126,8 @@ export async function confirmQuote(formData: any): Promise<ConfirmQuoteResult> {
                 ]);
 
                 await Promise.all([
-                    resend.emails.send({ from: 'Cocktails on Tap <contacto@cocktailsontap.cl>', to: [quoteToSync.client_email], subject: subClient, html: htmlClient }),
-                    resend.emails.send({ from: 'Cocktails on Tap <contacto@cocktailsontap.cl>', to: ['faru1983@gmail.com'], subject: subAdmin, html: htmlAdmin })
+                    resend.emails.send({ from: FROM_EMAIL, to: [quoteToSync.client_email], subject: subClient, html: htmlClient }),
+                    resend.emails.send({ from: FROM_EMAIL, to: [ADMIN_EMAIL], subject: subAdmin, html: htmlAdmin })
                 ]);
                 console.log('[ConfirmQuote] 📧 Emails enviados.');
             } catch (e) { console.error('[ConfirmQuote] Falló envío de emails (no crítico):', e); }
