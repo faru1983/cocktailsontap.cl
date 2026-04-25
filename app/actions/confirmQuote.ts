@@ -1,6 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { after } from 'next/server';
 import * as React from 'react';
 import { Resend } from 'resend';
 import { ConfirmQuoteSchema, type Quote, type QuoteItem } from '@/lib/types';
@@ -17,12 +18,6 @@ interface ConfirmQuoteResult {
     error?: string;
 }
 
-/**
- * SERVER ACTION: Confirmación de Reserva
- * 
- * Filosofía: El usuario NO debe esperar a Google ni a los Emails.
- * Si la DB se actualiza, la reserva es un ÉXITO.
- */
 export async function confirmQuote(formData: any): Promise<ConfirmQuoteResult> {
     console.log('[ConfirmQuote] 🚀 Iniciando confirmación para:', formData?.token);
     
@@ -30,13 +25,12 @@ export async function confirmQuote(formData: any): Promise<ConfirmQuoteResult> {
     let quoteToSync: any = null;
     let isDirectSale = false;
 
-    // 1. FASE DE BASE DE DATOS (Lo único que puede hacer fallar la respuesta al usuario)
+    // 1. FASE DE BASE DE DATOS (CRÍTICA)
     try {
         const validation = ConfirmQuoteSchema.safeParse(formData);
         if (!validation.success) return { success: false, error: 'Datos inválidos.' };
         const data = validation.data;
 
-        // Fetch inicial
         const [quoteRes, catalogRes] = await Promise.all([
             db.from('quotes').select('*').eq('token', data.token).single(),
             fetchAllProductData()
@@ -44,12 +38,10 @@ export async function confirmQuote(formData: any): Promise<ConfirmQuoteResult> {
 
         if (quoteRes.error || !quoteRes.data) return { success: false, error: 'Reserva no encontrada.' };
         const quote = quoteRes.data;
-
         if (quote.status === 'confirmed') return { success: false, error: 'Ya confirmada.' };
 
         isDirectSale = quote.service_type === 'direct' || quote.dispenser === 'desechable';
 
-        // Recálculo de totales
         const summary = calculateSummaryData({
             ...quote,
             selections: data.items.map(i => ({ id: i.product_id || 'manual', size: i.size, quantity: i.quantity, customPrice: i.offer_price_at_time })),
@@ -61,16 +53,13 @@ export async function confirmQuote(formData: any): Promise<ConfirmQuoteResult> {
 
         const total = summary.totalOfferPrice + summary.shippingCost + summary.installationCost - (quote.manual_discount || 0);
 
-        // --- UPDATE DB (Banda ancha: todo en paralelo) ---
-        const dbOps = [
-            // Items
+        const results = await Promise.all([
             db.from('quote_items').delete().eq('quote_id', quote.id).not('id', 'in', `(${data.items.filter(i => i.id && !i.id.includes('temp-')).map(i => i.id).join(',') || 'NULL'})`),
             db.from('quote_items').upsert(data.items.map(item => ({
                 quote_id: quote.id, product_id: item.product_id, product_name: item.product_name,
                 size: item.size, quantity: item.quantity, price_at_time: item.price_at_time,
                 offer_price_at_time: item.offer_price_at_time, size_value: item.size_value, unit_id: item.unit_id
             }))),
-            // Quote Principal
             db.from('quotes').update({
                 status: 'confirmed', client_lastname: data.client_lastname, client_phone: data.client_phone,
                 client_address: data.client_address, comuna_name: data.comuna_name, event_date: data.event_date,
@@ -78,45 +67,41 @@ export async function confirmQuote(formData: any): Promise<ConfirmQuoteResult> {
                 dispenser: data.dispenser, total_price: total, total_liters: summary.totalLiters,
                 updated_at: new Date().toISOString()
             }).eq('token', data.token)
-        ];
+        ]);
 
-        console.log('[ConfirmQuote] 💾 Guardando en base de datos...');
-        const results = await Promise.all(dbOps);
-        if (results.some(r => r.error)) throw new Error('Error en DB');
+        if (results.some(r => r.error)) throw new Error('DB Error');
 
-        // Preparamos los datos para la Fase 2 antes de salir del try
         quoteToSync = { ...quote, ...data, status: 'confirmed', quote_items: data.items };
-        console.log('[ConfirmQuote] ✅ DB Actualizada correctamente.');
 
     } catch (err) {
-        console.error('[ConfirmQuote] ❌ Error crítico en Fase DB:', err);
-        return { success: false, error: 'Ocurrió un error al procesar la reserva.' };
+        console.error('[ConfirmQuote] ❌ Error en Fase DB:', err);
+        return { success: false, error: 'Ocurrió un error al confirmar la reserva.' };
     }
 
-    // 2. FASE DE INTEGRACIONES (BACKGROUND / FIRE & FORGET)
-    // No usamos 'await' para que la respuesta al usuario salga YA.
-    (async () => {
-        console.log('[ConfirmQuote] ☁️ Iniciando tareas de fondo (Google/Email)...');
+    // 2. FASE DE FONDO (Usando "after" para que Vercel no mate el proceso)
+    after(async () => {
+        console.log('[ConfirmQuote] ☁️ Ejecutando tareas post-respuesta...');
         try {
-            // Google Sync
+            // Sincronización Google
             try {
                 await GoogleSyncService.updateContactConfirmedStatus(quoteToSync);
                 const cal = await GoogleSyncService.scheduleCalendarEvents(quoteToSync, { isDirectSaleOverride: isDirectSale });
                 if (cal?.eventId || cal?.pickupEventId) {
-                    await db.from('quotes').update({ google_event_id: cal.eventId, google_pickup_event_id: cal.pickupEventId }).eq('id', quoteToSync.id);
+                    const supabase = createServerClient();
+                    await supabase.from('quotes').update({ google_event_id: cal.eventId, google_pickup_event_id: cal.pickupEventId }).eq('id', quoteToSync.id);
                 }
-                console.log('[ConfirmQuote] 📅 Google Sync completado.');
-            } catch (e) { console.error('[ConfirmQuote] Falló Google Sync (no crítico):', e); }
+            } catch (e) { console.error('[ConfirmQuote] Error Google:', e); }
 
-            // Emails
+            // Envío de Emails
             try {
                 const resend = new Resend(process.env.RESEND_API_KEY);
                 const { render } = await import('@react-email/components');
                 const EmailComp = (await import('@/components/emails/ConfirmationEmail')).default;
                 
-                const dateStr = quoteToSync.event_date ? formatEventDate(quoteToSync.event_date) : '';
-                const name = `${quoteToSync.client_name} ${quoteToSync.client_lastname || ''}`.trim();
-                const vars = { full_name: name, event_date: dateStr };
+                const vars = { 
+                    full_name: `${quoteToSync.client_name} ${quoteToSync.client_lastname || ''}`.trim(), 
+                    event_date: quoteToSync.event_date ? formatEventDate(quoteToSync.event_date) : '' 
+                };
 
                 const [htmlClient, htmlAdmin, subClient, subAdmin] = await Promise.all([
                     render(React.createElement(EmailComp, { quote: quoteToSync, isAdmin: false })),
@@ -129,16 +114,13 @@ export async function confirmQuote(formData: any): Promise<ConfirmQuoteResult> {
                     resend.emails.send({ from: FROM_EMAIL, to: [quoteToSync.client_email], subject: subClient, html: htmlClient }),
                     resend.emails.send({ from: FROM_EMAIL, to: [ADMIN_EMAIL], subject: subAdmin, html: htmlAdmin })
                 ]);
-                console.log('[ConfirmQuote] 📧 Emails enviados.');
-            } catch (e) { console.error('[ConfirmQuote] Falló envío de emails (no crítico):', e); }
+            } catch (e) { console.error('[ConfirmQuote] Error Emails:', e); }
 
             revalidatePath(`/cotizar/${formData.token}`);
-        } catch (globalBgErr) {
-            console.error('[ConfirmQuote] Error en proceso de fondo:', globalBgErr);
+        } catch (e) {
+            console.error('[ConfirmQuote] Error general en after():', e);
         }
-    })();
+    });
 
-    // RESPUESTA INMEDIATA AL USUARIO
-    console.log('[ConfirmQuote] 🏁 Respondiendo éxito al usuario.');
     return { success: true, token: formData.token };
 }
