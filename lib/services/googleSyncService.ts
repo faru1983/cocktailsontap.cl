@@ -220,8 +220,8 @@ export const GoogleSyncService = {
                     endISO = startISO; // Duración 0
                     isAllDay = false;
                 } else {
-                    startISO = `${quote.event_date}`;
-                    endISO = getNextDay(quote.event_date); // Google requiere el día siguiente para All Day
+                    startISO = quote.event_date;
+                    endISO = getNextDay(quote.event_date);
                     isAllDay = true;
                 }
 
@@ -251,7 +251,7 @@ export const GoogleSyncService = {
                 // 2. Retiro de Evento:
                 // REGLA: Si es el mismo día que el evento -> Todo el día.
                 if (quote.pickup_date === quote.event_date) {
-                    pStartISO = `${quote.pickup_date}`;
+                    pStartISO = quote.pickup_date;
                     pEndISO = getNextDay(quote.pickup_date);
                     pIsAllDay = true;
                 } else if (hasPickupTime) {
@@ -267,7 +267,7 @@ export const GoogleSyncService = {
                     }
                     pIsAllDay = false;
                 } else {
-                    pStartISO = `${quote.pickup_date}`;
+                    pStartISO = quote.pickup_date;
                     pEndISO = getNextDay(quote.pickup_date);
                     pIsAllDay = true;
                 }
