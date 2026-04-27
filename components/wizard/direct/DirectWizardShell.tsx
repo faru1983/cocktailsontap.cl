@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useWizard } from '@/hooks/useWizard';
 import { AlertCircle, ArrowLeft, ArrowRight, Loader2 } from 'lucide-react';
 import { WhatsappIcon } from '@/components/icons';
@@ -23,6 +24,7 @@ interface Props {
 type SendStatus = 'idle' | 'saving' | 'saved' | 'error';
 
 export default function DirectWizardShell({ cocktails, comunas, categories, initialServiceType }: Props) {
+    const router = useRouter();
     const wizard = useWizard(cocktails, comunas, categories, initialServiceType);
     const { state } = wizard;
 
@@ -122,9 +124,14 @@ export default function DirectWizardShell({ cocktails, comunas, categories, init
             setSendStatus('saved');
             // Desencadenar WhatsApp inmediatamente para aprovechar el gesto del usuario
             wizard.sendWhatsAppQuote(result.token);
+            
+            // Redirigir a la página de la cotización con un flag de éxito
+            router.push(`/cotizar/${result.token}?new=true`);
         } else {
             setSaveError(result.error ?? 'Error procesando tu compra.');
             setSendStatus('error');
+            // Intentar WhatsApp de todas formas
+            wizard.sendWhatsAppQuote();
         }
 
         window.scrollTo({ top: 0, behavior: 'smooth' });

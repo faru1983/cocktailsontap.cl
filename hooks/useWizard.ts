@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import type { CocktailForWizard, Comuna, WizardState, WizardSelection } from '@/lib/types';
 import { calculateSmartConfig, calculateSummaryData, buildWhatsAppMessage } from '@/lib/wizardLogic';
 import { WHATSAPP_NUMBER } from '@/lib/config';
@@ -39,7 +40,28 @@ const INITIAL_STATE: WizardState = {
 };
 
 export function useWizard(cocktails: CocktailForWizard[], comunas: Comuna[], categories: string[], initialServiceType: '' | 'event' | 'direct' = '') {
-    const [state, setState] = useState<WizardState>({ ...INITIAL_STATE, serviceType: initialServiceType });
+    const searchParams = useSearchParams();
+    const router = useRouter();
+    const pathname = usePathname();
+
+    // Obtener el paso inicial de la URL si existe, de lo contrario usar 1
+    const urlStep = useMemo(() => {
+        const step = parseInt(searchParams.get('step') || '1', 10);
+        return isNaN(step) ? 1 : step;
+    }, [searchParams]);
+
+    const [state, setState] = useState<WizardState>(() => ({
+        ...INITIAL_STATE,
+        serviceType: initialServiceType,
+        step: urlStep
+    }));
+
+    // Sincronizar el estado interno si la URL cambia (ej: botón Atrás del navegador)
+    useEffect(() => {
+        if (urlStep !== state.step) {
+            setState(prev => ({ ...prev, step: urlStep }));
+        }
+    }, [urlStep, state.step]);
 
     const initCategory = useCallback((cats: string[]) => {
         if (cats.length > 0) setState(prev => ({ ...prev, expandedCategoryId: prev.expandedCategoryId || cats[0] }));
@@ -87,10 +109,15 @@ export function useWizard(cocktails: CocktailForWizard[], comunas: Comuna[], cat
             ...prev,
             serviceType: type, 
             dispenser: 'portatil',
-            step: 1 // Avanzar automáticamente al paso 1
+            step: 1
         }));
+        
+        const params = new URLSearchParams(searchParams.toString());
+        params.set('step', '1');
+        router.push(`${pathname}?${params.toString()}`, { scroll: false });
+        
         window.scrollTo({ top: 0, behavior: 'smooth' });
-    }, []);
+    }, [searchParams, router, pathname]);
 
     const updateDispenser = useCallback((id: 'portatil' | 'muro' | 'desechable') => {
         setState((prev) => ({ ...prev, dispenser: id }));
@@ -98,12 +125,19 @@ export function useWizard(cocktails: CocktailForWizard[], comunas: Comuna[], cat
 
     const goToStep = useCallback((step: number) => {
         setState((prev) => ({ ...prev, step }));
+        
+        // Actualizar URL
+        const params = new URLSearchParams(searchParams.toString());
+        params.set('step', step.toString());
+        router.push(`${pathname}?${params.toString()}`, { scroll: false });
+        
         window.scrollTo({ top: 0, behavior: 'smooth' });
-    }, []);
+    }, [searchParams, router, pathname]);
 
     const reset = useCallback(() => {
         setState({ ...INITIAL_STATE, serviceType: initialServiceType, dispenser: 'portatil', expandedCategoryId: categories[0] || '' });
-    }, [categories, initialServiceType]);
+        router.push(pathname); // Limpiar query params
+    }, [categories, initialServiceType, router, pathname]);
 
     function validateStep(step: number): { valid: boolean; message?: string } {
         if (step === 0) {

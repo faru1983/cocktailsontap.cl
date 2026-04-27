@@ -7,6 +7,7 @@ import DirectQuoteView from '@/components/quote/DirectQuoteView';
 
 interface Props {
     params: Promise<{ token: string }>;
+    searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -24,8 +25,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 import { fetchAllProductData } from '@/lib/serverData';
 
-export default async function QuoteTokenPage({ params }: Props) {
+export default async function QuoteTokenPage({ params, searchParams }: Props) {
     const { token } = await params;
+    const { new: isNewParam } = await searchParams;
+    const isNew = isNewParam === 'true';
+    
     const db = createServerClient();
 
     const [
@@ -53,6 +57,7 @@ export default async function QuoteTokenPage({ params }: Props) {
                         availableCocktails={cocktails}
                         categories={categories}
                         eventTypes={eventTypes}
+                        isNew={isNew}
                     />
                 ) : (
                     <EventQuoteView
@@ -61,6 +66,7 @@ export default async function QuoteTokenPage({ params }: Props) {
                         availableCocktails={cocktails}
                         categories={categories}
                         eventTypes={eventTypes}
+                        isNew={isNew}
                     />
                 )}
             </div>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useWizard } from '@/hooks/useWizard';
 import { AlertCircle, ArrowLeft, ArrowRight, Loader2 } from 'lucide-react';
 import { WhatsappIcon } from '@/components/icons';
@@ -27,6 +28,7 @@ interface Props {
 type SendStatus = 'idle' | 'saving' | 'saved' | 'error';
 
 export default function WizardShell({ cocktails, eventTypes, comunas, categories, initialServiceType }: Props) {
+    const router = useRouter();
     const wizard = useWizard(cocktails, comunas, categories, initialServiceType);
     const { state } = wizard;
 
@@ -78,16 +80,21 @@ export default function WizardShell({ cocktails, eventTypes, comunas, categories
         if (result.success && result.token) {
             setQuoteToken(result.token);
             setSendStatus('saved');
+            
+            // Siempre abrir WhatsApp independiente del resultado del guardado, pasando el token si existe
+            wizard.sendWhatsAppQuote(result.token);
+
+            // Redirigir a la página de la cotización con un flag de éxito
+            router.push(`/cotizar/${result.token}?new=true`);
         } else {
             setSaveError(result.error ?? 'Error guardando la cotización.');
             setSendStatus('error');
+            // En caso de error en el guardado, igual intentamos abrir WhatsApp
+            wizard.sendWhatsAppQuote();
         }
 
-        // Subir al top para ver el mensaje de confirmación
+        // Subir al top para ver el mensaje de confirmación (si no redirigió instantáneamente)
         window.scrollTo({ top: 0, behavior: 'smooth' });
-
-        // Siempre abrir WhatsApp independiente del resultado del guardado, pasando el token si existe
-        wizard.sendWhatsAppQuote(result.token);
     };
 
     const handleReset = () => {

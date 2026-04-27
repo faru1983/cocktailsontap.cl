@@ -23,10 +23,22 @@
 
 ## Últimos Cambios
 
+### 27-04-2026 (Sesión 2)
+- **Navegación Pro**: Sincronización de pasos del wizard con la URL (`?step=X`) en `useWizard.ts` para mejor UX, soporte de botón "Atrás" y persistencia de estado.
+- **Redirección de Éxito**: Los wizards ahora redirigen automáticamente a la URL canónica de la cotización (`/cotizar/[token]?new=true`) tras el guardado, eliminando pantallas de éxito aisladas.
+- **Celebración Integrada**: Se habilitó una "vista de primer acceso" en `EventQuoteView.tsx` y `DirectQuoteView.tsx` que muestra el componente de éxito premium (`WizardSuccess`) directamente sobre la cotización.
+- **Limpieza**: Eliminación definitiva de la carpeta `app/api`, consolidando el uso de Server Actions.
+
+### 27-04-2026 (Sesión 1)
+- **Sincronización de Calendario**: Se unificó la lógica en `GoogleSyncService.ts` para que las ventas directas se agenden correctamente en el calendario de "Venta Directa" usando el criterio `service_type === 'direct'`.
+- **UI de Éxito Premium**: Se rediseñaron las pantallas de éxito de `DirectQuoteView.tsx` y `DirectWizardSuccess.tsx` para lograr paridad visual absoluta con los flujos de eventos (estética light, tarjetas premium y animaciones).
+- **Consistencia de Información**: Se actualizó `QuoteSummaryReservation.tsx` para mostrar siempre el tipo de servicio, eliminando vacíos de información en los resúmenes de venta directa.
+- **Troubleshooting Producción**: Se identificó un error de configuración en Vercel donde las variables de entorno de Google Calendar no tenían el prefijo `GOOGLE_`, lo que causaba que la producción usara fallbacks incorrectos.
+- **Emails**: Se ajustaron las etiquetas de datos bancarios en `ConfirmationEmail.tsx` para mayor claridad.
+
 ### 24-04-2026
-- **Build Fix**: Se resolvió un error que impedía el deploy en Vercel. El error era causado por el archivo de test `tests/test-confirm-sync.ts` que tenía tipos incompatibles con `QuoteItem`.
-- **Limpieza**: El usuario eliminó la carpeta `tests/` que ya no estaba en uso.
-- **Configuración**: Se revirtieron los cambios temporales en `tsconfig.json` tras la eliminación de la carpeta de tests.
+- **Build Fix**: Se resolvió un error que impedía el deploy en Vercel causado por tipos incompatibles en archivos de test.
+- **Limpieza**: Se eliminó la carpeta `tests/` obsoleta.
 
 ---
-*Última actualización: 24-04-2026*
+*Última actualización: 27-04-2026*

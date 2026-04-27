@@ -14,6 +14,9 @@ import type { Quote, QuoteItem, Comuna, CocktailForWizard, EventType, Product, I
 import ProductCatalog from '@/components/catalog/ProductCatalog';
 import QuoteSummaryProducts, { QuoteSummaryData } from '@/components/quote/QuoteSummaryProducts';
 import QuoteSummaryReservation, { QuoteSummaryReservationData } from '@/components/quote/QuoteSummaryReservation';
+import DirectWizardSuccess from '@/components/wizard/direct/DirectWizardSuccess';
+import { buildWhatsAppMessage } from '@/lib/wizardLogic';
+import { WHATSAPP_NUMBER } from '@/lib/config';
 
 interface Props {
     quote: Quote & { quote_items: QuoteItem[] };
@@ -21,6 +24,7 @@ interface Props {
     availableCocktails: CocktailForWizard[];
     categories: string[];
     eventTypes: EventType[];
+    isNew?: boolean;
 }
 
 const STATUS_CONFIG = {
@@ -30,7 +34,7 @@ const STATUS_CONFIG = {
     completed: { label: 'Completada', color: 'bg-blue-100 text-blue-800 border-blue-200', icon: CheckCircle },
 };
 
-export default function DirectQuoteView({ quote, comunas, availableCocktails, categories, eventTypes }: Props) {
+export default function DirectQuoteView({ quote, comunas, availableCocktails, categories, eventTypes, isNew }: Props) {
     const router = useRouter();
     const [showConfirmModal, setShowConfirmModal] = useState(false);
     const [showCatalog, setShowCatalog] = useState(false);
@@ -393,6 +397,41 @@ export default function DirectQuoteView({ quote, comunas, availableCocktails, ca
 
     return (
         <div className="flex flex-col gap-4 sm:gap-6">
+            {isNew && (
+                <DirectWizardSuccess
+                    token={quote.token}
+                    state={{
+                        step: 3,
+                        serviceType: 'direct',
+                        eventData: { 
+                            type: 'Venta Directa', 
+                            otherType: '', 
+                            date: eventDate, 
+                            startTime: '', 
+                            pickupDate: '', 
+                            pickupTime: '' 
+                        },
+                        consumption: { guests: 0, drinksPerPerson: 0 },
+                        contact: {
+                            firstName: quote.client_name,
+                            lastName: lastName,
+                            email: quote.client_email || '',
+                            phone: phone,
+                            address: address,
+                            comuna: comuna,
+                            otherComuna: comunaOther,
+                            comments: quote.comments || ''
+                        },
+                        selections: items.map(i => ({ id: i.product_id!, size: i.size, quantity: i.quantity })),
+                        dispenser: 'desechable',
+                        expandedCocktailId: null,
+                        expandedCategoryId: ''
+                    } as any}
+                    cocktails={availableCocktails}
+                    comunas={comunas}
+                    onReset={() => router.push('/cotizar')}
+                />
+            )}
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 px-1">
                 <div>

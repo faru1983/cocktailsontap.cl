@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import type { Metadata } from 'next';
 import CotizarGateway from '@/components/wizard/CotizarGateway';
 import { fetchAllProductData } from '@/lib/serverData';
@@ -30,13 +31,15 @@ export default async function BarrilesPage() {
                     </div>
                 </div>
 
-                <CotizarGateway
-                    cocktails={cocktails}
-                    eventTypes={eventTypes}
-                    comunas={comunas}
-                    categories={categories}
-                    initialServiceType="direct"
-                />
+                <Suspense fallback={<div className="flex items-center justify-center min-h-[400px]"><div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div></div>}>
+                    <CotizarGateway
+                        cocktails={cocktails}
+                        eventTypes={eventTypes}
+                        comunas={comunas}
+                        categories={categories}
+                        initialServiceType="direct"
+                    />
+                </Suspense>
             </div>
         </main>
     );

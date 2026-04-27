@@ -15,6 +15,9 @@ import type { Quote, QuoteItem, Comuna, CocktailForWizard, EventType, Product, I
 import ProductCatalog from '@/components/catalog/ProductCatalog';
 import QuoteSummaryProducts, { QuoteSummaryData } from '@/components/quote/QuoteSummaryProducts';
 import QuoteSummaryReservation, { QuoteSummaryReservationData } from '@/components/quote/QuoteSummaryReservation';
+import WizardSuccess from '@/components/wizard/WizardSuccess';
+import { buildWhatsAppMessage } from '@/lib/wizardLogic';
+import { WHATSAPP_NUMBER } from '@/lib/config';
 
 interface Props {
     quote: Quote & { quote_items: QuoteItem[] };
@@ -22,6 +25,7 @@ interface Props {
     availableCocktails: CocktailForWizard[];
     categories: string[];
     eventTypes: EventType[];
+    isNew?: boolean;
 }
 
 const STATUS_CONFIG = {
@@ -31,7 +35,7 @@ const STATUS_CONFIG = {
     completed: { label: 'Completada', color: 'bg-blue-100 text-blue-800 border-blue-200', icon: CheckCircle },
 };
 
-export default function EventQuoteView({ quote, comunas, availableCocktails, categories, eventTypes }: Props) {
+export default function EventQuoteView({ quote, comunas, availableCocktails, categories, eventTypes, isNew }: Props) {
     const router = useRouter();
     const [showConfirmModal, setShowConfirmModal] = useState(false);
     const [showCatalog, setShowCatalog] = useState(false);
@@ -492,6 +496,54 @@ export default function EventQuoteView({ quote, comunas, availableCocktails, cat
 
     return (
         <div className="flex flex-col gap-4 sm:gap-6">
+            {isNew && (
+                <WizardSuccess
+                    token={quote.token}
+                    clientEmail={quote.client_email || ''}
+                    onReset={() => router.push('/cotizar')}
+                    onOpenWhatsApp={() => {
+                        const summary = calculateTotals();
+                        // Mock state for buildWhatsAppMessage
+                        const mockState = {
+                            eventData: { 
+                                type: eventTypes.find(t => t.id === eventType)?.name || '', 
+                                otherType: otherType, 
+                                date: eventDate 
+                            },
+                            contact: { 
+                                firstName: quote.client_name, 
+                                lastName: lastName, 
+                                phone: phone 
+                            },
+                            selections: items.map(i => ({ id: i.product_id!, size: i.size, quantity: i.quantity })),
+                            serviceType: (quote.service_type || 'event') as any,
+                            consumption: { guests: guests, drinksPerPerson: quote.drinks_per_person }
+                        };
+
+                        const mockData = {
+                            items: items.map(i => ({ 
+                                name: i.product_name, 
+                                quantity: i.quantity, 
+                                selectedSize: i.size, 
+                                totalNormalPrice: i.price_at_time * i.quantity, 
+                                totalOfferPrice: i.offer_price_at_time * i.quantity 
+                            })),
+                            totalNormalPrice: summary.totalNormal,
+                            totalOfferPrice: summary.totalOffer,
+                            totalDiscount: summary.totalDiscount,
+                            shippingLabel: summary.shipping === 0 ? '¡Gratis!' : formatCurrency(summary.shipping),
+                            dispenserLabel: dispenser === 'muro' ? 'Muro de Coctelería' : 'Dispensador Portátil',
+                            installationCost: summary.installationCost,
+                            totalPrice: summary.totalFinal,
+                            totalLiters: summary.totalLiters,
+                            totalCocktails: summary.totalCocktails
+                        };
+
+                        const msg = buildWhatsAppMessage(mockState as any, mockData as any, quote.token);
+                        window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`, '_blank');
+                    }}
+                />
+            )}
 
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 px-1">
