@@ -11,6 +11,7 @@ import {
     Calendar, Users, MapPin, User, Mail, Phone, MessageSquare, Loader2, Lock,
     Plus, Search, ChevronRight, Tag, Info, Copy, ExternalLink, CreditCard, FileText
 } from 'lucide-react';
+import * as fp from '@/lib/fpixel';
 import type { Quote, QuoteItem, Comuna, CocktailForWizard, EventType, Product, ICart } from '@/lib/types';
 import ProductCatalog from '@/components/catalog/ProductCatalog';
 import QuoteSummaryProducts, { QuoteSummaryData } from '@/components/quote/QuoteSummaryProducts';
@@ -117,6 +118,30 @@ export default function EventQuoteView({ quote, comunas, availableCocktails, cat
             setDispenser('portatil');
         }
     }, [canHaveMuro, dispenser, isDraft]);
+
+    // ─── Meta Pixel: Registro de Lead (Interés Inicial) ───────────────────────
+    useEffect(() => {
+        if (isNew) {
+            const totals = calculateTotals();
+            fp.event('Lead', {
+                content_name: 'Cotización de Evento (Borrador)',
+                content_category: 'Servicio de Eventos',
+                value: totals.totalFinal,
+                currency: 'CLP',
+                contents: items.map(item => ({
+                    id: item.product_id,
+                    item_price: item.offer_price_at_time,
+                    quantity: item.quantity
+                })),
+                content_type: 'product'
+            }, {
+                em: quote.client_email || undefined,
+                ph: phone || undefined,
+                fn: quote.client_name || undefined,
+                ln: lastName || undefined
+            });
+        }
+    }, [isNew]); // Solo una vez al montar si es nuevo
 
     // ─── Cálculos dinámicos ──────────────────────────────────────────────────
 
@@ -406,6 +431,26 @@ export default function EventQuoteView({ quote, comunas, availableCocktails, cat
             setShowConfirmModal(false);
             setAcceptedTerms(false);
             window.scrollTo({ top: 0, behavior: 'smooth' });
+
+            // ─── Meta Pixel: Registro de Conversión (Reserva Confirmada) ──────
+            fp.event('Purchase', {
+                content_name: 'Reserva de Evento Confirmada',
+                content_category: 'Servicio de Eventos',
+                value: totals.totalFinal,
+                currency: 'CLP',
+                contents: items.map(item => ({
+                    id: item.product_id,
+                    item_price: item.offer_price_at_time,
+                    quantity: item.quantity
+                })),
+                content_type: 'product',
+                order_id: quote.token // Usamos el token como ID de transacción
+            }, {
+                em: quote.client_email || undefined,
+                ph: phone || undefined,
+                fn: quote.client_name || undefined,
+                ln: lastName || undefined
+            });
         } else {
             setConfirmError(result.error ?? 'Error al confirmar. Intenta nuevamente.');
         }

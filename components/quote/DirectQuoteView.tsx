@@ -10,6 +10,7 @@ import {
     Calendar, MapPin, User, Mail, Phone, MessageSquare, Loader2, Lock,
     Plus, Search, ChevronRight, Tag, Info, Copy, ExternalLink, CreditCard, FileText
 } from 'lucide-react';
+import * as fp from '@/lib/fpixel';
 import type { Quote, QuoteItem, Comuna, CocktailForWizard, EventType, Product, ICart } from '@/lib/types';
 import ProductCatalog from '@/components/catalog/ProductCatalog';
 import QuoteSummaryProducts, { QuoteSummaryData } from '@/components/quote/QuoteSummaryProducts';
@@ -71,6 +72,31 @@ export default function DirectQuoteView({ quote, comunas, availableCocktails, ca
         }
         return () => { document.body.style.overflow = 'unset'; };
     }, [showCatalog, showConfirmModal]);
+
+    // ─── Meta Pixel: Registro de Venta Directa (Confirmada) ───────────────────
+    useEffect(() => {
+        if (isNew) {
+            const totals = calculateTotals();
+            fp.event('Purchase', {
+                content_name: 'Pedido de Barril Desechable',
+                content_category: 'Venta Directa',
+                value: totals.totalFinal,
+                currency: 'CLP',
+                contents: items.map(item => ({
+                    id: item.product_id,
+                    item_price: item.offer_price_at_time,
+                    quantity: item.quantity
+                })),
+                content_type: 'product',
+                order_id: quote.token
+            }, {
+                em: quote.client_email || undefined,
+                ph: phone || undefined,
+                fn: quote.client_name || undefined,
+                ln: lastName || undefined
+            });
+        }
+    }, [isNew]);
 
     // ─── Cálculos dinámicos ──────────────────────────────────────────────────
 
@@ -313,6 +339,26 @@ export default function DirectQuoteView({ quote, comunas, availableCocktails, ca
             setShowConfirmModal(false);
             setAcceptedTerms(false);
             window.scrollTo({ top: 0, behavior: 'smooth' });
+
+            // ─── Meta Pixel: Registro de Pedido Confirmado ───────────────────
+            fp.event('Purchase', {
+                content_name: 'Pedido de Barril Desechable (Confirmado)',
+                content_category: 'Venta Directa',
+                value: totals.totalFinal,
+                currency: 'CLP',
+                contents: items.map(item => ({
+                    id: item.product_id,
+                    item_price: item.offer_price_at_time,
+                    quantity: item.quantity
+                })),
+                content_type: 'product',
+                order_id: quote.token
+            }, {
+                em: quote.client_email || undefined,
+                ph: phone || undefined,
+                fn: quote.client_name || undefined,
+                ln: lastName || undefined
+            });
         } else {
             setConfirmError(result.error ?? 'Error al confirmar. Intenta nuevamente.');
         }
