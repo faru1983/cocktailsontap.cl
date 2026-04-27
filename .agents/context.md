@@ -23,6 +23,13 @@
 
 ## Últimos Cambios
 
+### 27-04-2026 (Sesión 3)
+- **Estrategia Meta Pixel**: Integración avanzada de tracking con `lib/fpixel.ts`. Se implementó **Lead Tracking** (al cotizar) y **Purchase Tracking** (al confirmar reserva o venta directa).
+- **Advanced Matching**: Los eventos del Píxel ahora envían datos del cliente (email, teléfono, nombre) de forma hasheada para mejorar la atribución de anuncios en Meta.
+- **Detalle de Productos**: Se añadió el paso de parámetros `contents` (IDs de productos y cantidades) y `value` (precio total) en cada evento para optimización de ROAS.
+- **Estabilidad de Build**: Se corrigió un error crítico de Next.js que fallaba el deploy en Vercel al usar `useSearchParams()` sin un `<Suspense>` boundary en `/barriles`, `/eventos` y `/cotizar`.
+- **Nuevos Archivos**: Creación de `lib/fpixel.ts` para centralizar la lógica de tracking.
+
 ### 27-04-2026 (Sesión 2)
 - **Navegación Pro**: Sincronización de pasos del wizard con la URL (`?step=X`) en `useWizard.ts` para mejor UX, soporte de botón "Atrás" y persistencia de estado.
 - **Redirección de Éxito**: Los wizards ahora redirigen automáticamente a la URL canónica de la cotización (`/cotizar/[token]?new=true`) tras el guardado, eliminando pantallas de éxito aisladas.
@@ -41,4 +48,4 @@
 - **Limpieza**: Se eliminó la carpeta `tests/` obsoleta.
 
 ---
-*Última actualización: 27-04-2026*
+*Última actualización: 27-04-2026 (Sesión 3)*

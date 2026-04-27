@@ -342,6 +342,29 @@ export default function QuoteDetailClient({ quote: initial, allProducts, eventTy
                     .q-action-btn { width: 100%; padding: 12px; font-size: 14px; }
                     .q-btn-group-edit { grid-template-columns: 1fr 1fr; }
                 }
+
+                .q-item-row {
+                    display: flex; justify-content: space-between; align-items: center; 
+                    padding: 14px 18px; background: rgba(255,255,255,0.04); 
+                    border-radius: 16px; border: 1px solid rgba(255,255,255,0.02);
+                    gap: 12px;
+                }
+                .q-item-info { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+                .q-item-controls { display: flex; gap: 12px; align-items: center; }
+                .q-input-group { display: flex; align-items: center; gap: 6px; }
+                
+                .q-cost-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+
+                @media(max-width: 640px) {
+                    .q-item-row { flex-direction: column; align-items: stretch; gap: 16px; }
+                    .q-item-controls { flex-wrap: wrap; justify-content: space-between; width: 100%; }
+                    .q-input-group { flex: 1; }
+                    .q-input-group .q-input { width: 100% !important; }
+                    
+                    .q-cost-row { flex-direction: column; align-items: stretch; gap: 8px; }
+                    .q-cost-row .q-input { width: 100% !important; text-align: left !important; }
+                    .q-cost-row select.q-input { width: 100% !important; }
+                }
             `}</style>
 
             {/* Header */}
@@ -785,20 +808,20 @@ export default function QuoteDetailClient({ quote: initial, allProducts, eventTy
 
                         <div style={{ display: 'grid', gap: '12px' }}>
                             {(!isEditingItems ? (quote.quote_items || []) : editItems).map((item: any, idx: number) => (
-                                <div key={item.id || idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 18px', background: 'rgba(255,255,255,0.04)', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.02)' }}>
-                                    <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
-                                        <span style={{ color: '#f1f5f9', fontSize: '14px', fontWeight: 700 }}>{item.product_name}</span>
+                                <div key={item.id || idx} className="q-item-row">
+                                    <div className="q-item-info">
+                                        <span style={{ color: '#f1f5f9', fontSize: '14px', fontWeight: 700, wordBreak: 'break-word' }}>{item.product_name}</span>
                                         <span style={{ color: '#64748b', fontSize: '12px' }}>{item.size}</span>
                                     </div>
                                     
-                                    <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                                    <div className="q-item-controls">
                                         {isEditingItems ? (
                                             <>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                <div className="q-input-group">
                                                     <label className="q-label" style={{ margin: 0 }}>Cant.</label>
                                                     <input type="number" value={item.quantity} onChange={e => updateItem(idx, 'quantity', Number(e.target.value))} className="q-input" style={{ width: '60px', padding: '6px' }} />
                                                 </div>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                <div className="q-input-group">
                                                     <label className="q-label" style={{ margin: 0 }}>Precio</label>
                                                     <input type="number" value={item.offer_price_at_time} onChange={e => updateItem(idx, 'offer_price_at_time', Number(e.target.value))} className="q-input" style={{ width: '90px', padding: '6px' }} />
                                                 </div>
@@ -816,7 +839,7 @@ export default function QuoteDetailClient({ quote: initial, allProducts, eventTy
 
                             {/* Additional Costs Section */}
                             <div style={{ marginTop: '12px', padding: '16px', borderTop: '1px solid rgba(255,255,255,0.06)', display: 'grid', gap: '12px' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <div className="q-cost-row">
                                     <span style={{ color: '#94a3b8', fontSize: '13px' }}>Transporte</span>
                                     {isEditingItems ? (
                                         <input type="number" value={editCosts.shipping_cost} onChange={e => setEditCosts(prev => ({ ...prev, shipping_cost: Number(e.target.value) }))} className="q-input" style={{ width: '120px', textAlign: 'right' }} />
@@ -824,7 +847,7 @@ export default function QuoteDetailClient({ quote: initial, allProducts, eventTy
                                         <span style={{ color: '#f1f5f9', fontWeight: 700 }}>{formatCLP(quote.shipping_cost)}</span>
                                     )}
                                 </div>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <div className="q-cost-row">
                                     {isEditingItems ? (
                                         <>
                                             <select 
@@ -855,7 +878,7 @@ export default function QuoteDetailClient({ quote: initial, allProducts, eventTy
                                         </>
                                     )}
                                 </div>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <div className="q-cost-row">
                                     <span style={{ color: '#f87171', fontSize: '13px', fontWeight: 700 }}>Descuento Extra</span>
                                     {isEditingItems ? (
                                         <input type="number" value={editCosts.manual_discount} onChange={e => setEditCosts(prev => ({ ...prev, manual_discount: Number(e.target.value) }))} className="q-input" style={{ width: '120px', textAlign: 'right', color: '#f87171' }} />
