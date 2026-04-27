@@ -63,9 +63,10 @@ export const ConfirmationEmail: React.FC<Readonly<ConfirmationEmailProps>> = ({ 
         <table width="100%">
           <tbody>
             <tr><td style={{ padding: '2px 0' }}><strong>Banco</strong></td><td>Mercado Pago</td></tr>
-            <tr><td style={{ padding: '2px 0' }}><strong>Número</strong></td><td>1098081647</td></tr>
+            <tr><td style={{ padding: '2px 0' }}><strong>Cta Vista</strong></td><td>1098081647</td></tr>
             <tr><td style={{ padding: '2px 0' }}><strong>Nombre</strong></td><td>Felipe Ramírez</td></tr>
             <tr><td style={{ padding: '2px 0' }}><strong>RUT</strong></td><td>15.332.189-2</td></tr>
+            <tr><td style={{ padding: '2px 0' }}><strong>Email</strong></td><td>contacto@cocktailsontap.cl</td></tr>
           </tbody>
         </table>
       </Section>

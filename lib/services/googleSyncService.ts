@@ -180,15 +180,18 @@ export const GoogleSyncService = {
                 total_liters: quote.total_liters || '0',
             };
 
-            const isDirectSale = options?.isDirectSaleOverride !== undefined 
-                ? options.isDirectSaleOverride 
-                : (quote.service_type === 'direct' || (quote.service_type === undefined && quote.dispenser === 'desechable'));
+            const isDirectSale = options?.isDirectSaleOverride ?? 
+                                (quote.service_type === 'direct' || quote.dispenser === 'desechable');
             
-            // Si es venta directa usamos el calendario de desechables. Fallback al de Reserva si no está configurado.
-            const targetCalendarId = isDirectSale ? (CALENDAR_DESECHABLE_ID || CALENDAR_RESERVA_ID) : CALENDAR_RESERVA_ID;
+            // Si es venta directa usamos el calendario de desechables. Solo fallback si está vacío pero registrando advertencia clara.
+            const targetCalendarId = isDirectSale 
+                ? (CALENDAR_DESECHABLE_ID || CALENDAR_RESERVA_ID) 
+                : CALENDAR_RESERVA_ID;
 
             if (isDirectSale && !CALENDAR_DESECHABLE_ID) {
-                console.warn('GoogleSyncService - Advertencia: CALENDAR_DESECHABLE_ID no está definido. Se usará CALENDAR_RESERVA_ID como fallback para venta directa.');
+                console.warn(`GoogleSyncService [${quote.id}] - Venta Directa detectada pero GOOGLE_CALENDAR_DESECHABLE_ID no está definido. Usando fallback: ${targetCalendarId}`);
+            } else {
+                console.log(`GoogleSyncService [${quote.id}] - Sincronizando como ${isDirectSale ? 'VENTA DIRECTA' : 'EVENTO'} en calendario: ${targetCalendarId}`);
             }
             
             const sharedDescription = await SettingsService.getResolvedValue(

@@ -320,15 +320,15 @@ export default function DirectQuoteView({ quote, comunas, availableCocktails, ca
 
     if (showSuccessScreen) {
         return (
-            <div className="text-center py-16">
+            <div className="text-center py-16 animate-fade-in px-4">
                 <div className="inline-flex items-center justify-center w-20 h-20 bg-green-100 rounded-full mb-6 text-green-600">
                     <CheckCircle className="w-12 h-12" />
                 </div>
-                <h1 className="text-3xl font-black text-brand-text mb-3 tracking-tight">¡Venta confirmada!</h1>
+                <h1 className="text-3xl font-black text-brand-text mb-3 tracking-tight">¡Pedido confirmado!</h1>
                 <p className="text-brand-text-muted text-[1.05rem] mb-8 max-w-md mx-auto leading-relaxed">
-                    Te enviamos un email con todos los detalles. Realiza el pago del {advancePercentText} para asegurar tu despacho.
+                    Te enviamos un email con todos los detalles y las instrucciones para el pago.
                 </p>
-                <div className="bg-green-50 border-2 border-green-200 rounded-3xl p-8 max-w-sm mx-auto text-left shadow-lg overflow-hidden relative group">
+                <div className="bg-green-50 border-2 border-green-200 rounded-3xl p-8 max-w-sm mx-auto text-left shadow-lg overflow-hidden relative group transition-all">
                     <div className="absolute top-0 right-0 w-32 h-32 bg-green-200/20 rounded-full -mr-16 -mt-16" />
                     <p className="text-green-800 font-black text-center mb-1 uppercase tracking-widest text-[0.7rem]">Monto a depositar (100%)</p>
                     <p className="text-green-600 font-black text-4xl text-center mb-6">{formatCurrency(advanceAmount)}</p>
@@ -339,14 +339,19 @@ export default function DirectQuoteView({ quote, comunas, availableCocktails, ca
                         <p className="flex justify-between"><strong>RUT:</strong> <span>15.332.189-2</span></p>
                         <p className="flex justify-between"><strong>Email:</strong> <span>contacto@cocktailsontap.cl</span></p>
                     </div>
-                    <button onClick={() => {
-                        const text = `Banco: Mercado Pago\nCuenta Vista: 1098081647\nNombre: Felipe Ramírez\nRUT: 15.332.189-2\nE-mail: contacto@cocktailsontap.cl`;
-                        navigator.clipboard.writeText(text);
-                    }} className="w-full mt-6 inline-flex items-center justify-center gap-2 px-4 py-3 bg-white border border-green-200 rounded-xl text-[0.85rem] font-black text-green-700 hover:border-green-400 hover:bg-green-50 transition-all active:scale-95 shadow-sm">
+                    <button 
+                        onClick={() => {
+                            const text = `Banco: Mercado Pago\nCuenta Vista: 1098081647\nNombre: Felipe Ramírez\nRUT: 15.332.189-2\nE-mail: contacto@cocktailsontap.cl`;
+                            navigator.clipboard.writeText(text);
+                        }}
+                        className="w-full mt-6 inline-flex items-center justify-center gap-2 px-4 py-3 bg-white border border-green-200 rounded-xl text-[0.85rem] font-black text-green-700 hover:border-green-400 hover:bg-green-50 transition-all active:scale-95 shadow-sm"
+                    >
                         <Copy className="w-4 h-4" /> Copiar Datos de Cuenta
                     </button>
+                    <p className="text-[0.8rem] text-green-700 mt-4 text-center italic opacity-80 underline underline-offset-4 decoration-green-300">Tu pedido será programado para despacho una vez validado el comprobante.</p>
                 </div>
 
+                {/* Link Card de Seguimiento */}
                 <div className="mt-12 max-w-lg mx-auto bg-slate-50 border border-brand-border rounded-3xl p-6 relative group text-left shadow-sm">
                     <p className="text-[0.65rem] font-black text-brand-text-muted uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
                         <Copy className="w-3 h-3" /> Tu Comprobante Digital
@@ -356,14 +361,29 @@ export default function DirectQuoteView({ quote, comunas, availableCocktails, ca
                             {typeof window !== 'undefined' ? window.location.href : ''}
                         </div>
                         <div className="flex items-center gap-2">
-                            <button onClick={() => navigator.clipboard.writeText(window.location.href)} className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-3.5 rounded-xl bg-white border-2 border-brand-border text-brand-text font-black text-[0.85rem] hover:border-primary hover:text-primary transition-all active:scale-95">
+                            <button 
+                                onClick={() => {
+                                    navigator.clipboard.writeText(window.location.href);
+                                }}
+                                className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-3.5 rounded-xl bg-white border-2 border-brand-border text-brand-text font-black text-[0.85rem] hover:border-primary hover:text-primary transition-all active:scale-95"
+                            >
                                 <Copy className="w-4 h-4" /> Copiar
                             </button>
-                            <button onClick={() => { setShowSuccessScreen(false); setConfirmed(false); router.refresh(); }} className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-3.5 rounded-xl bg-primary text-white font-black text-[0.85rem] hover:bg-primary-dark transition-all active:scale-95 shadow-md">
+                            <button 
+                                onClick={() => {
+                                    setShowSuccessScreen(false);
+                                    setConfirmed(false);
+                                    router.refresh();
+                                }}
+                                className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-3.5 rounded-xl bg-primary text-white font-black text-[0.85rem] hover:bg-primary-dark transition-all active:scale-95 shadow-md"
+                            >
                                 <ExternalLink className="w-4 h-4" /> Ver Pedido
                             </button>
                         </div>
                     </div>
+                    <p className="text-[0.7rem] text-brand-text-muted mt-4 italic font-medium">
+                        Guarda este enlace para acceder a tu comprobante en cualquier momento.
+                    </p>
                 </div>
             </div>
         );

@@ -54,12 +54,15 @@ export default function QuoteSummaryReservation({ data }: Props) {
 
                 {/* Columna 2: Evento / Despacho */}
                 <div className="space-y-2">
-                    {data.eventTypeDisplay !== 'Venta Directa' && (
-                        <div className="flex items-start gap-2">
-                            <span className="font-bold text-brand-text-muted min-w-[85px]">Evento:</span>
-                            <span className="font-medium text-brand-text leading-tight">{data.eventTypeDisplay} ({data.guests} pers.)</span>
-                        </div>
-                    )}
+                    <div className="flex items-start gap-2">
+                        <span className="font-bold text-brand-text-muted min-w-[85px]">Servicio:</span>
+                        <span className="font-medium text-brand-text leading-tight">
+                            {data.eventTypeDisplay === 'Venta Directa' 
+                                ? 'Venta Directa (Barril Desechable)' 
+                                : `${data.eventTypeDisplay} (${data.guests} pers.)`
+                            }
+                        </span>
+                    </div>
                     <div className="flex items-start gap-2">
                         <span className="font-bold text-brand-text-muted min-w-[85px]">Fecha:</span>
                         <span className="font-medium text-brand-text leading-tight">
