@@ -178,15 +178,27 @@ export default function QuoteDetailClient({ quote: initial, allProducts, eventTy
     };
 
     const handleEditInfoStart = () => {
-        setEditInfo({ ...quote });
+        const info = { ...quote };
+        // Normalización para campos con opción "Otro"
+        if (!info.event_type_id && info.event_type_other) {
+            info.event_type_id = 'Otro';
+        }
+        if (!info.comuna_name && info.comuna_other) {
+            info.comuna_name = 'Otra';
+        }
+        setEditInfo(info);
         setIsEditingInfo(true);
     };
 
     const handleEditInfoSave = () => {
         startTransition(async () => {
-            const res = await updateQuoteAdmin(quote.id, editInfo);
+            const infoToSave = { ...editInfo };
+            if (infoToSave.event_type_id !== 'Otro') infoToSave.event_type_other = null;
+            if (infoToSave.comuna_name !== 'Otra') infoToSave.comuna_other = null;
+
+            const res = await updateQuoteAdmin(quote.id, infoToSave);
             if (res.success) {
-                const updatedInfo = { ...editInfo };
+                const updatedInfo = { ...infoToSave };
                 if (updatedInfo.event_type_id) {
                     const foundTheme = eventTypes.find((t: any) => t.id === updatedInfo.event_type_id);
                     if (foundTheme) {

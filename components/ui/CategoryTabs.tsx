@@ -91,7 +91,7 @@ const CategoryTabs = React.forwardRef<HTMLDivElement, CategoryTabsProps>(({
     <div 
       ref={ref} 
       className={`sticky ${stickyTop} z-50 bg-white/95 backdrop-blur-md border-b border-brand-border/50 shadow-sm transition-all duration-300
-        ${fullWidth ? '-mx-4 sm:-mx-6 lg:-mx-8' : ''}
+        ${fullWidth ? 'w-[100vw] ml-[calc(50%-50vw)]' : ''}
       `}
     >
       <div className="max-w-[1200px] mx-auto px-4 sm:px-6">
@@ -155,7 +155,7 @@ const CategoryTabs = React.forwardRef<HTMLDivElement, CategoryTabsProps>(({
 
           {/* Slot para el carrito o elementos adicionales */}
           {children && (
-            <div className="flex-shrink-0 pl-2 border-l border-brand-border/30">
+            <div className="flex-shrink-0 pl-2 border-l border-brand-border/30 cart-button-target">
               {children}
             </div>
           )}

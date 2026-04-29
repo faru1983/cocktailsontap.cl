@@ -1,11 +1,12 @@
 'use client';
 
-import { useRef, useMemo } from 'react';
+import { useRef, useMemo, useState } from 'react';
 import type { useWizard } from '@/hooks/useWizard';
 import type { CocktailForWizard, Product, ICart } from '@/lib/types';
 import ProductCatalog from '@/components/catalog/ProductCatalog';
 import CategoryTabs from '../../ui/CategoryTabs';
-import { Box, Plus } from 'lucide-react';
+import CartModal from '@/components/catalog/CartModal';
+import { Box, Plus, ShoppingCart } from 'lucide-react';
 
 type WizardHook = ReturnType<typeof useWizard>;
 
@@ -16,7 +17,8 @@ interface Props {
 }
 
 export default function DirectStep1Products({ wizard, cocktails, categories }: Props) {
-    const { state, updateQuantity, toggleCategory } = wizard;
+    const { state, updateQuantity, toggleCategory, goToStep } = wizard;
+    const [cartOpen, setCartOpen] = useState(false);
 
     // Mantenemos la categoría activa del wizard o la primera disponible
     const currentCategory = state.expandedCategoryId || categories[0] || '';
@@ -80,6 +82,20 @@ export default function DirectStep1Products({ wizard, cocktails, categories }: P
         getQuantity: (id, size) => state.selections.find(s => s.id === id && s.size === size)?.quantity ?? 0
     };
 
+    // 3. Mapeo para el CartModal (que espera CartItem[])
+    const summaryData = wizard.calculateSummaryData();
+    const cartItems = summaryData.items.map(item => ({
+        productId: item.id,
+        productName: item.name,
+        size: item.selectedSize,
+        quantity: item.quantity,
+        price: item.totalNormalPrice / item.quantity,
+        offerPrice: item.totalOfferPrice / item.quantity,
+        image: item.image
+    }));
+
+    const totalItems = state.selections.reduce((sum, s) => sum + s.quantity, 0);
+
     return (
         <div className="flex flex-col">
             <h3 className="text-2xl font-extrabold text-brand-text mb-2">1. Barriles Desechables (5L)</h3>
@@ -113,7 +129,20 @@ export default function DirectStep1Products({ wizard, cocktails, categories }: P
                 onCategoryChange={handleCategoryChange}
                 stickyTop="top-[-1px]"
                 fullWidth={true}
-            />
+            >
+                <button
+                    type="button"
+                    className="bg-brand-text text-white border-none rounded-full px-5 py-2.5 flex items-center gap-2 text-[0.9rem] cursor-pointer transition-all hover:bg-primary hover:shadow-lg hover:-translate-y-0.5 shrink-0 relative"
+                    onClick={() => setCartOpen(true)}
+                >
+                    <ShoppingCart className="w-5 h-5" />
+                    {totalItems > 0 && (
+                        <span className="absolute -top-1 -right-1 bg-primary text-white rounded-full min-w-[20px] h-5 px-1.5 flex items-center justify-center text-[0.7rem] font-extrabold border-2 border-white shadow-sm">
+                            {totalItems}
+                        </span>
+                    )}
+                </button>
+            </CategoryTabs>
 
             {/* Catálogo de productos */}
             <div className="w-full" ref={catalogRef}>
@@ -123,6 +152,26 @@ export default function DirectStep1Products({ wizard, cocktails, categories }: P
                     cart={wizardCart}
                 />
             </div>
+
+            <CartModal
+                items={cartItems as any}
+                isOpen={cartOpen}
+                onClose={() => setCartOpen(false)}
+                onUpdateQuantity={(id, size, newQty) => {
+                    const current = state.selections.find(s => s.id === id && s.size === size)?.quantity ?? 0;
+                    updateQuantity(id, size, newQty - current);
+                }}
+                onRemove={(id, size) => {
+                    const current = state.selections.find(s => s.id === id && s.size === size)?.quantity ?? 0;
+                    updateQuantity(id, size, -current);
+                }}
+                getTotalPrice={() => summaryData.totalPrice - (summaryData.shippingCost || 0)}
+                ctaLabel="Confirmar selección"
+                onCtaClick={() => {
+                    setCartOpen(false);
+                    goToStep(2);
+                }}
+            />
         </div>
     );
 }

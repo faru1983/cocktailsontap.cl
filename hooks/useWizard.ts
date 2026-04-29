@@ -8,6 +8,8 @@ import { WHATSAPP_NUMBER } from '@/lib/config';
 
 export { calculateSmartConfig };
 
+// No persistence key needed as we revert to start-over on refresh
+
 const INITIAL_STATE: WizardState = {
     step: 1,
     serviceType: '',
@@ -50,11 +52,30 @@ export function useWizard(cocktails: CocktailForWizard[], comunas: Comuna[], cat
         return isNaN(step) ? 1 : step;
     }, [searchParams]);
 
-    const [state, setState] = useState<WizardState>(() => ({
+    const [state, setState] = useState<WizardState>({
         ...INITIAL_STATE,
         serviceType: initialServiceType,
         step: urlStep
-    }));
+    });
+
+    // Seguridad: Si se refresca la página en un paso > 1, pero no hay datos (estado inicial), volver al paso 1
+    useEffect(() => {
+        if (state.step > 1) {
+            const hasDate = state.eventData.date.trim() !== '';
+            const isMissingCriticalData = state.serviceType === 'event' 
+                ? (!hasDate || state.consumption.guests === 0)
+                : !hasDate;
+
+            if (isMissingCriticalData) {
+                // Forzar redirección al paso 1
+                const params = new URLSearchParams(searchParams.toString());
+                params.set('step', '1');
+                router.replace(`${pathname}?${params.toString()}`);
+                setState(prev => ({ ...prev, step: 1 }));
+            }
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []); // Solo al montar
 
     // Sincronizar el estado interno si la URL cambia (ej: botón Atrás del navegador)
     useEffect(() => {
@@ -107,6 +128,7 @@ export function useWizard(cocktails: CocktailForWizard[], comunas: Comuna[], cat
     const updateServiceType = useCallback((type: 'event' | 'direct') => {
         setState((prev) => ({ 
             ...prev,
+            ...INITIAL_STATE,
             serviceType: type, 
             dispenser: 'portatil',
             step: 1

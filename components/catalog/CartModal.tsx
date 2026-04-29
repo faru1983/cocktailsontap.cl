@@ -13,11 +13,13 @@ interface CartModalProps {
     onClose: () => void;
     onUpdateQuantity: (productId: string, size: string, qty: number) => void;
     onRemove: (productId: string, size: string) => void;
-    onShare: () => void;
+    onShare?: () => void;
+    ctaLabel?: string;
+    onCtaClick?: () => void;
     getTotalPrice: () => number;
 }
 
-export default function CartModal({ items, isOpen, onClose, onUpdateQuantity, onRemove, onShare, getTotalPrice }: CartModalProps) {
+export default function CartModal({ items, isOpen, onClose, onUpdateQuantity, onRemove, onShare, ctaLabel, onCtaClick, getTotalPrice }: CartModalProps) {
     useEffect(() => {
         if (isOpen) {
             document.body.style.overflow = 'hidden';
@@ -41,7 +43,7 @@ export default function CartModal({ items, isOpen, onClose, onUpdateQuantity, on
 
             <div className="w-full max-w-[500px] bg-white rounded-2xl shadow-2xl flex flex-col relative z-[251] max-h-[90vh] overflow-hidden animate-[slideUp_0.3s_ease]">
                 <div className="p-5 flex justify-between items-center bg-[#f8fafc] border-b border-brand-border">
-                    <h2 className="font-extrabold text-[1.25rem] text-brand-text m-0">Tu Cotización</h2>
+                    <h2 className="font-extrabold text-[1.25rem] text-brand-text m-0">Tu Selección</h2>
                     <button
                         className="w-8 h-8 rounded-full bg-white border border-brand-border flex items-center justify-center text-brand-text-muted cursor-pointer transition-colors hover:bg-[#ef4444] hover:text-white hover:border-[#ef4444]"
                         onClick={onClose}
@@ -55,7 +57,7 @@ export default function CartModal({ items, isOpen, onClose, onUpdateQuantity, on
                     {items.length === 0 ? (
                         <div className="flex flex-col items-center justify-center min-h-[12rem] text-brand-text-muted gap-3 text-[1.1rem]">
                             <ShoppingCart className="text-4xl opacity-50" />
-                            <p className="font-medium">Tu carrito está vacío</p>
+                            <p className="font-medium">Tu selección está vacía</p>
                         </div>
                     ) : (
                         <div className="flex flex-col gap-4">
@@ -86,6 +88,7 @@ export default function CartModal({ items, isOpen, onClose, onUpdateQuantity, on
                                                 <span className="text-brand-text-muted text-[0.85rem] font-bold bg-[#f1f5f9] px-2.5 py-1 rounded-md">{item.size}</span>
                                                 <div className="flex items-center gap-1 border border-brand-border rounded-lg p-0.5 bg-[#f8fafc]">
                                                     <button
+                                                        type="button"
                                                         className="w-[28px] h-[28px] rounded-md bg-white border border-brand-border text-brand-text font-bold shadow-sm flex items-center justify-center cursor-pointer transition-colors hover:bg-primary hover:text-white hover:border-primary"
                                                         onClick={() => onUpdateQuantity(item.productId, item.size, item.quantity - 1)}
                                                     >
@@ -99,6 +102,7 @@ export default function CartModal({ items, isOpen, onClose, onUpdateQuantity, on
                                                         onChange={(e) => onUpdateQuantity(item.productId, item.size, parseInt(e.target.value) || 1)}
                                                     />
                                                     <button
+                                                        type="button"
                                                         className="w-[28px] h-[28px] rounded-md bg-white border border-brand-border text-brand-text font-bold shadow-sm flex items-center justify-center cursor-pointer transition-colors hover:bg-primary hover:text-white hover:border-primary"
                                                         onClick={() => onUpdateQuantity(item.productId, item.size, item.quantity + 1)}
                                                     >
@@ -127,13 +131,21 @@ export default function CartModal({ items, isOpen, onClose, onUpdateQuantity, on
                                     <span>{formatCurrency(total)}</span>
                                 </div>
 
-                                <button
-                                    className="w-full py-3.5 mt-4 bg-gradient-to-r from-[#25d366] to-[#128c7e] text-white font-bold rounded-xl flex items-center justify-center gap-2 text-[1.05rem] shadow-[0_4px_15px_rgba(37,211,102,0.2)] transition-all hover:-translate-y-0.5 hover:shadow-[0_8px_20px_rgba(37,211,102,0.3)] cursor-pointer border-none"
-                                    onClick={onShare}
-                                >
-                                    <WhatsappIcon className="w-5 h-5" /> Compartir
-
-                                </button>
+                                {onCtaClick ? (
+                                    <button
+                                        className="w-full py-4 mt-4 bg-primary text-white font-black rounded-xl flex items-center justify-center gap-2 text-[1.1rem] shadow-[0_4px_15px_rgba(226,160,73,0.3)] transition-all hover:-translate-y-0.5 hover:shadow-[0_8px_25px_rgba(226,160,73,0.4)] cursor-pointer border-none active:scale-[0.98]"
+                                        onClick={onCtaClick}
+                                    >
+                                        {ctaLabel || 'Continuar'}
+                                    </button>
+                                ) : onShare ? (
+                                    <button
+                                        className="w-full py-3.5 mt-4 bg-gradient-to-r from-[#25d366] to-[#128c7e] text-white font-bold rounded-xl flex items-center justify-center gap-2 text-[1.05rem] shadow-[0_4px_15px_rgba(37,211,102,0.2)] transition-all hover:-translate-y-0.5 hover:shadow-[0_8px_20px_rgba(37,211,102,0.3)] cursor-pointer border-none"
+                                        onClick={onShare}
+                                    >
+                                        <WhatsappIcon className="w-5 h-5" /> Compartir
+                                    </button>
+                                ) : null}
                             </div>
                         </div>
                     )}

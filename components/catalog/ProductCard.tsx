@@ -11,8 +11,17 @@ interface ProductCardProps {
     cart: ICart;
 }
 
+interface Particle {
+    id: number;
+    x: number;
+    y: number;
+    tx: number;
+    ty: number;
+}
+
 export default function ProductCard({ product, cart }: ProductCardProps) {
     const [selectedSize, setSelectedSize] = useState(product.selectedSize || product.sizes[0]?.size || '');
+    const [particles, setParticles] = useState<Particle[]>([]);
 
     const sizeInfo = product.sizes.find((s) => s.size === selectedSize) ?? product.sizes[0];
     if (!sizeInfo) return null;
@@ -27,8 +36,77 @@ export default function ProductCard({ product, cart }: ProductCardProps) {
         setSelectedSize(newSize);
     };
 
+    const handleAddToCart = (e: React.MouseEvent<HTMLButtonElement>) => {
+        // 1. Agregar al carrito
+        cart.addItem(
+            product.id, 
+            product.name, 
+            selectedSize, 
+            sizeInfo.price, 
+            sizeInfo.offerPrice,
+            sizeInfo.sizeValue,
+            sizeInfo.unitId,
+            sizeInfo.isDisposable,
+            displayImage
+        );
+
+        // 2. Animación Fly to Cart (React + Tailwind v4)
+        const btn = e.currentTarget;
+        const target = document.querySelector('.cart-button-target');
+        
+        if (target) {
+            const btnRect = btn.getBoundingClientRect();
+            const targetRect = target.getBoundingClientRect();
+
+            // Calcular el desplazamiento (delta) hacia el centro del carrito
+            const tx = (targetRect.left + targetRect.width / 2) - (btnRect.left + btnRect.width / 2);
+            const ty = (targetRect.top + targetRect.height / 2) - (btnRect.top + btnRect.height / 2);
+
+            const newParticle: Particle = {
+                id: Date.now(),
+                x: btnRect.left + btnRect.width / 2 - 12,
+                y: btnRect.top + btnRect.height / 2 - 12,
+                tx,
+                ty
+            };
+
+            setParticles(prev => [...prev, newParticle]);
+
+            // Reacción visual del botón del carrito (bounce) usando el token de Tailwind v4
+            const cartButton = target.querySelector('button');
+            if (cartButton) {
+                cartButton.classList.remove('animate-cart-bounce');
+                void cartButton.offsetWidth; // Trigger reflow
+                cartButton.classList.add('animate-cart-bounce');
+            }
+        }
+    };
+
+    const removeParticle = (id: number) => {
+        setParticles(prev => prev.filter(p => p.id !== id));
+    };
+
     return (
         <div className="bg-white rounded-2xl overflow-hidden flex flex-col transition-all duration-300 shadow-[0_4px_15px_rgba(0,0,0,0.05)] border border-brand-border h-full group hover:-translate-y-1 hover:shadow-[0_12px_25px_rgba(0,0,0,0.1)]">
+            {/* Partículas voladoras (renderizadas vía React) */}
+            {particles.map(p => (
+                <div
+                    key={p.id}
+                    className="fixed z-[9999] pointer-events-none rounded-full bg-primary flex items-center justify-center text-white font-black shadow-lg text-[10px] animate-fly-to-cart"
+                    style={{
+                        width: '24px',
+                        height: '24px',
+                        left: p.x,
+                        top: p.y,
+                        '--tx': `${p.tx}px`,
+                        '--ty': `${p.ty}px`,
+                    } as any}
+                    onAnimationEnd={() => removeParticle(p.id)}
+                >
+                    +1
+                </div>
+            ))}
+
             <div className="aspect-square overflow-hidden bg-[#f8fafc] relative">
                 <Image
                     src={displayImage}
@@ -44,7 +122,7 @@ export default function ProductCard({ product, cart }: ProductCardProps) {
                 <p className="text-brand-text-muted text-[0.85rem] leading-[1.5] mb-4 flex-1">{product.description}</p>
 
                 <select
-                    className="w-full p-3 rounded-xl border border-brand-border bg-white text-[0.9rem] font-medium text-brand-text mb-5 outline-none transition-colors duration-200 cursor-pointer appearance-none bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20width%3D%2224%22%20height%3D%2224%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cpath%20d%3D%22M7%2010L12%2015L17%2010%22%20stroke%3D%22%231e293b%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%2F%3E%3C%2Fsvg%3E')] bg-no-repeat bg-[position:calc(100%-1rem)_center] pr-10 hover:border-primary focus:border-primary focus:ring-1 focus:ring-primary"
+                    className="w-full p-3 rounded-xl border border-brand-border bg-white text-[0.9rem] font-medium text-brand-text mb-5 outline-none transition-colors duration-200 cursor-pointer appearance-none bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20width%3D%2224%22%20height%3D%2224%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cpath%20d%3D%22M7%2010L12%2015L17%2010%22%20stroke%3D%22%231e293b%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%2F%3E%3C%2Fsvg%3E')] bg-no-repeat bg-[position:calc(100%-1rem)_center] pr-10 hover:border-primary focus:border-primary focus:ring-1 focus:ring-primary"
                     value={selectedSize}
                     onChange={(e) => handleSizeChange(e.target.value)}
                 >
@@ -79,17 +157,7 @@ export default function ProductCard({ product, cart }: ProductCardProps) {
                     <button
                         type="button"
                         className="w-full p-[0.85rem] rounded-xl font-bold text-[1rem] bg-brand-text text-white transition-all duration-300 hover:bg-primary hover:-translate-y-0.5 hover:shadow-[0_4px_15px_rgba(226,160,73,0.3)]"
-                        onClick={() => cart.addItem(
-                            product.id, 
-                            product.name, 
-                            selectedSize, 
-                            sizeInfo.price, 
-                            sizeInfo.offerPrice,
-                            sizeInfo.sizeValue,
-                            sizeInfo.unitId,
-                            sizeInfo.isDisposable,
-                            displayImage
-                        )}
+                        onClick={handleAddToCart}
                     >
                         Agregar
                     </button>
