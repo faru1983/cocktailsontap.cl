@@ -141,6 +141,7 @@ export default function DirectQuoteView({ quote, comunas, availableCocktails, ca
         const errors: Record<string, boolean> = {};
         
         if (phone.trim().length < 8) errors.phone = true;
+        if (lastName.trim().length < 2) errors.lastName = true;
         if (address.trim().length < 5) errors.address = true;
         if (!comuna || comuna === '...') errors.comuna = true;
         if (comuna === 'Otra' && !comunaOther.trim()) errors.comunaOther = true;
@@ -223,7 +224,7 @@ export default function DirectQuoteView({ quote, comunas, availableCocktails, ca
     }, [items, totals, comuna]);
 
     const reservationData: QuoteSummaryReservationData = useMemo(() => {
-        const fullName = `${quote.client_name}${quote.client_lastname ? ' ' + quote.client_lastname : ''}`;
+        const fullName = `${quote.client_name}${lastName ? ' ' + lastName : ''}`;
         return {
             clientName: fullName,
             clientEmail: quote.client_email || '',
@@ -239,7 +240,7 @@ export default function DirectQuoteView({ quote, comunas, availableCocktails, ca
             comments: comments,
             isDirect: true
         };
-    }, [quote.client_name, quote.client_lastname, quote.client_email, phone, address, comuna, comunaOther, eventDate, comments]);
+    }, [quote.client_name, lastName, quote.client_email, phone, address, comuna, comunaOther, eventDate, comments]);
 
     const mappedProducts: Product[] = useMemo(() => availableCocktails.map(c => ({
         id: c.id,
@@ -487,7 +488,7 @@ export default function DirectQuoteView({ quote, comunas, availableCocktails, ca
                             {statusCfg.label}
                         </span>
                     </div>
-                    <h1 className="text-xl sm:text-2xl font-black text-brand-text">Pedido de {quote.client_name}{quote.client_lastname ? ` ${quote.client_lastname}` : ''}</h1>
+                    <h1 className="text-xl sm:text-2xl font-black text-brand-text">Pedido de {quote.client_name}{lastName ? ` ${lastName}` : ''}</h1>
                     <p className="text-brand-text-muted text-[0.8rem] sm:text-[0.9rem]">Creado el {new Date(quote.created_at).toLocaleDateString('es-CL', { day: '2-digit', month: 'long', year: 'numeric' })}</p>
                 </div>
 
@@ -607,9 +608,21 @@ export default function DirectQuoteView({ quote, comunas, availableCocktails, ca
                                     <label className="text-[0.65rem] font-black text-brand-text-muted flex items-center gap-1.5 uppercase"><User className="w-3 h-3" /> Nombre</label>
                                     <p className="text-[0.9rem] text-brand-text font-bold truncate">{quote.client_name}</p>
                                 </div>
-                                <div className="flex flex-col gap-0.5">
-                                    <label className="text-[0.65rem] font-black text-brand-text-muted flex items-center gap-1.5 uppercase"><User className="w-3 h-3" /> Apellido</label>
-                                    <p className="text-[0.9rem] text-brand-text font-bold truncate">{quote.client_lastname || '--'}</p>
+                                <div className="flex flex-col gap-1">
+                                    <label className="text-[0.65rem] font-black text-brand-text-muted flex items-center gap-1.5 uppercase">
+                                        <User className="w-3 h-3" /> Apellido <span className="text-red-500">*</span>
+                                    </label>
+                                    <input
+                                        id="field-lastName"
+                                        type="text"
+                                        value={lastName}
+                                        onChange={(e) => {
+                                            setLastName(e.target.value);
+                                            setValidationErrors(prev => ({ ...prev, lastName: false }));
+                                        }}
+                                        placeholder="Apellido"
+                                        className={`w-full px-3 py-2.5 bg-slate-50 border rounded-xl text-[0.95rem] font-bold focus:outline-none focus:border-primary focus:bg-white transition-all shadow-sm ${validationErrors.lastName ? 'border-red-500 bg-red-50/30' : 'border-brand-border'}`}
+                                    />
                                 </div>
                             </div>
                             <div className="flex flex-col gap-0.5">

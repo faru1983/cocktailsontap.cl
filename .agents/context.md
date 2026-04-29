@@ -23,6 +23,10 @@
 
 ## Últimos Cambios
 
+### 28-04-2026 (Sesión 1)
+- **Fix de Validación**: Se resolvió el error "Datos inválidos" en la confirmación de cotizaciones. El problema era que el esquema Zod rechazaba valores `null` en `size_value` y esperaba números estrictos en campos que venían como `numeric` (strings) desde la base de datos.
+- **Robustez de Tipos**: Se actualizó `ConfirmQuoteSchema` en `lib/types.ts` para usar `z.coerce.number()` y `.nullable()` en campos críticos de los items de la cotización.
+
 ### 27-04-2026 (Sesión 3)
 - **Estrategia Meta Pixel**: Integración avanzada de tracking con `lib/fpixel.ts`. Se implementó **Lead Tracking** (al cotizar) y **Purchase Tracking** (al confirmar reserva o venta directa).
 - **Advanced Matching**: Los eventos del Píxel ahora envían datos del cliente (email, teléfono, nombre) de forma hasheada para mejorar la atribución de anuncios en Meta.
@@ -48,4 +52,4 @@
 - **Limpieza**: Se eliminó la carpeta `tests/` obsoleta.
 
 ---
-*Última actualización: 27-04-2026 (Sesión 3)*
+*Última actualización: 28-04-2026 (Sesión 1)*
