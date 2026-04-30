@@ -7,7 +7,7 @@ import { renderIconFromKey } from '@/lib/icons';
 import SelectField from '@/components/ui/SelectField';
 import OptionCard from '@/components/ui/OptionCard';
 import QuantitySelector from '@/components/ui/QuantitySelector';
-import { calculateMaxPickupDate, getTodayString } from '@/lib/wizardLogic';
+import { calculateMaxPickupDate, getMinDateString } from '@/lib/wizardLogic';
 
 type WizardHook = ReturnType<typeof useWizard>;
 
@@ -23,9 +23,9 @@ export default function WizardStep1({ wizard, eventTypes }: Props) {
     // Lógica para fechas de retiro 
     const minPickupDate = state.eventData.date;
     const maxPickupDate = calculateMaxPickupDate(state.eventData.date);
-    const today = getTodayString();
+    const tomorrow = getMinDateString(1);
     
-    let minDate = today;
+    let minDate = tomorrow;
 
     return (
         <div className="flex flex-col">
