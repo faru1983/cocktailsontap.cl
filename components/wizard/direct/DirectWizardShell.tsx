@@ -148,7 +148,7 @@ export default function DirectWizardShell({ cocktails, comunas, categories, init
     const renderStep = () => {
         // Force state step mapping for Direct Sale since we decoupled from WizardStep0 which sits at 0 now. Wait, WizardStep0 will route to here and we'll start at step 1.
         switch (state.step) {
-            case 1: return <DirectStep1Products wizard={wizard} cocktails={cocktails} categories={categories} />;
+            case 1: return <DirectStep1Products wizard={wizard} cocktails={cocktails} categories={categories} setValidationError={setValidationError} />;
             case 2: return <DirectStep2Delivery wizard={wizard} comunas={comunas} />;
             case 3: return <DirectStep3Summary wizard={wizard} cocktails={cocktails} comunas={comunas} />;
             default: return null; // WizardStep0 or success are handled elsewhere or mapped to 1

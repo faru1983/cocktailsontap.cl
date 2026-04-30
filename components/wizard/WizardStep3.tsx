@@ -15,9 +15,10 @@ interface Props {
     wizard: WizardHook;
     cocktails: CocktailForWizard[];
     categories: string[];
+    setValidationError: (msg: string) => void;
 }
 
-export default function WizardStep3({ wizard, cocktails, categories }: Props) {
+export default function WizardStep3({ wizard, cocktails, categories, setValidationError }: Props) {
     const { state, updateQuantity, toggleCategory, goToStep } = wizard;
     const [cartOpen, setCartOpen] = useState(false);
     const { config: suggestedConfig, liters: suggestedLiters } = calculateSmartConfig(state.consumption.guests, state.consumption.drinksPerPerson);
@@ -210,8 +211,17 @@ export default function WizardStep3({ wizard, cocktails, categories }: Props) {
                 getTotalPrice={() => summaryData.totalPrice - (summaryData.shippingCost || 0)}
                 ctaLabel="Confirmar selección"
                 onCtaClick={() => {
-                    setCartOpen(false);
-                    goToStep(4);
+
+                    const result = wizard.validateStep(3);
+                    if (result.valid) {
+                        setValidationError('');
+                        setCartOpen(false);
+                        goToStep(4);
+                    } else {
+                        setValidationError(result.message ?? '');
+                        setCartOpen(false);
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }
                 }}
             />
         </div>

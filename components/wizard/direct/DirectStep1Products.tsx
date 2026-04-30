@@ -14,9 +14,10 @@ interface Props {
     wizard: WizardHook;
     cocktails: CocktailForWizard[];
     categories: string[];
+    setValidationError: (msg: string) => void;
 }
 
-export default function DirectStep1Products({ wizard, cocktails, categories }: Props) {
+export default function DirectStep1Products({ wizard, cocktails, categories, setValidationError }: Props) {
     const { state, updateQuantity, toggleCategory, goToStep } = wizard;
     const [cartOpen, setCartOpen] = useState(false);
 
@@ -168,8 +169,24 @@ export default function DirectStep1Products({ wizard, cocktails, categories }: P
                 getTotalPrice={() => summaryData.totalPrice - (summaryData.shippingCost || 0)}
                 ctaLabel="Confirmar selección"
                 onCtaClick={() => {
-                    setCartOpen(false);
-                    goToStep(2);
+                    const hasMainProduct = state.selections.some(sel => {
+                        const product = cocktails.find(c => c.id === sel.id);
+                        return product && product.category !== 'Otros';
+                    });
+
+                    if (state.selections.length === 0) {
+                        setValidationError('Selecciona al menos un barril para continuar.');
+                        setCartOpen(false);
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                    } else if (!hasMainProduct) {
+                        setValidationError('Debes seleccionar al menos un barril para continuar (el hielo y decoraciones son productos complementarios).');
+                        setCartOpen(false);
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                    } else {
+                        setValidationError('');
+                        setCartOpen(false);
+                        goToStep(2);
+                    }
                 }}
             />
         </div>
