@@ -822,6 +822,16 @@ export async function deleteComuna(id: string) {
     return { success: true };
 }
 
+export async function updateQuickComunaField(id: string, updates: { cost?: number; direct_sale_delivery_cost?: number; free_from?: number | null }) {
+    await checkAuth();
+    const db = createServerClient();
+    const { error } = await db.from('comunas').update(updates).eq('id', id);
+    if (error) throw new Error(error.message);
+    revalidatePath('/admin/settings');
+    revalidatePath('/cotizar');
+    return { success: true };
+}
+
 // ── Bulk Actions ────────────────────────────────────────────────────────
 export async function bulkUpdateQuoteStatus(ids: string[], status: string) {
     await checkAuth();

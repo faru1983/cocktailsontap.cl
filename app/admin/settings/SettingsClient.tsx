@@ -9,12 +9,13 @@ import {
     deleteEventType, 
     saveComuna, 
     deleteComuna,
-    updateSiteSetting 
+    updateSiteSetting,
+    updateQuickComunaField
 } from '@/app/actions/admin/adminActions';
 import Modal from '@/components/admin/Modal';
 import { 
     Plus, Trash2, Edit2, MapPin, Calendar, Layout, Cpu, 
-    Mail, Star, Settings, MessageSquare, Check, X, RefreshCw
+    Mail, Star, Settings, MessageSquare, Check, X, RefreshCw, ArrowUpDown
 } from 'lucide-react';
 import { ICON_CATALOG, renderIconFromKey } from '@/lib/icons';
 
@@ -36,6 +37,26 @@ export default function SettingsClient({
     const [tab, setTab] = useState<'review' | 'events' | 'comunas' | 'system'>('review');
     const [isPending, startTransition] = useTransition();
     const [saved, setSaved] = useState(false);
+    const [savingId, setSavingId] = useState<string | null>(null);
+    const [sortComunas, setSortComunas] = useState<{ key: string; dir: 'asc' | 'desc' }>({ key: 'display_order', dir: 'asc' });
+
+    const handleQuickSaveComuna = async (id: string, field: 'cost' | 'direct_sale_delivery_cost' | 'free_from', value: string) => {
+        const numValue = value === '' ? (field === 'free_from' ? null : 0) : parseInt(value);
+        
+        // Find current value to avoid redundant saves
+        const current = initialComunas.find(c => c.id === id);
+        if (current && current[field] === numValue) return;
+
+        setSavingId(`${id}-${field}`);
+        try {
+            await updateQuickComunaField(id, { [field]: numValue });
+        } catch (err: any) {
+            console.error(err);
+            alert('Error al guardar: ' + err.message);
+        } finally {
+            setSavingId(null);
+        }
+    };
 
     // ─── Post-Venta State ───────────────────────────────────────────────────
     const [mode, setMode] = useState(reviewMode);
@@ -102,6 +123,25 @@ export default function SettingsClient({
             }
         });
     };
+
+    const toggleSortComuna = (key: string) => {
+        setSortComunas(prev => ({ key, dir: prev.key === key && prev.dir === 'asc' ? 'desc' : 'asc' }));
+    };
+
+    const sortedComunas = [...initialComunas].sort((a, b) => {
+        let valA = a[sortComunas.key];
+        let valB = b[sortComunas.key];
+        
+        if (valA === null || valA === undefined) valA = 0;
+        if (valB === null || valB === undefined) valB = 0;
+        
+        if (typeof valA === 'string') valA = valA.toLowerCase();
+        if (typeof valB === 'string') valB = valB.toLowerCase();
+
+        if (valA < valB) return sortComunas.dir === 'asc' ? -1 : 1;
+        if (valA > valB) return sortComunas.dir === 'asc' ? 1 : -1;
+        return 0;
+    });
 
     const handleDelete = async (id: string, name: string, type: 'event' | 'comuna') => {
         if (!confirm(`¿Estás seguro de que quieres eliminar "${name}"?`)) return;
@@ -300,21 +340,64 @@ export default function SettingsClient({
                             <table className="w-full border-collapse text-left">
                                 <thead>
                                     <tr className="bg-white/[0.02]">
-                                        <th className="px-6 py-4 text-slate-500 text-[10px] font-black uppercase tracking-widest border-b border-white/5">Ubicación</th>
-                                        <th className="px-6 py-4 text-slate-500 text-[10px] font-black uppercase tracking-widest border-b border-white/5">Tarifa Normal</th>
-                                        <th className="px-6 py-4 text-slate-500 text-[10px] font-black uppercase tracking-widest border-b border-white/5">Traslado Directo</th>
-                                        <th className="px-6 py-4 text-slate-500 text-[10px] font-black uppercase tracking-widest border-b border-white/5">Beneficio Mayorista</th>
+                                        <th className="px-6 py-4 text-slate-500 text-[10px] font-black uppercase tracking-widest border-b border-white/5 cursor-pointer hover:text-white transition-colors" onClick={() => toggleSortComuna('name')}>
+                                            <div className="flex items-center gap-1">Ubicación <ArrowUpDown size={10} className="opacity-50" /></div>
+                                        </th>
+                                        <th className="px-6 py-4 text-slate-500 text-[10px] font-black uppercase tracking-widest border-b border-white/5 cursor-pointer hover:text-white transition-colors" onClick={() => toggleSortComuna('cost')}>
+                                            <div className="flex items-center gap-1">Tarifa Normal <ArrowUpDown size={10} className="opacity-50" /></div>
+                                        </th>
+                                        <th className="px-6 py-4 text-slate-500 text-[10px] font-black uppercase tracking-widest border-b border-white/5 cursor-pointer hover:text-white transition-colors" onClick={() => toggleSortComuna('direct_sale_delivery_cost')}>
+                                            <div className="flex items-center gap-1">Traslado Directo <ArrowUpDown size={10} className="opacity-50" /></div>
+                                        </th>
+                                        <th className="px-6 py-4 text-slate-500 text-[10px] font-black uppercase tracking-widest border-b border-white/5 cursor-pointer hover:text-white transition-colors" onClick={() => toggleSortComuna('free_from')}>
+                                            <div className="flex items-center gap-1">Beneficio Mayorista <ArrowUpDown size={10} className="opacity-50" /></div>
+                                        </th>
                                         <th className="text-right px-6 py-4 text-slate-500 text-[10px] font-black uppercase tracking-widest border-b border-white/5">Acciones</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {initialComunas.map(item => (
-                                        <tr key={item.id} className="border-t border-white/[0.03] hover:bg-white/[0.01] transition-colors">
+                                    {sortedComunas.map(item => (
+                                        <tr key={item.id} className="border-t border-white/[0.03] hover:bg-white/[0.01] transition-colors group">
                                             <td className="px-6 py-4 text-white font-bold text-sm">{item.name}</td>
-                                            <td className="px-6 py-4 text-[#E2A049] font-black text-sm">{formatCLP(item.cost)}</td>
-                                            <td className="px-6 py-4 text-sky-400 font-black text-sm">{formatCLP(item.direct_sale_delivery_cost)}</td>
-                                            <td className="px-6 py-4 text-slate-400 text-xs font-bold">
-                                                {item.free_from ? <span className="bg-emerald-500/10 text-emerald-400 px-2 py-1 rounded-md">Envío sin costo {'>'} {item.free_from}L</span> : <span className="text-slate-600 italic">No aplica</span>}
+                                            <td className="px-6 py-4">
+                                                <div className="flex items-center gap-1 group/input">
+                                                    <span className="text-slate-600 text-xs font-bold">$</span>
+                                                    <input 
+                                                        type="number"
+                                                        defaultValue={item.cost || 0}
+                                                        className={`bg-transparent border-none p-0 w-20 text-[#E2A049] text-sm font-black focus:ring-0 outline-none hover:bg-white/5 rounded px-1 transition-all ${savingId === `${item.id}-cost` ? 'opacity-30' : ''}`}
+                                                        onBlur={(e) => handleQuickSaveComuna(item.id, 'cost', e.target.value)}
+                                                        onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
+                                                    />
+                                                    {savingId === `${item.id}-cost` && <RefreshCw size={10} className="text-[#E2A049] animate-spin" />}
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <div className="flex items-center gap-1 group/input">
+                                                    <span className="text-slate-600 text-xs font-bold">$</span>
+                                                    <input 
+                                                        type="number"
+                                                        defaultValue={item.direct_sale_delivery_cost || 0}
+                                                        className={`bg-transparent border-none p-0 w-20 text-sky-400 text-sm font-black focus:ring-0 outline-none hover:bg-white/5 rounded px-1 transition-all ${savingId === `${item.id}-direct_sale_delivery_cost` ? 'opacity-30' : ''}`}
+                                                        onBlur={(e) => handleQuickSaveComuna(item.id, 'direct_sale_delivery_cost', e.target.value)}
+                                                        onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
+                                                    />
+                                                    {savingId === `${item.id}-direct_sale_delivery_cost` && <RefreshCw size={10} className="text-[#E2A049] animate-spin" />}
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <div className="flex items-center gap-1 group/input">
+                                                    <input 
+                                                        type="number"
+                                                        defaultValue={item.free_from || ''}
+                                                        placeholder="N/A"
+                                                        className={`bg-transparent border-none p-0 w-12 text-emerald-400 text-xs font-bold focus:ring-0 outline-none hover:bg-white/5 rounded px-1 transition-all ${savingId === `${item.id}-free_from` ? 'opacity-30' : ''}`}
+                                                        onBlur={(e) => handleQuickSaveComuna(item.id, 'free_from', e.target.value)}
+                                                        onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
+                                                    />
+                                                    <span className="text-slate-600 text-[10px] font-bold">L</span>
+                                                    {savingId === `${item.id}-free_from` && <RefreshCw size={10} className="text-[#E2A049] animate-spin" />}
+                                                </div>
                                             </td>
                                             <td className="px-6 py-4 text-right">
                                                 <div className="flex gap-2 justify-end">
@@ -330,7 +413,7 @@ export default function SettingsClient({
 
                         {/* Card View (Mobile) */}
                         <div className="grid grid-cols-1 gap-3 md:hidden">
-                            {initialComunas.map(item => (
+                            {sortedComunas.map(item => (
                                 <div key={item.id} className="bg-[#1e2433] p-4 rounded-xl border border-white/5 shadow-md flex justify-between items-center transition-all active:scale-[0.98]">
                                     <div>
                                         <div className="text-white font-black text-base mb-1">{item.name}</div>
