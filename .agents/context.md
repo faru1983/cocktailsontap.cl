@@ -8,7 +8,7 @@
 
 ### 2. Retiro de Evento
 - **Mismo día que el evento**: Debe quedar siempre como **Todo el día** (independiente de si hay hora o no).
-- **Día siguiente**: 
+- **Día siguiente**:
   - Si el cliente ingresa un rango (ej: "12:00 a 14:00"), se usa ese rango exacto.
   - Si no hay rango, queda como duración 0 en la hora de inicio.
   - Si no hay hora, queda como "Todo el día".
@@ -20,8 +20,14 @@
 - **Evento**: Draft -> Confirmado (via link único).
 - **Venta Directa (Desechables)**: Confirmado directamente (sin draft).
 
-
 ## Últimos Cambios
+
+### 13-05-2026 (Sesión 1)
+- **Compatibilidad de Confirmación**: Se corrigió `confirmQuote` para reemplazar por completo los `quote_items` al confirmar una cotización, evitando duplicados cuando la cotización fue creada desde el admin o contenía IDs temporales/legacy.
+- **Robustez de Esquemas**: Se ajustó `ConfirmQuoteSchema` y `QuoteItem` para tolerar `null` en `is_disposable` y `size_value`, normalizando estos valores al confirmar cotizaciones antiguas o manuales.
+- **Creación Manual Admin**: Se alineó `CreateQuoteManualClient.tsx` con la estructura del wizard público, preservando metadata completa de tamaños/precios y habilitando la temática `Otro` con campo personalizado.
+- **Alineación de Flujos**: Se bloquearon los campos de contacto no editables y se alineó el texto de pago total en la vista pública de evento y en correos de confirmación.
+- **Pagos Completos**: El flujo de reserva de evento ahora solicita `100%` del total, igual que la venta directa, eliminando referencias a abono parcial y saldo restante.
 
 ### 28-04-2026 (Sesión 1)
 - **Fix de Validación**: Se resolvió el error "Datos inválidos" en la confirmación de cotizaciones. El problema era que el esquema Zod rechazaba valores `null` en `size_value` y esperaba números estrictos en campos que venían como `numeric` (strings) desde la base de datos.
@@ -52,4 +58,4 @@
 - **Limpieza**: Se eliminó la carpeta `tests/` obsoleta.
 
 ---
-*Última actualización: 28-04-2026 (Sesión 1)*
+*Última actualización: 13-05-2026 (Sesión 1)*
