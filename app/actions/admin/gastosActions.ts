@@ -20,14 +20,14 @@ export async function addExpense(data: {
     await checkAuth();
     const db = createServerClient();
     
-    const { data: inserted, error } = await db.from('expenses').insert([{
+    const { error } = await db.from('expenses').insert([{
         amount: data.amount,
         payment_method: data.payment_method,
         expense_date: data.expense_date,
         category_id: data.category_id,
         subcategory_id: data.subcategory_id,
         notes: data.notes || null
-    }]).select('*, category_id(name), subcategory_id(name)').single();
+    }]);
 
     if (error) {
         console.error('Error adding expense:', error);
@@ -37,16 +37,7 @@ export async function addExpense(data: {
     revalidatePath('/admin/gastos');
     revalidatePath('/admin/estadisticas');
     
-    // Transform selected data into the interface format
-    const transformed = {
-        ...inserted,
-        category_name: (inserted as any).category_id?.name,
-        subcategory_name: (inserted as any).subcategory_id?.name,
-        category_id: inserted.category_id,
-        subcategory_id: inserted.subcategory_id
-    };
-    
-    return { success: true, data: transformed };
+    return { success: true };
 }
 
 export async function deleteExpense(id: string) {

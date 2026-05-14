@@ -1,61 +1,52 @@
 # Contexto de Negocio - Cocktails on Tap
 
-## Reglas Críticas de Calendario (Google Calendar)
+## Reglas Criticas de Calendario (Google Calendar)
 
 ### 1. Reserva de Evento
-- **Con Hora**: El evento debe tener duración 0 (Hora de inicio y fin idénticas).
-- **Sin Hora**: Se marca como "Todo el día". La fecha de fin en Google API debe ser el día siguiente (exclusiva).
+- **Con Hora**: El evento debe tener duracion 0 (hora de inicio y fin identicas).
+- **Sin Hora**: Se marca como "Todo el dia". La fecha de fin en Google API debe ser el dia siguiente (exclusiva).
 
 ### 2. Retiro de Evento
-- **Mismo día que el evento**: Debe quedar siempre como **Todo el día** (independiente de si hay hora o no).
-- **Día siguiente**:
+- **Mismo dia que el evento**: Debe quedar siempre como **Todo el dia**.
+- **Dia siguiente**:
   - Si el cliente ingresa un rango (ej: "12:00 a 14:00"), se usa ese rango exacto.
-  - Si no hay rango, queda como duración 0 en la hora de inicio.
-  - Si no hay hora, queda como "Todo el día".
+  - Si no hay rango, queda como duracion 0 en la hora de inicio.
+  - Si no hay hora, queda como "Todo el dia".
 
-### 3. Sincronización
-- La base de datos es la prioridad. Si Google o Resend fallan, el error se loguea en el campo `comments` de la cotización para auditoría administrativa, pero no debe bloquear la experiencia del usuario.
+### 3. Sincronizacion
+- La base de datos es prioridad. Si Google o Resend fallan, el error se guarda en `comments` de la cotizacion para auditoria, sin bloquear al usuario.
 
 ## Flujos de Venta
-- **Evento**: Draft -> Confirmado (via link único).
-- **Venta Directa (Desechables)**: Confirmado directamente (sin draft).
+- **Evento**: Draft -> Confirmado (via link unico).
+- **Venta Directa (Desechables)**: Confirmado directo (sin draft).
 
-## Últimos Cambios
+## Ultimos Cambios
 
-### 13-05-2026 (Sesión 1)
-- **Compatibilidad de Confirmación**: Se corrigió `confirmQuote` para reemplazar por completo los `quote_items` al confirmar una cotización, evitando duplicados cuando la cotización fue creada desde el admin o contenía IDs temporales/legacy.
-- **Robustez de Esquemas**: Se ajustó `ConfirmQuoteSchema` y `QuoteItem` para tolerar `null` en `is_disposable` y `size_value`, normalizando estos valores al confirmar cotizaciones antiguas o manuales.
-- **Creación Manual Admin**: Se alineó `CreateQuoteManualClient.tsx` con la estructura del wizard público, preservando metadata completa de tamaños/precios y habilitando la temática `Otro` con campo personalizado.
-- **Alineación de Flujos**: Se bloquearon los campos de contacto no editables y se alineó el texto de pago total en la vista pública de evento y en correos de confirmación.
-- **Pagos Completos**: El flujo de reserva de evento ahora solicita `100%` del total, igual que la venta directa, eliminando referencias a abono parcial y saldo restante.
+### 14-05-2026 (Sesion 2)
+- **Gastos - Iteracion Final**: `/admin/gastos` vuelve a lista mensual completa (sin paginacion al pie), manteniendo KPIs calculados con el total del mes.
+- **Gastos - KPIs Ajustados**: Se ordenaron y renombraron KPIs para mostrar `Movimientos`, `Gastos Total Mes`, `Ingresos del mes` y `Utilidad del mes`.
+- **Estadisticas - Header y Filtro**: `/admin/estadisticas` adopta cabecera estilo gastos, elimina tabs de rango y usa filtro unico por `Ano + Mes` con flechas y boton `Este mes`, persistido en `?month=YYYY-MM`.
+- **Estadisticas V2**: Se agregaron comparativas `vs mes anterior` y `vs mismo mes del ano anterior` (porcentaje + monto base), KPIs ejecutivos, tendencia semanal y alertas del periodo.
+- **Archivos Modificados**: `app/admin/gastos/page.tsx`, `app/admin/gastos/GastosClient.tsx`, `app/actions/admin/gastosActions.ts`, `app/admin/estadisticas/page.tsx`, `app/admin/estadisticas/StatsClient.tsx`, `.agents/context.md`.
 
-### 28-04-2026 (Sesión 1)
-- **Fix de Validación**: Se resolvió el error "Datos inválidos" en la confirmación de cotizaciones. El problema era que el esquema Zod rechazaba valores `null` en `size_value` y esperaba números estrictos en campos que venían como `numeric` (strings) desde la base de datos.
-- **Robustez de Tipos**: Se actualizó `ConfirmQuoteSchema` en `lib/types.ts` para usar `z.coerce.number()` y `.nullable()` en campos críticos de los items de la cotización.
+### 14-05-2026 (Sesion 1)
+- **Gastos por Periodo Mensual**: `/admin/gastos` abre por defecto en mes actual (`America/Santiago`) y soporta `?month=YYYY-MM`.
+- **Optimizacion Supabase/Vercel**: Se acotaron consultas por mes y se reemplazo `select('*')` por campos especificos.
+- **KPIs de Gestion**: Se agregaron tarjetas y desglose mensual por categoria.
+- **Server Action Liviana**: `addExpense` deja de retornar la fila completa insertada.
 
-### 27-04-2026 (Sesión 3)
-- **Estrategia Meta Pixel**: Integración avanzada de tracking con `lib/fpixel.ts`. Se implementó **Lead Tracking** (al cotizar) y **Purchase Tracking** (al confirmar reserva o venta directa).
-- **Advanced Matching**: Los eventos del Píxel ahora envían datos del cliente (email, teléfono, nombre) de forma hasheada para mejorar la atribución de anuncios en Meta.
-- **Detalle de Productos**: Se añadió el paso de parámetros `contents` (IDs de productos y cantidades) y `value` (precio total) en cada evento para optimización de ROAS.
-- **Estabilidad de Build**: Se corrigió un error crítico de Next.js que fallaba el deploy en Vercel al usar `useSearchParams()` sin un `<Suspense>` boundary en `/barriles`, `/eventos` y `/cotizar`.
-- **Nuevos Archivos**: Creación de `lib/fpixel.ts` para centralizar la lógica de tracking.
+### 13-05-2026 (Sesion 1)
+- **Confirmacion**: `confirmQuote` reemplaza por completo `quote_items` al confirmar para evitar duplicados legacy.
+- **Esquemas Robustos**: `ConfirmQuoteSchema` y `QuoteItem` toleran `null` en campos historicos.
+- **Creacion Manual Admin**: `CreateQuoteManualClient.tsx` alineado con wizard publico y soporte de tematica `Otro`.
+- **Pagos Completos**: Reserva de evento solicita `100%` del total, igual que venta directa.
 
-### 27-04-2026 (Sesión 2)
-- **Navegación Pro**: Sincronización de pasos del wizard con la URL (`?step=X`) en `useWizard.ts` para mejor UX, soporte de botón "Atrás" y persistencia de estado.
-- **Redirección de Éxito**: Los wizards ahora redirigen automáticamente a la URL canónica de la cotización (`/cotizar/[token]?new=true`) tras el guardado, eliminando pantallas de éxito aisladas.
-- **Celebración Integrada**: Se habilitó una "vista de primer acceso" en `EventQuoteView.tsx` y `DirectQuoteView.tsx` que muestra el componente de éxito premium (`WizardSuccess`) directamente sobre la cotización.
-- **Limpieza**: Eliminación definitiva de la carpeta `app/api`, consolidando el uso de Server Actions.
+### 28-04-2026 (Sesion 1)
+- **Fix de Validacion**: Corregido error "Datos invalidos" en confirmacion por coercion de numericos y nullables.
 
-### 27-04-2026 (Sesión 1)
-- **Sincronización de Calendario**: Se unificó la lógica en `GoogleSyncService.ts` para que las ventas directas se agenden correctamente en el calendario de "Venta Directa" usando el criterio `service_type === 'direct'`.
-- **UI de Éxito Premium**: Se rediseñaron las pantallas de éxito de `DirectQuoteView.tsx` y `DirectWizardSuccess.tsx` para lograr paridad visual absoluta con los flujos de eventos (estética light, tarjetas premium y animaciones).
-- **Consistencia de Información**: Se actualizó `QuoteSummaryReservation.tsx` para mostrar siempre el tipo de servicio, eliminando vacíos de información en los resúmenes de venta directa.
-- **Troubleshooting Producción**: Se identificó un error de configuración en Vercel donde las variables de entorno de Google Calendar no tenían el prefijo `GOOGLE_`, lo que causaba que la producción usara fallbacks incorrectos.
-- **Emails**: Se ajustaron las etiquetas de datos bancarios en `ConfirmationEmail.tsx` para mayor claridad.
-
-### 24-04-2026
-- **Build Fix**: Se resolvió un error que impedía el deploy en Vercel causado por tipos incompatibles en archivos de test.
-- **Limpieza**: Se eliminó la carpeta `tests/` obsoleta.
+### 27-04-2026 (Sesion 3)
+- **Meta Pixel**: Integracion avanzada con `lib/fpixel.ts` (Lead + Purchase, advanced matching y contents/value).
+- **Build Stability**: Fix de Suspense boundary para `useSearchParams` en rutas publicas.
 
 ---
-*Última actualización: 13-05-2026 (Sesión 1)*
+*Ultima actualizacion: 14-05-2026 (Sesion 2)*

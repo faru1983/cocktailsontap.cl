@@ -3,10 +3,10 @@
 import React, { useState, useTransition, useMemo, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { 
-    CreditCard, Smartphone, Banknote, Trash2, CalendarDays, 
-    Tag, Edit2, X, Plus, ChevronDown, List,
-    Check, Wallet, ArrowRight, FolderPlus, 
-    Search, Pencil, Layers, Save
+    CreditCard, Smartphone, Banknote, Trash2,
+    Edit2, X, Plus, List, Check, Wallet, FolderPlus,
+    Search, Pencil, Layers, Save, CalendarDays,
+    ArrowLeft, ArrowRight, Receipt, Hash, Calculator, PieChart
 } from 'lucide-react';
 import { 
     addExpense, deleteExpense, updateExpense,
@@ -29,6 +29,30 @@ interface Expense {
     category_id: string;
     subcategory_id: string;
 }
+interface MonthlyStats {
+    total: number;
+    count: number;
+    average: number;
+    revenue: number;
+    profit: number;
+    topCategoryName: string;
+    topCategoryAmount: number;
+    categoryTotals: Array<[string, number]>;
+}
+const MONTH_OPTIONS = [
+    { value: '01', label: 'Enero' },
+    { value: '02', label: 'Febrero' },
+    { value: '03', label: 'Marzo' },
+    { value: '04', label: 'Abril' },
+    { value: '05', label: 'Mayo' },
+    { value: '06', label: 'Junio' },
+    { value: '07', label: 'Julio' },
+    { value: '08', label: 'Agosto' },
+    { value: '09', label: 'Septiembre' },
+    { value: '10', label: 'Octubre' },
+    { value: '11', label: 'Noviembre' },
+    { value: '12', label: 'Diciembre' }
+];
 
 const getPaymentIcon = (method: string) => {
     if (method === 'Tarjeta') return <CreditCard size={18} />;
@@ -37,32 +61,52 @@ const getPaymentIcon = (method: string) => {
 };
 
 const formatCLP = (n: number) => new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0 }).format(n);
+type Tab = 'list' | 'cats' | 'pay';
+type ActionResult = { success: boolean; error?: string };
+
+const parseTab = (value: string | null): Tab => {
+    if (value === 'cats' || value === 'pay') return value;
+    return 'list';
+};
 
 export default function GastosClient({ 
     categories, 
     subcategories, 
     initialExpenses,
-    paymentMethods 
+    paymentMethods,
+    selectedMonth,
+    currentMonth,
+    monthLabel,
+    previousMonth,
+    nextMonth,
+    monthlyStats
 }: { 
     categories: Category[]; 
     subcategories: Subcategory[]; 
     initialExpenses: Expense[];
     paymentMethods: PaymentMethod[];
+    selectedMonth: string;
+    currentMonth: string;
+    monthLabel: string;
+    previousMonth: string;
+    nextMonth: string;
+    monthlyStats: MonthlyStats;
 }) {
     const router = useRouter();
     const searchParams = useSearchParams();
     const [isPending, startTransition] = useTransition();
 
-    const [tab, setTab] = useState<'list' | 'cats' | 'pay'>((searchParams.get('tab') as any) || 'list');
+    const [tab, setTab] = useState<Tab>(parseTab(searchParams.get('tab')));
 
     useEffect(() => {
         const currentTab = searchParams.get('tab');
         if (currentTab !== tab) {
             const params = new URLSearchParams(searchParams);
             params.set('tab', tab);
+            params.set('month', selectedMonth);
             router.replace(`/admin/gastos?${params.toString()}`, { scroll: false });
         }
-    }, [tab, router, searchParams]);
+    }, [tab, router, searchParams, selectedMonth]);
 
     const [expenses, setExpenses] = useState(initialExpenses);
     const [filterCat, setFilterCat] = useState('');
@@ -87,6 +131,13 @@ export default function GastosClient({
     const [isCreateCatOpen, setIsCreateCatOpen] = useState(false);
     const [isCreateSubOpen, setIsCreateSubOpen] = useState(false);
     const [isCreatePayOpen, setIsCreatePayOpen] = useState(false);
+    const [selectedYear, selectedMonthNum] = selectedMonth.split('-');
+    const currentYear = Number(currentMonth.split('-')[0]);
+    const yearOptions = Array.from({ length: 7 }, (_, i) => String(currentYear - 3 + i));
+
+    useEffect(() => {
+        setExpenses(initialExpenses);
+    }, [initialExpenses]);
 
     const filteredExpenses = useMemo(() => {
         return expenses.filter(e => {
@@ -97,6 +148,16 @@ export default function GastosClient({
             return matchesCat && matchesSearch;
         });
     }, [expenses, filterCat, searchTerm]);
+
+    const navigateToMonth = (month: string) => {
+        if (!month) return;
+        const params = new URLSearchParams(searchParams);
+        params.set('month', month);
+        params.set('tab', tab);
+        router.replace(`/admin/gastos?${params.toString()}`, { scroll: false });
+    };
+    const handleYearChange = (year: string) => navigateToMonth(`${year}-${selectedMonthNum}`);
+    const handleMonthChange = (monthNum: string) => navigateToMonth(`${selectedYear}-${monthNum}`);
 
     const handleOpenCreate = (expense: Expense | null = null) => {
         setEditingExpense(expense);
@@ -120,17 +181,13 @@ export default function GastosClient({
             else res = await addExpense(data);
 
             if (res.success) {
-                if (editingExpense) {
-                   router.refresh(); 
-                } else {
-                   const newExp = (res as any).data;
-                   if (newExp) setExpenses([newExp, ...expenses]);
-                   else router.refresh();
-                }
+                const expenseMonth = data.expense_date.slice(0, 7);
+                if (expenseMonth !== selectedMonth) navigateToMonth(expenseMonth);
+                else router.refresh();
                 setIsCreateOpen(false);
                 setEditingExpense(null);
-            } else if ((res as any).error) {
-                alert((res as any).error);
+            } else if ((res as ActionResult).error) {
+                alert((res as ActionResult).error);
             }
         });
     };
@@ -151,7 +208,7 @@ export default function GastosClient({
         startTransition(async () => {
             const res = await addExpenseCategory(newCatName);
             if (res.success) { setNewCatName(''); setIsCreateCatOpen(false); refreshData(); }
-            else if ((res as any).error) alert((res as any).error);
+            else if ((res as ActionResult).error) alert((res as ActionResult).error);
         });
     };
 
@@ -161,7 +218,7 @@ export default function GastosClient({
         startTransition(async () => {
             const res = await addExpenseSubcategory(selectedCatForSub, newSubName);
             if (res.success) { setNewSubName(''); setIsCreateSubOpen(false); refreshData(); }
-            else if ((res as any).error) alert((res as any).error);
+            else if ((res as ActionResult).error) alert((res as ActionResult).error);
         });
     };
 
@@ -255,6 +312,41 @@ export default function GastosClient({
                 </button>
             </div>
 
+            <div className="bg-[#1e2433] rounded-2xl border border-white/5 p-4 md:p-5 mb-6 shadow-xl">
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2.5 bg-[#E2A049]/10 rounded-xl text-[#E2A049]">
+                            <CalendarDays size={20} />
+                        </div>
+                        <div>
+                            <div className="text-[10px] text-slate-500 font-black uppercase tracking-widest">Periodo activo</div>
+                            <div className="text-white font-black text-lg capitalize">{monthLabel}</div>
+                        </div>
+                    </div>
+                    <div className="flex flex-col sm:flex-row gap-2">
+                        <div className="grid grid-cols-3 gap-2">
+                            <button onClick={() => navigateToMonth(previousMonth)} className="px-3 py-2 bg-black/20 border border-white/10 rounded-xl text-slate-400 hover:text-white hover:border-[#E2A049]/40 transition-colors flex items-center justify-center cursor-pointer" title="Mes anterior">
+                                <ArrowLeft size={16} />
+                            </button>
+                            <button onClick={() => navigateToMonth(currentMonth)} className="px-3 py-2 bg-black/20 border border-white/10 rounded-xl text-slate-300 hover:text-[#E2A049] hover:border-[#E2A049]/40 transition-colors text-xs font-black cursor-pointer">
+                                Este mes
+                            </button>
+                            <button onClick={() => navigateToMonth(nextMonth)} className="px-3 py-2 bg-black/20 border border-white/10 rounded-xl text-slate-400 hover:text-white hover:border-[#E2A049]/40 transition-colors flex items-center justify-center cursor-pointer" title="Mes siguiente">
+                                <ArrowRight size={16} />
+                            </button>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                            <select value={selectedYear} onChange={e => handleYearChange(e.target.value)} className="bg-black/20 border border-white/10 rounded-xl px-3 py-2 text-white outline-none focus:border-[#E2A049] transition-colors text-sm">
+                                {yearOptions.map(year => <option key={year} value={year}>{year}</option>)}
+                            </select>
+                            <select value={selectedMonthNum} onChange={e => handleMonthChange(e.target.value)} className="bg-black/20 border border-white/10 rounded-xl px-3 py-2 text-white outline-none focus:border-[#E2A049] transition-colors text-sm">
+                                {MONTH_OPTIONS.map(month => <option key={month.value} value={month.value}>{month.label}</option>)}
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <div className="flex flex-wrap sm:flex-nowrap gap-1.5 border-b border-white/5 mb-8 pb-3">
                 <button className={`flex-1 sm:flex-none text-center px-4 py-2 rounded-lg text-sm font-bold transition-all cursor-pointer ${tab === 'list' ? 'bg-[#E2A049]/10 text-[#E2A049]' : 'text-slate-500 hover:text-slate-300'}`} onClick={() => setTab('list')}>Gastos</button>
                 <button className={`flex-1 sm:flex-none text-center px-4 py-2 rounded-lg text-sm font-bold transition-all cursor-pointer ${tab === 'cats' ? 'bg-[#E2A049]/10 text-[#E2A049]' : 'text-slate-500 hover:text-slate-300'}`} onClick={() => setTab('cats')}>Categorías</button>
@@ -263,6 +355,54 @@ export default function GastosClient({
 
             {tab === 'list' && (
                 <div className="animate-in fade-in duration-500">
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+                        <div className="bg-[#1e2433] rounded-2xl border border-white/5 border-t-2 border-t-sky-400 p-4 shadow-xl">
+                            <Hash size={17} className="text-sky-400 mb-3" />
+                            <div className="text-white text-lg md:text-xl font-black">{monthlyStats.count}</div>
+                            <div className="text-slate-500 text-[10px] font-black uppercase tracking-widest">Movimientos</div>
+                        </div>
+                        <div className="bg-[#1e2433] rounded-2xl border border-white/5 border-t-2 border-t-rose-400 p-4 shadow-xl">
+                            <Receipt size={17} className="text-rose-400 mb-3" />
+                            <div className="text-white text-lg md:text-xl font-black truncate" title={formatCLP(monthlyStats.total)}>{formatCLP(monthlyStats.total)}</div>
+                            <div className="text-slate-500 text-[10px] font-black uppercase tracking-widest">Gastos Total Mes</div>
+                        </div>
+                        <div className="bg-[#1e2433] rounded-2xl border border-white/5 border-t-2 border-t-emerald-400 p-4 shadow-xl">
+                            <Calculator size={17} className="text-emerald-400 mb-3" />
+                            <div className="text-white text-lg md:text-xl font-black truncate" title={formatCLP(monthlyStats.revenue)}>{formatCLP(monthlyStats.revenue)}</div>
+                            <div className="text-slate-500 text-[10px] font-black uppercase tracking-widest">Ingresos del mes</div>
+                        </div>
+                        <div className="bg-[#1e2433] rounded-2xl border border-white/5 border-t-2 border-t-[#E2A049] p-4 shadow-xl">
+                            <PieChart size={17} className="text-[#E2A049] mb-3" />
+                            <div className={`text-white text-lg md:text-xl font-black truncate ${monthlyStats.profit >= 0 ? 'text-sky-400' : 'text-rose-400'}`} title={formatCLP(monthlyStats.profit)}>{formatCLP(monthlyStats.profit)}</div>
+                            <div className="text-slate-500 text-[10px] font-black uppercase tracking-widest truncate">Utilidad del mes</div>
+                        </div>
+                    </div>
+
+                    {monthlyStats.categoryTotals.length > 0 && (
+                        <div className="bg-[#1e2433] rounded-2xl border border-white/5 p-5 mb-6 shadow-xl">
+                            <div className="flex items-center gap-2 mb-4">
+                                <Layers size={16} className="text-[#E2A049]" />
+                                <h3 className="text-white text-sm font-black">Desglose por categoria</h3>
+                            </div>
+                            <div className="space-y-4">
+                                {monthlyStats.categoryTotals.map(([name, amount]) => {
+                                    const pct = monthlyStats.total ? (amount / monthlyStats.total) * 100 : 0;
+                                    return (
+                                        <div key={name}>
+                                            <div className="flex justify-between items-baseline gap-3 mb-2">
+                                                <span className="text-slate-200 text-xs font-bold truncate">{name}</span>
+                                                <span className="text-[#E2A049] text-xs font-black whitespace-nowrap">{formatCLP(amount)} <span className="text-slate-500">({pct.toFixed(1)}%)</span></span>
+                                            </div>
+                                            <div className="h-2 bg-black/30 rounded-full overflow-hidden">
+                                                <div className="h-full bg-[#E2A049] rounded-full" style={{ width: `${pct}%` }}></div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
+
                     <div className="flex flex-wrap gap-2 mb-6">
                         <select className="flex-1 min-w-[160px] bg-black/20 border border-white/10 rounded-xl px-4 py-2.5 text-white outline-none focus:border-[#E2A049] transition-colors text-sm" value={filterCat} onChange={e => setFilterCat(e.target.value)}>
                             <option value="">Todas las Categorías</option>
@@ -287,6 +427,13 @@ export default function GastosClient({
                                 </tr>
                             </thead>
                             <tbody>
+                                {filteredExpenses.length === 0 && (
+                                    <tr>
+                                        <td colSpan={6} className="py-12 px-6 text-center text-slate-500 text-sm font-bold">
+                                            Sin gastos para los filtros seleccionados en este periodo.
+                                        </td>
+                                    </tr>
+                                )}
                                 {filteredExpenses.map(e => (
                                     <tr key={e.id} className="border-t border-white/[0.03] hover:bg-white/[0.01] transition-colors">
                                         <td className="py-4 px-6 text-slate-400 text-[13px]">{new Date(e.expense_date + 'T12:00:00').toLocaleDateString('es-CL')}</td>
@@ -310,6 +457,11 @@ export default function GastosClient({
                     </div>
 
                     <div className="flex flex-col gap-3 mt-4 md:hidden">
+                        {filteredExpenses.length === 0 && (
+                            <div className="bg-[#1e2433] rounded-2xl border border-white/5 p-8 text-center text-slate-500 text-sm font-bold">
+                                Sin gastos para los filtros seleccionados en este periodo.
+                            </div>
+                        )}
                         {filteredExpenses.map(e => (
                             <div key={e.id} className="bg-[#1e2433] rounded-2xl border border-white/5 p-5 shadow-lg">
                                 <div className="flex justify-between items-start mb-4">
@@ -326,7 +478,7 @@ export default function GastosClient({
                                     <div className="text-[#E2A049] text-xs font-black uppercase tracking-tight flex items-center gap-2"><Layers size={12}/> {e.category_name}</div>
                                     <div className="text-slate-200 text-sm font-semibold">{e.subcategory_name}</div>
                                 </div>
-                                {e.notes && <div className="mt-4 p-3 bg-black/20 rounded-xl border border-white/5 text-slate-500 text-xs italic">"{e.notes}"</div>}
+                                {e.notes && <div className="mt-4 p-3 bg-black/20 rounded-xl border border-white/5 text-slate-500 text-xs italic">{e.notes}</div>}
                                 <div className="mt-4 pt-4 border-t border-white/5 flex items-center gap-2 text-slate-600 text-[10px] font-bold uppercase tracking-widest"><CreditCard size={10}/> {e.payment_method}</div>
                             </div>
                         ))}
@@ -499,7 +651,7 @@ export default function GastosClient({
                             </div>
                             <button type="submit" className="w-full bg-[#E2A049] text-black py-4 rounded-2xl font-black text-sm active:scale-95 transition-transform flex items-center justify-center gap-3 disabled:opacity-50" disabled={isPending}>
                                 <Save size={18}/>
-                                {isPending ? 'Procesando...' : editingExpense ? 'Guardar Cambios' : 'Persistir Gasto'}
+                                {isPending ? 'Procesando...' : editingExpense ? 'Guardar Cambios' : 'Guardar'}
                             </button>
                         </div>
                     </form>
