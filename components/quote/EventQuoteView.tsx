@@ -206,8 +206,8 @@ export default function EventQuoteView({ quote, comunas, availableCocktails, cat
 
     const totals = calculateTotals();
     const totalPaid = (quote.payments || []).reduce((sum: number, p: any) => sum + (Number(p.amount) || 0), 0);
-    const advanceAmount = totals.totalFinal / 2;
-    const advancePercentText = '50%';
+    const advanceAmount = totals.totalFinal;
+    const advancePercentText = '100%';
     const isSameDayPickup = pickupDate === eventDate;
 
     const validateAllFields = () => {
@@ -497,7 +497,7 @@ export default function EventQuoteView({ quote, comunas, availableCocktails, cat
                     >
                         <Copy className="w-4 h-4" /> Copiar Datos de Cuenta
                     </button>
-                    <p className="text-[0.8rem] text-green-700 mt-4 text-center italic opacity-80 underline underline-offset-4 decoration-green-300">El 50% restante se paga el día del montaje.</p>
+                    <p className="text-[0.8rem] text-green-700 mt-4 text-center italic opacity-80 underline underline-offset-4 decoration-green-300">El pago total se realiza para confirmar la reserva.</p>
                 </div>
 
                 {/* Link Card de Seguimiento */}
@@ -688,7 +688,7 @@ export default function EventQuoteView({ quote, comunas, availableCocktails, cat
                     {balance > 0 && (
                         <div className="mt-8 p-6 bg-amber-50 rounded-[1.5rem] border-2 border-dashed border-amber-200 text-center">
                             <p className="text-[0.85rem] text-amber-800 font-bold mb-4">
-                                Si aún no realizas tu transferencia, recuerda que el saldo pendiente para asegurar tu reserva es de <strong>{formatCurrency(balance)}</strong>.
+                                Si aún no realizas tu transferencia, recuerda que el monto total para asegurar tu reserva es de <strong>{formatCurrency(balance)}</strong>.
                             </p>
                             <button 
                                 onClick={() => {
@@ -727,19 +727,9 @@ export default function EventQuoteView({ quote, comunas, availableCocktails, cat
 
                                 <div className="flex flex-col gap-1">
                                     <label className="text-[0.65rem] font-black text-brand-text-muted flex items-center gap-1.5 uppercase">
-                                        <User className="w-3 h-3" /> Apellido <span className="text-red-500">*</span>
+                                        <User className="w-3 h-3" /> Apellido
                                     </label>
-                                    <input
-                                        id="field-lastName"
-                                        type="text"
-                                        value={lastName}
-                                        onChange={(e) => {
-                                            setLastName(e.target.value);
-                                            setValidationErrors(prev => ({ ...prev, lastName: false }));
-                                        }}
-                                        placeholder="Apellido"
-                                        className={`w-full px-3 py-2.5 bg-slate-50 border rounded-xl text-[0.95rem] font-bold focus:outline-none focus:border-primary focus:bg-white transition-all shadow-sm ${validationErrors.lastName ? 'border-red-500 bg-red-50/30' : 'border-brand-border'}`}
-                                    />
+                                    <p id="field-lastName" className="text-[0.9rem] text-brand-text font-bold truncate">{lastName}</p>
                                 </div>
                             </div>
 
@@ -1091,7 +1081,7 @@ export default function EventQuoteView({ quote, comunas, availableCocktails, cat
 
                         <div className="text-center sm:text-left relative z-10">
                             <p className="text-[0.7rem] font-black text-brand-text-muted uppercase tracking-[0.2em] mb-2 flex items-center justify-center sm:justify-start gap-2">
-                                <Clock className="w-3.5 h-3.5" /> Abono para confirmar ({advancePercentText})
+                                <Clock className="w-3.5 h-3.5" /> Pago para confirmar ({advancePercentText})
                             </p>
                             <p className="text-4xl font-black text-brand-text tracking-tight">{formatCurrency(advanceAmount)}</p>
                             <p className="text-[0.85rem] text-brand-text-muted mt-2 font-medium">
@@ -1140,7 +1130,7 @@ export default function EventQuoteView({ quote, comunas, availableCocktails, cat
                             {/* 1. Datos de Transferencia (Prioridad Alta) */}
                             <div className="space-y-4">
                                 <h3 className="text-[0.75rem] font-black text-brand-text flex items-center gap-2 uppercase tracking-widest">
-                                    <CreditCard className="w-4 h-4 text-primary" /> 1. Datos para el Abono ({advancePercentText})
+                                    <CreditCard className="w-4 h-4 text-primary" /> 1. Datos para el Pago ({advancePercentText})
                                 </h3>
                                 <div className="bg-slate-50 border-2 border-brand-border rounded-[1.75rem] p-6 relative group overflow-hidden shadow-sm">
                                     <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
@@ -1166,7 +1156,7 @@ export default function EventQuoteView({ quote, comunas, availableCocktails, cat
 
                             {/* 2. Resumen del Monto */}
                             <div className="text-center py-2">
-                                <p className="text-brand-text-muted text-[0.7rem] font-black uppercase tracking-[0.2em] mb-1">Monto del Abono</p>
+                                <p className="text-brand-text-muted text-[0.7rem] font-black uppercase tracking-[0.2em] mb-1">Monto a depositar</p>
                                 <p className="text-primary font-black text-5xl tracking-tighter">{formatCurrency(advanceAmount)}</p>
                             </div>
 
@@ -1191,8 +1181,8 @@ export default function EventQuoteView({ quote, comunas, availableCocktails, cat
                                             <li>Hasta $500.000 (quinientos mil pesos) por dispensador extraviado o dañado.</li>
                                         </ul>
                                         <p className="font-black text-brand-text mb-2">3. Aceptación y Pago</p>
-                                        <p className="mb-2">Se entiende aceptado al confirmar la reserva mediante el abono del <strong>50% del total</strong>.</p>
-                                        <p>El saldo restante deberá ser cancelado en su totalidad al momento del montaje del equipo.</p>
+                                    <p className="mb-2">Se entiende aceptado al confirmar la reserva mediante el pago del <strong>100% del total</strong>.</p>
+                                    <p>La reserva queda confirmada una vez realizado el pago total.</p>
                                     </div>
                                     <div className="p-4 bg-primary/5 flex items-center gap-3 border-t border-brand-border">
                                         <label className="flex items-center gap-3 cursor-pointer group w-full">

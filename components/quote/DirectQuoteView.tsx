@@ -610,19 +610,9 @@ export default function DirectQuoteView({ quote, comunas, availableCocktails, ca
                                 </div>
                                 <div className="flex flex-col gap-1">
                                     <label className="text-[0.65rem] font-black text-brand-text-muted flex items-center gap-1.5 uppercase">
-                                        <User className="w-3 h-3" /> Apellido <span className="text-red-500">*</span>
+                                        <User className="w-3 h-3" /> Apellido
                                     </label>
-                                    <input
-                                        id="field-lastName"
-                                        type="text"
-                                        value={lastName}
-                                        onChange={(e) => {
-                                            setLastName(e.target.value);
-                                            setValidationErrors(prev => ({ ...prev, lastName: false }));
-                                        }}
-                                        placeholder="Apellido"
-                                        className={`w-full px-3 py-2.5 bg-slate-50 border rounded-xl text-[0.95rem] font-bold focus:outline-none focus:border-primary focus:bg-white transition-all shadow-sm ${validationErrors.lastName ? 'border-red-500 bg-red-50/30' : 'border-brand-border'}`}
-                                    />
+                                    <p id="field-lastName" className="text-[0.9rem] text-brand-text font-bold truncate">{lastName}</p>
                                 </div>
                             </div>
                             <div className="flex flex-col gap-0.5">

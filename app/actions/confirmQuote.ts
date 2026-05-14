@@ -53,23 +53,31 @@ export async function confirmQuote(formData: any): Promise<ConfirmQuoteResult> {
 
         const total = summary.totalOfferPrice + summary.shippingCost + summary.installationCost - (quote.manual_discount || 0);
 
-        const results = await Promise.all([
-            db.from('quote_items').delete().eq('quote_id', quote.id).not('id', 'in', `(${data.items.filter(i => i.id && !i.id.includes('temp-')).map(i => i.id).join(',') || 'NULL'})`),
-            db.from('quote_items').upsert(data.items.map(item => ({
-                quote_id: quote.id, product_id: item.product_id, product_name: item.product_name,
-                size: item.size, quantity: item.quantity, price_at_time: item.price_at_time,
-                offer_price_at_time: item.offer_price_at_time, size_value: item.size_value, unit_id: item.unit_id
-            }))),
-            db.from('quotes').update({
-                status: 'confirmed', client_lastname: data.client_lastname, client_phone: data.client_phone,
-                client_address: data.client_address, comuna_name: data.comuna_name, event_date: data.event_date,
-                start_time: data.start_time, pickup_date: data.pickup_date, pickup_time: data.pickup_time,
-                dispenser: data.dispenser, total_price: total, total_liters: summary.totalLiters,
-                updated_at: new Date().toISOString()
-            }).eq('token', data.token)
-        ]);
+        const deleteResult = await db.from('quote_items').delete().eq('quote_id', quote.id);
+        if (deleteResult.error) throw new Error(deleteResult.error.message);
 
-        if (results.some(r => r.error)) throw new Error('DB Error');
+        const insertResult = await db.from('quote_items').insert(data.items.map(item => ({
+            quote_id: quote.id,
+            product_id: item.product_id,
+            product_name: item.product_name,
+            size: item.size,
+            quantity: item.quantity,
+            price_at_time: item.price_at_time,
+            offer_price_at_time: item.offer_price_at_time,
+            size_value: item.size_value,
+            unit_id: item.unit_id,
+            is_disposable: item.is_disposable ?? false
+        })));
+        if (insertResult.error) throw new Error(insertResult.error.message);
+
+        const updateResult = await db.from('quotes').update({
+            status: 'confirmed', client_lastname: data.client_lastname, client_phone: data.client_phone,
+            client_address: data.client_address, comuna_name: data.comuna_name, event_date: data.event_date,
+            start_time: data.start_time, pickup_date: data.pickup_date, pickup_time: data.pickup_time,
+            dispenser: data.dispenser, total_price: total, total_liters: summary.totalLiters,
+            updated_at: new Date().toISOString()
+        }).eq('token', data.token);
+        if (updateResult.error) throw new Error(updateResult.error.message);
 
         quoteToSync = { ...quote, ...data, status: 'confirmed', quote_items: data.items };
 

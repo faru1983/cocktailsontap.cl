@@ -158,9 +158,9 @@ export interface QuoteItem {
     product_id: string | null;
     product_name: string;
     size: string;
-    size_value: number;
+    size_value: number | null;
     unit_id: string | null;
-    is_disposable: boolean;
+    is_disposable: boolean | null;
     quantity: number;
     price_at_time: number;
     offer_price_at_time: number;
@@ -278,7 +278,7 @@ export const ConfirmQuoteSchema = z.object({
         size: z.string(),
         size_value: z.coerce.number().nullable().optional(),
         unit_id: z.string().nullable().optional(),
-        is_disposable: z.boolean().optional(),
+        is_disposable: z.boolean().nullable().optional().transform((value) => value ?? false),
         quantity: z.coerce.number().min(1),
         price_at_time: z.coerce.number(),
         offer_price_at_time: z.coerce.number(),

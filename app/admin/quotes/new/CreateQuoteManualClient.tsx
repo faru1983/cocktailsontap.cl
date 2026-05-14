@@ -89,8 +89,15 @@ export default function CreateQuoteManualClient({ allProducts, comunas, eventTyp
         desc: p.description,
         image: p.image,
         prices: p.sizes.reduce((acc, s) => {
-            const key = s.size.match(/\d+/) ? s.size.match(/\d+/)![0] + 'L' : s.size;
-            acc[key] = { price: s.price, offerPrice: s.offerPrice };
+            acc[s.size] = {
+                price: s.price,
+                offerPrice: s.offerPrice,
+                sizeValue: s.sizeValue,
+                unit: s.unit,
+                unitId: s.unitId,
+                isDisposable: s.isDisposable,
+                image: s.image
+            };
             return acc;
         }, {} as any)
     })), [allProducts]);
@@ -377,11 +384,31 @@ export default function CreateQuoteManualClient({ allProducts, comunas, eventTyp
                             {serviceType === 'event' && (
                                 <>
                                     <Field label="Temática">
-                                        <select value={eventData.type} onChange={e => setEventData(d => ({...d, type: e.target.value}))} className="admin-input appearance-none">
+                                        <select
+                                            value={eventData.type}
+                                            onChange={(e) => setEventData(d => ({
+                                                ...d,
+                                                type: e.target.value,
+                                                otherType: e.target.value === 'Otro' ? d.otherType : ''
+                                            }))}
+                                            className="admin-input appearance-none"
+                                        >
                                             <option value="">Selecciona temática...</option>
                                             {eventTypes.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                                            <option value="Otro">Otro</option>
                                         </select>
                                     </Field>
+                                    {eventData.type === 'Otro' && (
+                                        <Field label="Especificar temática">
+                                            <input
+                                                type="text"
+                                                value={eventData.otherType}
+                                                onChange={e => setEventData(d => ({ ...d, otherType: e.target.value }))}
+                                                className="admin-input"
+                                                placeholder="Ej: Aniversario, Graduación..."
+                                            />
+                                        </Field>
+                                    )}
                                     <Field label="N° Invitados">
                                         <input type="number" value={consumption.guests === 0 ? '' : consumption.guests} onChange={e => setConsumption(c => ({...c, guests: Number(e.target.value)}))} className="admin-input" placeholder="0" />
                                     </Field>
