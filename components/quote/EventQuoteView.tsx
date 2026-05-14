@@ -1085,7 +1085,7 @@ export default function EventQuoteView({ quote, comunas, availableCocktails, cat
                             </p>
                             <p className="text-4xl font-black text-brand-text tracking-tight">{formatCurrency(advanceAmount)}</p>
                             <p className="text-[0.85rem] text-brand-text-muted mt-2 font-medium">
-                                El monto restante se abona el día del montaje.
+                                El pago total se realiza para confirmar la reserva.
                             </p>
                         </div>
 
