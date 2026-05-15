@@ -56,25 +56,25 @@ export default function DirectWizardShell({ cocktails, comunas, categories, init
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [state.step, state.selections]);
 
+    const getDisposableLiters = () =>
+        state.selections.reduce((sum, sel) => {
+            const product = cocktails.find(c => c.id === sel.id);
+            const selectedPrice = product?.prices?.[sel.size];
+            const sizeValue = selectedPrice?.sizeValue ?? 0;
+            const isDisposable = selectedPrice?.isDisposable ?? false;
+            return sum + (isDisposable && sizeValue > 0 ? sizeValue * sel.quantity : 0);
+        }, 0);
+
     const handleNext = () => {
         // We need custom validation logic here or adapt validateStep
         let isValid = true;
         let message = '';
 
         if (state.step === 1) {
-            if (state.selections.length === 0) {
-                isValid = false; message = 'Selecciona al menos un barril para continuar.';
-            } else {
-                // Validar que no solo lleve productos de categoría "Otros" (hielo, vasos, etc)
-                const hasMainProduct = state.selections.some(sel => {
-                    const product = cocktails.find(c => c.id === sel.id);
-                    return product && product.category !== 'Otros';
-                });
-
-                if (!hasMainProduct) {
-                    isValid = false;
-                    message = 'Debes seleccionar al menos un barril para continuar (el hielo y decoraciones son productos complementarios).';
-                }
+            const disposableLiters = getDisposableLiters();
+            if (disposableLiters < 5) {
+                isValid = false;
+                message = 'Debes seleccionar al menos 1 barril desechable (5 litros) para continuar.';
             }
         }
         if (state.step === 2) {
@@ -99,15 +99,9 @@ export default function DirectWizardShell({ cocktails, comunas, categories, init
     };
 
     const handleCotizar = async () => {
-        // ─── VALIDACIÓN PREVENCION ───────────────────────────────────────────
-        // Validar que no solo lleve productos de categoría "Otros" (hielo, vasos, etc)
-        const hasMainProduct = state.selections.some(sel => {
-            const product = cocktails.find(c => c.id === sel.id);
-            return product && product.category !== 'Otros';
-        });
-        
-        if (!hasMainProduct) {
-            setValidationError('Debes incluir al menos un barril de cóctel en tu pedido (el hielo y las decoraciones son productos complementarios).');
+        // Validación preventiva por consistencia de negocio
+        if (getDisposableLiters() < 5) {
+            setValidationError('Debes incluir al menos 1 barril desechable (5 litros) en tu pedido.');
             window.scrollTo({ top: 0, behavior: 'smooth' });
             return;
         }

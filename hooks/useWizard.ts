@@ -186,19 +186,17 @@ export function useWizard(cocktails: CocktailForWizard[], comunas: Comuna[], cat
             if (!c.comuna.trim()) return { valid: false, message: 'Selecciona la comuna.' };
         }
         if (step === 3) {
-            // Contamos cuántos productos "principales" (que no sean de la categoría Otros) hay en total
-            const mainProductsCount = state.selections.reduce((sum, sel) => {
+            const totalLiters = state.selections.reduce((sum, sel) => {
                 const product = cocktails.find(p => p.id === sel.id);
-                if (product && product.category !== 'Otros') {
-                    return sum + sel.quantity;
-                }
-                return sum;
+                const selectedPrice = product?.prices?.[sel.size];
+                const sizeValue = selectedPrice?.sizeValue ?? 0;
+                return sum + (sizeValue > 0 ? sizeValue * sel.quantity : 0);
             }, 0);
 
-            if (mainProductsCount < 2) {
-                return { 
-                    valid: false, 
-                    message: 'El pedido mínimo es de 2 barriles para contratar nuestros servicios.' 
+            if (totalLiters < 10) {
+                return {
+                    valid: false,
+                    message: 'El pedido mínimo es de 10 litros para contratar nuestros servicios.'
                 };
             }
         }
