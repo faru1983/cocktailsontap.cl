@@ -3,7 +3,7 @@
 import type { useWizard } from '@/hooks/useWizard';
 import type { Comuna } from '@/lib/types';
 import { formatPhoneNumber } from '@/lib/utils';
-import { getTodayString, getMinDateString } from '@/lib/wizardLogic';
+import { getMinDateString } from '@/lib/wizardLogic';
 
 type WizardHook = ReturnType<typeof useWizard>;
 
@@ -15,7 +15,7 @@ interface Props {
 export default function DirectStep2Delivery({ wizard, comunas }: Props) {
     const { state, updateContact, updateEventData } = wizard;
 
-    const minDate = getMinDateString(2);
+    const minDate = getMinDateString(1);
 
     return (
         <div className="flex flex-col space-y-6">

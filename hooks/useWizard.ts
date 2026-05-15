@@ -5,6 +5,7 @@ import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import type { CocktailForWizard, Comuna, WizardState, WizardSelection } from '@/lib/types';
 import { calculateSmartConfig, calculateSummaryData, buildWhatsAppMessage } from '@/lib/wizardLogic';
 import { WHATSAPP_NUMBER } from '@/lib/config';
+import { getMinDateString } from '@/lib/wizardLogic';
 
 export { calculateSmartConfig };
 
@@ -167,12 +168,16 @@ export function useWizard(cocktails: CocktailForWizard[], comunas: Comuna[], cat
         }
         if (step === 1) {
             const e = state.eventData;
+            const minAllowedDate = getMinDateString(1);
             if (state.serviceType === 'event') {
                 if (!e.type.trim()) return { valid: false, message: 'Selecciona la temática del evento.' };
                 if (e.type === 'Otro' && !e.otherType.trim()) return { valid: false, message: 'Especifica la temática del evento.' };
                 if (state.consumption.guests < 1) return { valid: false, message: 'La cantidad de invitados debe ser al menos 1.' };
             }
             if (!e.date.trim()) return { valid: false, message: state.serviceType === 'direct' ? 'Indica la fecha de entrega.' : 'Indica la fecha del evento.' };
+            if (state.serviceType === 'event' && e.date < minAllowedDate) {
+                return { valid: false, message: 'La fecha del evento debe ser desde mañana en adelante.' };
+            }
         }
         if (step === 5) {
             const c = state.contact;

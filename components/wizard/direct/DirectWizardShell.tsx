@@ -8,6 +8,7 @@ import { WhatsappIcon } from '@/components/icons';
 import type { CocktailForWizard, EventType, Comuna } from '@/lib/types';
 import { createQuote } from '@/app/actions/createQuote';
 import { WHATSAPP_URL } from '@/lib/config';
+import { getMinDateString } from '@/lib/wizardLogic';
 
 import DirectStep1Products from './DirectStep1Products';
 import DirectStep2Delivery from './DirectStep2Delivery';
@@ -80,6 +81,7 @@ export default function DirectWizardShell({ cocktails, comunas, categories, init
         if (state.step === 2) {
             const c = state.contact;
             const e = state.eventData;
+            const minAllowedDate = getMinDateString(1);
             if (!c.firstName.trim()) { isValid = false; message = 'El nombre es obligatorio.'; }
             else if (!c.lastName.trim()) { isValid = false; message = 'El apellido es obligatorio.'; }
             else if (!c.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(c.email)) { isValid = false; message = 'Ingresa un email válido.'; }
@@ -87,6 +89,7 @@ export default function DirectWizardShell({ cocktails, comunas, categories, init
             else if (!c.comuna.trim()) { isValid = false; message = 'Selecciona la comuna de entrega.'; }
             else if (!c.address.trim()) { isValid = false; message = 'La dirección de entrega es obligatoria.'; }
             else if (!e.date.trim()) { isValid = false; message = 'Indica la fecha de entrega.'; }
+            else if (e.date < minAllowedDate) { isValid = false; message = 'La fecha de entrega debe ser desde mañana en adelante.'; }
         }
 
         if (isValid) {
@@ -102,6 +105,11 @@ export default function DirectWizardShell({ cocktails, comunas, categories, init
         // Validación preventiva por consistencia de negocio
         if (getDisposableLiters() < 5) {
             setValidationError('Debes incluir al menos 1 barril desechable (5 litros) en tu pedido.');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            return;
+        }
+        if (state.eventData.date < getMinDateString(1)) {
+            setValidationError('La fecha de entrega debe ser desde mañana en adelante.');
             window.scrollTo({ top: 0, behavior: 'smooth' });
             return;
         }
