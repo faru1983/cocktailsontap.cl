@@ -78,7 +78,7 @@ export default function Footer() {
                             <a href="https://instagram.com/cocktailsontap.chile" className="w-12 h-12 rounded-[12px] bg-white/5 border border-white/10 flex flex-col items-center justify-center text-white/80 transition-all duration-300 hover:bg-primary hover:border-primary hover:text-white hover:-translate-y-[3px] hover:shadow-[0_4px_12px_rgba(226,160,73,0.3)]" target="_blank" rel="noopener noreferrer" aria-label="Instagram">
                                 <Instagram className="w-5 h-5" />
                             </a>
-                            <a href="https://facebook.com/profile.php?id=61573553396238" className="w-12 h-12 rounded-[12px] bg-white/5 border border-white/10 flex flex-col items-center justify-center text-white/80 transition-all duration-300 hover:bg-primary hover:border-primary hover:text-white hover:-translate-y-[3px] hover:shadow-[0_4px_12px_rgba(226,160,73,0.3)]" target="_blank" rel="noopener noreferrer" aria-label="Facebook">
+                            <a href="https://facebook.com/CocktailsOnTapCL" className="w-12 h-12 rounded-[12px] bg-white/5 border border-white/10 flex flex-col items-center justify-center text-white/80 transition-all duration-300 hover:bg-primary hover:border-primary hover:text-white hover:-translate-y-[3px] hover:shadow-[0_4px_12px_rgba(226,160,73,0.3)]" target="_blank" rel="noopener noreferrer" aria-label="Facebook">
                                 <Facebook className="w-5 h-5" />
                             </a>
                             <a href={`${SITE_URL}/`} className="w-12 h-12 rounded-[12px] bg-white/5 border border-white/10 flex flex-col items-center justify-center text-white/80 transition-all duration-300 hover:bg-primary hover:border-primary hover:text-white hover:-translate-y-[3px] hover:shadow-[0_4px_12px_rgba(226,160,73,0.3)]" target="_blank" rel="noopener noreferrer" aria-label="Sitio web">
@@ -102,3 +102,6 @@ export default function Footer() {
         </footer>
     );
 }
+
+
+
