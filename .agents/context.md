@@ -22,6 +22,11 @@
 
 ## Ultimos Cambios
 
+### 17-05-2026 (Sesion 1)
+- **Redirecciones - Vercel**: Se eliminaron las redirecciones `/agendar` y `/contratar` en `vercel.json`.
+- **Redirecciones - Reseñas**: Se agregó la redirección `/reseñas` con destino a la búsqueda de opiniones en Google.
+- **Archivos Modificados**: `vercel.json`, `.agents/context.md`.
+
 ### 14-05-2026 (Sesion 2)
 - **Gastos - Iteracion Final**: `/admin/gastos` vuelve a lista mensual completa (sin paginacion al pie), manteniendo KPIs calculados con el total del mes.
 - **Gastos - KPIs Ajustados**: Se ordenaron y renombraron KPIs para mostrar `Movimientos`, `Gastos Total Mes`, `Ingresos del mes` y `Utilidad del mes`.
@@ -44,9 +49,5 @@
 ### 28-04-2026 (Sesion 1)
 - **Fix de Validacion**: Corregido error "Datos invalidos" en confirmacion por coercion de numericos y nullables.
 
-### 27-04-2026 (Sesion 3)
-- **Meta Pixel**: Integracion avanzada con `lib/fpixel.ts` (Lead + Purchase, advanced matching y contents/value).
-- **Build Stability**: Fix de Suspense boundary para `useSearchParams` en rutas publicas.
-
 ---
-*Ultima actualizacion: 14-05-2026 (Sesion 2)*
+*Ultima actualizacion: 17-05-2026 (Sesion 1)*

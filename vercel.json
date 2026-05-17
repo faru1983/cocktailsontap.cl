@@ -1,28 +1,6 @@
 {
   "redirects": [
     {
-      "source": "/agendar",
-      "destination": "https://form.jotform.com/250058106115647",
-      "permanent": true,
-      "has": [
-        {
-          "type": "host",
-          "value": "(www\\.)?cocktailsontap\\.cl$"
-        }
-      ]
-    },
-    {
-      "source": "/contratar",
-      "destination": "https://form.jotform.com/251919401791056",
-      "permanent": true,
-      "has": [
-        {
-          "type": "host",
-          "value": "(www\\.)?cocktailsontap\\.cl$"
-        }
-      ]
-    },
-    {
       "source": "/qr",
       "destination": "https://www.instagram.com/cocktailsontap.chile",
       "permanent": true,
@@ -36,6 +14,17 @@
     {
       "source": "/google",
       "destination": "https://g.page/r/CZMhTQCrKMcrEBI/review",
+      "permanent": true,
+      "has": [
+        {
+          "type": "host",
+          "value": "(www\\.)?cocktailsontap\\.cl$"
+        }
+      ]
+    },
+    {
+      "source": "/reseñas",
+      "destination": "https://www.google.com/search?q=Cocktails+on+Tap+Chile+Opiniones&hl=es&si=AL3DRZEsmMGCryMMFSHJ3StBhOdZ2-6yYkXd_doETEE1OR-qOe1t8bbH2mE2Dsd_Bhg3Jmsdl2T8cPZMpRr04YT-NaeEcp6pi6qIDY4378VUBFLgVIbmoftLKwNYsv8W6tI8pYw1TodMtn8_WETLcGLG5mhe4zHbeA%3D%3D",
       "permanent": true,
       "has": [
         {
