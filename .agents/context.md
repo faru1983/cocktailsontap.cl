@@ -22,6 +22,10 @@
 
 ## Ultimos Cambios
 
+### 20-05-2026 (Sesion 1)
+- **Google Calendar - Desactivación de Notificaciones**: Se modificó `lib/googleSync.ts` para desactivar el envío de invitaciones y notificaciones por correo electrónico al cliente (removiendo el parámetro `?sendUpdates=all` de la API de Google Calendar). Los logs de consola que hacían referencia a la variable eliminada `isReserva` se actualizaron para evitar errores de referencia.
+- **Archivos Modificados**: `lib/googleSync.ts`, `.agents/context.md`.
+
 ### 17-05-2026 (Sesion 1)
 - **Redirecciones - Vercel**: Se eliminaron las redirecciones `/agendar` y `/contratar` en `vercel.json`.
 - **Redirecciones - Reseñas**: Se agregó la redirección `/reseñas` con destino a la búsqueda de opiniones en Google.
@@ -46,8 +50,5 @@
 - **Creacion Manual Admin**: `CreateQuoteManualClient.tsx` alineado con wizard publico y soporte de tematica `Otro`.
 - **Pagos Completos**: Reserva de evento solicita `100%` del total, igual que venta directa.
 
-### 28-04-2026 (Sesion 1)
-- **Fix de Validacion**: Corregido error "Datos invalidos" en confirmacion por coercion de numericos y nullables.
-
 ---
-*Ultima actualizacion: 17-05-2026 (Sesion 1)*
+*Ultima actualizacion: 20-05-2026 (Sesion 1)*
