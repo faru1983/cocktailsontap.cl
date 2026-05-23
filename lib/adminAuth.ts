@@ -5,7 +5,8 @@ const SESSION_COOKIE = 'admin_session';
 const SESSION_DURATION = 60 * 60 * 24 * 7; // 7 days in seconds
 
 function hashPassword(password: string): string {
-    const salt = process.env.AUTH_SALT || 'development_otp_salt_2026'; // Reemplazar en producción vía .env
+    const salt = process.env.AUTH_SALT;
+    if (!salt) throw new Error('AUTH_SALT environment variable is missing.');
     return createHash('sha256').update(password + salt).digest('hex');
 }
 

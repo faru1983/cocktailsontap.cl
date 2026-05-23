@@ -10,7 +10,7 @@ export default function FloatingCta() {
     const [closed, setClosed] = useState(false);
 
     useEffect(() => {
-        const t = setTimeout(() => setVisible(true), 40000);
+        const t = setTimeout(() => setVisible(true), 20000);
         return () => clearTimeout(t);
     }, []);
 

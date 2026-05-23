@@ -17,7 +17,7 @@ async function getSettings() {
     return { 
         reviewMode: map['review_mode'] || 'manual', 
         reviewTemplate: map['review_template'] || '',
-        reviewLink: map['review_link'] || 'https://cocktailsontap.cl/google',
+        reviewLink: map['review_link'] || '',
         eventTypes: eventRes.data || [],
         comunas: comunasRes.data || [],
         siteSettings: siteSettingsRes.data || []

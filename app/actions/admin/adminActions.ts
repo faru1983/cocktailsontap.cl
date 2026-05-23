@@ -490,7 +490,7 @@ export async function sendReviewEmail(quoteId: string): Promise<{ success: boole
     if (!quoteRes.data?.client_email) return { success: false, error: 'Sin email de cliente.' };
     if (quoteRes.data.review_email_sent) return { success: false, error: 'El email de review ya fue enviado.' };
 
-    const reviewLink = linkRes.data?.value || `${SITE_URL}/google`;
+    const reviewLink = linkRes.data?.value || '';
     const fullName = `${quoteRes.data.client_name} ${quoteRes.data.client_lastname || ''}`.trim();
     const template = (templateRes.data?.value || '').replace('{nombre}', fullName);
     const html = `<div style="font-family: -apple-system, sans-serif; max-width: 600px; margin: auto; padding: 32px; background: #fff; border-radius: 12px;">
@@ -528,7 +528,7 @@ export async function sendTestReviewEmail(toEmail: string, template: string, rev
         <p style="font-size: 15px; line-height: 1.7; color: #334155;"><strong>[EMAIL DE PRUEBA]</strong></p>
         <p style="font-size: 15px; line-height: 1.7; color: #334155;">${processedTemplate.replace(/\n/g, '<br/>')}</p>
         <div style="text-align: center; margin: 28px 0;">
-          <a href="${reviewLink || SITE_URL + '/google'}" style="background: #E2A049; color: #fff; padding: 14px 28px; border-radius: 10px; text-decoration: none; font-weight: 800; font-size: 15px;">⭐ Dejar reseña</a>
+          <a href="${reviewLink || ''}" style="background: #E2A049; color: #fff; padding: 14px 28px; border-radius: 10px; text-decoration: none; font-weight: 800; font-size: 15px;">⭐ Dejar reseña</a>
         </div>
         <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 24px 0;" />
         <p style="font-size: 12px; color: #94a3b8;">Cocktails on Tap — <a href="${SITE_URL}" style="color: #E2A049;">cocktailsontap.cl</a></p>

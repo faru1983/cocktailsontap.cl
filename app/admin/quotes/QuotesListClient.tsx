@@ -236,7 +236,7 @@ export default function QuotesListClient({
                                     </div>
                                     <div style={{ display: 'flex', flexDirection: 'column' }}>
                                         <span style={{ color: '#475569', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase' }}>Comuna</span>
-                                        <span style={{ color: '#94a3b8', fontSize: '13px' }}>{q.comuna_name || '—'}</span>
+                                        <span style={{ color: '#94a3b8', fontSize: '13px' }}>{q.comuna_name === 'Otra' && q.comuna_other ? q.comuna_other : (q.comuna_name || '—')}</span>
                                     </div>
                                 </div>
                             </Link>
@@ -285,7 +285,7 @@ export default function QuotesListClient({
                                         {q.event_date ? new Date(q.event_date + 'T12:00:00').toLocaleDateString('es-CL') : '—'}
                                     </td>
                                     <td style={{ padding: '14px 20px', color: '#64748b', fontSize: '12px' }}>{new Date(q.created_at).toLocaleDateString('es-CL')}</td>
-                                    <td style={{ padding: '14px 20px', color: '#64748b', fontSize: '13px' }}>{q.comuna_name || '—'}</td>
+                                    <td style={{ padding: '14px 20px', color: '#64748b', fontSize: '13px' }}>{q.comuna_name === 'Otra' && q.comuna_other ? q.comuna_other : (q.comuna_name || '—')}</td>
                                     <td style={{ padding: '14px 20px', color: '#E2A049', fontSize: '14px', fontWeight: 700 }}>{formatCLP(Number(q.total_price))}</td>
                                     <td style={{ padding: '14px 20px' }}>
                                         <span style={{ display: 'inline-block', padding: '4px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 700, color: badge.color, background: badge.bg }}>{badge.label}</span>

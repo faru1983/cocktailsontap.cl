@@ -8,7 +8,7 @@ export const metadata: Metadata = {
 
 export const dynamic = 'force-dynamic';
 
-type SearchParams = Promise<{ month?: string }>;
+type SearchParams = Promise<{ month?: string; tab?: string }>;
 type RawExpense = {
     id: string;
     amount: number;
@@ -58,7 +58,7 @@ export default async function EstadisticasPage({ searchParams }: { searchParams:
 
     const [quotesRes, itemsRes, expensesRes] = await Promise.all([
         db.from('quotes')
-            .select('id, status, total_price, event_date, created_at, client_id, client_name, client_lastname, comuna_name, comuna_other'),
+            .select('id, status, total_price, event_date, created_at, client_id, client_name, client_lastname, comuna_name, comuna_other, dispenser, service_type'),
         db.from('quote_items')
             .select('quote_id, product_name, quantity, offer_price_at_time, size'),
         db.from('expenses')
@@ -84,6 +84,7 @@ export default async function EstadisticasPage({ searchParams }: { searchParams:
                 monthLabel={getMonthLabel(selectedMonth)}
                 previousMonth={shiftMonth(selectedMonth, -1)}
                 nextMonth={shiftMonth(selectedMonth, 1)}
+                initialTab={rawParams.tab || 'mensual'}
             />
         </main>
     );

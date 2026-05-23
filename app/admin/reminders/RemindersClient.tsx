@@ -289,6 +289,7 @@ export default function RemindersClient({ initialQuotes, initialTemplates }: { i
                                     <th className="py-4 px-6 text-left border-b border-white/5"><input type="checkbox" className="w-4 h-4 rounded border-white/10 bg-black/20 accent-[#E2A049]" checked={selectedIds.length === filteredQuotes.length && filteredQuotes.length > 0} onChange={toggleSelectAll} /></th>
                                     <th className="text-left py-4 px-6 text-slate-500 text-[11px] font-bold uppercase tracking-widest border-b border-white/5">Cliente</th>
                                     <th className="text-left py-4 px-6 text-slate-500 text-[11px] font-bold uppercase tracking-widest border-b border-white/5">Fecha Evento</th>
+                                    <th className="text-left py-4 px-6 text-slate-500 text-[11px] font-bold uppercase tracking-widest border-b border-white/5">Comuna</th>
                                     <th className="text-left py-4 px-6 text-slate-500 text-[11px] font-bold uppercase tracking-widest border-b border-white/5">Total</th>
                                     <th className="text-left py-4 px-6 text-slate-500 text-[11px] font-bold uppercase tracking-widest border-b border-white/5">Último Envío</th>
                                     <th className="text-right py-4 px-6 text-slate-500 text-[11px] font-bold uppercase tracking-widest border-b border-white/5"></th>
@@ -296,14 +297,17 @@ export default function RemindersClient({ initialQuotes, initialTemplates }: { i
                             </thead>
                             <tbody>
                                 {filteredQuotes.length === 0 ? (
-                                    <tr><td colSpan={6} className="py-20 text-center text-slate-500 text-sm italic">No hay borradores para este rango.</td></tr>
+                                    <tr><td colSpan={7} className="py-20 text-center text-slate-500 text-sm italic">No hay borradores para este rango.</td></tr>
                                 ) : filteredQuotes.map((q: any) => (
                                     <tr key={q.id} className="border-t border-white/[0.03] hover:bg-white/[0.01] transition-colors group">
                                         <td className="py-4 px-6"><input type="checkbox" className="w-4 h-4 rounded border-white/10 bg-black/20 accent-[#E2A049]" checked={selectedIds.includes(q.id)} onChange={() => toggleSelect(q.id)} /></td>
                                         <td className="py-4 px-6">
-                                            <div className="text-white font-bold text-sm tracking-tight">{q.client_name} {q.client_lastname}</div>
+                                            <Link href={`/admin/quotes/${q.id}`} className="text-white font-bold text-sm tracking-tight hover:text-[#E2A049] transition-colors text-decoration-none block">
+                                                {q.client_name} {q.client_lastname}
+                                            </Link>
                                         </td>
                                         <td className="py-4 px-6 text-slate-400 text-sm">{new Date(q.event_date + 'T12:00:00').toLocaleDateString('es-CL')}</td>
+                                        <td className="py-4 px-6 text-slate-400 text-sm">{q.comuna_name === 'Otra' && q.comuna_other ? q.comuna_other : (q.comuna_name || '—')}</td>
                                         <td className="py-4 px-6 text-[#E2A049] font-black text-sm">{formatCLP(q.total_price)}</td>
                                         <td className="py-4 px-6">
                                             {q.reminder_logs?.[0] ? (
@@ -321,7 +325,9 @@ export default function RemindersClient({ initialQuotes, initialTemplates }: { i
                                         <td className="py-4 px-6 text-right">
                                             <div className="flex items-center justify-end gap-2">
                                                 <button disabled={!q.client_phone} onClick={() => handleWaClick(q)} className="p-2.5 bg-emerald-500/5 text-emerald-400 hover:bg-emerald-500/10 rounded-xl transition-all disabled:opacity-30" title="WhatsApp"><MessageSquare size={16} /></button>
-                                                <Link href={`/admin/quotes/${q.id}`} className="p-2.5 bg-white/5 text-slate-400 hover:text-white rounded-xl transition-all" title="Ver Ficha"><ExternalLink size={16} /></Link>
+                                                {q.token && (
+                                                    <a href={`${SITE_URL}/cotizar/${q.token}`} target="_blank" rel="noopener noreferrer" className="p-2.5 bg-white/5 text-slate-400 hover:text-white rounded-xl transition-all" title="Enlace Público" style={{ textDecoration: 'none' }}>🔗</a>
+                                                )}
                                             </div>
                                         </td>
                                     </tr>
@@ -337,16 +343,26 @@ export default function RemindersClient({ initialQuotes, initialTemplates }: { i
                                     <div className="flex gap-3">
                                         <input type="checkbox" className="w-5 h-5 rounded border-white/10 bg-black/20 accent-[#E2A049] mt-1" checked={selectedIds.includes(q.id)} onChange={() => toggleSelect(q.id)} />
                                         <div>
-                                            <div className="text-white font-black text-base leading-tight">{q.client_name} {q.client_lastname}</div>
+                                            <Link href={`/admin/quotes/${q.id}`} className="text-white font-black text-base leading-tight hover:text-[#E2A049] transition-colors text-decoration-none block">
+                                                {q.client_name} {q.client_lastname}
+                                            </Link>
                                             <div className="text-[#E2A049] font-black text-sm mt-1">{formatCLP(q.total_price)}</div>
                                         </div>
                                     </div>
-                                    <Link href={`/admin/quotes/${q.id}`} className="p-2.5 bg-white/5 text-slate-400 rounded-xl"><ExternalLink size={16}/></Link>
+                                    {q.token && (
+                                        <a href={`${SITE_URL}/cotizar/${q.token}`} target="_blank" rel="noopener noreferrer" className="p-2.5 bg-white/5 text-slate-400 hover:text-white rounded-xl transition-all flex items-center justify-center" title="Enlace Público" style={{ textDecoration: 'none' }}>🔗</a>
+                                    )}
                                 </div>
-                                <div className="grid grid-cols-2 gap-4 pt-4 border-t border-white/5">
+                                <div className="grid grid-cols-3 gap-4 pt-4 border-t border-white/5">
                                     <div>
                                         <span className="block text-[9px] text-slate-500 font-black uppercase tracking-widest mb-1">Evento</span>
                                         <span className="text-slate-300 text-xs font-bold flex items-center gap-1.5"><Calendar size={12} className="text-emerald-500"/> {new Date(q.event_date + 'T12:00:00').toLocaleDateString('es-CL')}</span>
+                                    </div>
+                                    <div className="text-center">
+                                        <span className="block text-[9px] text-slate-500 font-black uppercase tracking-widest mb-1">Comuna</span>
+                                        <span className="text-slate-300 text-xs font-bold truncate max-w-full block" title={q.comuna_name === 'Otra' && q.comuna_other ? q.comuna_other : (q.comuna_name || '—')}>
+                                            {q.comuna_name === 'Otra' && q.comuna_other ? q.comuna_other : (q.comuna_name || '—')}
+                                        </span>
                                     </div>
                                     <div className="text-right">
                                         <span className="block text-[9px] text-slate-500 font-black uppercase tracking-widest mb-1">Último Envío</span>

@@ -22,6 +22,14 @@
 
 ## Ultimos Cambios
 
+### 22-05-2026 (Sesion 1)
+- **Estadisticas - Pestañas Mensual/Anual**: Se agregó soporte de pestañas en `/admin/estadisticas` para visualizar datos por `Estadística Mensual` y `Estadística Anual`.
+- **Vista Anual**: La vista anual adapta el gráfico de tendencia a una visualización "mes a mes" de todo el año, oculta el selector de meses y actualiza las métricas comparativas para que midan el desempeño "vs año anterior".
+- **Comunas y Listados**: Tanto en `/admin/quotes` como en `/admin/reminders`, cuando la comuna seleccionada es "Otra", ahora se muestra en las tablas y tarjetas directamente el texto ingresado por el cliente sin el prefijo "Otra". En `reminders` los nombres son clickeables y usan el ícono 🔗 para la vista pública de la cotización.
+- **Email Reseñas**: Se eliminó cualquier valor hardcodeado o de fallback para `reviewLink` en el código (`app/actions/admin/adminActions.ts` y `app/admin/settings/page.tsx`). Ahora el sistema depende estrictamente del valor dinámico ingresado en el panel de configuración de Settings.
+- **Estadísticas Operativas**: Se agregó una tercera pestaña en `/admin/estadisticas` llamada **Operaciones**, la cual muestra el **Histórico Completo** (ocultando el filtro mensual/anual). Muestra métricas logísticas clave como la proporción de *Tipos de Servicio* (Venta Directa vs Eventos), *Uso de Equipamiento* (Portátil vs Muro), las *Top Comunas*, y la *Rotación de Formatos* (conteo de barriles según litraje). Se actualizó `page.tsx` para hacer fetch de los campos `dispenser` y `service_type`.
+- **Archivos Modificados**: `app/admin/estadisticas/page.tsx`, `app/admin/estadisticas/StatsClient.tsx`, `app/admin/reminders/RemindersClient.tsx`, `app/admin/quotes/QuotesListClient.tsx`, `app/admin/quotes/page.tsx`, `app/actions/admin/adminActions.ts`, `app/admin/settings/page.tsx`, `.agents/context.md`.
+
 ### 20-05-2026 (Sesion 1)
 - **Google Calendar - Desactivación de Notificaciones**: Se modificó `lib/googleSync.ts` para desactivar el envío de invitaciones y notificaciones por correo electrónico al cliente (removiendo el parámetro `?sendUpdates=all` de la API de Google Calendar). Los logs de consola que hacían referencia a la variable eliminada `isReserva` se actualizaron para evitar errores de referencia.
 - **Archivos Modificados**: `lib/googleSync.ts`, `.agents/context.md`.

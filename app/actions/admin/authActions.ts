@@ -5,7 +5,9 @@ import { redirect } from 'next/navigation';
 import { createHash } from 'crypto';
 
 function hashPassword(password: string): string {
-    return createHash('sha256').update(password + 'cot_salt_2026').digest('hex');
+    const salt = process.env.AUTH_SALT;
+    if (!salt) throw new Error('AUTH_SALT environment variable is missing.');
+    return createHash('sha256').update(password + salt).digest('hex');
 }
 
 export async function adminLogin(formData: FormData): Promise<{ error?: string }> {

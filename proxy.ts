@@ -3,7 +3,8 @@ import { NextRequest, NextResponse } from 'next/server';
 const SESSION_COOKIE = 'admin_session';
 
 async function hashPassword(password: string): Promise<string> {
-    const salt = process.env.AUTH_SALT || 'development_otp_salt_2026';
+    const salt = process.env.AUTH_SALT;
+    if (!salt) throw new Error('AUTH_SALT environment variable is missing.');
     const msgBuffer = new TextEncoder().encode(password + salt);
     const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
     const hashArray = Array.from(new Uint8Array(hashBuffer));
