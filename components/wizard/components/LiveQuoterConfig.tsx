@@ -81,7 +81,7 @@ export default function LiveQuoterConfig({ wizard, eventTypes, onNext }: Props) 
             {/* Header Title */}
             <div className="mb-10 text-center md:text-left">
                 <p className="text-primary font-black tracking-widest uppercase text-sm mb-2">Cotizador en Vivo</p>
-                <h2 className="text-3xl md:text-5xl font-black text-brand-text">Arma tu evento en pocos pasos</h2>
+                <h2 className="text-3xl md:text-5xl font-black text-brand-text">Tu evento en pocos pasos</h2>
             </div>
 
             {/* Configuración Básica */}
