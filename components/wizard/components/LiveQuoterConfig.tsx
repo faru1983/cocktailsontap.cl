@@ -164,7 +164,7 @@ export default function LiveQuoterConfig({ wizard, eventTypes, onNext }: Props) 
                             min="0" max={Math.max(250, guests)} step="5"
                             value={guests}
                             onChange={(e) => updateConsumption('guests', parseInt(e.target.value) || 0)}
-                            className="w-full h-2 rounded-lg appearance-none cursor-pointer accent-primary"
+                            className="w-full h-2 rounded-lg appearance-none bg-slate-200 pointer-events-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-6 [&::-webkit-slider-thumb]:h-6 [&::-webkit-slider-thumb]:bg-primary [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-md [&::-webkit-slider-thumb]:cursor-pointer [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:w-6 [&::-moz-range-thumb]:h-6 [&::-moz-range-thumb]:bg-primary [&::-moz-range-thumb]:border-none [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:shadow-md [&::-moz-range-thumb]:cursor-pointer"
                             style={{
                                 background: `linear-gradient(to right, #E2A049 ${(guests / Math.max(250, guests)) * 100}%, #E2E8F0 ${(guests / Math.max(250, guests)) * 100}%)`
                             }}
@@ -186,7 +186,7 @@ export default function LiveQuoterConfig({ wizard, eventTypes, onNext }: Props) 
                             min="1" max="10" step="1"
                             value={drinks}
                             onChange={(e) => updateConsumption('drinksPerPerson', parseInt(e.target.value) || 3)}
-                            className="w-full h-2 rounded-lg appearance-none cursor-pointer accent-primary"
+                            className="w-full h-2 rounded-lg appearance-none bg-slate-200 pointer-events-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-6 [&::-webkit-slider-thumb]:h-6 [&::-webkit-slider-thumb]:bg-primary [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-md [&::-webkit-slider-thumb]:cursor-pointer [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:w-6 [&::-moz-range-thumb]:h-6 [&::-moz-range-thumb]:bg-primary [&::-moz-range-thumb]:border-none [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:shadow-md [&::-moz-range-thumb]:cursor-pointer"
                             style={{
                                 background: `linear-gradient(to right, #E2A049 ${((drinks - 1) / 9) * 100}%, #E2E8F0 ${((drinks - 1) / 9) * 100}%)`
                             }}

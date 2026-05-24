@@ -461,7 +461,7 @@ export function calculateLiveQuoterSuggestion(guests: number, drinks: number) {
         if (totalCounts[5] > 0) parts.push({ qty: totalCounts[5], size: '5L' });
 
         if (parts.length > 0) {
-            compactSuggestionText = parts.map(p => `${p.qty}x ${p.size}`).join(' - ');
+            compactSuggestionText = parts.map(p => `${p.qty}x ${p.size}`).join(' + ');
         }
 
         if (parts.length === 1) {

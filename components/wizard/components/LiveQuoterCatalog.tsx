@@ -169,46 +169,47 @@ export default function LiveQuoterCatalog({ wizard, cocktails, categories, onOpe
                         <div className="flex items-center justify-end flex-1 px-2 sm:px-4">
                             <div className="flex items-center gap-3 sm:gap-5 w-full max-w-lg">
                                 {/* Columna 1: Info Base (Espacio dinámico) */}
-                                <div className="flex flex-col justify-center flex-1 text-right border-r border-brand-border/60 pr-3 sm:pr-5">
+                                <div className="flex flex-col justify-center flex-1 text-right border-r border-brand-border/60 pr-2 sm:pr-5">
                                     <span className="text-[0.65rem] sm:text-[0.7rem] font-bold text-brand-text-muted uppercase tracking-wider leading-none mb-1">
                                         {guests} Inv / {drinks} Tragos
                                     </span>
-                                    <span className="text-[0.75rem] sm:text-[0.85rem] font-bold text-primary leading-tight">
-                                        Barriles: {suggestionText}
+                                    <span className="text-[0.7rem] sm:text-[0.85rem] font-bold text-primary leading-tight">
+                                        {suggestionText}
                                     </span>
                                 </div>
                                 
                                 {/* Columna 2: Progreso (Espacio fijo) */}
-                                <div className="flex flex-col justify-center shrink-0 w-[70px] sm:w-[90px] text-left">
-                                    <span className="text-[0.65rem] sm:text-[0.7rem] font-bold text-brand-text-muted uppercase tracking-wider leading-none mb-1">
-                                        Volumen
+                                <div className="flex flex-col justify-center shrink-0 w-[55px] sm:w-[90px] text-left">
+                                    <span className="text-[0.6rem] sm:text-[0.7rem] font-bold text-brand-text-muted uppercase tracking-wider leading-none mb-1">
+                                        Sugerido
                                     </span>
                                     <div className="flex items-baseline gap-1">
-                                        <span className={`text-[1.1rem] sm:text-[1.3rem] font-black leading-none ${minLitersMet ? (isGoalMet ? 'text-[#25D366]' : 'text-brand-text') : 'text-red-500'}`}>
+                                        <span className={`text-[1.05rem] sm:text-[1.3rem] font-black leading-none ${minLitersMet ? (isGoalMet ? 'text-[#25D366]' : 'text-brand-text') : 'text-red-500'}`}>
                                             {currentLiters}
                                         </span>
-                                        <span className="text-[0.85rem] sm:text-[0.95rem] font-bold text-brand-text-muted leading-none">
-                                            / {recommendedLiters}L
+                                        <span className="text-[0.8rem] sm:text-[0.95rem] font-bold text-brand-text-muted leading-none">
+                                            /{recommendedLiters}L
                                         </span>
                                     </div>
                                 </div>
                             </div>
                         </div>
 
-                        <button
-                            type="button"
-                            onClick={onOpenCheckout}
-                            className="group relative shrink-0 inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-white font-black text-[0.95rem] sm:text-[1rem] transition-all hover:bg-primary-dark shadow-[0_4px_15px_rgba(226,160,73,0.3)]"
-                        >
-                            <ShoppingCart className="w-5 h-5 transition-transform group-hover:scale-110" />
-                            <span className="hidden sm:inline">Cotizar</span>
-                            <span className="sm:hidden">Cotizar</span>
-                            {totalItems > 0 && (
-                                <span className="absolute -top-2 -right-2 bg-brand-text text-white rounded-full min-w-[22px] h-[22px] px-1.5 flex items-center justify-center text-[0.7rem] font-extrabold border-2 border-white shadow-sm">
-                                    {totalItems}
-                                </span>
-                            )}
-                        </button>
+                        <div className="cart-button-target shrink-0 flex">
+                            <button
+                                type="button"
+                                onClick={onOpenCheckout}
+                                className="group relative shrink-0 inline-flex items-center justify-center gap-1.5 px-3 py-2 sm:gap-2 sm:px-5 sm:py-2.5 rounded-xl bg-primary text-white font-black text-[0.85rem] sm:text-[1rem] transition-all hover:bg-primary-dark shadow-[0_4px_15px_rgba(226,160,73,0.3)]"
+                            >
+                                <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5 transition-transform group-hover:scale-110" />
+                                <span>Cotizar</span>
+                                {totalItems > 0 && (
+                                    <span className="absolute -top-2 -right-2 bg-brand-text text-white rounded-full min-w-[22px] h-[22px] px-1.5 flex items-center justify-center text-[0.7rem] font-extrabold border-2 border-white shadow-sm">
+                                        {totalItems}
+                                    </span>
+                                )}
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>

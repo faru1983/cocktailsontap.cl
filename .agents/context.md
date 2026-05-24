@@ -22,12 +22,17 @@
 
 ## Ultimos Cambios
 
+### 24-05-2026 (Sesion 3)
+- **Rediseño Premium en `/cotizar`**: Se mejoró radicalmente el diseño de las tarjetas de selección de servicio para resolver problemas de contraste. Se reemplazó el overlay blanco por un **diseño "Dark Glassmorphism"**. Las tarjetas ahora utilizan un gradiente oscuro (`bg-gradient-to-t from-black/95...`) con textos en blanco brillante y descripciones en `zinc-300` para legibilidad perfecta. Los íconos y botones inferiores ahora emplean fondos translúcidos con desenfoque (`bg-white/10 backdrop-blur-md`). Además, se corrigió el bug de contexto de apilamiento (`isolate`) que ocultaba las imágenes de fondo, y se agregaron micro-interacciones cinematográficas (zoom lento de la imagen y sombras dinámicas con los colores de la marca) cumpliendo plenamente con los estándares de diseño moderno del proyecto.
+- **Archivos Modificados**: `components/wizard/CotizarGateway.tsx`, `.agents/context.md`.
+
 ### 24-05-2026 (Sesion 2)
 - **Imágenes de Fondo en `/cotizar`**:
   - **Fondo de Eventos con IA**: Se generó una nueva imagen de fondo premium para el Servicio de Eventos (`public/assets/service_events.webp`) a partir de la imagen original. Se reemplazó el fondo exterior diurno por una escena elegante de boda/fiesta nocturna con guirnaldas de luces LED cálidas y bokeh de invitados, preservando la mesa y dispensadores del primer plano.
   - **Optimización de Compra Directa**: Se procesó la imagen del barril desechable (`public/assets/direct_purchase.webp`) convirtiéndola a WebP y comprimiendo su peso a ~22 KB, garantizando que el diseño del barril, colores, y logos permanezcan 100% inalterados.
-  - **Diseño de Tarjetas en Gateway**: Se rediseñó el componente `components/wizard/CotizarGateway.tsx` para usar las nuevas imágenes de fondo, incorporando un efecto de zoom suave al hacer hover (`group-hover:scale-105 transition-transform duration-500`) y un overlay blanco semi-transparente (`bg-white/90 group-hover:bg-white/84`) para conservar la estética clara, limpia y el contraste nativo de la tipografía del sitio (`text-brand-text`). Los botones y badges mantienen los colores de marca originales (`text-primary`, `bg-primary/5` y `text-blue-600`, `bg-blue-50`), logrando una integración perfecta y premium.
+  - **Diseño de Tarjetas en Gateway**: Se rediseñó el componente `components/wizard/CotizarGateway.tsx` para usar las nuevas imágenes de fondo. Se aplicó un overlay blanco semi-transparente estático de opacidad constante del 75% (`bg-white/75`) para conservar la estética clara y limpia del sitio.
 - **Archivos Modificados**: `components/wizard/CotizarGateway.tsx`, `.agents/context.md`.
+
 
 ### 24-05-2026 (Sesion 1)
 - **Wizard de Cotización en Vivo (Live Quoter)**:
