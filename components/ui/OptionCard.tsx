@@ -1,4 +1,5 @@
 import React from 'react';
+import { Check } from 'lucide-react';
 
 interface OptionCardProps {
     id: string;
@@ -21,14 +22,19 @@ export default function OptionCard({
 }: OptionCardProps) {
     return (
         <div
-            className={`group relative bg-white border-2 rounded-2xl p-4 text-center cursor-pointer flex flex-col items-center justify-center gap-2 transition-all duration-300
+            className={`group relative border-2 rounded-2xl p-4 text-center cursor-pointer flex flex-col items-center justify-center gap-2 transition-all duration-300 overflow-hidden
                 ${isSelected
-                    ? 'border-primary ring-4 ring-primary/10 bg-primary/5'
-                    : 'border-brand-border text-brand-text-muted hover:border-primary/40 hover:bg-slate-50'
+                    ? 'border-primary ring-2 ring-primary/20 bg-primary/5'
+                    : 'bg-white border-brand-border text-brand-text-muted hover:border-primary/40 hover:bg-slate-50'
                 }
                 ${className}`}
             onClick={() => onClick(id)}
         >
+            {isSelected && (
+                <div className="absolute top-2.5 right-2.5 text-primary">
+                    <Check className="w-4 h-4" />
+                </div>
+            )}
             {icon && (
                 <div className={`transition-all duration-300 ${isSelected ? 'text-primary scale-110' : 'text-slate-400 group-hover:text-primary/70'}`}>
                     {icon}

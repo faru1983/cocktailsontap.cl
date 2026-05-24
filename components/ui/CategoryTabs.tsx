@@ -28,8 +28,10 @@ const CategoryTabs = React.forwardRef<HTMLDivElement, CategoryTabsProps>(({
   const checkScroll = useCallback(() => {
     const el = scrollContainerRef.current;
     if (el) {
-      const canScrollLeft = el.scrollLeft > 5;
-      const canScrollRight = el.scrollLeft < el.scrollWidth - el.clientWidth - 5;
+      const canScrollLeft = Math.ceil(el.scrollLeft) > 5;
+      // Usar 35px de tolerancia en lugar de 5px. Esto ignora el div espaciador final (w-8 = 32px)
+      // para evitar mostrar la flecha si lo único oculto es el espaciador.
+      const canScrollRight = Math.ceil(el.scrollLeft) < el.scrollWidth - el.clientWidth - 35;
       setShowLeftFade(canScrollLeft);
       setShowRightFade(canScrollRight);
     }

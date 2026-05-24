@@ -35,23 +35,18 @@ interface Props {
     isEditable?: boolean;
     onUpdateQuantity?: (id: string, size: string, delta: number) => void;
     onAddProductsClick?: () => void;
-    onToggleDispenser?: () => void;
+    compact?: boolean;
 }
 
-export default function QuoteSummaryProducts({ data, isEditable = false, onUpdateQuantity, onAddProductsClick, onToggleDispenser }: Props) {
+export default function QuoteSummaryProducts({ data, isEditable = false, onUpdateQuantity, onAddProductsClick, compact = false }: Props) {
     const isDesechable = data.dispenserLabel.toLowerCase().includes('desechable');
     const isMuro = data.dispenserLabel.toLowerCase().includes('muro');
-    
-    // Solo permitimos el toggle si es editable, hay una función de toggle y 
-    // actualmente es muro O cumple los requisitos para ser muro.
-    // Prohibimos toggle si es 'Barril Desechable' (opción solo admin)
-    const canToggle = isEditable && onToggleDispenser && !isDesechable && (isMuro || data.canHaveMuro);
 
     return (
-        <div className="bg-white rounded-[20px] p-8 shadow-[0_4px_20px_rgba(0,0,0,0.07)] border border-brand-border mb-6">
+        <div className={`bg-white rounded-[20px] border border-brand-border shadow-[0_4px_20px_rgba(0,0,0,0.05)] ${compact ? 'p-4 sm:p-5 mb-4' : 'p-8 mb-6'}`}>
             {/* Products */}
-            <div className="mb-8">
-                <div className="flex items-center justify-between mb-5 border-b border-brand-border pb-2 gap-2">
+            <div className={compact ? 'mb-4' : 'mb-8'}>
+                <div className={`flex items-center justify-between border-b border-brand-border pb-2 gap-2 ${compact ? 'mb-3' : 'mb-5'}`}>
                     <div className="flex items-center gap-2 font-extrabold text-[1rem] sm:text-[1.1rem] text-brand-text m-0 shrink-0">
                         <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
                         <span>Productos</span>
@@ -75,29 +70,29 @@ export default function QuoteSummaryProducts({ data, isEditable = false, onUpdat
                 {data.items.length > 0 ? (
                     <div className="flex flex-col gap-4">
                         {data.items.map((item) => (
-                            <div key={`${item.id}_${item.selectedSize}`} className="bg-white p-4 rounded-xl border border-brand-border shadow-[0_2px_8px_rgba(0,0,0,0.02)] flex flex-col gap-3 transition-transform hover:-translate-y-[2px] hover:shadow-[0_4px_12px_rgba(0,0,0,0.05)] hover:border-primary/30">
-                                <div className="flex justify-between items-start gap-4">
-                                    <div className="flex items-start gap-3 flex-1 min-w-0">
+                            <div key={`${item.id}_${item.selectedSize}`} className={`bg-white rounded-xl border border-brand-border shadow-[0_2px_8px_rgba(0,0,0,0.02)] flex flex-col transition-transform hover:-translate-y-[2px] hover:shadow-[0_4px_12px_rgba(0,0,0,0.05)] hover:border-primary/30 ${compact ? 'p-3 gap-2' : 'p-4 gap-3'}`}>
+                                <div className="flex justify-between items-start gap-3">
+                                    <div className="flex items-start gap-2 flex-1 min-w-0">
                                         {isEditable && onUpdateQuantity && (
                                             <button
                                                 type="button"
-                                                className="min-w-[28px] h-[28px] rounded-full bg-[#fee2e2] text-[#ef4444] border-none font-bold text-[0.9rem] flex items-center justify-center cursor-pointer transition-colors hover:bg-[#ef4444] hover:text-white shrink-0 mt-0.5"
+                                                className={`rounded-full bg-[#fee2e2] text-[#ef4444] border-none font-bold flex items-center justify-center cursor-pointer transition-colors hover:bg-[#ef4444] hover:text-white shrink-0 mt-0.5 ${compact ? 'min-w-[22px] h-[22px] text-[0.75rem]' : 'min-w-[28px] h-[28px] text-[0.9rem]'}`}
                                                 onClick={() => onUpdateQuantity(item.id, item.selectedSize, -item.quantity)}
                                             >
                                                 ✕
                                             </button>
                                         )}
-                                        <span className="font-bold text-brand-text text-[1.05rem] leading-[1.2]">{item.name}</span>
+                                        <span className={`font-bold text-brand-text leading-[1.2] ${compact ? 'text-[0.9rem] sm:text-[0.95rem]' : 'text-[1.05rem]'}`}>{item.name}</span>
                                     </div>
-                                    <div className="flex items-center gap-2 shrink-0">
+                                    <div className="flex items-center gap-1.5 shrink-0">
                                         {item.totalNormalPrice > item.totalOfferPrice && (
-                                            <span className="text-brand-text-muted text-[0.85rem] line-through opacity-70">{formatCurrency(item.totalNormalPrice)}</span>
+                                            <span className={`text-brand-text-muted line-through opacity-70 ${compact ? 'text-[0.75rem] sm:text-[0.8rem]' : 'text-[0.85rem]'}`}>{formatCurrency(item.totalNormalPrice)}</span>
                                         )}
-                                        <span className="font-extrabold text-[#059669] text-[1.1rem]">{formatCurrency(item.totalOfferPrice)}</span>
+                                        <span className={`font-extrabold text-[#059669] ${compact ? 'text-[0.95rem] sm:text-[1rem]' : 'text-[1.1rem]'}`}>{formatCurrency(item.totalOfferPrice)}</span>
                                     </div>
                                 </div>
-                                <div className="flex justify-between items-center pl-[40px]">
-                                    <span className="text-brand-text-muted text-[0.85rem] font-bold bg-[#f1f5f9] px-2.5 py-1 rounded-md">{item.selectedSize}</span>
+                                <div className={`flex justify-between items-center ${compact ? 'pl-[30px]' : 'pl-[40px]'}`}>
+                                    <span className={`text-brand-text-muted font-bold bg-[#f1f5f9] rounded-md ${compact ? 'text-[0.75rem] px-2 py-0.5' : 'text-[0.85rem] px-2.5 py-1'}`}>{item.selectedSize}</span>
                                     {isEditable && onUpdateQuantity ? (
                                         <QuantitySelector
                                             compact
@@ -131,7 +126,7 @@ export default function QuoteSummaryProducts({ data, isEditable = false, onUpdat
 
             {/* Metrics */}
             {data.items.length > 0 && data.totalLiters > 0 && (
-                <div className="flex justify-between items-center bg-[#f1f5f9] text-brand-text p-4 rounded-xl mb-8 border border-[#e2e8f0]">
+                <div className={`flex justify-between items-center bg-[#f1f5f9] text-brand-text rounded-xl border border-[#e2e8f0] ${compact ? 'p-2.5 mb-4' : 'p-4 mb-8'}`}>
                     {[
                         { val: `${data.totalLiters}L`, label: 'Volumen' },
                         { val: String(data.totalCocktails), label: 'Cócteles' },
@@ -140,8 +135,8 @@ export default function QuoteSummaryProducts({ data, isEditable = false, onUpdat
                     .filter(m => !(m.label === 'x Persona' && (!data.guests || data.guests === 0)))
                     .map((m, i) => (
                         <div key={m.label} className={`text-center flex-1 ${i > 0 ? 'border-l border-[#cbd5e1]' : ''}`}>
-                            <span className="block text-[1.25rem] font-black text-primary">{m.val}</span>
-                            <span className="text-[0.65rem] uppercase font-bold text-[#64748b] tracking-wider">{m.label}</span>
+                            <span className={`block font-black text-primary ${compact ? 'text-[1.05rem] sm:text-[1.15rem]' : 'text-[1.25rem]'}`}>{m.val}</span>
+                            <span className={`uppercase font-bold text-[#64748b] tracking-wider ${compact ? 'text-[0.55rem] sm:text-[0.6rem]' : 'text-[0.65rem]'}`}>{m.label}</span>
                         </div>
                     ))}
                 </div>
@@ -172,31 +167,16 @@ export default function QuoteSummaryProducts({ data, isEditable = false, onUpdat
                     </div>
                 )}
                 {!isDesechable && (
-                    <div 
-                        className={`flex justify-between py-2 px-3 -mx-3 rounded-xl transition-all ${
-                            canToggle 
-                            ? 'cursor-pointer hover:bg-primary/5 active:scale-[0.98] border border-transparent hover:border-primary/20' 
-                            : 'text-brand-text-muted font-medium'
-                        }`}
-                        onClick={() => canToggle && onToggleDispenser?.()}
-                        title={canToggle ? 'Click para cambiar tipo de dispensador' : ''}
-                    >
-                        <div className="flex flex-col">
-                            <span className={`text-[0.95rem] ${canToggle ? 'font-black text-brand-text' : ''}`}>{data.dispenserLabel}</span>
-                            {canToggle && (
-                                <span className="text-[0.6rem] text-primary font-bold uppercase tracking-wider">
-                                    Click para cambiar a {isMuro ? 'Dispensador Portátil' : 'Muro de Coctelería'}
-                                </span>
-                            )}
-                        </div>
-                        <span className={`text-[0.95rem] font-bold ${data.installationCost === 0 ? 'text-primary' : 'text-brand-text'}`}>
+                    <div className="flex justify-between py-2 text-[0.95rem] font-medium text-brand-text-muted">
+                        <span>{data.dispenserLabel}</span>
+                        <span className={`font-bold ${data.installationCost === 0 ? 'text-primary' : 'text-brand-text'}`}>
                             {data.installationCost === 0 ? '¡Gratis!' : formatCurrency(data.installationCost)}
                         </span>
                     </div>
                 )}
-                <div className="flex justify-between pt-4 mt-2 border-t-2 border-primary items-center">
-                    <span className="font-black text-brand-text text-[1rem]">TOTAL</span>
-                    <span className="text-2xl font-black text-primary">{formatCurrency(data.totalPrice)}</span>
+                <div className={`flex justify-between items-center ${compact ? 'pt-3 mt-2 border-t border-primary/20' : 'pt-4 mt-2 border-t-2 border-primary'}`}>
+                    <span className={`font-black text-brand-text ${compact ? 'text-[0.9rem]' : 'text-[1rem]'}`}>TOTAL</span>
+                    <span className={`font-black text-primary ${compact ? 'text-xl sm:text-2xl' : 'text-2xl'}`}>{formatCurrency(data.totalPrice)}</span>
                 </div>
             </div>
         </div>

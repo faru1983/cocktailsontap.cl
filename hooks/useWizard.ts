@@ -37,7 +37,7 @@ const INITIAL_STATE: WizardState = {
         comments: '',
     },
     selections: [],
-    dispenser: 'portatil',
+    dispenser: '',
     expandedCocktailId: null,
     expandedCategoryId: '',
 };
@@ -131,7 +131,7 @@ export function useWizard(cocktails: CocktailForWizard[], comunas: Comuna[], cat
             ...prev,
             ...INITIAL_STATE,
             serviceType: type, 
-            dispenser: 'portatil',
+            dispenser: '',
             step: 1
         }));
         
@@ -143,7 +143,14 @@ export function useWizard(cocktails: CocktailForWizard[], comunas: Comuna[], cat
     }, [searchParams, router, pathname]);
 
     const updateDispenser = useCallback((id: 'portatil' | 'muro' | 'desechable') => {
-        setState((prev) => ({ ...prev, dispenser: id }));
+        setState((prev) => {
+            let newSelections = prev.selections;
+            // Si elige muro, eliminamos cualquier formato 5L que haya elegido antes
+            if (id === 'muro') {
+                newSelections = newSelections.filter(s => s.size !== '5L');
+            }
+            return { ...prev, dispenser: id, selections: newSelections };
+        });
     }, []);
 
     const goToStep = useCallback((step: number) => {
@@ -158,7 +165,7 @@ export function useWizard(cocktails: CocktailForWizard[], comunas: Comuna[], cat
     }, [searchParams, router, pathname]);
 
     const reset = useCallback(() => {
-        setState({ ...INITIAL_STATE, serviceType: initialServiceType, dispenser: 'portatil', expandedCategoryId: categories[0] || '' });
+        setState({ ...INITIAL_STATE, serviceType: initialServiceType, dispenser: '', expandedCategoryId: categories[0] || '' });
         router.push(pathname); // Limpiar query params
     }, [categories, initialServiceType, router, pathname]);
 
@@ -169,14 +176,20 @@ export function useWizard(cocktails: CocktailForWizard[], comunas: Comuna[], cat
         if (step === 1) {
             const e = state.eventData;
             const minAllowedDate = getMinDateString(1);
-            if (state.serviceType === 'event') {
-                if (!e.type.trim()) return { valid: false, message: 'Selecciona la temática del evento.' };
-                if (e.type === 'Otro' && !e.otherType.trim()) return { valid: false, message: 'Especifica la temática del evento.' };
-                if (state.consumption.guests < 1) return { valid: false, message: 'La cantidad de invitados debe ser al menos 1.' };
-            }
+            
+            // 1. Fecha
             if (!e.date.trim()) return { valid: false, message: state.serviceType === 'direct' ? 'Indica la fecha de entrega.' : 'Indica la fecha del evento.' };
             if (state.serviceType === 'event' && e.date < minAllowedDate) {
                 return { valid: false, message: 'La fecha del evento debe ser desde mañana en adelante.' };
+            }
+
+            if (state.serviceType === 'event') {
+                // 2. Temática
+                if (!e.type.trim()) return { valid: false, message: 'Selecciona la temática del evento.' };
+                if (e.type === 'Otro' && !e.otherType.trim()) return { valid: false, message: 'Especifica la temática del evento.' };
+                
+                // 3. Invitados
+                if (state.consumption.guests < 1) return { valid: false, message: 'La cantidad de invitados debe ser al menos 1.' };
             }
         }
         if (step === 5) {

@@ -991,7 +991,6 @@ export default function EventQuoteView({ quote, comunas, availableCocktails, cat
                 isEditable={isDraft}
                 onUpdateQuantity={onSummaryUpdateQuantity}
                 onAddProductsClick={() => setShowCatalog(true)}
-                onToggleDispenser={() => setDispenser(prev => prev === 'muro' ? 'portatil' : 'muro')}
             />
 
             {/* Catálogo Modal (Full Screen Mobile) */}

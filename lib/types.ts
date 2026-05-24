@@ -115,7 +115,7 @@ export interface WizardState {
         comments: string;
     };
     selections: WizardSelection[];
-    dispenser: 'portatil' | 'muro' | 'desechable';
+    dispenser: 'portatil' | 'muro' | 'desechable' | '';
     expandedCocktailId: string | null;
     expandedCategoryId: string;
 }

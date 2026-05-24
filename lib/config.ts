@@ -29,8 +29,11 @@ export const WHATSAPP_LABEL = '+56 9 ' + (process.env.NEXT_PUBLIC_WHATSAPP_NUMBE
 /** Costo de instalación del Muro de Coctelería (en CLP) */
 export const MURO_INSTALLATION_COST = 50_000;
 
-/** Liters mínimos para poder elegir el Muro de Coctelería */
+/** Litros mínimos para poder elegir el Muro de Coctelería */
 export const MURO_MIN_LITERS = 30;
+
+/** Litros mínimos para poder elegir el Dispensador Portátil */
+export const PORTATIL_MIN_LITERS = 10;
 
 /** Tamaños compatibles con el Muro (en litros). El 5L no es compatible. */
 export const MURO_COMPATIBLE_SIZES = [10, 20, 30];

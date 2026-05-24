@@ -37,7 +37,6 @@ export default function WizardStep6({ wizard, cocktails, comunas }: Props) {
                 isEditable={true}
                 onUpdateQuantity={wizard.updateQuantity}
                 onAddProductsClick={() => goToStep(3)}
-                onToggleDispenser={() => wizard.updateDispenser(state.dispenser === 'muro' ? 'portatil' : 'muro')}
             />
 
             {/* Bloque 2: Información de Reserva */}

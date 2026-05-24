@@ -292,10 +292,10 @@ export function calculateSummaryData(
     const canHaveMuro = !hasIncompatibleSize && totalLiters >= MURO_MIN_LITERS;
     
     let dispenserLabel = 'Dispensador Portátil';
-    if (state.dispenser === 'muro' && canHaveMuro) dispenserLabel = 'Muro de Coctelería';
+    if (state.dispenser === 'muro') dispenserLabel = 'Muro de Coctelería';
     if (state.serviceType === 'direct') dispenserLabel = 'Barril Desechable';
 
-    const installationCost = (state.dispenser === 'muro' && canHaveMuro) ? MURO_INSTALLATION_COST : 0;
+    const installationCost = (state.dispenser === 'muro') ? MURO_INSTALLATION_COST : 0;
 
     return {
         items, 
@@ -364,4 +364,125 @@ export function buildWhatsAppMessage(state: WizardState, data: SummaryData, toke
     }
 
     return msg;
+}
+
+/**
+ * LÓGICA DE SUGERENCIA PARA COTIZADOR EN VIVO
+ * ─────────────────────────────────────────────────────────────────────────────
+ */
+export function calculateLiveQuoterSuggestion(guests: number, drinks: number) {
+    if (guests === 0 || drinks === 0) return { recommendedLiters: 0, barrelSuggestionText: '' };
+
+    const totalDrinks = guests * drinks;
+    const exactLiters = totalDrinks / 5;
+
+    let recommendedLiters = 0;
+    if (exactLiters <= 5) {
+        recommendedLiters = 5;
+    } else if (exactLiters < 60) {
+        recommendedLiters = Math.ceil(exactLiters / 5) * 5;
+    } else {
+        recommendedLiters = Math.round(exactLiters / 5) * 5;
+    }
+
+    const sizes = [30, 20, 10, 5];
+    const combos: number[][] = [];
+    let iterations = 0;
+    
+    function findCombos(remaining: number, currentCombo: number[], startIndex: number) {
+        if (iterations > 15000) return;
+        iterations++;
+        
+        if (remaining === 0) {
+            combos.push([...currentCombo]);
+            return;
+        }
+        if (remaining < 0) return;
+
+        for (let i = startIndex; i < sizes.length; i++) {
+            currentCombo.push(sizes[i]);
+            findCombos(remaining - sizes[i], currentCombo, i);
+            currentCombo.pop();
+        }
+    }
+
+    findCombos(recommendedLiters, [], 0);
+
+    let bestCombo: number[] = [];
+    let bestScore = -1;
+
+    if (combos.length > 0) {
+        for (const combo of combos) {
+            const numBarrels = combo.length;
+            const uniqueSizes = new Set(combo).size;
+            
+            const countDiff = Math.abs(numBarrels - drinks);
+            const diffScore = countDiff * 100;
+            
+            let sizePenalty = 0;
+            const count5 = combo.filter(s => s === 5).length;
+            const count10 = combo.filter(s => s === 10).length;
+            if (count5 > 2) sizePenalty += 20;
+            if (count10 > 3) sizePenalty += 10;
+
+            const maxSz = Math.max(...combo);
+            const minSz = Math.min(...combo);
+            const rangePenalty = maxSz - minSz;
+
+            const score = diffScore + sizePenalty + (uniqueSizes * 5) + rangePenalty;
+
+            if (bestScore === -1 || score < bestScore) {
+                bestScore = score;
+                bestCombo = combo;
+            }
+        }
+    } else {
+        let rem = recommendedLiters;
+        for (const sz of sizes) {
+            while (rem >= sz) {
+                bestCombo.push(sz);
+                rem -= sz;
+            }
+        }
+    }
+
+    let barrelSuggestionText = '';
+    let compactSuggestionText = '';
+    if (bestCombo.length > 0) {
+        const totalCounts = { 30: 0, 20: 0, 10: 0, 5: 0 };
+        for (const sz of bestCombo) {
+            totalCounts[sz as keyof typeof totalCounts]++;
+        }
+
+        const parts = [];
+        if (totalCounts[30] > 0) parts.push({ qty: totalCounts[30], size: '30L' });
+        if (totalCounts[20] > 0) parts.push({ qty: totalCounts[20], size: '20L' });
+        if (totalCounts[10] > 0) parts.push({ qty: totalCounts[10], size: '10L' });
+        if (totalCounts[5] > 0) parts.push({ qty: totalCounts[5], size: '5L' });
+
+        if (parts.length > 0) {
+            compactSuggestionText = parts.map(p => `${p.qty}x ${p.size}`).join(' - ');
+        }
+
+        if (parts.length === 1) {
+            const p = parts[0];
+            barrelSuggestionText = `${p.qty} ${p.qty === 1 ? 'barril' : 'barriles'} de ${p.size}`;
+        } else if (parts.length > 1) {
+            const strParts = parts.map((p, index) => {
+                if (index === 0) {
+                    return `${p.qty} ${p.qty === 1 ? 'barril' : 'barriles'} de ${p.size}`;
+                } else {
+                    return `${p.qty} de ${p.size}`;
+                }
+            });
+            const last = strParts.pop();
+            barrelSuggestionText = strParts.join(', ') + ' y ' + last;
+        }
+    }
+
+    return {
+        recommendedLiters,
+        barrelSuggestionText,
+        compactSuggestionText
+    };
 }

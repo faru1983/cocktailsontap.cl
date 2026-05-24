@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { GlassWater, Box, Package, ChevronRight } from 'lucide-react';
 import type { CocktailForWizard, EventType, Comuna } from '@/lib/types';
-import WizardShell from './WizardShell';
+import LiveQuoterShell from './LiveQuoterShell';
 import DirectWizardShell from './direct/DirectWizardShell';
 
 interface Props {
@@ -21,7 +21,7 @@ export default function CotizarGateway({ cocktails, eventTypes, comunas, categor
 
     if (serviceType === 'event') {
         const eventCategories = categories.filter(c => c !== 'Otros');
-        return <WizardShell cocktails={cocktails} eventTypes={eventTypes} comunas={comunas} categories={eventCategories} initialServiceType="event" />;
+        return <LiveQuoterShell cocktails={cocktails} eventTypes={eventTypes} comunas={comunas} categories={eventCategories} initialServiceType="event" />;
     }
 
     if (serviceType === 'direct') {
@@ -38,25 +38,32 @@ export default function CotizarGateway({ cocktails, eventTypes, comunas, categor
                 </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto w-full px-4 sm:px-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto w-full px-4 sm:px-6">
                 {/* Opción 1: Servicio de Eventos */}
                 <button
                     type="button"
                     onClick={() => router.push('/eventos')}
-                    className="group relative flex flex-col items-center p-8 bg-white rounded-3xl border-2 border-brand-border hover:border-primary transition-all duration-300 text-left hover:shadow-xl hover:-translate-y-1 overflow-hidden"
+                    className="group relative flex flex-col items-center p-8 bg-white rounded-3xl border-2 border-brand-border hover:border-primary transition-all duration-300 text-left hover:shadow-xl hover:-translate-y-1 overflow-hidden min-h-[420px]"
                 >
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-bl-[100px] -z-10 transition-transform group-hover:scale-110" />
+                    {/* Image Background with Zoom Effect */}
+                    <div 
+                        className="absolute inset-0 bg-[url('/assets/service_events.webp')] bg-cover bg-center -z-20 transition-transform duration-500 group-hover:scale-105" 
+                    />
+                    {/* White Overlay for contrast */}
+                    <div 
+                        className="absolute inset-0 bg-white/90 group-hover:bg-white/84 transition-colors duration-300 -z-10" 
+                    />
                     
                     <div className="w-20 h-20 bg-primary/10 rounded-2xl flex items-center justify-center text-primary mb-6 group-hover:bg-primary group-hover:text-white transition-colors">
                         <GlassWater className="w-10 h-10" />
                     </div>
                     
-                    <h4 className="text-xl font-black text-brand-text mb-3 text-center">Servicio de Eventos</h4>
+                    <h4 className="text-2xl font-black text-brand-text mb-3 text-center">Servicio de Eventos</h4>
                     <p className="text-brand-text-muted text-[0.95rem] text-center leading-relaxed flex-1 mb-8">
                         Arriendo de dispensadores, cristalería, hielo y decoraciones. Ideal para matrimonios, cumpleaños corporativos y fiestas grandes.
                     </p>
 
-                    <div className="w-full flex items-center justify-between text-primary font-bold text-[0.9rem] bg-primary/5 px-5 py-3 rounded-xl group-hover:bg-primary/10 transition-colors">
+                    <div className="w-full flex items-center justify-between text-primary font-bold text-[0.9rem] bg-primary/5 px-5 py-3 rounded-xl group-hover:bg-primary group-hover:text-white transition-colors">
                         <span>Ver más detalles</span>
                         <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                     </div>
@@ -66,20 +73,27 @@ export default function CotizarGateway({ cocktails, eventTypes, comunas, categor
                 <button
                     type="button"
                     onClick={() => router.push('/barriles')}
-                    className="group relative flex flex-col items-center p-8 bg-white rounded-3xl border-2 border-brand-border hover:border-blue-500 transition-all duration-300 text-left hover:shadow-xl hover:-translate-y-1 overflow-hidden"
+                    className="group relative flex flex-col items-center p-8 bg-white rounded-3xl border-2 border-brand-border hover:border-blue-500 transition-all duration-300 text-left hover:shadow-xl hover:-translate-y-1 overflow-hidden min-h-[420px]"
                 >
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 rounded-bl-[100px] -z-10 transition-transform group-hover:scale-110" />
+                    {/* Image Background with Zoom Effect */}
+                    <div 
+                        className="absolute inset-0 bg-[url('/assets/direct_purchase.webp')] bg-cover bg-center -z-20 transition-transform duration-500 group-hover:scale-105" 
+                    />
+                    {/* White Overlay for contrast */}
+                    <div 
+                        className="absolute inset-0 bg-white/90 group-hover:bg-white/84 transition-colors duration-300 -z-10" 
+                    />
                     
                     <div className="w-20 h-20 bg-blue-500/10 rounded-2xl flex items-center justify-center text-blue-500 mb-6 group-hover:bg-blue-500 group-hover:text-white transition-colors">
                         <Package className="w-10 h-10" />
                     </div>
                     
-                    <h4 className="text-xl font-black text-brand-text mb-3 text-center">Compra Directa</h4>
+                    <h4 className="text-2xl font-black text-brand-text mb-3 text-center">Compra Directa</h4>
                     <p className="text-brand-text-muted text-[0.95rem] text-center leading-relaxed flex-1 mb-8">
                         Barril desechable de 5 Litros. Formato delivery listo para servir, sin retorno de equipos. Excelente para juntas pequeñas o regalos.
                     </p>
 
-                    <div className="w-full flex items-center justify-between text-blue-600 font-bold text-[0.9rem] bg-blue-50 px-5 py-3 rounded-xl group-hover:bg-blue-100 transition-colors">
+                    <div className="w-full flex items-center justify-between text-blue-600 font-bold text-[0.9rem] bg-blue-50 px-5 py-3 rounded-xl group-hover:bg-blue-500 group-hover:text-white transition-colors">
                         <span>Ver más detalles</span>
                         <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                     </div>

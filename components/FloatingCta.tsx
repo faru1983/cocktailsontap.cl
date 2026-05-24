@@ -19,7 +19,7 @@ export default function FloatingCta() {
     return (
         <div
             id="wrapper-cotizar"
-            className={`fixed z-[100] transition-all duration-500 bottom-8 left-8 ${visible ? 'opacity-100 translate-y-0 visible' : 'opacity-0 translate-y-5 invisible'}`}
+            className={`fixed z-[100] transition-all duration-500 bottom-8 right-8 ${visible ? 'opacity-100 translate-y-0 visible' : 'opacity-0 translate-y-5 invisible'}`}
         >
             <div className="relative">
                 <button

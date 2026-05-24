@@ -48,7 +48,7 @@ export default function Navbar() {
         <>
             {/* Botón hamburguesa — siempre flotante */}
             <button
-                className={`fixed top-[4.5rem] right-4 z-[200] flex items-center justify-center w-11 h-11 text-white rounded-full text-[1.1rem] transition-all duration-300 hover:scale-105 ${scrolled
+                className={`fixed top-[4.5rem] left-4 z-[200] flex items-center justify-center w-11 h-11 text-white rounded-full text-[1.1rem] transition-all duration-300 hover:scale-105 ${scrolled
                     ? 'bg-primary/55 backdrop-blur-md shadow-[0_4px_20px_rgba(0,0,0,0.15)] hover:bg-[#c17c28]/75'
                     : 'bg-primary shadow-[0_4px_15px_rgba(226,160,73,0.4)] hover:bg-primary-dark'
                     }`}
@@ -69,7 +69,7 @@ export default function Navbar() {
 
             {/* Panel lateral */}
             <nav
-                className={`fixed top-0 h-screen w-[260px] flex flex-col bg-white pt-20 px-6 pb-8 gap-2 z-[160] shadow-[-5px_0_20px_rgba(0,0,0,0.1)] transition-[right] duration-300 ease-in-out ${open ? 'right-0' : '-right-full'
+                className={`fixed top-0 h-screen w-[260px] flex flex-col bg-white pt-20 px-6 pb-8 gap-2 z-[160] shadow-[5px_0_20px_rgba(0,0,0,0.1)] transition-[left] duration-300 ease-in-out ${open ? 'left-0' : '-left-full'
                     }`}
             >
                 {NAV_LINKS.map((link) => (
