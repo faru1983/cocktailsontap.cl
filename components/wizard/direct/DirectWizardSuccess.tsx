@@ -6,7 +6,7 @@ import { SITE_URL } from '@/lib/config';
 import { formatCurrency } from '@/lib/utils';
 import type { WizardState, CocktailForWizard, Comuna } from '@/lib/types';
 import { calculateSummaryData } from '@/lib/wizardLogic';
-import { WhatsappIcon } from '@/components/icons';
+import { WhatsappIcon } from '@/components/shared/icons';
 
 interface DirectWizardSuccessProps {
     token: string;

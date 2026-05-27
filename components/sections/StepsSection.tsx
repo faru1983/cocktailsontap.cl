@@ -1,4 +1,4 @@
-import Carousel from '@/components/Carousel';
+import Carousel from '@/components/shared/Carousel';
 
 const STEPS = [
     { bgImage: '/assets/pasos_1.webp', badge: 'Paso 1', title: 'Hielo a Tope', description: 'Completa tu vaso o copa con mucho hielo. ¡Mientras más, mejor!' },

@@ -28,7 +28,7 @@ const INCLUYE_ITEMS = [
     { icon: Infinity, label: 'Sin límite de tiempo' },
 ];
 
-export default function LiveQuoterConfig({ wizard, eventTypes, onNext }: Props) {
+export default function EventWizardConfig({ wizard, eventTypes, onNext }: Props) {
     const { state, updateEventData, updateConsumption, updateDispenser } = wizard;
     const [isInfoModalOpen, setIsInfoModalOpen] = React.useState(false);
     const [dispenserModal, setDispenserModal] = React.useState<string | null>(null);

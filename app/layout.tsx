@@ -3,8 +3,8 @@ import { Outfit } from 'next/font/google';
 import Script from 'next/script';
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import './globals.css';
-import Navbar from '@/components/Navbar';
-import Footer from '@/components/Footer';
+import Navbar from '@/components/shared/Navbar';
+import Footer from '@/components/shared/Footer';
 import { SITE_URL, LOGO_URL } from '@/lib/config';
 
 const outfit = Outfit({ subsets: ['latin'], weight: ['300', '400', '600', '700', '800'], variable: '--font-outfit' });

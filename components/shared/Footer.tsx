@@ -3,7 +3,7 @@
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { ChevronRight, Mail, Globe, Instagram, Facebook } from 'lucide-react';
-import { WhatsappIcon } from '@/components/icons';
+import { WhatsappIcon } from '@/components/shared/icons';
 import { SITE_URL, WHATSAPP_URL, WHATSAPP_LABEL } from '@/lib/config';
 
 

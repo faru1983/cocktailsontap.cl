@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useWizard } from '@/hooks/useWizard';
 import { AlertCircle, ArrowLeft, ArrowRight, Loader2 } from 'lucide-react';
-import { WhatsappIcon } from '@/components/icons';
+import { WhatsappIcon } from '@/components/shared/icons';
 import type { CocktailForWizard, EventType, Comuna } from '@/lib/types';
 import { createQuote } from '@/app/actions/createQuote';
 import { WHATSAPP_URL } from '@/lib/config';

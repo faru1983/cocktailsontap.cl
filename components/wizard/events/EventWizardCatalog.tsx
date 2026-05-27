@@ -16,7 +16,7 @@ interface Props {
     onBack: () => void;
 }
 
-export default function LiveQuoterCatalog({ wizard, cocktails, categories, onOpenCheckout, onBack }: Props) {
+export default function EventWizardCatalog({ wizard, cocktails, categories, onOpenCheckout, onBack }: Props) {
     const { state, updateQuantity, toggleCategory } = wizard;
 
     const currentCategory = state.expandedCategoryId || categories[0] || '';

@@ -16,7 +16,7 @@ import type { Quote, QuoteItem, Comuna, CocktailForWizard, EventType, Product, I
 import ProductCatalog from '@/components/catalog/ProductCatalog';
 import QuoteSummaryProducts, { QuoteSummaryData } from '@/components/quote/QuoteSummaryProducts';
 import QuoteSummaryReservation, { QuoteSummaryReservationData } from '@/components/quote/QuoteSummaryReservation';
-import WizardSuccess from '@/components/wizard/WizardSuccess';
+import EventWizardSuccess from '@/components/wizard/events/EventWizardSuccess';
 import { buildWhatsAppMessage } from '@/lib/wizardLogic';
 import { WHATSAPP_NUMBER } from '@/lib/config';
 
@@ -543,7 +543,7 @@ export default function EventQuoteView({ quote, comunas, availableCocktails, cat
     return (
         <div className="flex flex-col gap-4 sm:gap-6">
             {isNew && (
-                <WizardSuccess
+                <EventWizardSuccess
                     token={quote.token}
                     clientEmail={quote.client_email || ''}
                     onReset={() => router.push('/cotizar')}

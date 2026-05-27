@@ -1,4 +1,4 @@
-import Carousel from '@/components/Carousel';
+import Carousel from '@/components/shared/Carousel';
 
 const DISPENSADORES = [
     { bgImage: '/assets/dispensador3.webp', title: 'Dispensador Portátil', description: 'Ideal para eventos simples, sin necesidad de energía eléctrica y adaptable a cualquier espacio.' },

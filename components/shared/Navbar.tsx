@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Home, Layers, Wine, ClipboardList, Star, Calculator, X, Menu, Instagram } from 'lucide-react';
-import { WhatsappIcon } from '@/components/icons';
+import { WhatsappIcon } from '@/components/shared/icons';
 import { WHATSAPP_URL } from '@/lib/config';
 
 const NAV_LINKS = [

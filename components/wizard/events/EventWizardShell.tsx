@@ -7,10 +7,10 @@ import { AlertCircle, ArrowLeft } from 'lucide-react';
 import type { CocktailForWizard, EventType, Comuna } from '@/lib/types';
 import { createQuote } from '@/app/actions/createQuote';
 
-import LiveQuoterConfig from '@/components/wizard/components/LiveQuoterConfig';
-import LiveQuoterCatalog from '@/components/wizard/components/LiveQuoterCatalog';
-import LiveQuoterCheckoutModal from '@/components/wizard/components/LiveQuoterCheckoutModal';
-import WizardSuccess from './WizardSuccess';
+import EventWizardConfig from './EventWizardConfig';
+import EventWizardCatalog from './EventWizardCatalog';
+import EventWizardCheckoutModal from './EventWizardCheckoutModal';
+import EventWizardSuccess from './EventWizardSuccess';
 
 interface Props {
     cocktails: CocktailForWizard[];
@@ -22,7 +22,7 @@ interface Props {
 
 type SendStatus = 'idle' | 'saving' | 'saved' | 'error';
 
-export default function LiveQuoterShell({ cocktails, eventTypes, comunas, categories, initialServiceType }: Props) {
+export default function EventWizardShell({ cocktails, eventTypes, comunas, categories, initialServiceType }: Props) {
     const router = useRouter();
     const wizard = useWizard(cocktails, comunas, categories, initialServiceType);
     const { state } = wizard;
@@ -154,7 +154,7 @@ export default function LiveQuoterShell({ cocktails, eventTypes, comunas, catego
 
                 <div className="animate-fade-in pb-32">
                     {sendStatus === 'saved' && quoteToken ? (
-                        <WizardSuccess 
+                        <EventWizardSuccess 
                             token={quoteToken} 
                             clientEmail={state.contact.email} 
                             onReset={handleReset} 
@@ -162,9 +162,9 @@ export default function LiveQuoterShell({ cocktails, eventTypes, comunas, catego
                         />
                     ) : (
                         currentStep === 1 ? (
-                            <LiveQuoterConfig wizard={wizard} eventTypes={eventTypes} onNext={handleNextToCatalog} />
+                            <EventWizardConfig wizard={wizard} eventTypes={eventTypes} onNext={handleNextToCatalog} />
                         ) : (
-                            <LiveQuoterCatalog wizard={wizard} cocktails={cocktails} categories={categories} onOpenCheckout={handleOpenCheckout} onBack={() => wizard.goToStep(1)} />
+                            <EventWizardCatalog wizard={wizard} cocktails={cocktails} categories={categories} onOpenCheckout={handleOpenCheckout} onBack={() => wizard.goToStep(1)} />
                         )
                     )}
                 </div>
@@ -172,7 +172,7 @@ export default function LiveQuoterShell({ cocktails, eventTypes, comunas, catego
 
             {/* Checkout Modal Overlay */}
             {isModalOpen && sendStatus !== 'saved' && (
-                <LiveQuoterCheckoutModal 
+                <EventWizardCheckoutModal 
                     wizard={wizard} 
                     comunas={comunas} 
                     onClose={() => setIsModalOpen(false)} 

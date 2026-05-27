@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { GlassWater, Box, Package, ChevronRight } from 'lucide-react';
 import type { CocktailForWizard, EventType, Comuna } from '@/lib/types';
-import LiveQuoterShell from './LiveQuoterShell';
+import EventWizardShell from './events/EventWizardShell';
 import DirectWizardShell from './direct/DirectWizardShell';
 
 interface Props {
@@ -21,7 +21,7 @@ export default function CotizarGateway({ cocktails, eventTypes, comunas, categor
 
     if (serviceType === 'event') {
         const eventCategories = categories.filter(c => c !== 'Otros');
-        return <LiveQuoterShell cocktails={cocktails} eventTypes={eventTypes} comunas={comunas} categories={eventCategories} initialServiceType="event" />;
+        return <EventWizardShell cocktails={cocktails} eventTypes={eventTypes} comunas={comunas} categories={eventCategories} initialServiceType="event" />;
     }
 
     if (serviceType === 'direct') {

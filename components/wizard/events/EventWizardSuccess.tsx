@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { CheckCircle, ArrowRight, Mail, MessageSquare, RefreshCw, Copy, ExternalLink } from 'lucide-react';
-import { WhatsappIcon } from '@/components/icons';
+import { WhatsappIcon } from '@/components/shared/icons';
 import { SITE_URL } from '@/lib/config';
 
 interface WizardSuccessProps {

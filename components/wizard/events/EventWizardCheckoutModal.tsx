@@ -5,7 +5,7 @@ import type { useWizard } from '@/hooks/useWizard';
 import type { Comuna } from '@/lib/types';
 import { formatPhoneNumber, formatCurrency } from '@/lib/utils';
 import { X, Loader2, Calendar, Users } from 'lucide-react';
-import { WhatsappIcon } from '@/components/icons';
+import { WhatsappIcon } from '@/components/shared/icons';
 import QuoteSummaryProducts from '@/components/quote/QuoteSummaryProducts';
 import { PORTATIL_MIN_LITERS, MURO_MIN_LITERS } from '@/lib/config';
 
@@ -17,7 +17,7 @@ interface Props {
     sendStatus: 'idle' | 'saving' | 'saved' | 'error';
 }
 
-export default function LiveQuoterCheckoutModal({ wizard, comunas, onClose, onConfirm, sendStatus }: Props) {
+export default function EventWizardCheckoutModal({ wizard, comunas, onClose, onConfirm, sendStatus }: Props) {
     const { state, updateContact } = wizard;
     
     // eslint-disable-next-line react-hooks/exhaustive-deps

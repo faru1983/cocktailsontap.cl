@@ -4,7 +4,7 @@ import type { CartItem } from '@/lib/types';
 import { formatCurrency } from '@/lib/utils';
 import { useEffect } from 'react';
 import { X, ShoppingCart } from 'lucide-react';
-import { WhatsappIcon } from '@/components/icons';
+import { WhatsappIcon } from '@/components/shared/icons';
 
 
 interface CartModalProps {

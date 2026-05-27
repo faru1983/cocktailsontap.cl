@@ -22,6 +22,16 @@
 
 ## Ultimos Cambios
 
+### 27-05-2026 (Sesion 1)
+- **Reorganización Estructura Wizard**: Se reestructuró la carpeta `components/wizard` para separar semánticamente el flujo de eventos y el flujo de compra directa.
+  - Se eliminaron archivos deprecados del flujo antiguo (`WizardShell.tsx`, `WizardStep1.tsx` al `6`).
+  - Se movieron los componentes correspondientes a Live Quoter a la nueva subcarpeta `components/wizard/events`.
+  - Se renombraron los componentes `LiveQuoter*` a `EventWizard*` (ej. `LiveQuoterShell` -> `EventWizardShell`) para igualar la convención usada en `direct/DirectWizard*`.
+  - Se actualizaron las referencias cruzadas de importaciones y componentes renderizados, en particular `CotizarGateway.tsx` y `EventQuoteView.tsx`.
+- **Reorganización de Componentes Globales**: Se movieron los archivos que estaban sueltos en la raíz de `components` (`Navbar.tsx`, `Footer.tsx`, `Carousel.tsx`, `FloatingCta.tsx`, `icons.tsx`) a una nueva carpeta `components/shared/` para mantener el directorio base limpio. Se actualizaron todas las referencias e importaciones en el proyecto.
+- **Archivos Modificados**: `components/wizard/events/*`, `components/wizard/CotizarGateway.tsx`, `components/quote/EventQuoteView.tsx`, `components/shared/*`, `app/layout.tsx`, `app/page.tsx`, `.agents/context.md`.
+
+
 ### 24-05-2026 (Sesion 3)
 - **Rediseño Premium en `/cotizar`**: Se mejoró radicalmente el diseño de las tarjetas de selección de servicio para resolver problemas de contraste. Se reemplazó el overlay blanco por un **diseño "Dark Glassmorphism"**. Las tarjetas ahora utilizan un gradiente oscuro (`bg-gradient-to-t from-black/95...`) con textos en blanco brillante y descripciones en `zinc-300` para legibilidad perfecta. Los íconos y botones inferiores ahora emplean fondos translúcidos con desenfoque (`bg-white/10 backdrop-blur-md`). Además, se corrigió el bug de contexto de apilamiento (`isolate`) que ocultaba las imágenes de fondo, y se agregaron micro-interacciones cinematográficas (zoom lento de la imagen y sombras dinámicas con los colores de la marca) cumpliendo plenamente con los estándares de diseño moderno del proyecto.
 - **Archivos Modificados**: `components/wizard/CotizarGateway.tsx`, `.agents/context.md`.
@@ -73,4 +83,4 @@
 - **Archivos Modificados**: `app/admin/gastos/page.tsx`, `app/admin/gastos/GastosClient.tsx`, `app/actions/admin/gastosActions.ts`, `app/admin/estadisticas/page.tsx`, `app/admin/estadisticas/StatsClient.tsx`.
 
 ---
-*Ultima actualizacion: 24-05-2026 (Sesion 1)*
+*Ultima actualizacion: 27-05-2026 (Sesion 1)*
