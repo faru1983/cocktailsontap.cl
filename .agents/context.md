@@ -20,12 +20,19 @@
 - **Evento**: Draft -> Confirmado (via link unico).
 - **Venta Directa (Desechables)**: Confirmado directo (sin draft).
 
-### Ultimos Cambios
+## Ultimos Cambios
+
+### 28-05-2026 (Sesión 6)
+- **Corrección de Sintaxis JSX y Tipados**: 
+  - Se eliminó un tag de cierre `</div>` redundante en `EventQuoteView.tsx` que causaba que el compilador de TypeScript fallara debido a una estructura JSX rota.
+  - Se removieron los tipados explícitos `any` en `EventQuoteView.tsx` para evitar advertencias y errores de ESLint, especificando tipos adecuados para `dispenser` y el parámetro en la función del reductor de pagos.
+- **Archivos Modificados**: `components/quote/EventQuoteView.tsx`, `.agents/context.md`.
 
 ### 28-05-2026 (Sesión 5)
 - **Validaciones de Litros y Selección de Dispensador en Reserva**: Se implementó el control de volumen mínimo e incompatibilidad de tamaños en el enlace único de confirmación de cliente (`/cotizar/[token]`) tanto en frontend como en backend.
-  - **Validaciones Cliente (`EventQuoteView.tsx`)**: Se agregaron alertas y bloqueo de confirmación si no se cumplen los litros mínimos (`PORTATIL_MIN_LITERS = 10` o `MURO_MIN_LITERS = 30`). Se filtraron los barriles de 5L en el catálogo al usar Muro.
-  - **Selector de Dispensador**: Se incorporó un control interactivo que permite al cliente cambiar entre "Dispensador Portátil" (Gratis) y "Muro de Coctelería" (+$50.000 CLP) si cumple los requisitos (mínimo 30L y sin barriles de 5L).
+  - **Validaciones Cliente (`EventQuoteView.tsx`)**: Se agregaron alertas y bloqueo de confirmación si no se cumplen los litros mínimos (`PORTATIL_MIN_LITERS = 10` o `MURO_MIN_LITERS = 30`).
+  - **Selector de Dispensador Simplificado**: El dispensador se renderiza como texto simple y, si se cumplen las condiciones físicas del Muro ($\ge$ 30L y sin barriles de 5L), se muestra un botón en forma de enlace de texto para alternar entre "Dispensador Portátil" y "Muro de Coctelería" (+$50.000 CLP de instalación).
+  - **Filtros en Catálogo**: Al abrir el modal de catálogo, se filtran las opciones de 5L si el dispensador es Muro, y se ocultan los barriles de tamaño "desechable" y todos los ítems de la categoría "Otros" (congruente con la lógica del wizard de eventos).
   - **Validaciones Servidor (`confirmQuote.ts`)**: Se agregaron chequeos de seguridad (Zero Trust) en el backend que bloquean la confirmación si los litros o compatibilidades son violados.
 - **Archivos Modificados**: `components/quote/EventQuoteView.tsx`, `app/actions/confirmQuote.ts`, `.agents/context.md`.
 
@@ -34,6 +41,7 @@
   - Se modificó `lib/wizardLogic.ts` (la función central `calculateSummaryData`) para excluir explícitamente a la categoría "Otros" del cálculo de `totalLiters`.
   - Se aplicó la misma exclusión en las vistas públicas de cotización (`EventQuoteView.tsx` y `DirectQuoteView.tsx`) que recalculaban los litros en tiempo real, garantizando que tanto la interfaz visual como los correos de Resend muestren el volumen correcto de litros y el rendimiento en cócteles.
 - **Wizard Venta Directa**: Se modificó `DirectWizardCheckoutModal.tsx` cambiando el placeholder "Celular" por "WhatsApp", y moviendo el selector de "Comuna" justo después del campo de "Fecha de Entrega" para mejor flujo lógico en desktop.
+
 
 ### 28-05-2026 (Sesión 3)
 - **Unificación de Pantallas de Éxito**: Se refactorizaron `DirectQuoteView.tsx` and `EventQuoteView.tsx` para eliminar la dependencia de los componentes gigantes `DirectWizardSuccess.tsx` y `EventWizardSuccess.tsx`. 

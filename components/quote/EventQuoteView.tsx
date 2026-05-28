@@ -45,7 +45,8 @@ export default function EventQuoteView({ quote, comunas, availableCocktails, cat
     const [showSuccessScreen, setShowSuccessScreen] = useState(isConfirmedParam);
     const [showCatalog, setShowCatalog] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
-    const [selectedCategory, setSelectedCategory] = useState(categories[0] || 'Todos');
+    const [selectedCategory, setSelectedCategory] = useState(() => categories.filter(c => c !== 'Otros')[0] || 'Todos');
+    const eventCategories = useMemo(() => categories.filter(c => c !== 'Otros'), [categories]);
 
     // State para datos editables
     const [phone, setPhone] = useState(quote.client_phone ?? '');
@@ -62,7 +63,7 @@ export default function EventQuoteView({ quote, comunas, availableCocktails, cat
     const [eventType, setEventType] = useState(quote.event_type_id ?? (quote.event_type_other ? 'Otro' : ''));
     const [otherType, setOtherType] = useState(quote.event_type_other ?? '');
     const [items, setItems] = useState<QuoteItem[]>(quote.quote_items);
-    const [dispenser, setDispenser] = useState<'portatil' | 'muro'>(quote.dispenser as any === 'muro' ? 'muro' : 'portatil');
+    const [dispenser, setDispenser] = useState<'portatil' | 'muro'>((quote.dispenser as string) === 'muro' ? 'muro' : 'portatil');
 
     const [isConfirming, setIsConfirming] = useState(false);
     const [confirmError, setConfirmError] = useState('');
@@ -221,7 +222,7 @@ export default function EventQuoteView({ quote, comunas, availableCocktails, cat
     }, [isNew]); // Solo una vez al montar si es nuevo
 
     const totals = calculateTotals();
-    const totalPaid = (quote.payments || []).reduce((sum: number, p: any) => sum + (Number(p.amount) || 0), 0);
+    const totalPaid = (quote.payments || []).reduce((sum: number, p) => sum + (Number(p.amount) || 0), 0);
     const advanceAmount = totals.totalFinal;
     const advancePercentText = '100%';
     const isSameDayPickup = pickupDate === eventDate;
@@ -337,25 +338,27 @@ export default function EventQuoteView({ quote, comunas, availableCocktails, cat
     }, [quote.client_name, quote.client_lastname, quote.client_email, phone, address, comuna, comunaOther, eventType, otherType, eventTypes, guests, eventDate, startTime, pickupDate, pickupTime, comments]);
 
     // 1. Mapeamos availableCocktails a Product (para el modal)
-    const mappedProducts: Product[] = useMemo(() => availableCocktails.map(c => ({
-        id: c.id,
-        name: c.name,
-        description: c.desc,
-        image: c.image,
-        category: c.category,
-        sizes: Object.entries(c.prices)
-            .filter(([size]) => !size.includes('desechable') && !(dispenser === 'muro' && (size === '5L' || size.includes('5L'))))
-            .map(([size, p]) => ({
-                size,
-                price: p.price,
-                offerPrice: p.offerPrice,
-                sizeValue: p.sizeValue,
-                unitId: p.unitId,
-                isDisposable: p.isDisposable,
-                unit: p.unit,
-                image: p.image
-            }))
-    })), [availableCocktails]);
+    const mappedProducts: Product[] = useMemo(() => availableCocktails
+        .filter(c => c.category !== 'Otros')
+        .map(c => ({
+            id: c.id,
+            name: c.name,
+            description: c.desc,
+            image: c.image,
+            category: c.category,
+            sizes: Object.entries(c.prices)
+                .filter(([size]) => !size.toLowerCase().includes('desechable') && !(dispenser === 'muro' && (size === '5L' || size.includes('5L'))))
+                .map(([size, p]) => ({
+                    size,
+                    price: p.price,
+                    offerPrice: p.offerPrice,
+                    sizeValue: p.sizeValue,
+                    unitId: p.unitId,
+                    isDisposable: p.isDisposable,
+                    unit: p.unit,
+                    image: p.image
+                }))
+        })), [availableCocktails, dispenser]);
 
 
     // 2. Definimos el cart para ProductCatalog
@@ -1003,72 +1006,6 @@ export default function EventQuoteView({ quote, comunas, availableCocktails, cat
                         </div>
                     </div>
 
-                    {/* Selección del Dispensador */}
-                    <div className="mt-4 pt-4 border-t border-brand-border/50">
-                        <label className="text-[0.65rem] font-black text-brand-text-muted flex items-center gap-1.5 uppercase mb-3">
-                            <ShoppingCart className="w-3.5 h-3.5 text-primary" /> Dispensador <span className="text-red-500">*</span>
-                        </label>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            {/* Dispensador Portátil */}
-                            <div
-                                onClick={() => setDispenser('portatil')}
-                                className={`border-2 rounded-2xl p-4 cursor-pointer transition-all flex flex-col justify-between ${
-                                    dispenser === 'portatil'
-                                        ? 'border-primary bg-primary/5 shadow-sm'
-                                        : 'border-brand-border hover:border-primary/50 bg-slate-50'
-                                }`}
-                            >
-                                <div>
-                                    <div className="flex items-center justify-between mb-1">
-                                        <span className="font-extrabold text-sm text-brand-text">Dispensador Portátil</span>
-                                        {dispenser === 'portatil' && <CheckCircle className="w-4 h-4 text-primary shrink-0" />}
-                                    </div>
-                                    <p className="text-[0.75rem] text-brand-text-muted leading-relaxed font-medium">
-                                        Incluido en el servicio. Ocupa poco espacio y se monta sobre cualquier mesa. Requiere mínimo {PORTATIL_MIN_LITERS}L.
-                                    </p>
-                                </div>
-                                <span className="text-xs font-black text-primary mt-3">Gratis</span>
-                            </div>
-
-                            {/* Muro de Coctelería */}
-                            <div
-                                onClick={() => {
-                                    if (canHaveMuro) {
-                                        setDispenser('muro');
-                                    }
-                                }}
-                                className={`border-2 rounded-2xl p-4 flex flex-col justify-between relative transition-all ${
-                                    !canHaveMuro
-                                        ? 'border-slate-200 bg-slate-50/50 opacity-60 cursor-not-allowed'
-                                        : dispenser === 'muro'
-                                            ? 'border-primary bg-primary/5 shadow-sm cursor-pointer'
-                                            : 'border-brand-border hover:border-primary/50 bg-slate-50 cursor-pointer'
-                                }`}
-                            >
-                                <div>
-                                    <div className="flex items-center justify-between mb-1">
-                                        <span className="font-extrabold text-sm text-brand-text flex items-center gap-1.5">
-                                            Muro de Coctelería
-                                            {!canHaveMuro && <Lock className="w-3.5 h-3.5 text-brand-text-muted" />}
-                                        </span>
-                                        {dispenser === 'muro' && canHaveMuro && <CheckCircle className="w-4 h-4 text-primary shrink-0" />}
-                                    </div>
-                                    <p className="text-[0.75rem] text-brand-text-muted leading-relaxed font-medium">
-                                        Estructura premium de madera con grifos retroiluminados. Requiere mínimo {MURO_MIN_LITERS}L y barriles desde 10L.
-                                    </p>
-                                    {!canHaveMuro && (
-                                        <p className="text-[0.65rem] text-amber-600 font-bold mt-2">
-                                            ⚠️ Requiere al menos {MURO_MIN_LITERS}L de barriles (no 5L).
-                                        </p>
-                                    )}
-                                </div>
-                                <span className="text-xs font-black text-brand-text mt-3">
-                                    +{formatCurrency(MURO_INSTALLATION_COST)} CLP
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-
                     <div className="mt-4 pt-4 border-t border-brand-border/50">
                         <label className="text-[0.65rem] font-black text-brand-text-muted flex items-center gap-1.5 uppercase mb-1.5">
                             <MessageSquare className="w-3 h-3" /> Comentarios
@@ -1090,6 +1027,7 @@ export default function EventQuoteView({ quote, comunas, availableCocktails, cat
                 isEditable={isDraft}
                 onUpdateQuantity={onSummaryUpdateQuantity}
                 onAddProductsClick={() => setShowCatalog(true)}
+                onChangeDispenser={() => setDispenser(prev => prev === 'muro' ? 'portatil' : 'muro')}
             />
 
             {/* Catálogo Modal (Full Screen Mobile) */}
@@ -1113,7 +1051,7 @@ export default function EventQuoteView({ quote, comunas, availableCocktails, cat
                             {/* Barra de categorías (Estilo Wizard) */}
                             <div className="flex-1 w-full overflow-hidden">
                                 <div className="flex gap-2 overflow-x-auto pb-1 hide-scrollbar">
-                                    {categories.map((cat) => (
+                                    {eventCategories.map((cat) => (
                                         <button
                                             key={cat}
                                             type="button"

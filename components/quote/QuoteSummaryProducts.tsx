@@ -35,10 +35,11 @@ interface Props {
     isEditable?: boolean;
     onUpdateQuantity?: (id: string, size: string, delta: number) => void;
     onAddProductsClick?: () => void;
+    onChangeDispenser?: () => void;
     compact?: boolean;
 }
 
-export default function QuoteSummaryProducts({ data, isEditable = false, onUpdateQuantity, onAddProductsClick, compact = false }: Props) {
+export default function QuoteSummaryProducts({ data, isEditable = false, onUpdateQuantity, onAddProductsClick, onChangeDispenser, compact = false }: Props) {
     const isDesechable = data.dispenserLabel.toLowerCase().includes('desechable');
     const isMuro = data.dispenserLabel.toLowerCase().includes('muro');
 
@@ -167,8 +168,19 @@ export default function QuoteSummaryProducts({ data, isEditable = false, onUpdat
                     </div>
                 )}
                 {!isDesechable && (
-                    <div className="flex justify-between py-2 text-[0.95rem] font-medium text-brand-text-muted">
-                        <span>{data.dispenserLabel}</span>
+                    <div className="flex justify-between py-2 text-[0.95rem] font-medium text-brand-text-muted items-center">
+                        <div className="flex items-center gap-2">
+                            <span>{data.dispenserLabel}</span>
+                            {isEditable && data.canHaveMuro && onChangeDispenser && (
+                                <button
+                                    type="button"
+                                    onClick={onChangeDispenser}
+                                    className="text-xs font-black text-primary hover:underline border-none bg-transparent p-0 cursor-pointer"
+                                >
+                                    ({data.dispenserLabel.includes('Muro') ? 'Cambiar a Dispensador' : 'Cambiar a Muro'})
+                                </button>
+                            )}
+                        </div>
                         <span className={`font-bold ${data.installationCost === 0 ? 'text-primary' : 'text-brand-text'}`}>
                             {data.installationCost === 0 ? '¡Gratis!' : formatCurrency(data.installationCost)}
                         </span>
