@@ -1,24 +1,24 @@
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { formatCurrency, formatPhoneNumber } from '@/lib/utils';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { formatCurrency, formatPhoneNumber, copyToClipboard } from '@/lib/utils';
 import { formatEventDate, calculateMaxPickupDate, getTodayString } from '@/lib/wizardLogic';
 import { confirmQuote } from '@/app/actions/confirmQuote';
 import { MURO_INSTALLATION_COST } from '@/lib/config';
 import {
     CheckCircle, Clock, XCircle, AlertCircle, ShoppingCart,
     Calendar, Users, MapPin, User, Mail, Phone, MessageSquare, Loader2, Lock,
-    Plus, Search, ChevronRight, Tag, Info, Copy, ExternalLink, CreditCard, FileText
+    Plus, Search, ChevronRight, Tag, Info, Copy, ExternalLink, CreditCard, FileText, ArrowRight
 } from 'lucide-react';
 import * as fp from '@/lib/fpixel';
 import type { Quote, QuoteItem, Comuna, CocktailForWizard, EventType, Product, ICart } from '@/lib/types';
 import ProductCatalog from '@/components/catalog/ProductCatalog';
 import QuoteSummaryProducts, { QuoteSummaryData } from '@/components/quote/QuoteSummaryProducts';
 import QuoteSummaryReservation, { QuoteSummaryReservationData } from '@/components/quote/QuoteSummaryReservation';
-import EventWizardSuccess from '@/components/wizard/events/EventWizardSuccess';
 import { buildWhatsAppMessage } from '@/lib/wizardLogic';
-import { WHATSAPP_NUMBER } from '@/lib/config';
+import { WHATSAPP_NUMBER, WHATSAPP_URL } from '@/lib/config';
+import { WhatsappIcon } from '@/components/shared/icons';
 
 interface Props {
     quote: Quote & { quote_items: QuoteItem[] };
@@ -38,7 +38,11 @@ const STATUS_CONFIG = {
 
 export default function EventQuoteView({ quote, comunas, availableCocktails, categories, eventTypes, isNew }: Props) {
     const router = useRouter();
+    const searchParams = useSearchParams();
+    const isConfirmedParam = searchParams.get('confirmed') === 'true';
+
     const [showConfirmModal, setShowConfirmModal] = useState(false);
+    const [showSuccessScreen, setShowSuccessScreen] = useState(isConfirmedParam);
     const [showCatalog, setShowCatalog] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedCategory, setSelectedCategory] = useState(categories[0] || 'Todos');
@@ -63,9 +67,9 @@ export default function EventQuoteView({ quote, comunas, availableCocktails, cat
     const [isConfirming, setIsConfirming] = useState(false);
     const [confirmError, setConfirmError] = useState('');
     const [confirmed, setConfirmed] = useState(quote.status === 'confirmed');
-    const [showSuccessScreen, setShowSuccessScreen] = useState(false);
     const [acceptedTerms, setAcceptedTerms] = useState(false);
     const [validationErrors, setValidationErrors] = useState<Record<string, boolean>>({});
+    const [clientUrl, setClientUrl] = useState('');
 
     const isDraft = quote.status === 'draft' && !confirmed;
 
@@ -81,6 +85,17 @@ export default function EventQuoteView({ quote, comunas, availableCocktails, cat
         }
         return () => { document.body.style.overflow = 'unset'; };
     }, [showCatalog, showConfirmModal]);
+
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            setClientUrl(`${window.location.origin}${window.location.pathname}`);
+        }
+    }, [quote.token]);
+
+    // Sync success screen state when navigating back/forward
+    useEffect(() => {
+        setShowSuccessScreen(isConfirmedParam);
+    }, [isConfirmedParam]);
 
     // Lógica de Muro de Coctelería
     const canHaveMuro = useMemo(() => {
@@ -427,9 +442,9 @@ export default function EventQuoteView({ quote, comunas, availableCocktails, cat
         });
         setIsConfirming(false);
         if (result.success) {
-            setConfirmed(true);
+            router.replace(`/cotizar/${quote.token}?confirmed=true`);
             setShowSuccessScreen(true);
-            setShowConfirmModal(false);
+            setConfirmed(true);
             setAcceptedTerms(false);
             window.scrollTo({ top: 0, behavior: 'smooth' });
 
@@ -467,54 +482,115 @@ export default function EventQuoteView({ quote, comunas, availableCocktails, cat
 
     // ─── Pantalla de éxito post-confirmación ──────────────────────────────────
 
-    if (showSuccessScreen) {
+    if (showSuccessScreen || isNew) {
+        const title = isNew ? "¡Cotización Recibida!" : "¡Reserva confirmada!";
+        const subtitle = isNew 
+            ? "Hemos recibido tus datos correctamente. El resumen ha sido enviado a tu email y a nuestro equipo."
+            : `Te enviamos un email con todos los detalles y las instrucciones para el pago del ${advancePercentText}.`;
+
         return (
-            <div className="text-center py-16">
-                <div className="inline-flex items-center justify-center w-20 h-20 bg-green-100 rounded-full mb-6 text-green-600">
-                    <CheckCircle className="w-12 h-12" />
+            <div className="text-center py-8 sm:py-16 px-4 animate-fade-in">
+                <div className="inline-flex items-center justify-center w-16 h-16 sm:w-20 sm:h-20 bg-green-100 rounded-full mb-4 sm:mb-6 text-green-600">
+                    <CheckCircle className="w-10 h-10 sm:w-12 sm:h-12" />
                 </div>
-                <h1 className="text-3xl font-black text-brand-text mb-3 tracking-tight">¡Reserva confirmada!</h1>
-                <p className="text-brand-text-muted text-[1.05rem] mb-8 max-w-md mx-auto leading-relaxed">
-                    Te enviamos un email con todos los detalles y las instrucciones para el pago del {advancePercentText}.
+                <h1 className="text-2xl sm:text-3xl font-black text-brand-text mb-2 sm:mb-3 tracking-tight">{title}</h1>
+                <p className="text-brand-text-muted text-[0.95rem] sm:text-[1.05rem] mb-6 sm:mb-8 max-w-md mx-auto leading-relaxed px-2">
+                    {subtitle}
                 </p>
-                <div className="bg-green-50 border-2 border-green-200 rounded-3xl p-8 max-w-sm mx-auto text-left shadow-lg overflow-hidden relative group">
+
+                {!isNew ? (
+                <div className="bg-green-50 border-2 border-green-200 rounded-3xl p-4 sm:p-8 max-w-sm mx-auto text-left shadow-lg overflow-hidden relative group">
                     <div className="absolute top-0 right-0 w-32 h-32 bg-green-200/20 rounded-full -mr-16 -mt-16" />
-                    <p className="text-green-800 font-black text-center mb-1 uppercase tracking-widest text-[0.7rem]">Monto a depositar ({advancePercentText})</p>
-                    <p className="text-green-600 font-black text-4xl text-center mb-6">{formatCurrency(advanceAmount)}</p>
-                    <div className="text-[0.9rem] text-green-800 space-y-2 border-t border-green-200 pt-6">
-                        <p className="flex justify-between"><strong>Banco:</strong> <span>Mercado Pago</span></p>
-                        <p className="flex justify-between"><strong>Cuenta Vista:</strong> <span>1098081647</span></p>
-                        <p className="flex justify-between"><strong>Nombre:</strong> <span>Felipe Ramírez</span></p>
-                        <p className="flex justify-between"><strong>RUT:</strong> <span>15.332.189-2</span></p>
-                        <p className="flex justify-between"><strong>Email:</strong> <span>contacto@cocktailsontap.cl</span></p>
+                    <p className="text-green-800 font-black text-center mb-1 uppercase tracking-widest text-[0.65rem] sm:text-[0.7rem]">Monto a depositar ({advancePercentText})</p>
+                    <p className="text-green-600 font-black text-3xl sm:text-4xl text-center mb-6">{formatCurrency(advanceAmount)}</p>
+                    <div className="text-xs sm:text-[0.9rem] text-green-800 space-y-2 border-t border-green-200 pt-4 sm:pt-6">
+                        <p className="flex flex-row justify-between gap-2"><strong>Banco:</strong> <span>Mercado Pago</span></p>
+                        <p className="flex flex-row justify-between gap-2"><strong>Cuenta Vista:</strong> <span>1098081647</span></p>
+                        <p className="flex flex-row justify-between gap-2"><strong>Nombre:</strong> <span>Felipe Ramírez</span></p>
+                        <p className="flex flex-row justify-between gap-2"><strong>RUT:</strong> <span>15.332.189-2</span></p>
+                        <p className="flex flex-row justify-between gap-2"><strong>Email:</strong> <span className="break-all text-[0.7rem] sm:text-xs">contacto@cocktailsontap.cl</span></p>
                     </div>
                     <button 
                         onClick={() => {
                             const text = `Banco: Mercado Pago\nCuenta Vista: 1098081647\nNombre: Felipe Ramírez\nRUT: 15.332.189-2\nE-mail: contacto@cocktailsontap.cl`;
-                            navigator.clipboard.writeText(text);
+                            copyToClipboard(text);
                         }}
                         className="w-full mt-6 inline-flex items-center justify-center gap-2 px-4 py-3 bg-white border border-green-200 rounded-xl text-[0.85rem] font-black text-green-700 hover:border-green-400 hover:bg-green-50 transition-all active:scale-95 shadow-sm"
                     >
                         <Copy className="w-4 h-4" /> Copiar Datos de Cuenta
                     </button>
-                    <p className="text-[0.8rem] text-green-700 mt-4 text-center italic opacity-80 underline underline-offset-4 decoration-green-300">El pago total se realiza para confirmar la reserva.</p>
-                </div>
+                    <div className="mt-4 pt-3 border-t border-green-200/60 flex flex-col items-center gap-2">
+                        <p className="text-[0.7rem] sm:text-[0.8rem] text-green-700 text-center italic font-bold leading-tight">
+                            Envía tu comprobante por WhatsApp o Email para validar tu reserva:
+                        </p>
+                        <a 
+                            href={`${WHATSAPP_URL}?text=${encodeURIComponent(`Hola, adjunto el comprobante de transferencia para mi reserva: ${clientUrl}`)}`} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="w-full inline-flex justify-center items-center gap-1.5 px-4 py-2 bg-[#25D366] hover:bg-[#128c7e] text-white rounded-xl text-xs font-black transition-all active:scale-95 shadow-sm no-underline text-center"
+                        >
+                            <WhatsappIcon className="w-3.5 h-3.5 fill-white" /> Enviar Comprobante
+                        </a>
+                    </div>
+                    </div>
+                ) : (
+                    <div className="relative mb-8 sm:mb-10 overflow-hidden rounded-2xl sm:rounded-[3rem] bg-gradient-to-br from-[#fdfcfb] to-[#e2d1c3] border-2 border-primary/20 p-5 sm:p-10 shadow-[0_15px_40px_rgba(226,160,73,0.12)] group mx-auto max-w-2xl">
+                        {/* Efectos visuales de fondo */}
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 rounded-full -mr-16 -mt-16 blur-2xl group-hover:bg-primary/20 transition-all duration-500" />
+                        <div className="absolute -bottom-4 -left-4 w-24 h-24 bg-primary/5 rounded-full blur-xl" />
+                        
+                        <div className="relative z-10 flex flex-col items-center">
+                            <div className="inline-flex items-center justify-center px-4 py-1.5 bg-primary/10 rounded-full text-primary font-black text-[0.7rem] uppercase tracking-widest mb-4 border border-primary/10 animate-pulse">
+                                ¡Asegura tu fecha hoy!
+                            </div>
+                            <h2 className="text-2xl md:text-3xl font-black text-brand-dark mb-3">
+                                ¿Listo para hacer que suceda? 🥂
+                            </h2>
+                            <p className="text-brand-text-muted font-medium text-balance mb-8 max-w-lg mx-auto leading-relaxed">
+                                No te arriesgues a perder disponibilidad. Completa los detalles de entrega ahora mismo y transforma esta cotización en una <span className="text-brand-dark font-bold underline decoration-primary/40 decoration-2 underline-offset-4">reserva oficial</span>.
+                            </p>
+                            
+                            <button 
+                                onClick={() => {
+                                    setShowSuccessScreen(false);
+                                    setConfirmed(false);
+                                    router.push(`/cotizar/${quote.token}`);
+                                }}
+                                className="group w-full sm:w-auto inline-flex items-center justify-center gap-2 sm:gap-3 px-6 sm:px-10 py-4 sm:py-5 bg-primary text-white font-black text-base sm:text-xl rounded-2xl shadow-[0_10px_25px_rgba(226,160,73,0.35)] hover:bg-primary-dark hover:shadow-[0_15px_35px_rgba(226,160,73,0.45)] hover:-translate-y-1 transition-all active:scale-95"
+                            >
+                                🚀 Confirmar Ahora
+                                <ArrowRight className="w-5 h-5 sm:w-6 sm:h-6 transition-transform group-hover:translate-x-1" />
+                            </button>
+
+                            <div className="flex items-center justify-center gap-4 sm:gap-6 mt-8 flex-wrap">
+                                <div className="flex items-center gap-1.5 text-[0.75rem] font-bold text-brand-text-muted">
+                                    <CheckCircle className="w-4 h-4 text-green-500" /> Reserva Exclusiva
+                                </div>
+                                <div className="flex items-center gap-1.5 text-[0.75rem] font-bold text-brand-text-muted">
+                                    <CheckCircle className="w-4 h-4 text-green-500" /> Montaje Garantizado
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 {/* Link Card de Seguimiento */}
-                <div className="mt-12 max-w-lg mx-auto bg-slate-50 border border-brand-border rounded-3xl p-6 relative group text-left shadow-sm">
+                <div className="mt-12 max-w-lg mx-auto bg-slate-50 border border-brand-border rounded-3xl p-4 sm:p-6 relative group text-left shadow-sm w-full overflow-hidden">
                     <p className="text-[0.65rem] font-black text-brand-text-muted uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
                         <Copy className="w-3 h-3" /> Tu Comprobante Digital
                     </p>
-                    <div className="flex flex-col gap-3">
-                        <div className="flex-1 bg-white border border-brand-border rounded-xl px-4 py-3 text-[0.85rem] font-bold text-brand-text overflow-hidden text-ellipsis whitespace-nowrap shadow-inner">
-                            {typeof window !== 'undefined' ? window.location.href : ''}
+                    <div className="flex flex-col gap-3 w-full">
+                        <div className="flex-1 w-full min-w-0">
+                            <div className="bg-white border border-brand-border rounded-xl px-4 py-3 text-[0.85rem] font-bold text-brand-text overflow-hidden text-ellipsis whitespace-nowrap shadow-inner">
+                                {clientUrl}
+                            </div>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-stretch sm:items-center gap-2 w-full">
                             <button 
                                 onClick={() => {
-                                    navigator.clipboard.writeText(window.location.href);
+                                    copyToClipboard(clientUrl);
                                 }}
-                                className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-3.5 rounded-xl bg-white border-2 border-brand-border text-brand-text font-black text-[0.85rem] hover:border-primary hover:text-primary transition-all active:scale-95"
+                                className="flex-1 shrink-0 inline-flex items-center justify-center gap-2 px-4 py-3.5 rounded-xl bg-white border-2 border-brand-border text-brand-text font-black text-[0.85rem] hover:border-primary hover:text-primary transition-all active:scale-95"
                             >
                                 <Copy className="w-4 h-4" /> Copiar
                             </button>
@@ -522,9 +598,9 @@ export default function EventQuoteView({ quote, comunas, availableCocktails, cat
                                 onClick={() => {
                                     setShowSuccessScreen(false);
                                     setConfirmed(false);
-                                    router.refresh();
+                                    router.push(`/cotizar/${quote.token}`);
                                 }}
-                                className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-3.5 rounded-xl bg-primary text-white font-black text-[0.85rem] hover:bg-primary-dark transition-all active:scale-95 shadow-md"
+                                className="flex-1 shrink-0 inline-flex items-center justify-center gap-2 px-4 py-3.5 rounded-xl bg-primary text-white font-black text-[0.85rem] hover:bg-primary-dark transition-all active:scale-95 shadow-md"
                             >
                                 <ExternalLink className="w-4 h-4" /> Ver Reserva
                             </button>
@@ -541,56 +617,7 @@ export default function EventQuoteView({ quote, comunas, availableCocktails, cat
     const balance = totals.totalFinal - totalPaid;
 
     return (
-        <div className="flex flex-col gap-4 sm:gap-6">
-            {isNew && (
-                <EventWizardSuccess
-                    token={quote.token}
-                    clientEmail={quote.client_email || ''}
-                    onReset={() => router.push('/cotizar')}
-                    onOpenWhatsApp={() => {
-                        const summary = calculateTotals();
-                        // Mock state for buildWhatsAppMessage
-                        const mockState = {
-                            eventData: { 
-                                type: eventTypes.find(t => t.id === eventType)?.name || '', 
-                                otherType: otherType, 
-                                date: eventDate 
-                            },
-                            contact: { 
-                                firstName: quote.client_name, 
-                                lastName: lastName, 
-                                phone: phone 
-                            },
-                            selections: items.map(i => ({ id: i.product_id!, size: i.size, quantity: i.quantity })),
-                            serviceType: (quote.service_type || 'event') as any,
-                            consumption: { guests: guests, drinksPerPerson: quote.drinks_per_person }
-                        };
-
-                        const mockData = {
-                            items: items.map(i => ({ 
-                                name: i.product_name, 
-                                quantity: i.quantity, 
-                                selectedSize: i.size, 
-                                totalNormalPrice: i.price_at_time * i.quantity, 
-                                totalOfferPrice: i.offer_price_at_time * i.quantity 
-                            })),
-                            totalNormalPrice: summary.totalNormal,
-                            totalOfferPrice: summary.totalOffer,
-                            totalDiscount: summary.totalDiscount,
-                            shippingLabel: summary.shipping === 0 ? '¡Gratis!' : formatCurrency(summary.shipping),
-                            dispenserLabel: dispenser === 'muro' ? 'Muro de Coctelería' : 'Dispensador Portátil',
-                            installationCost: summary.installationCost,
-                            totalPrice: summary.totalFinal,
-                            totalLiters: summary.totalLiters,
-                            totalCocktails: summary.totalCocktails
-                        };
-
-                        const msg = buildWhatsAppMessage(mockState as any, mockData as any, quote.token);
-                        window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`, '_blank');
-                    }}
-                />
-            )}
-
+        <div className="w-full flex flex-col gap-4 sm:gap-6">
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 px-1">
                 <div>
@@ -1144,7 +1171,7 @@ export default function EventQuoteView({ quote, comunas, availableCocktails, cat
                                     <button 
                                         onClick={() => {
                                             const text = `Banco: Mercado Pago\nCuenta Vista: 1098081647\nNombre: Felipe Ramírez\nRUT: 15.332.189-2\nE-mail: contacto@cocktailsontap.cl`;
-                                            navigator.clipboard.writeText(text);
+                                            copyToClipboard(text);
                                         }}
                                         className="w-full inline-flex items-center justify-center gap-2 px-6 py-3.5 bg-white border-2 border-brand-border rounded-xl text-[0.85rem] font-black text-brand-text hover:border-primary hover:text-primary transition-all active:scale-95 shadow-sm"
                                     >

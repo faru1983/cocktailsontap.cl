@@ -22,13 +22,22 @@
 
 ## Ultimos Cambios
 
+### 28-05-2026 (Sesión 3)
+- **Unificación de Pantallas de Éxito**: Se refactorizaron `DirectQuoteView.tsx` y `EventQuoteView.tsx` para eliminar la dependencia de los componentes gigantes `DirectWizardSuccess.tsx` y `EventWizardSuccess.tsx`. 
+  - La pantalla temprana (Early Return) de "Éxito" se reutilizó tanto para cotizaciones/pedidos recién creados (`?new=true`) como para confirmaciones (`?confirmed=true`), logrando un estilo premium unificado.
+  - Se configuró el título dinámico para que muestre "¡Pedido/Cotización recibido(a)!" o "¡Pedido/Reserva confirmada!" según el estado.
+  - En Eventos, la vista `?new=true` muestra la tarjeta premium "¿Listo para hacer que suceda? 🥂", mientras que la vista `?confirmed=true` muestra la tarjeta verde de "Monto a depositar".
+  - Se mantuvo la funcionalidad de "Ver Pedido/Reserva" usando `router.push` en lugar de `replace`, permitiendo que el historial de navegación funcione correctamente al presionar "Atrás".
+  - Se sincronizó el estado local `showSuccessScreen` con la URL usando un `useEffect` para garantizar que la pantalla de éxito se vuelva a renderizar al navegar por el historial.
+
 ### 28-05-2026 (Sesión 2)
-- **Rediseño Onepage del Wizard de Venta Directa (/barriles)**: Se transformó el wizard de compra directa de barriles desechables de un flujo secuencial de 3 pasos a una experiencia interactiva de una sola página (Onepage), unificando el estilo con el cotizador de eventos.
+- **Rediseño Onepage del Wizard de Venta Directa (/barriles) y Mejoras de Responsividad**: Se transformó el wizard de compra directa de barriles desechables de un flujo secuencial de 3 pasos a una experiencia interactiva de una sola página (Onepage), unificando el estilo con el cotizador de eventos.
   - **Nuevo Checkout**: Se creó [DirectWizardCheckoutModal.tsx](file:///d:/Webs/cocktailsontap.cl/components/wizard/direct/DirectWizardCheckoutModal.tsx) consolidando el formulario de datos/despacho y el resumen del pedido en un único modal interactivo. El botón de confirmación adopta el estilo naranja de la marca (`bg-primary`) en lugar de colores de WhatsApp.
   - **Barra Fija Inferior (Sticky Bottom Bar)**: Se modificó [DirectWizardShell.tsx](file:///d:/Webs/cocktailsontap.cl/components/wizard/direct/DirectWizardShell.tsx) eliminando la barra de progreso secuencial superior e incorporando una barra de navegación fija al pie de página que muestra los litros, ítems y subtotal, con un botón destacado de "Comprar".
   - **Simplificación del Catálogo**: Se modificó [DirectStep1Products.tsx](file:///d:/Webs/cocktailsontap.cl/components/wizard/direct/DirectStep1Products.tsx) para remover el botón de carrito de categorías y el modal de carrito legacy.
-  - **Limpieza de Código**: Se eliminaron los componentes obsoletos [DirectStep2Delivery.tsx](file:///d:/Webs/cocktailsontap.cl/components/wizard/direct/DirectStep2Delivery.tsx) y [DirectStep3Summary.tsx](file:///d:/Webs/cocktailsontap.cl/components/wizard/direct/DirectStep3Summary.tsx).
-- **Archivos Modificados/Creados**: `components/wizard/direct/DirectWizardCheckoutModal.tsx` (Nuevo), `components/wizard/direct/DirectStep1Products.tsx`, `components/wizard/direct/DirectWizardShell.tsx`, `components/wizard/direct/DirectStep2Delivery.tsx` (Eliminado), `components/wizard/direct/DirectStep3Summary.tsx` (Eliminado), `.agents/context.md`.
+  - **Limpieza de Código**: Se eliminaron los componentes obsoletos [DirectStep2Delivery.tsx](file:///d:/Webs/cocktailsontap.cl/components/wizard/direct/DirectStep2Delivery.tsx) and [DirectStep3Summary.tsx](file:///d:/Webs/cocktailsontap.cl/components/wizard/direct/DirectStep3Summary.tsx).
+  - **Ajustes Responsivos en Móviles**: Se solucionó un problema de desbordamiento horizontal en celulares reduciendo el padding lateral estático en móviles de `p-8` a `p-4 sm:p-8` en resúmenes y pantallas de éxito, configurando la lista de datos bancarios con `flex-col sm:flex-row` para apilarse en pantallas angostas, y añadiendo `min-w-0` a los contenedores flex que muestran las URLs de seguimiento para que Next.js pueda truncar el texto correctamente sin ensanchar la pantalla.
+- **Archivos Modificados/Creados**: `components/wizard/direct/DirectWizardCheckoutModal.tsx` (Nuevo), `components/wizard/direct/DirectStep1Products.tsx`, `components/wizard/direct/DirectWizardShell.tsx`, `components/wizard/direct/DirectWizardSuccess.tsx`, `components/wizard/events/EventWizardSuccess.tsx`, `components/quote/DirectQuoteView.tsx`, `components/quote/EventQuoteView.tsx`, `components/quote/QuoteSummaryProducts.tsx`, `components/quote/QuoteSummaryReservation.tsx`, `components/wizard/direct/DirectStep2Delivery.tsx` (Eliminado), `components/wizard/direct/DirectStep3Summary.tsx` (Eliminado), `.agents/context.md`.
 
 ### 28-05-2026 (Sesion 1)
 - **Corrección en el Wizard de Compra Directa (/barriles) y Creación Manual**: Se solucionó un bug en la inicialización y reinicio del wizard de compra directa y en la creación manual desde el admin panel que provocaba fallos de validación o inconsistencias en la base de datos al guardar un pedido.
@@ -38,10 +47,19 @@
     - El valor de `dispenser` en el estado de envío y el cálculo de instalaciones sugeridas se setee de manera consistente a `'desechable'`.
     - Se oculte visualmente el campo de sobreescritura "Valor Dispensador" por ser innecesario en ventas directas.
     - Se fuerce el valor de `installationCost` en `overrides` a `0` para evitar arrastrar montos en el submit.
-    - Se unifiquen las tarjetas "Dirección de Despacho" y "Programación de Despacho" bajo una única tarjeta "Información de Despacho" (Dirección, Comuna y Fecha) cuando el tipo de servicio es directo, manteniendo el formulario limpio e integrado.
+    - **[07-04-2026] Venta Directa Onepage y UI Móvil**:
+      - Se unificó "Dirección de Despacho" y "Programación de Despacho".
+      - Se cambió "Generar Cotización" a "Generar Pedido".
+      - Se integró el wizard de Venta Directa en una vista onepage similar a Eventos.
+      - Se añadieron estilos responsivos en las pantallas de "Pedido Recibido", "Pedido Confirmado", reduciendo padding y tamaños de fuentes en mobile para evitar desbordes en celulares.
+      - Se implementó un utilitario global `copyToClipboard` con fallback clásico para soportar copiado en contextos HTTP inseguros (como IPs locales) en todas las pantallas de éxito y vistas de cotización.
+      - Se previno el error de hidratación (hydration mismatch) en SSR al renderizar dinámicamente URLs en el cliente a través de un estado `clientUrl` asignado dentro de un hook `useEffect`.
+      - Se implementó persistencia del estado de confirmación en la URL (`?confirmed=true`) mediante `router.replace` al completar el pago/reserva, permitiendo que la pantalla de confirmación sobreviva a recargas.
+      - Se unificó el diseño de datos bancarios dentro de los modales de confirmación para que siempre utilicen alineación en fila (`flex-row justify-between`).
+      - Se modificaron los enlaces mostrados en las tarjetas de comprobante digital para que limpien dinámicamente los query parameters (`?new=true`, `?confirmed=true`) y se visualicen limpios.
     - Se modifique dinámicamente el texto del botón principal a "Generar Pedido" cuando el tipo de servicio es directo, y se mantenga "Generar Cotización" en eventos.
   - Se modificó `components/wizard/direct/DirectWizardSuccess.tsx` para agregar de forma explícita el número de WhatsApp oficial (`WHATSAPP_LABEL`) y botones directos de acción con enlaces pre-completados que abren la conversación para enviar el comprobante de transferencia y el link único del pedido.
-- **Archivos Modificados**: `hooks/useWizard.ts`, `app/admin/quotes/new/CreateQuoteManualClient.tsx`, `components/wizard/direct/DirectWizardSuccess.tsx`, `.agents/context.md`.
+- **Archivos Modificados**: `hooks/useWizard.ts`, `app/admin/quotes/new/CreateQuoteManualClient.tsx`, `components/wizard/direct/DirectWizardSuccess.tsx`, `components/wizard/events/EventWizardSuccess.tsx`, `components/quote/DirectQuoteView.tsx`, `components/quote/EventQuoteView.tsx`, `lib/utils.ts`, `app/cotizar/[token]/page.tsx`, `.agents/context.md`.
 
 ### 27-05-2026 (Sesion 1)
 - **Reorganización Estructura Wizard**: Se reestructuró la carpeta `components/wizard` para separar semánticamente el flujo de eventos y el flujo de compra directa.
@@ -104,4 +122,4 @@
 - **Archivos Modificados**: `app/admin/gastos/page.tsx`, `app/admin/gastos/GastosClient.tsx`, `app/actions/admin/gastosActions.ts`, `app/admin/estadisticas/page.tsx`, `app/admin/estadisticas/StatsClient.tsx`.
 
 ---
-*Ultima actualizacion: 28-05-2026 (Sesión 2)*
+*Ultima actualizacion: 28-05-2026 (Sesión 3)*

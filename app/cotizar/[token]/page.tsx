@@ -48,8 +48,8 @@ export default async function QuoteTokenPage({ params, searchParams }: Props) {
     const isDirectSale = quote.service_type === 'direct';
 
     return (
-        <main className="min-h-screen bg-brand-bg py-12 px-4 pb-32">
-            <div className="max-w-4xl mx-auto">
+        <main className="min-h-screen bg-brand-bg py-6 sm:py-12 px-2 sm:px-4 pb-32 w-full overflow-x-hidden">
+            <div className="w-full max-w-4xl mx-auto">
                 {isDirectSale ? (
                     <DirectQuoteView
                         quote={quote}

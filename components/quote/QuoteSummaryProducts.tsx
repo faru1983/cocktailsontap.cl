@@ -43,7 +43,7 @@ export default function QuoteSummaryProducts({ data, isEditable = false, onUpdat
     const isMuro = data.dispenserLabel.toLowerCase().includes('muro');
 
     return (
-        <div className={`bg-white rounded-[20px] border border-brand-border shadow-[0_4px_20px_rgba(0,0,0,0.05)] ${compact ? 'p-4 sm:p-5 mb-4' : 'p-8 mb-6'}`}>
+        <div className={`bg-white rounded-[20px] border border-brand-border shadow-[0_4px_20px_rgba(0,0,0,0.05)] ${compact ? 'p-4 sm:p-5 mb-4' : 'p-4 sm:p-8 mb-6'}`}>
             {/* Products */}
             <div className={compact ? 'mb-4' : 'mb-8'}>
                 <div className={`flex items-center justify-between border-b border-brand-border pb-2 gap-2 ${compact ? 'mb-3' : 'mb-5'}`}>
