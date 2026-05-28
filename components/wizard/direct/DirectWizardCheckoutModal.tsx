@@ -105,7 +105,7 @@ export default function DirectWizardCheckoutModal({ wizard, comunas, onClose, on
                                         />
                                     </div>
                                     <div>
-                                        <label className="block font-bold mb-1 text-brand-text text-[0.8rem]">Celular <span className="text-primary">*</span></label>
+                                        <label className="block font-bold mb-1 text-brand-text text-[0.8rem]">WhatsApp <span className="text-primary">*</span></label>
                                         <input
                                             type="tel" required placeholder="+569-12345678"
                                             className="w-full p-2.5 border border-slate-200 rounded-xl focus:border-primary focus:ring-2 focus:ring-primary/10 outline-none text-sm"
@@ -117,6 +117,18 @@ export default function DirectWizardCheckoutModal({ wizard, comunas, onClose, on
                                 </div>
 
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    <div>
+                                        <label className="block font-bold mb-1 text-brand-text text-[0.8rem]">Fecha de Entrega <span className="text-primary">*</span></label>
+                                        <input
+                                            type="date"
+                                            required
+                                            min={minDate}
+                                            className="w-full p-2.5 border border-slate-200 rounded-xl focus:border-primary focus:ring-2 focus:ring-primary/10 outline-none text-sm bg-white"
+                                            value={state.eventData.date}
+                                            onChange={(e) => updateEventData('date', e.target.value)}
+                                            onClick={(e) => e.currentTarget.showPicker?.()}
+                                        />
+                                    </div>
                                     <div>
                                         <label className="block font-bold mb-1 text-brand-text text-[0.8rem]">Comuna <span className="text-primary">*</span></label>
                                         <select
@@ -131,18 +143,6 @@ export default function DirectWizardCheckoutModal({ wizard, comunas, onClose, on
                                             ))}
                                             <option value="Otra">Otra / No está en la lista</option>
                                         </select>
-                                    </div>
-                                    <div>
-                                        <label className="block font-bold mb-1 text-brand-text text-[0.8rem]">Fecha de Entrega <span className="text-primary">*</span></label>
-                                        <input
-                                            type="date"
-                                            required
-                                            min={minDate}
-                                            className="w-full p-2.5 border border-slate-200 rounded-xl focus:border-primary focus:ring-2 focus:ring-primary/10 outline-none text-sm bg-white"
-                                            value={state.eventData.date}
-                                            onChange={(e) => updateEventData('date', e.target.value)}
-                                            onClick={(e) => e.currentTarget.showPicker?.()}
-                                        />
                                     </div>
                                 </div>
 

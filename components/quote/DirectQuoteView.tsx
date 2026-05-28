@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { formatCurrency, formatPhoneNumber, copyToClipboard } from '@/lib/utils';
-import { formatEventDate, getTodayString, getMinDateString } from '@/lib/wizardLogic';
+import { formatEventDate, getTodayString, getMinDateString, getSizeLiters } from '@/lib/wizardLogic';
 import { confirmQuote } from '@/app/actions/confirmQuote';
 import {
     CheckCircle, Clock, XCircle, AlertCircle, ShoppingCart,
@@ -123,7 +123,23 @@ export default function DirectQuoteView({ quote, comunas, availableCocktails, ca
         items.forEach(item => {
             totalNormal += item.price_at_time * item.quantity;
             totalOffer += item.offer_price_at_time * item.quantity;
-            totalLiters += (item.size_value || 0) * item.quantity;
+            // Buscar el cocktail y el precio estructurado para obtener la unidad real
+            const cocktail = availableCocktails.find(c => c.id === item.product_id);
+            const priceData = cocktail?.prices[item.size];
+
+            if (priceData && priceData.unit === 'L' && cocktail?.category !== 'Otros') {
+                totalLiters += priceData.sizeValue * item.quantity;
+            } else if (!priceData) {
+                // Si no hay datos estructurados, usamos el fallback (y filtramos si es Otros por nombre si es posible)
+                const sizeStr = (item.size || '').toLowerCase();
+                if (!sizeStr.match(/kg|und|un|g\b/i) && cocktail?.category !== 'Otros') {
+                    if (item.size_value && sizeStr.includes('l')) {
+                        totalLiters += item.size_value * item.quantity;
+                    } else {
+                        totalLiters += getSizeLiters(item.size) * item.quantity;
+                    }
+                }
+            }
         });
 
         // Recalcular envío dinámicamente

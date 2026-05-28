@@ -184,16 +184,7 @@ export default function DirectWizardShell({ cocktails, comunas, categories, init
                                         {currentLiters}L
                                     </span>
                                 </div>
-                                <div className="h-8 w-[1px] bg-brand-border" />
-                                <div className="flex flex-col">
-                                    <span className="text-[0.65rem] sm:text-[0.7rem] font-bold text-brand-text-muted uppercase tracking-wider leading-none mb-1">
-                                        Productos
-                                    </span>
-                                    <span className="text-[1.1rem] sm:text-xl font-black text-brand-text leading-tight">
-                                        {totalItems} {totalItems === 1 ? 'ítem' : 'ítems'}
-                                    </span>
-                                </div>
-                                <div className="h-8 w-[1px] bg-brand-border hidden sm:block" />
+
                                 <div className="flex flex-col hidden sm:flex">
                                     <span className="text-[0.65rem] sm:text-[0.7rem] font-bold text-brand-text-muted uppercase tracking-wider leading-none mb-1">
                                         Subtotal
@@ -213,14 +204,21 @@ export default function DirectWizardShell({ cocktails, comunas, categories, init
                                         {formatCurrency(summaryData.totalOfferPrice)}
                                     </span>
                                 </div>
-                                <button
-                                    type="button"
-                                    onClick={handleOpenCheckout}
-                                    className="group relative shrink-0 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 sm:gap-2 sm:px-6 sm:py-3 rounded-xl bg-primary text-white font-black text-[0.9rem] sm:text-[1.05rem] transition-all hover:bg-primary-dark shadow-[0_4px_15px_rgba(226,160,73,0.3)] hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
-                                >
-                                    <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5 transition-transform group-hover:scale-110" />
-                                    <span>Comprar</span>
-                                </button>
+                                <div className="cart-button-target shrink-0 flex">
+                                    <button
+                                        type="button"
+                                        onClick={handleOpenCheckout}
+                                        className="group relative shrink-0 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 sm:gap-2 sm:px-6 sm:py-3 rounded-xl bg-primary text-white font-black text-[0.9rem] sm:text-[1.05rem] transition-all hover:bg-primary-dark shadow-[0_4px_15px_rgba(226,160,73,0.3)] hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
+                                    >
+                                        <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5 transition-transform group-hover:scale-110" />
+                                        <span>Comprar</span>
+                                        {totalItems > 0 && (
+                                            <span className="absolute -top-2 -right-2 bg-brand-text text-white rounded-full min-w-[22px] h-[22px] px-1.5 flex items-center justify-center text-[0.7rem] font-extrabold border-2 border-white shadow-sm">
+                                                {totalItems}
+                                            </span>
+                                        )}
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>

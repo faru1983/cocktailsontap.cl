@@ -173,16 +173,17 @@ export default function EventQuoteView({ quote, comunas, availableCocktails, cat
             const cocktail = availableCocktails.find(c => c.id === item.product_id);
             const priceData = cocktail?.prices[item.size];
 
-            if (priceData && priceData.unit === 'L') {
+            if (priceData && priceData.unit === 'L' && cocktail?.category !== 'Otros') {
                 totalLiters += priceData.sizeValue * item.quantity;
             } else if (!priceData) {
-                // Use structured data directly from the item if available
-                if (item.size_value) {
-                    // Since we don't have the unit abbreviation, we assume it's liters if it has a value 
-                    // (most products are liters, units like 'un' don't reach here usually)
-                    totalLiters += item.size_value * item.quantity;
-                } else {
-                    totalLiters += getSizeLiters(item.size) * item.quantity;
+                // Fallback si el producto ya no está en catálogo o es antiguo
+                const sizeStr = (item.size || '').toLowerCase();
+                if (!sizeStr.match(/kg|und|un|g\b/i) && cocktail?.category !== 'Otros') {
+                    if (item.size_value && sizeStr.includes('l')) {
+                        totalLiters += item.size_value * item.quantity;
+                    } else {
+                        totalLiters += getSizeLiters(item.size) * item.quantity;
+                    }
                 }
             }
         });

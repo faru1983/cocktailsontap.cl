@@ -22,6 +22,12 @@
 
 ## Ultimos Cambios
 
+### 28-05-2026 (Sesión 4)
+- **Corrección Lógica de Rendimientos (Litros Totales)**: Se solucionó el bug que sumaba los productos de la categoría "Otros" (hielo, vasos, decoraciones) al volumen total de litros en el pedido.
+  - Se modificó `lib/wizardLogic.ts` (la función central `calculateSummaryData`) para excluir explícitamente a la categoría "Otros" del cálculo de `totalLiters`.
+  - Se aplicó la misma exclusión en las vistas públicas de cotización (`EventQuoteView.tsx` y `DirectQuoteView.tsx`) que recalculaban los litros en tiempo real, garantizando que tanto la interfaz visual como los correos de Resend muestren el volumen correcto de litros y el rendimiento en cócteles.
+- **Wizard Venta Directa**: Se modificó `DirectWizardCheckoutModal.tsx` cambiando el placeholder "Celular" por "WhatsApp", y moviendo el selector de "Comuna" justo después del campo de "Fecha de Entrega" para mejor flujo lógico en desktop.
+
 ### 28-05-2026 (Sesión 3)
 - **Unificación de Pantallas de Éxito**: Se refactorizaron `DirectQuoteView.tsx` y `EventQuoteView.tsx` para eliminar la dependencia de los componentes gigantes `DirectWizardSuccess.tsx` y `EventWizardSuccess.tsx`. 
   - La pantalla temprana (Early Return) de "Éxito" se reutilizó tanto para cotizaciones/pedidos recién creados (`?new=true`) como para confirmaciones (`?confirmed=true`), logrando un estilo premium unificado.

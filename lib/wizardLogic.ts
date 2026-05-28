@@ -252,8 +252,8 @@ export function calculateSummaryData(
         totalNormalPrice += itemNormal;
         totalOfferPrice += itemOffer;
 
-        // SOLO sumar litros si la unidad es 'L' (Litros)
-        if (priceData.unit === 'L') {
+        // SOLO sumar litros si la unidad es 'L' (Litros) y no es categoría 'Otros'
+        if (priceData.unit === 'L' && cocktail?.category !== 'Otros') {
             totalLiters += priceData.sizeValue * s.quantity;
         }
         
