@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { formatCurrency, formatPhoneNumber, copyToClipboard } from '@/lib/utils';
 import { formatEventDate, calculateMaxPickupDate, getTodayString } from '@/lib/wizardLogic';
 import { confirmQuote } from '@/app/actions/confirmQuote';
-import { MURO_INSTALLATION_COST } from '@/lib/config';
+import { MURO_INSTALLATION_COST, PORTATIL_MIN_LITERS, MURO_MIN_LITERS } from '@/lib/config';
 import {
     CheckCircle, Clock, XCircle, AlertCircle, ShoppingCart,
     Calendar, Users, MapPin, User, Mail, Phone, MessageSquare, Loader2, Lock,
@@ -127,37 +127,6 @@ export default function EventQuoteView({ quote, comunas, availableCocktails, cat
         return liters >= 30 && !hasIncompatible;
     }, [items, availableCocktails]);
 
-    // Auto-ajuste de dispensador (Solo en borrador para validación del cliente)
-    useEffect(() => {
-        if (isDraft && !canHaveMuro && dispenser === 'muro') {
-            setDispenser('portatil');
-        }
-    }, [canHaveMuro, dispenser, isDraft]);
-
-    // ─── Meta Pixel: Registro de Lead (Interés Inicial) ───────────────────────
-    useEffect(() => {
-        if (isNew) {
-            const totals = calculateTotals();
-            fp.event('Lead', {
-                content_name: 'Cotización de Evento (Borrador)',
-                content_category: 'Servicio de Eventos',
-                value: totals.totalFinal,
-                currency: 'CLP',
-                contents: items.map(item => ({
-                    id: item.product_id,
-                    item_price: item.offer_price_at_time,
-                    quantity: item.quantity
-                })),
-                content_type: 'product'
-            }, {
-                em: quote.client_email || undefined,
-                ph: phone || undefined,
-                fn: quote.client_name || undefined,
-                ln: lastName || undefined
-            });
-        }
-    }, [isNew]); // Solo una vez al montar si es nuevo
-
     // ─── Cálculos dinámicos ──────────────────────────────────────────────────
 
     const calculateTotals = () => {
@@ -220,6 +189,37 @@ export default function EventQuoteView({ quote, comunas, availableCocktails, cat
         return { totalNormal, totalOffer, totalFinal, totalLiters, totalCocktails, shipping, totalDiscount, installationCost };
     };
 
+    // Auto-ajuste de dispensador (Solo en borrador para validación del cliente)
+    useEffect(() => {
+        if (isDraft && !canHaveMuro && dispenser === 'muro') {
+            setDispenser('portatil');
+        }
+    }, [canHaveMuro, dispenser, isDraft]);
+
+    // ─── Meta Pixel: Registro de Lead (Interés Inicial) ───────────────────────
+    useEffect(() => {
+        if (isNew) {
+            const totals = calculateTotals();
+            fp.event('Lead', {
+                content_name: 'Cotización de Evento (Borrador)',
+                content_category: 'Servicio de Eventos',
+                value: totals.totalFinal,
+                currency: 'CLP',
+                contents: items.map(item => ({
+                    id: item.product_id,
+                    item_price: item.offer_price_at_time,
+                    quantity: item.quantity
+                })),
+                content_type: 'product'
+            }, {
+                em: quote.client_email || undefined,
+                ph: phone || undefined,
+                fn: quote.client_name || undefined,
+                ln: lastName || undefined
+            });
+        }
+    }, [isNew]); // Solo una vez al montar si es nuevo
+
     const totals = calculateTotals();
     const totalPaid = (quote.payments || []).reduce((sum: number, p: any) => sum + (Number(p.amount) || 0), 0);
     const advanceAmount = totals.totalFinal;
@@ -242,6 +242,9 @@ export default function EventQuoteView({ quote, comunas, availableCocktails, cat
         if (!eventType) errors.eventType = true;
         if (eventType === 'Otro' && !otherType.trim()) errors.otherType = true;
         if (!items.some(i => i.quantity > 0)) errors.items = true;
+
+        const minRequiredLiters = dispenser === 'muro' ? MURO_MIN_LITERS : PORTATIL_MIN_LITERS;
+        if (totals.totalLiters < minRequiredLiters) errors.liters = true;
 
         setValidationErrors(errors);
         return Object.keys(errors).length === 0;
@@ -341,7 +344,7 @@ export default function EventQuoteView({ quote, comunas, availableCocktails, cat
         image: c.image,
         category: c.category,
         sizes: Object.entries(c.prices)
-            .filter(([size]) => !size.includes('desechable'))
+            .filter(([size]) => !size.includes('desechable') && !(dispenser === 'muro' && (size === '5L' || size.includes('5L'))))
             .map(([size, p]) => ({
                 size,
                 price: p.price,
@@ -616,6 +619,8 @@ export default function EventQuoteView({ quote, comunas, availableCocktails, cat
     }
 
     const balance = totals.totalFinal - totalPaid;
+    const minRequiredLiters = dispenser === 'muro' ? MURO_MIN_LITERS : PORTATIL_MIN_LITERS;
+    const minLitersMet = totals.totalLiters >= minRequiredLiters;
 
     return (
         <div className="w-full flex flex-col gap-4 sm:gap-6">
@@ -998,6 +1003,72 @@ export default function EventQuoteView({ quote, comunas, availableCocktails, cat
                         </div>
                     </div>
 
+                    {/* Selección del Dispensador */}
+                    <div className="mt-4 pt-4 border-t border-brand-border/50">
+                        <label className="text-[0.65rem] font-black text-brand-text-muted flex items-center gap-1.5 uppercase mb-3">
+                            <ShoppingCart className="w-3.5 h-3.5 text-primary" /> Dispensador <span className="text-red-500">*</span>
+                        </label>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            {/* Dispensador Portátil */}
+                            <div
+                                onClick={() => setDispenser('portatil')}
+                                className={`border-2 rounded-2xl p-4 cursor-pointer transition-all flex flex-col justify-between ${
+                                    dispenser === 'portatil'
+                                        ? 'border-primary bg-primary/5 shadow-sm'
+                                        : 'border-brand-border hover:border-primary/50 bg-slate-50'
+                                }`}
+                            >
+                                <div>
+                                    <div className="flex items-center justify-between mb-1">
+                                        <span className="font-extrabold text-sm text-brand-text">Dispensador Portátil</span>
+                                        {dispenser === 'portatil' && <CheckCircle className="w-4 h-4 text-primary shrink-0" />}
+                                    </div>
+                                    <p className="text-[0.75rem] text-brand-text-muted leading-relaxed font-medium">
+                                        Incluido en el servicio. Ocupa poco espacio y se monta sobre cualquier mesa. Requiere mínimo {PORTATIL_MIN_LITERS}L.
+                                    </p>
+                                </div>
+                                <span className="text-xs font-black text-primary mt-3">Gratis</span>
+                            </div>
+
+                            {/* Muro de Coctelería */}
+                            <div
+                                onClick={() => {
+                                    if (canHaveMuro) {
+                                        setDispenser('muro');
+                                    }
+                                }}
+                                className={`border-2 rounded-2xl p-4 flex flex-col justify-between relative transition-all ${
+                                    !canHaveMuro
+                                        ? 'border-slate-200 bg-slate-50/50 opacity-60 cursor-not-allowed'
+                                        : dispenser === 'muro'
+                                            ? 'border-primary bg-primary/5 shadow-sm cursor-pointer'
+                                            : 'border-brand-border hover:border-primary/50 bg-slate-50 cursor-pointer'
+                                }`}
+                            >
+                                <div>
+                                    <div className="flex items-center justify-between mb-1">
+                                        <span className="font-extrabold text-sm text-brand-text flex items-center gap-1.5">
+                                            Muro de Coctelería
+                                            {!canHaveMuro && <Lock className="w-3.5 h-3.5 text-brand-text-muted" />}
+                                        </span>
+                                        {dispenser === 'muro' && canHaveMuro && <CheckCircle className="w-4 h-4 text-primary shrink-0" />}
+                                    </div>
+                                    <p className="text-[0.75rem] text-brand-text-muted leading-relaxed font-medium">
+                                        Estructura premium de madera con grifos retroiluminados. Requiere mínimo {MURO_MIN_LITERS}L y barriles desde 10L.
+                                    </p>
+                                    {!canHaveMuro && (
+                                        <p className="text-[0.65rem] text-amber-600 font-bold mt-2">
+                                            ⚠️ Requiere al menos {MURO_MIN_LITERS}L de barriles (no 5L).
+                                        </p>
+                                    )}
+                                </div>
+                                <span className="text-xs font-black text-brand-text mt-3">
+                                    +{formatCurrency(MURO_INSTALLATION_COST)} CLP
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
                     <div className="mt-4 pt-4 border-t border-brand-border/50">
                         <label className="text-[0.65rem] font-black text-brand-text-muted flex items-center gap-1.5 uppercase mb-1.5">
                             <MessageSquare className="w-3 h-3" /> Comentarios
@@ -1116,11 +1187,12 @@ export default function EventQuoteView({ quote, comunas, availableCocktails, cat
                             </p>
                         </div>
 
-                        <div className="w-full sm:w-auto relative z-10">
+                    <div className="w-full sm:w-auto relative z-10">
                             <button
                                 type="button"
                                 onClick={handlePreConfirm}
-                                className="w-full sm:w-auto inline-flex items-center justify-center gap-3 px-6 sm:px-12 py-5 rounded-[1.25rem] bg-primary text-white font-black text-[1.1rem] sm:text-[1.15rem] shadow-[0_8px_30px_rgba(226,160,73,0.35)] hover:bg-primary-dark hover:shadow-[0_12px_40px_rgba(226,160,73,0.45)] transition-all active:scale-[0.98] disabled:grayscale disabled:opacity-50 group/btn whitespace-nowrap"
+                                disabled={!minLitersMet}
+                                className="w-full sm:w-auto inline-flex items-center justify-center gap-3 px-6 sm:px-12 py-5 rounded-[1.25rem] bg-primary text-white font-black text-[1.1rem] sm:text-[1.15rem] shadow-[0_8px_30px_rgba(226,160,73,0.35)] hover:bg-primary-dark hover:shadow-[0_12px_40px_rgba(226,160,73,0.45)] transition-all active:scale-[0.98] disabled:grayscale disabled:opacity-50 disabled:cursor-not-allowed group/btn whitespace-nowrap"
                             >
                                 🚀 Confirmar Reserva
                                 <ChevronRight className="w-5 h-5 transition-transform group-hover/btn:translate-x-1" />
@@ -1128,12 +1200,29 @@ export default function EventQuoteView({ quote, comunas, availableCocktails, cat
                         </div>
                     </div>
 
+                    {/* Advertencia de litros mínimos */}
+                    {!minLitersMet && (
+                        <div className="mt-4 bg-red-50 border-2 border-red-200 text-red-600 px-5 py-4 rounded-3xl text-[0.85rem] font-extrabold text-center animate-fade-in flex items-center justify-center gap-2">
+                            <AlertCircle className="w-4 h-4 shrink-0" />
+                            <span>
+                                Debes seleccionar al menos {minRequiredLiters} Litros para usar el {dispenser === 'muro' ? 'Muro de Coctelería' : 'Dispensador Portátil'} (volumen actual: {totals.totalLiters}L).
+                            </span>
+                        </div>
+                    )}
+
                     {/* Mensaje de validación rápida si hay errores */}
                     {Object.keys(validationErrors).length > 0 && (
-                        <div className="mt-4 text-center animate-fade-in">
-                            <p className="text-[0.75rem] font-bold text-red-600 flex items-center justify-center gap-1.5 bg-red-50 border border-red-100 py-2 px-4 rounded-full inline-flex mx-auto">
-                                <AlertCircle className="w-3.5 h-3.5" /> Faltan campos obligatorios por completar.
-                            </p>
+                        <div className="mt-4 text-center animate-fade-in flex flex-col gap-2 items-center">
+                            {validationErrors.liters && (
+                                <p className="text-[0.75rem] font-bold text-red-600 flex items-center justify-center gap-1.5 bg-red-50 border border-red-100 py-2 px-4 rounded-full">
+                                    <AlertCircle className="w-3.5 h-3.5" /> Debes seleccionar al menos {minRequiredLiters} Litros para el dispensador actual.
+                                </p>
+                            )}
+                            {Object.keys(validationErrors).some(k => k !== 'liters') && (
+                                <p className="text-[0.75rem] font-bold text-red-600 flex items-center justify-center gap-1.5 bg-red-50 border border-red-100 py-2 px-4 rounded-full">
+                                    <AlertCircle className="w-3.5 h-3.5" /> Faltan campos obligatorios por completar.
+                                </p>
+                            )}
                         </div>
                     )}
                 </div>

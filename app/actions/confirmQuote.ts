@@ -10,7 +10,7 @@ import { SettingsService } from '@/lib/services/settingsService';
 import { createServerClient } from '@/lib/supabaseServer';
 import { fetchAllProductData } from '@/lib/serverData';
 import { calculateSummaryData, formatEventDate } from '@/lib/wizardLogic';
-import { ADMIN_EMAIL, FROM_EMAIL } from '@/lib/config';
+import { ADMIN_EMAIL, FROM_EMAIL, PORTATIL_MIN_LITERS, MURO_MIN_LITERS } from '@/lib/config';
 
 interface ConfirmQuoteResult {
     success: boolean;
@@ -50,6 +50,17 @@ export async function confirmQuote(formData: any): Promise<ConfirmQuoteResult> {
             dispenser: data.dispenser as any,
             eventData: { date: data.event_date, startTime: data.start_time, pickupDate: data.pickup_date, pickupTime: data.pickup_time }
         } as any, catalogRes.cocktails, catalogRes.comunas);
+
+        // Validaciones Zero Trust en el servidor
+        if (!isDirectSale) {
+            const minRequiredLiters = data.dispenser === 'muro' ? MURO_MIN_LITERS : PORTATIL_MIN_LITERS;
+            if (summary.totalLiters < minRequiredLiters) {
+                return { success: false, error: `La reserva no cumple con el mínimo de litros requerido para el dispensador seleccionado (${minRequiredLiters}L).` };
+            }
+            if (data.dispenser === 'muro' && !summary.canHaveMuro) {
+                return { success: false, error: 'El Muro de Coctelería requiere al menos 30L y solo barriles de 10L, 20L o 30L.' };
+            }
+        }
 
         const total = summary.totalOfferPrice + summary.shippingCost + summary.installationCost - (quote.manual_discount || 0);
 
