@@ -109,7 +109,7 @@ export default function CreateQuoteManualClient({ allProducts, comunas, eventTyp
         consumption,
         contact,
         selections,
-        dispenser: dispenser,
+        dispenser: serviceType === 'direct' ? 'desechable' : dispenser,
         expandedCocktailId: null,
         expandedCategoryId: '',
         serviceType: serviceType
@@ -123,7 +123,7 @@ export default function CreateQuoteManualClient({ allProducts, comunas, eventTyp
     // Final Pricing with Overrides
     // For Admin: If 'muro' is selected, we suggest the cost even if business rules (liters) aren't met,
     // as the admin overrides the rule by picking the option explicitly.
-    const suggestedInstallation = dispenser === 'muro' ? MURO_INSTALLATION_COST : summary.installationCost;
+    const suggestedInstallation = currentWizardState.dispenser === 'muro' ? MURO_INSTALLATION_COST : summary.installationCost;
 
     const finalShipping = shippingOverride !== undefined ? shippingOverride : summary.shippingCost;
     const finalInstallation = installationOverride !== undefined ? installationOverride : suggestedInstallation;
@@ -183,7 +183,8 @@ export default function CreateQuoteManualClient({ allProducts, comunas, eventTyp
                 isAdmin: true,
                 overrides: {
                     ...(shippingOverride !== undefined && { shippingCost: shippingOverride }),
-                    ...(installationOverride !== undefined && { installationCost: installationOverride }),
+                    ...(serviceType === 'event' && installationOverride !== undefined && { installationCost: installationOverride }),
+                    ...(serviceType === 'direct' && { installationCost: 0 }),
                     manualDiscount: discountOverride
                 }
             });
@@ -379,10 +380,40 @@ export default function CreateQuoteManualClient({ allProducts, comunas, eventTyp
                         </div>
                     </SectionBox>
 
-                    <SectionBox title={serviceType === 'direct' ? "Dirección de Despacho" : "Detalles del Evento"} icon={<span className="w-1.5 h-6 bg-slate-600 rounded-full" />}>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            {serviceType === 'event' && (
-                                <>
+                    {serviceType === 'direct' ? (
+                        <SectionBox title="Información de Despacho" icon={<span className="w-1.5 h-6 bg-[#E2A049] rounded-full" />}>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <Field label="Dirección (Calle y Número)" className="md:col-span-2">
+                                    <input value={contact.address} onChange={e => setContact(c => ({...c, address: e.target.value}))} className="admin-input" placeholder="Av. Siempre Viva 123" />
+                                </Field>
+                                <Field label="Comuna">
+                                    <div className="space-y-3">
+                                        <select value={contact.comuna} onChange={e => {
+                                            setContact(c => ({...c, comuna: e.target.value}));
+                                            setShippingOverride(undefined); // Reset override on change
+                                        }} className="admin-input appearance-none">
+                                            <option value="" disabled hidden>Selecciona comuna...</option>
+                                            {comunas.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
+                                        </select>
+                                        {contact.comuna === 'Otra' && (
+                                            <input 
+                                                value={contact.otherComuna} 
+                                                onChange={e => setContact(c => ({...c, otherComuna: e.target.value}))} 
+                                                className="admin-input animate-in slide-in-from-top-2 duration-200" 
+                                                placeholder="¿Cuál comuna?" 
+                                            />
+                                        )}
+                                    </div>
+                                </Field>
+                                <Field label="Fecha de Despacho">
+                                    <input type="date" value={eventData.date} onChange={e => setEventData(d => ({...d, date: e.target.value}))} className="admin-input" />
+                                </Field>
+                            </div>
+                        </SectionBox>
+                    ) : (
+                        <>
+                            <SectionBox title="Detalles del Evento" icon={<span className="w-1.5 h-6 bg-slate-600 rounded-full" />}>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <Field label="Temática">
                                         <select
                                             value={eventData.type}
@@ -412,40 +443,36 @@ export default function CreateQuoteManualClient({ allProducts, comunas, eventTyp
                                     <Field label="N° Invitados">
                                         <input type="number" value={consumption.guests === 0 ? '' : consumption.guests} onChange={e => setConsumption(c => ({...c, guests: Number(e.target.value)}))} className="admin-input" placeholder="0" />
                                     </Field>
-                                </>
-                            )}
-                            <Field label="Dirección (Calle y Número)" className="md:col-span-2">
-                                <input value={contact.address} onChange={e => setContact(c => ({...c, address: e.target.value}))} className="admin-input" placeholder="Av. Siempre Viva 123" />
-                            </Field>
-                            <Field label="Comuna">
-                                <div className="space-y-3">
-                                    <select value={contact.comuna} onChange={e => {
-                                        setContact(c => ({...c, comuna: e.target.value}));
-                                        setShippingOverride(undefined); // Reset override on change
-                                    }} className="admin-input appearance-none">
-                                        <option value="" disabled hidden>Selecciona comuna...</option>
-                                        {comunas.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
-                                    </select>
-                                    {contact.comuna === 'Otra' && (
-                                        <input 
-                                            value={contact.otherComuna} 
-                                            onChange={e => setContact(c => ({...c, otherComuna: e.target.value}))} 
-                                            className="admin-input animate-in slide-in-from-top-2 duration-200" 
-                                            placeholder="¿Cuál comuna?" 
-                                        />
-                                    )}
+                                    <Field label="Dirección (Calle y Número)" className="md:col-span-2">
+                                        <input value={contact.address} onChange={e => setContact(c => ({...c, address: e.target.value}))} className="admin-input" placeholder="Av. Siempre Viva 123" />
+                                    </Field>
+                                    <Field label="Comuna">
+                                        <div className="space-y-3">
+                                            <select value={contact.comuna} onChange={e => {
+                                                setContact(c => ({...c, comuna: e.target.value}));
+                                                setShippingOverride(undefined); // Reset override on change
+                                            }} className="admin-input appearance-none">
+                                                <option value="" disabled hidden>Selecciona comuna...</option>
+                                                {comunas.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
+                                            </select>
+                                            {contact.comuna === 'Otra' && (
+                                                <input 
+                                                    value={contact.otherComuna} 
+                                                    onChange={e => setContact(c => ({...c, otherComuna: e.target.value}))} 
+                                                    className="admin-input animate-in slide-in-from-top-2 duration-200" 
+                                                    placeholder="¿Cuál comuna?" 
+                                                />
+                                            )}
+                                        </div>
+                                    </Field>
                                 </div>
-                            </Field>
-                        </div>
-                    </SectionBox>
+                            </SectionBox>
 
-                    <SectionBox title={serviceType === 'direct' ? "Programación de Despacho" : "Logística y Horarios"} icon={<span className="w-1.5 h-6 bg-slate-600 rounded-full" />}>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-8">
-                            <Field label={serviceType === 'direct' ? "Fecha de Despacho" : "Fecha Evento"}>
-                                <input type="date" value={eventData.date} onChange={e => setEventData(d => ({...d, date: e.target.value}))} className="admin-input" />
-                            </Field>
-                            {serviceType === 'event' && (
-                                <>
+                            <SectionBox title="Logística y Horarios" icon={<span className="w-1.5 h-6 bg-slate-600 rounded-full" />}>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-8">
+                                    <Field label="Fecha Evento">
+                                        <input type="date" value={eventData.date} onChange={e => setEventData(d => ({...d, date: e.target.value}))} className="admin-input" />
+                                    </Field>
                                     <Field label="Hora Inicio (Evento)">
                                         <input type="time" value={eventData.startTime} onChange={e => setEventData(d => ({...d, startTime: e.target.value}))} className="admin-input" />
                                     </Field>
@@ -497,10 +524,10 @@ export default function CreateQuoteManualClient({ allProducts, comunas, eventTyp
                                             </div>
                                         )}
                                     </div>
-                                </>
-                            )}
-                        </div>
-                    </SectionBox>
+                                </div>
+                            </SectionBox>
+                        </>
+                    )}
 
                     <SectionBox title="Comentarios" icon={<span className="w-1.5 h-6 bg-slate-600 rounded-full" />}>
                         <textarea value={contact.comments} onChange={e => setContact(c => ({...c, comments: e.target.value}))} rows={4} className="w-full bg-black/20 border border-white/10 rounded-2xl px-5 py-4 text-white outline-none focus:border-[#E2A049] transition-all text-sm resize-none" placeholder="Notas especiales, alergias o detalles internos..." />
@@ -616,26 +643,28 @@ export default function CreateQuoteManualClient({ allProducts, comunas, eventTyp
                             </div>
 
                             {/* Valor Dispensador Override */}
-                            <div className="flex flex-col gap-2">
-                                <div className="flex justify-between items-center mb-1">
-                                    <label className="text-slate-500 text-[9px] font-black uppercase tracking-widest ml-1">Valor Dispensador</label>
-                                    {installationOverride !== undefined && (
-                                        <button type="button" onClick={() => setInstallationOverride(undefined)} className="text-[#E2A049] text-[8px] font-black uppercase tracking-widest flex items-center gap-1 hover:text-white transition-colors">
-                                            <RefreshCw size={10} /> Auto
-                                        </button>
-                                    )}
+                            {serviceType === 'event' && (
+                                <div className="flex flex-col gap-2">
+                                    <div className="flex justify-between items-center mb-1">
+                                        <label className="text-slate-500 text-[9px] font-black uppercase tracking-widest ml-1">Valor Dispensador</label>
+                                        {installationOverride !== undefined && (
+                                            <button type="button" onClick={() => setInstallationOverride(undefined)} className="text-[#E2A049] text-[8px] font-black uppercase tracking-widest flex items-center gap-1 hover:text-white transition-colors">
+                                                <RefreshCw size={10} /> Auto
+                                            </button>
+                                        )}
+                                    </div>
+                                    <div className="relative">
+                                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 text-sm">$</span>
+                                        <input 
+                                            type="number" 
+                                            value={installationOverride !== undefined ? installationOverride : (suggestedInstallation === 0 && selections.length > 0 ? 0 : suggestedInstallation || '')} 
+                                            onChange={e => setInstallationOverride(e.target.value === '' ? undefined : Number(e.target.value))} 
+                                            className={`w-full bg-black/30 border rounded-xl pl-8 pr-4 py-3 text-white text-sm outline-none transition-all ${installationOverride !== undefined ? 'border-[#E2A049] shadow-[0_0_10px_rgba(226,160,73,0.1)]' : 'border-white/10 focus:border-[#E2A049]'}`}
+                                            placeholder={selections.length > 0 ? suggestedInstallation.toString() : 'Calculando...'}
+                                        />
+                                    </div>
                                 </div>
-                                <div className="relative">
-                                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 text-sm">$</span>
-                                    <input 
-                                        type="number" 
-                                        value={installationOverride !== undefined ? installationOverride : (suggestedInstallation === 0 && selections.length > 0 ? 0 : suggestedInstallation || '')} 
-                                        onChange={e => setInstallationOverride(e.target.value === '' ? undefined : Number(e.target.value))} 
-                                        className={`w-full bg-black/30 border rounded-xl pl-8 pr-4 py-3 text-white text-sm outline-none transition-all ${installationOverride !== undefined ? 'border-[#E2A049] shadow-[0_0_10px_rgba(226,160,73,0.1)]' : 'border-white/10 focus:border-[#E2A049]'}`}
-                                        placeholder={selections.length > 0 ? suggestedInstallation.toString() : 'Calculando...'}
-                                    />
-                                </div>
-                            </div>
+                            )}
 
                             {/* Descuento Extra */}
                             <div className="flex flex-col gap-2">
@@ -661,7 +690,7 @@ export default function CreateQuoteManualClient({ allProducts, comunas, eventTyp
                                 </div>
                             </div>
                             <button type="submit" disabled={isPending} className="w-full bg-[#E2A049] hover:bg-[#f0b05b] text-[#1a1a2e] py-5 rounded-2xl font-black text-[11px] uppercase tracking-widest active:scale-[0.98] transition-all shadow-xl shadow-[#E2A049]/10 flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-wait">
-                                {isPending ? 'Procesando...' : <><Save size={20} /> Generar Cotización</>}
+                                {isPending ? 'Procesando...' : <><Save size={20} /> {serviceType === 'direct' ? 'Generar Pedido' : 'Generar Cotización'}</>}
                             </button>
                         </div>
                     </div>

@@ -56,6 +56,7 @@ export function useWizard(cocktails: CocktailForWizard[], comunas: Comuna[], cat
     const [state, setState] = useState<WizardState>({
         ...INITIAL_STATE,
         serviceType: initialServiceType,
+        dispenser: initialServiceType === 'direct' ? 'desechable' : '',
         step: urlStep
     });
 
@@ -131,7 +132,7 @@ export function useWizard(cocktails: CocktailForWizard[], comunas: Comuna[], cat
             ...prev,
             ...INITIAL_STATE,
             serviceType: type, 
-            dispenser: '',
+            dispenser: type === 'direct' ? 'desechable' : '',
             step: 1
         }));
         
@@ -165,7 +166,12 @@ export function useWizard(cocktails: CocktailForWizard[], comunas: Comuna[], cat
     }, [searchParams, router, pathname]);
 
     const reset = useCallback(() => {
-        setState({ ...INITIAL_STATE, serviceType: initialServiceType, dispenser: '', expandedCategoryId: categories[0] || '' });
+        setState({ 
+            ...INITIAL_STATE, 
+            serviceType: initialServiceType, 
+            dispenser: initialServiceType === 'direct' ? 'desechable' : '', 
+            expandedCategoryId: categories[0] || '' 
+        });
         router.push(pathname); // Limpiar query params
     }, [categories, initialServiceType, router, pathname]);
 

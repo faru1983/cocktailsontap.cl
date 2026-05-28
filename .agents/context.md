@@ -22,6 +22,27 @@
 
 ## Ultimos Cambios
 
+### 28-05-2026 (Sesión 2)
+- **Rediseño Onepage del Wizard de Venta Directa (/barriles)**: Se transformó el wizard de compra directa de barriles desechables de un flujo secuencial de 3 pasos a una experiencia interactiva de una sola página (Onepage), unificando el estilo con el cotizador de eventos.
+  - **Nuevo Checkout**: Se creó [DirectWizardCheckoutModal.tsx](file:///d:/Webs/cocktailsontap.cl/components/wizard/direct/DirectWizardCheckoutModal.tsx) consolidando el formulario de datos/despacho y el resumen del pedido en un único modal interactivo. El botón de confirmación adopta el estilo naranja de la marca (`bg-primary`) en lugar de colores de WhatsApp.
+  - **Barra Fija Inferior (Sticky Bottom Bar)**: Se modificó [DirectWizardShell.tsx](file:///d:/Webs/cocktailsontap.cl/components/wizard/direct/DirectWizardShell.tsx) eliminando la barra de progreso secuencial superior e incorporando una barra de navegación fija al pie de página que muestra los litros, ítems y subtotal, con un botón destacado de "Comprar".
+  - **Simplificación del Catálogo**: Se modificó [DirectStep1Products.tsx](file:///d:/Webs/cocktailsontap.cl/components/wizard/direct/DirectStep1Products.tsx) para remover el botón de carrito de categorías y el modal de carrito legacy.
+  - **Limpieza de Código**: Se eliminaron los componentes obsoletos [DirectStep2Delivery.tsx](file:///d:/Webs/cocktailsontap.cl/components/wizard/direct/DirectStep2Delivery.tsx) y [DirectStep3Summary.tsx](file:///d:/Webs/cocktailsontap.cl/components/wizard/direct/DirectStep3Summary.tsx).
+- **Archivos Modificados/Creados**: `components/wizard/direct/DirectWizardCheckoutModal.tsx` (Nuevo), `components/wizard/direct/DirectStep1Products.tsx`, `components/wizard/direct/DirectWizardShell.tsx`, `components/wizard/direct/DirectStep2Delivery.tsx` (Eliminado), `components/wizard/direct/DirectStep3Summary.tsx` (Eliminado), `.agents/context.md`.
+
+### 28-05-2026 (Sesion 1)
+- **Corrección en el Wizard de Compra Directa (/barriles) y Creación Manual**: Se solucionó un bug en la inicialización y reinicio del wizard de compra directa y en la creación manual desde el admin panel que provocaba fallos de validación o inconsistencias en la base de datos al guardar un pedido.
+  - El error `state.dispenser: Invalid option: expected one of "portatil"|"muro"|"desechable"` ocurría porque `state.dispenser` se inicializaba y reiniciaba como una cadena vacía (`''`), lo cual no es un valor válido en el esquema `CreateQuoteSchema` de Zod.
+  - Se modificó `hooks/useWizard.ts` para que, cuando el tipo de servicio inicial o actual sea `'direct'`, el valor de `dispenser` se establezca automáticamente en `'desechable'`, cumpliendo con la base de datos y validaciones.
+  - Se modificó `app/admin/quotes/new/CreateQuoteManualClient.tsx` para que, al elegir "Venta Desechables" (direct) en la creación de cotizaciones manuales del admin:
+    - El valor de `dispenser` en el estado de envío y el cálculo de instalaciones sugeridas se setee de manera consistente a `'desechable'`.
+    - Se oculte visualmente el campo de sobreescritura "Valor Dispensador" por ser innecesario en ventas directas.
+    - Se fuerce el valor de `installationCost` en `overrides` a `0` para evitar arrastrar montos en el submit.
+    - Se unifiquen las tarjetas "Dirección de Despacho" y "Programación de Despacho" bajo una única tarjeta "Información de Despacho" (Dirección, Comuna y Fecha) cuando el tipo de servicio es directo, manteniendo el formulario limpio e integrado.
+    - Se modifique dinámicamente el texto del botón principal a "Generar Pedido" cuando el tipo de servicio es directo, y se mantenga "Generar Cotización" en eventos.
+  - Se modificó `components/wizard/direct/DirectWizardSuccess.tsx` para agregar de forma explícita el número de WhatsApp oficial (`WHATSAPP_LABEL`) y botones directos de acción con enlaces pre-completados que abren la conversación para enviar el comprobante de transferencia y el link único del pedido.
+- **Archivos Modificados**: `hooks/useWizard.ts`, `app/admin/quotes/new/CreateQuoteManualClient.tsx`, `components/wizard/direct/DirectWizardSuccess.tsx`, `.agents/context.md`.
+
 ### 27-05-2026 (Sesion 1)
 - **Reorganización Estructura Wizard**: Se reestructuró la carpeta `components/wizard` para separar semánticamente el flujo de eventos y el flujo de compra directa.
   - Se eliminaron archivos deprecados del flujo antiguo (`WizardShell.tsx`, `WizardStep1.tsx` al `6`).
@@ -83,4 +104,4 @@
 - **Archivos Modificados**: `app/admin/gastos/page.tsx`, `app/admin/gastos/GastosClient.tsx`, `app/actions/admin/gastosActions.ts`, `app/admin/estadisticas/page.tsx`, `app/admin/estadisticas/StatsClient.tsx`.
 
 ---
-*Ultima actualizacion: 27-05-2026 (Sesion 1)*
+*Ultima actualizacion: 28-05-2026 (Sesión 2)*

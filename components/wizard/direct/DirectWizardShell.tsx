@@ -1,18 +1,16 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useWizard } from '@/hooks/useWizard';
-import { AlertCircle, ArrowLeft, ArrowRight, Loader2 } from 'lucide-react';
-import { WhatsappIcon } from '@/components/shared/icons';
-import type { CocktailForWizard, EventType, Comuna } from '@/lib/types';
+import { AlertCircle, ArrowLeft, ShoppingCart } from 'lucide-react';
+import type { CocktailForWizard, Comuna } from '@/lib/types';
 import { createQuote } from '@/app/actions/createQuote';
 import { WHATSAPP_URL } from '@/lib/config';
-import { getMinDateString } from '@/lib/wizardLogic';
+import { formatCurrency } from '@/lib/utils';
 
 import DirectStep1Products from './DirectStep1Products';
-import DirectStep2Delivery from './DirectStep2Delivery';
-import DirectStep3Summary from './DirectStep3Summary';
+import DirectWizardCheckoutModal from './DirectWizardCheckoutModal';
 import DirectWizardSuccess from './DirectWizardSuccess';
 
 interface Props {
@@ -33,21 +31,14 @@ export default function DirectWizardShell({ cocktails, comunas, categories, init
     const [sendStatus, setSendStatus] = useState<SendStatus>('idle');
     const [quoteToken, setQuoteToken] = useState<string | null>(null);
     const [saveError, setSaveError] = useState('');
-
-    useEffect(() => {
-        setValidationError('');
-    }, [state.step]);
+    const [isModalOpen, setIsModalOpen] = useState(false);
 
     useEffect(() => {
         wizard.initCategory(categories);
-        // Dispenser is no longer forced to 'desechable' as it is deprecated
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [categories]);
 
-    // Progress adjusted for 3 steps
-    const progress = (state.step / 3) * 100;
-
-    // Reset errors and status when step changes
+    // Reset error when selections or modal state changes
     useEffect(() => {
         setValidationError('');
         if (sendStatus === 'error') {
@@ -55,65 +46,48 @@ export default function DirectWizardShell({ cocktails, comunas, categories, init
             setSaveError('');
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [state.step, state.selections]);
+    }, [state.selections, isModalOpen]);
 
-    const getDisposableLiters = () =>
-        state.selections.reduce((sum, sel) => {
+    const summaryData = useMemo(() => {
+        return wizard.calculateSummaryData();
+    }, [state.selections, wizard]);
+
+    const totalItems = useMemo(() => {
+        return state.selections.reduce((sum, s) => sum + s.quantity, 0);
+    }, [state.selections]);
+
+    const currentLiters = summaryData.totalLiters;
+
+    const handleOpenCheckout = () => {
+        // Validación preventiva antes de abrir el modal
+        const hasMainProduct = state.selections.some(sel => {
             const product = cocktails.find(c => c.id === sel.id);
-            const selectedPrice = product?.prices?.[sel.size];
-            const sizeValue = selectedPrice?.sizeValue ?? 0;
-            const isDisposable = selectedPrice?.isDisposable ?? false;
-            return sum + (isDisposable && sizeValue > 0 ? sizeValue * sel.quantity : 0);
-        }, 0);
+            return product && product.category !== 'Otros';
+        });
 
-    const handleNext = () => {
-        // We need custom validation logic here or adapt validateStep
-        let isValid = true;
-        let message = '';
-
-        if (state.step === 1) {
-            const disposableLiters = getDisposableLiters();
-            if (disposableLiters < 5) {
-                isValid = false;
-                message = 'Debes seleccionar al menos 1 barril desechable (5 litros) para continuar.';
-            }
-        }
-        if (state.step === 2) {
-            const c = state.contact;
-            const e = state.eventData;
-            const minAllowedDate = getMinDateString(1);
-            if (!c.firstName.trim()) { isValid = false; message = 'El nombre es obligatorio.'; }
-            else if (!c.lastName.trim()) { isValid = false; message = 'El apellido es obligatorio.'; }
-            else if (!c.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(c.email)) { isValid = false; message = 'Ingresa un email válido.'; }
-            else if (!c.phone.trim() || c.phone === '+569') { isValid = false; message = 'El celular es obligatorio.'; }
-            else if (!c.comuna.trim()) { isValid = false; message = 'Selecciona la comuna de entrega.'; }
-            else if (!c.address.trim()) { isValid = false; message = 'La dirección de entrega es obligatoria.'; }
-            else if (!e.date.trim()) { isValid = false; message = 'Indica la fecha de entrega.'; }
-            else if (e.date < minAllowedDate) { isValid = false; message = 'La fecha de entrega debe ser desde mañana en adelante.'; }
-        }
-
-        if (isValid) {
-            setValidationError('');
-            wizard.goToStep(state.step + 1);
-        } else {
-            setValidationError(message);
+        if (state.selections.length === 0) {
+            setValidationError('Selecciona al menos un barril para continuar.');
             window.scrollTo({ top: 0, behavior: 'smooth' });
+            return;
         }
+
+        if (currentLiters < 5) {
+            setValidationError('Debes seleccionar al menos 1 barril desechable (5 litros) para continuar.');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            return;
+        }
+
+        if (!hasMainProduct) {
+            setValidationError('Debes seleccionar al menos un barril principal (el hielo y decoraciones son productos complementarios).');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            return;
+        }
+
+        setValidationError('');
+        setIsModalOpen(true);
     };
 
     const handleCotizar = async () => {
-        // Validación preventiva por consistencia de negocio
-        if (getDisposableLiters() < 5) {
-            setValidationError('Debes incluir al menos 1 barril desechable (5 litros) en tu pedido.');
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-            return;
-        }
-        if (state.eventData.date < getMinDateString(1)) {
-            setValidationError('La fecha de entrega debe ser desde mañana en adelante.');
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-            return;
-        }
-
         setSendStatus('saving');
         setSaveError('');
         setQuoteToken(null);
@@ -124,6 +98,7 @@ export default function DirectWizardShell({ cocktails, comunas, categories, init
         if (result.success && result.token) {
             setQuoteToken(result.token);
             setSendStatus('saved');
+            setIsModalOpen(false);
             // Desencadenar WhatsApp inmediatamente para aprovechar el gesto del usuario
             wizard.sendWhatsAppQuote(result.token);
             
@@ -135,30 +110,19 @@ export default function DirectWizardShell({ cocktails, comunas, categories, init
             // Intentar WhatsApp de todas formas
             wizard.sendWhatsAppQuote();
         }
-
-        window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
     const handleReset = () => {
         setSendStatus('idle');
         setQuoteToken(null);
         setValidationError('');
+        setIsModalOpen(false);
         wizard.reset();
         window.location.href = '/cotizar';
     };
 
-    const renderStep = () => {
-        // Force state step mapping for Direct Sale since we decoupled from WizardStep0 which sits at 0 now. Wait, WizardStep0 will route to here and we'll start at step 1.
-        switch (state.step) {
-            case 1: return <DirectStep1Products wizard={wizard} cocktails={cocktails} categories={categories} setValidationError={setValidationError} />;
-            case 2: return <DirectStep2Delivery wizard={wizard} comunas={comunas} />;
-            case 3: return <DirectStep3Summary wizard={wizard} cocktails={cocktails} comunas={comunas} />;
-            default: return null; // WizardStep0 or success are handled elsewhere or mapped to 1
-        }
-    };
-
     return (
-        <div className="flex flex-col min-h-[600px]">
+        <div className="flex flex-col min-h-[600px] relative">
             {/* Header / Volver */}
             <div className="w-full max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 mb-6">
                 <button
@@ -173,15 +137,6 @@ export default function DirectWizardShell({ cocktails, comunas, categories, init
                 </button>
             </div>
 
-            {/* Progress */}
-            <div className="w-full max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 mb-4">
-                <div className="bg-brand-border h-2 w-full rounded-full overflow-hidden shadow-inner">
-                    <div className="h-full bg-gradient-to-r from-primary via-[#f4a261] to-primary transition-all duration-1000 ease-in-out relative origin-left" style={{ width: `${progress}%` }}>
-                        <div className="absolute inset-0 bg-white/20 animate-pulse" />
-                    </div>
-                </div>
-            </div>
-
             {/* Content */}
             <div className="w-full max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-2 md:py-8 flex-1">
                 {validationError && (
@@ -193,14 +148,14 @@ export default function DirectWizardShell({ cocktails, comunas, categories, init
                     </div>
                 )}
 
-                {state.step === 3 && sendStatus === 'error' && saveError && (
+                {sendStatus === 'error' && saveError && (
                     <div className="bg-amber-50 border border-amber-200 text-amber-800 rounded-2xl px-5 py-4 mb-6 text-[0.9rem] animate-slide-up">
                         <span className="font-bold">Aviso:</span> {saveError}
                         <div className="mt-2 opacity-80 text-[0.8rem]">De todas formas puedes intentar enviar la información a través de WhatsApp.</div>
                     </div>
                 )}
 
-                <div className="animate-fade-in">
+                <div className="animate-fade-in pb-32">
                     {sendStatus === 'saved' && quoteToken ? (
                         <DirectWizardSuccess 
                             token={quoteToken} 
@@ -210,67 +165,78 @@ export default function DirectWizardShell({ cocktails, comunas, categories, init
                             onReset={handleReset} 
                         />
                     ) : (
-                        renderStep()
-                    )}
-
-                    {/* Navigation - MISMO ESTILO QUE WIZARDSHELL */}
-                    {sendStatus !== 'saved' && state.step > 0 && (
-                        <div className="mt-12 mb-12 sm:mb-20">
-                            <div className="bg-white/50 backdrop-blur-sm border border-brand-border rounded-[2.5rem] p-4 sm:p-6 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-[0_10px_30px_rgba(0,0,0,0.03)] hover:shadow-[0_15px_40px_rgba(0,0,0,0.06)] transition-all duration-500">
-                                <div className="order-2 sm:order-1 w-full sm:w-auto">
-                                    {state.step > 1 && (
-                                        <button
-                                            type="button"
-                                            className="group w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-2xl border-2 border-brand-border text-brand-text-muted font-bold text-[0.95rem] transition-all hover:border-primary/50 hover:text-primary active:scale-[0.98] bg-white/80"
-                                            onClick={() => {
-                                                setValidationError('');
-                                                wizard.goToStep(state.step - 1);
-                                            }}
-                                        >
-                                            <ArrowLeft className="w-4 h-4 transition-transform group-hover:-translate-x-1" />
-                                            <span>Anterior</span>
-                                        </button>
-                                    )}
-                                </div>
-
-                                <div className="order-1 sm:order-2 w-full sm:w-auto">
-                                    {state.step < 3 ? (
-                                        <button
-                                            type="button"
-                                            className="group w-full sm:w-auto inline-flex items-center justify-center gap-3 px-10 py-3.5 rounded-2xl bg-primary text-white font-black text-[1.1rem] transition-all hover:bg-primary-dark active:scale-[0.98] shadow-[0_4px_20px_rgba(226,160,73,0.3)] hover:shadow-[0_8px_30px_rgba(226,160,73,0.4)]"
-                                            onClick={handleNext}
-                                        >
-                                            <span>Siguiente</span>
-                                            <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
-                                        </button>
-                                    ) : (
-                                        <button
-                                            type="button"
-                                            disabled={sendStatus === 'saving'}
-                                            className="group w-full sm:w-auto inline-flex items-center justify-center gap-3 px-10 py-3.5 rounded-2xl bg-[#25D366] text-white font-black text-[1.1rem] transition-all hover:bg-[#128c7e] active:scale-[0.98] shadow-[0_4px_20px_rgba(37,211,102,0.3)] hover:shadow-[0_8px_30px_rgba(37,211,102,0.4)] disabled:opacity-70 disabled:cursor-not-allowed"
-                                            onClick={handleCotizar}
-                                        >
-                                            {sendStatus === 'saving' ? (
-                                                <><Loader2 className="w-5 h-5 animate-spin" /> <span>Guardando...</span></>
-                                            ) : (
-                                                <><WhatsappIcon className="w-5 h-5" /> <span>Hacer Pedido</span></>
-                                            )}
-                                        </button>
-                                    )}
-                                </div>
-                            </div>
-
-                            {/* Indicador de ayuda */}
-                            <div className="mt-8 text-center animate-fade-in delay-500">
-                                <p className="text-[0.8rem] text-brand-text-muted font-medium italic">
-                                    ¿Tienes dudas con tu pedido? 
-                                    <a href={WHATSAPP_URL} target="_blank" className="ml-1.5 text-primary hover:underline font-bold">Consúltanos por WhatsApp</a>
-                                </p>
-                            </div>
-                        </div>
+                        <DirectStep1Products wizard={wizard} cocktails={cocktails} categories={categories} />
                     )}
                 </div>
             </div>
+
+            {/* Bottom Bar Fija (Sticky Bottom Bar) */}
+            {sendStatus !== 'saved' && totalItems > 0 && (
+                <div className="fixed bottom-0 left-0 right-0 z-40 p-3 sm:p-4 pointer-events-none">
+                    <div className="max-w-[1400px] mx-auto">
+                        <div className="bg-white/90 backdrop-blur-md border border-brand-border rounded-2xl p-3 flex items-center justify-between gap-2 shadow-[0_-5px_30px_rgba(0,0,0,0.1)] pointer-events-auto">
+                            <div className="flex items-center gap-4 pl-2">
+                                <div className="flex flex-col">
+                                    <span className="text-[0.65rem] sm:text-[0.7rem] font-bold text-brand-text-muted uppercase tracking-wider leading-none mb-1">
+                                        Volumen Total
+                                    </span>
+                                    <span className="text-[1.1rem] sm:text-xl font-black text-brand-text leading-tight">
+                                        {currentLiters}L
+                                    </span>
+                                </div>
+                                <div className="h-8 w-[1px] bg-brand-border" />
+                                <div className="flex flex-col">
+                                    <span className="text-[0.65rem] sm:text-[0.7rem] font-bold text-brand-text-muted uppercase tracking-wider leading-none mb-1">
+                                        Productos
+                                    </span>
+                                    <span className="text-[1.1rem] sm:text-xl font-black text-brand-text leading-tight">
+                                        {totalItems} {totalItems === 1 ? 'ítem' : 'ítems'}
+                                    </span>
+                                </div>
+                                <div className="h-8 w-[1px] bg-brand-border hidden sm:block" />
+                                <div className="flex flex-col hidden sm:flex">
+                                    <span className="text-[0.65rem] sm:text-[0.7rem] font-bold text-brand-text-muted uppercase tracking-wider leading-none mb-1">
+                                        Subtotal
+                        </span>
+                                    <span className="text-[1.1rem] sm:text-xl font-black text-primary leading-tight">
+                                        {formatCurrency(summaryData.totalOfferPrice)}
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div className="shrink-0 flex items-center gap-3">
+                                <div className="text-right sm:hidden flex flex-col justify-center pr-1">
+                                    <span className="text-[0.6rem] font-bold text-brand-text-muted uppercase tracking-wider leading-none mb-0.5">
+                                        Subtotal
+                                    </span>
+                                    <span className="text-sm font-black text-primary leading-none">
+                                        {formatCurrency(summaryData.totalOfferPrice)}
+                                    </span>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={handleOpenCheckout}
+                                    className="group relative shrink-0 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 sm:gap-2 sm:px-6 sm:py-3 rounded-xl bg-primary text-white font-black text-[0.9rem] sm:text-[1.05rem] transition-all hover:bg-primary-dark shadow-[0_4px_15px_rgba(226,160,73,0.3)] hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
+                                >
+                                    <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5 transition-transform group-hover:scale-110" />
+                                    <span>Comprar</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Checkout Modal Overlay */}
+            {isModalOpen && sendStatus !== 'saved' && (
+                <DirectWizardCheckoutModal 
+                    wizard={wizard} 
+                    comunas={comunas} 
+                    onClose={() => setIsModalOpen(false)} 
+                    onConfirm={handleCotizar}
+                    sendStatus={sendStatus}
+                />
+            )}
         </div>
     );
 }

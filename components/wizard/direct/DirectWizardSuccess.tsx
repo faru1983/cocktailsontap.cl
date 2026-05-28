@@ -2,7 +2,7 @@
 
 import React, { useMemo } from 'react';
 import { CheckCircle, Copy, ExternalLink, RefreshCw, ArrowRight, Mail, MessageSquare } from 'lucide-react';
-import { SITE_URL } from '@/lib/config';
+import { SITE_URL, WHATSAPP_URL, WHATSAPP_LABEL } from '@/lib/config';
 import { formatCurrency } from '@/lib/utils';
 import type { WizardState, CocktailForWizard, Comuna } from '@/lib/types';
 import { calculateSummaryData } from '@/lib/wizardLogic';
@@ -99,9 +99,19 @@ export default function DirectWizardSuccess({ token, state, cocktails, comunas, 
                         <Copy className="w-4 h-4" /> Copiar Datos de Cuenta
                     </button>
                     
-                    <p className="text-[0.8rem] text-green-700 mt-4 text-center italic opacity-80 underline underline-offset-4 decoration-green-300">
-                        Envíanos el comprobante por WhatsApp para validar tu pedido.
-                    </p>
+                    <div className="mt-6 pt-4 border-t border-green-200/60 flex flex-col items-center gap-3">
+                        <p className="text-[0.8rem] text-green-700 text-center italic font-bold">
+                            Envíanos el comprobante de transferencia por WhatsApp para validar tu pedido:
+                        </p>
+                        <a 
+                            href={`${WHATSAPP_URL}?text=${encodeURIComponent(`Hola, adjunto el comprobante de transferencia para mi pedido: ${SITE_URL}/cotizar/${token}`)}`} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#25D366] hover:bg-[#128c7e] text-white rounded-xl text-xs font-black transition-all active:scale-95 shadow-sm no-underline"
+                        >
+                            <WhatsappIcon className="w-4 h-4 fill-white" /> Enviar Comprobante al {WHATSAPP_LABEL}
+                        </a>
+                    </div>
                 </div>
 
                 {/* Pasos Siguientes */}
@@ -121,11 +131,19 @@ export default function DirectWizardSuccess({ token, state, cocktails, comunas, 
                         <div className="bg-green-50 p-3 rounded-xl h-fit">
                             <MessageSquare className="w-5 h-5 text-green-600" />
                         </div>
-                        <div>
+                        <div className="flex-1">
                             <h3 className="font-bold text-brand-dark text-sm">WhatsApp</h3>
                             <p className="text-xs text-brand-text-muted mt-1 leading-relaxed mb-3">
-                                Recuerda enviar el comprobante de transferencia por WhatsApp.
+                                Envía tu comprobante al <strong className="text-brand-dark">{WHATSAPP_LABEL}</strong> para que programemos el despacho.
                             </p>
+                            <a 
+                                href={`${WHATSAPP_URL}?text=${encodeURIComponent(`Hola, adjunto el comprobante de transferencia para mi pedido: ${SITE_URL}/cotizar/${token}`)}`} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-2 text-xs font-black text-green-600 hover:text-green-700 transition-colors no-underline"
+                            >
+                                <WhatsappIcon className="w-3.5 h-3.5 fill-green-600" /> Enviar por WhatsApp
+                            </a>
                         </div>
                     </div>
                 </div>
