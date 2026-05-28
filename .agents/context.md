@@ -22,11 +22,22 @@
 
 ## Ultimos Cambios
 
+### 28-05-2026 (Sesión 7)
+- **Persistencia de Precios Recalculados en Base de Datos**:
+  - Se corrigió un bug en `confirmQuote.ts` donde no se guardaban las columnas `total_normal_price`, `total_offer_price`, `shipping_cost` e `installation_cost` al actualizar el estado de la cotización de `draft` a `confirmed`. Esto causaba que la vista posterior a la confirmación cargara valores obsoletos de la base de datos (por ejemplo, omitiendo el costo de instalación de $50.000 para el Muro de Coctelería).
+- **Cierre de Modal de Contrato tras Confirmación Exitosa**:
+  - Se solucionó un bug en `EventQuoteView.tsx` y `DirectQuoteView.tsx` donde el modal de contrato "Finalizar Reserva" / "Finalizar Pedido" quedaba con el estado `showConfirmModal = true` tras confirmar correctamente. Al presionar "Ver Reserva/Pedido" (que apaga la pantalla de éxito), el modal volvía a renderizarse de fondo. Ahora se establece explícitamente en `false`.
+  - Se difirió la llamada a `router.refresh()` mediante un `setTimeout` de 150ms para evitar condiciones de carrera en Next.js con el `router.replace` de query parameters, asegurando que `?confirmed=true` se mantenga y actualice de forma limpia en el navegador.
+- **Archivos Modificados**: `app/actions/confirmQuote.ts`, `components/quote/EventQuoteView.tsx`, `components/quote/DirectQuoteView.tsx`, `.agents/context.md`.
+
 ### 28-05-2026 (Sesión 6)
 - **Corrección de Sintaxis JSX y Tipados**: 
   - Se eliminó un tag de cierre `</div>` redundante en `EventQuoteView.tsx` que causaba que el compilador de TypeScript fallara debido a una estructura JSX rota.
-  - Se removieron los tipados explícitos `any` en `EventQuoteView.tsx` para evitar advertencias y errores de ESLint, especificando tipos adecuados para `dispenser` y el parámetro en la función del reductor de pagos.
-- **Archivos Modificados**: `components/quote/EventQuoteView.tsx`, `.agents/context.md`.
+  - Se removieron los tipados explícitos `any` en `EventQuoteView.tsx` y `confirmQuote.ts` para evitar advertencias y errores de ESLint.
+- **Sincronización de Totales y Costos en Reservas**:
+  - Se solucionó un bug en `confirmQuote.ts` donde el correo de confirmación de Resend y los eventos de Google Calendar se enviaban con totales de precios, costos de transporte y de instalación obsoletos (del borrador original). Ahora se asignan de manera explícita los valores recalculados en el servidor a `quoteToSync`.
+  - Se agregaron llamadas a `router.refresh()` en `EventQuoteView.tsx` tras confirmar la reserva y al presionar "Ver Reserva" para forzar al router del cliente a invalidar el caché e hidratarse con los datos actualizados de la base de datos.
+- **Archivos Modificados**: `components/quote/EventQuoteView.tsx`, `app/actions/confirmQuote.ts`, `.agents/context.md`.
 
 ### 28-05-2026 (Sesión 5)
 - **Validaciones de Litros y Selección de Dispensador en Reserva**: Se implementó el control de volumen mínimo e incompatibilidad de tamaños en el enlace único de confirmación de cliente (`/cotizar/[token]`) tanto en frontend como en backend.

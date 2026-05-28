@@ -369,8 +369,12 @@ export default function DirectQuoteView({ quote, comunas, availableCocktails, ca
             router.replace(`/cotizar/${quote.token}?confirmed=true`);
             setShowSuccessScreen(true);
             setConfirmed(true);
+            setShowConfirmModal(false);
             setAcceptedTerms(false);
             window.scrollTo({ top: 0, behavior: 'smooth' });
+            setTimeout(() => {
+                router.refresh();
+            }, 150);
 
             // ─── Meta Pixel: Registro de Pedido Confirmado ───────────────────
             fp.event('Purchase', {

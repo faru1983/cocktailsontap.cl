@@ -452,8 +452,12 @@ export default function EventQuoteView({ quote, comunas, availableCocktails, cat
             router.replace(`/cotizar/${quote.token}?confirmed=true`);
             setShowSuccessScreen(true);
             setConfirmed(true);
+            setShowConfirmModal(false);
             setAcceptedTerms(false);
             window.scrollTo({ top: 0, behavior: 'smooth' });
+            setTimeout(() => {
+                router.refresh();
+            }, 150);
 
             // ─── Meta Pixel: Registro de Conversión (Reserva Confirmada) ──────
             fp.event('Purchase', {
@@ -606,6 +610,7 @@ export default function EventQuoteView({ quote, comunas, availableCocktails, cat
                                     setShowSuccessScreen(false);
                                     setConfirmed(false);
                                     router.push(`/cotizar/${quote.token}`);
+                                    router.refresh();
                                 }}
                                 className="flex-1 shrink-0 inline-flex items-center justify-center gap-2 px-4 py-3.5 rounded-xl bg-primary text-white font-black text-[0.85rem] hover:bg-primary-dark transition-all active:scale-95 shadow-md"
                             >

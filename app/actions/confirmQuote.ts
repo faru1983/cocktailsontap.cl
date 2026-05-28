@@ -18,38 +18,39 @@ interface ConfirmQuoteResult {
     error?: string;
 }
 
-export async function confirmQuote(formData: any): Promise<ConfirmQuoteResult> {
-    console.log('[ConfirmQuote] 🚀 Iniciando confirmación para:', formData?.token);
+export async function confirmQuote(formData: unknown): Promise<ConfirmQuoteResult> {
+    const token = typeof formData === 'object' && formData !== null && 'token' in formData ? String((formData as Record<string, unknown>).token) : '';
+    console.log('[ConfirmQuote] 🚀 Iniciando confirmación para:', token);
     
     const db = createServerClient();
-    let quoteToSync: any = null;
+    let quoteToSync: (Quote & { quote_items: QuoteItem[] }) | null = null;
     let isDirectSale = false;
-
+ 
     // 1. FASE DE BASE DE DATOS (CRÍTICA)
     try {
         const validation = ConfirmQuoteSchema.safeParse(formData);
         if (!validation.success) return { success: false, error: 'Datos inválidos.' };
         const data = validation.data;
-
+ 
         const [quoteRes, catalogRes] = await Promise.all([
             db.from('quotes').select('*').eq('token', data.token).single(),
             fetchAllProductData()
         ]);
-
+ 
         if (quoteRes.error || !quoteRes.data) return { success: false, error: 'Reserva no encontrada.' };
         const quote = quoteRes.data;
         if (quote.status === 'confirmed') return { success: false, error: 'Ya confirmada.' };
-
+ 
         isDirectSale = quote.service_type === 'direct' || quote.dispenser === 'desechable';
-
+ 
         const summary = calculateSummaryData({
             ...quote,
             selections: data.items.map(i => ({ id: i.product_id || 'manual', size: i.size, quantity: i.quantity, customPrice: i.offer_price_at_time })),
             serviceType: isDirectSale ? 'direct' : 'event',
             contact: { ...quote, lastName: data.client_lastname, phone: data.client_phone, address: data.client_address, comuna: data.comuna_name },
-            dispenser: data.dispenser as any,
+            dispenser: data.dispenser,
             eventData: { date: data.event_date, startTime: data.start_time, pickupDate: data.pickup_date, pickupTime: data.pickup_time }
-        } as any, catalogRes.cocktails, catalogRes.comunas);
+        } as unknown as Parameters<typeof calculateSummaryData>[0], catalogRes.cocktails, catalogRes.comunas);
 
         // Validaciones Zero Trust en el servidor
         if (!isDirectSale) {
@@ -86,11 +87,26 @@ export async function confirmQuote(formData: any): Promise<ConfirmQuoteResult> {
             client_address: data.client_address, comuna_name: data.comuna_name, event_date: data.event_date,
             start_time: data.start_time, pickup_date: data.pickup_date, pickup_time: data.pickup_time,
             dispenser: data.dispenser, total_price: total, total_liters: summary.totalLiters,
+            total_normal_price: summary.totalNormalPrice,
+            total_offer_price: summary.totalOfferPrice,
+            shipping_cost: summary.shippingCost,
+            installation_cost: summary.installationCost,
             updated_at: new Date().toISOString()
         }).eq('token', data.token);
         if (updateResult.error) throw new Error(updateResult.error.message);
 
-        quoteToSync = { ...quote, ...data, status: 'confirmed', quote_items: data.items };
+        quoteToSync = {
+            ...quote,
+            ...data,
+            status: 'confirmed',
+            quote_items: data.items,
+            total_price: total,
+            total_liters: summary.totalLiters,
+            total_normal_price: summary.totalNormalPrice,
+            total_offer_price: summary.totalOfferPrice,
+            shipping_cost: summary.shippingCost,
+            installation_cost: summary.installationCost
+        };
 
     } catch (err) {
         console.error('[ConfirmQuote] ❌ Error en Fase DB:', err);
@@ -100,6 +116,7 @@ export async function confirmQuote(formData: any): Promise<ConfirmQuoteResult> {
     // 2. FASE DE FONDO (Usando "after" para que Vercel no mate el proceso)
     after(async () => {
         console.log('[ConfirmQuote] ☁️ Ejecutando tareas post-respuesta...');
+        if (!quoteToSync) return;
         try {
             // Sincronización Google
             try {
@@ -129,17 +146,22 @@ export async function confirmQuote(formData: any): Promise<ConfirmQuoteResult> {
                     SettingsService.getResolvedValue('email_quote_confirmed_admin_subject', vars, 'Nueva reserva confirmada')
                 ]);
 
-                await Promise.all([
-                    resend.emails.send({ from: FROM_EMAIL, to: [quoteToSync.client_email], subject: subClient, html: htmlClient }),
+                const emailsToSend = [
                     resend.emails.send({ from: FROM_EMAIL, to: [ADMIN_EMAIL], subject: subAdmin, html: htmlAdmin })
-                ]);
+                ];
+                if (quoteToSync.client_email) {
+                    emailsToSend.push(
+                        resend.emails.send({ from: FROM_EMAIL, to: [quoteToSync.client_email], subject: subClient, html: htmlClient })
+                    );
+                }
+                await Promise.all(emailsToSend);
             } catch (e) { console.error('[ConfirmQuote] Error Emails:', e); }
 
-            revalidatePath(`/cotizar/${formData.token}`);
+            revalidatePath(`/cotizar/${quoteToSync.token}`);
         } catch (e) {
             console.error('[ConfirmQuote] Error general en after():', e);
         }
     });
 
-    return { success: true, token: formData.token };
+    return { success: true, token };
 }
