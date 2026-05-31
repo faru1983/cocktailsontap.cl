@@ -571,13 +571,13 @@ export default function CreateQuoteManualClient({ allProducts, comunas, eventTyp
                             ) : selections.map(s => {
                                 const product = allProducts.find(p => p.id === s.id);
                                 return (
-                                    <div key={s.id + s.size} className="flex items-center justify-between p-4 bg-black/20 rounded-2xl border border-white/5 group hover:border-[#E2A049]/20 transition-all gap-4">
-                                        <div className="flex-1 min-w-0 pr-2">
-                                            <div className="text-white font-bold text-[11px] uppercase tracking-tight truncate leading-tight">{product?.name}</div>
-                                            <div className="text-slate-500 text-[9px] font-black uppercase tracking-widest mt-0.5">{s.size}</div>
+                                    <div key={s.id + s.size} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-black/20 rounded-2xl border border-white/5 group hover:border-[#E2A049]/20 transition-all gap-3 sm:gap-4">
+                                        <div className="flex-1 min-w-0 pr-2 mb-2 sm:mb-0">
+                                            <div className="text-white font-bold text-[12px] sm:text-[11px] uppercase tracking-tight leading-tight">{product?.name || 'Producto Desconocido'}</div>
+                                            <div className="text-slate-500 text-[10px] sm:text-[9px] font-black uppercase tracking-widest mt-0.5">{s.size}</div>
                                         </div>
                                         
-                                        <div className="flex items-center gap-3 shrink-0">
+                                        <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0 w-full sm:w-auto border-t sm:border-0 border-white/5 pt-3 sm:pt-0">
                                             {/* Input de Precio */}
                                             <div className="flex items-center text-[#E2A049] text-[10px] font-black bg-black/40 px-2 py-1.5 rounded-lg border border-white/5 focus-within:border-[#E2A049]/40 transition-colors">
                                                 <span className="mr-1 opacity-40">$</span>

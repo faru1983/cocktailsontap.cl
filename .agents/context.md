@@ -22,6 +22,12 @@
 
 ## Ultimos Cambios
 
+### 28-05-2026 (Sesión 8)
+- **Resolución de Advertencia de Seguridad en Supabase (`public_bucket_allows_listing`)**:
+  - Se eliminó la política `Public Access for Everyone` con operación `SELECT` en la tabla `storage.objects` que afectaba al bucket `product-images`.
+  - Esta política amplia permitía que cualquier cliente listara todos los archivos del bucket. Al ser un bucket público (`public=true`), los archivos individuales ya son accesibles mediante su URL pública sin necesidad de políticas RLS adicionales en `storage.objects`, por lo que se pudo remover la política de forma segura para corregir la vulnerabilidad sin afectar la visualización de imágenes de productos en el frontend.
+- **Archivos Modificados**: `.agents/context.md` y base de datos (Supabase).
+
 ### 28-05-2026 (Sesión 7)
 - **Persistencia de Precios Recalculados en Base de Datos**:
   - Se corrigió un bug en `confirmQuote.ts` donde no se guardaban las columnas `total_normal_price`, `total_offer_price`, `shipping_cost` e `installation_cost` al actualizar el estado de la cotización de `draft` a `confirmed`. Esto causaba que la vista posterior a la confirmación cargara valores obsoletos de la base de datos (por ejemplo, omitiendo el costo de instalación de $50.000 para el Muro de Coctelería).
