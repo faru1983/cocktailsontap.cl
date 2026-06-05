@@ -546,39 +546,6 @@ export async function sendTestReviewEmail(toEmail: string, template: string, rev
     return { success: true };
 }
 
-// ── Resend Original Order Email ──────────────────────────────────────────
-export async function resendOrderEmail(quoteId: string): Promise<{ success: boolean; error?: string }> {
-    await checkAuth();
-    const db = createServerClient();
-    const { data: quote, error: fetchErr } = await db.from('quotes').select('*, quote_items(*)').eq('id', quoteId).single();
-    if (fetchErr || !quote) return { success: false, error: 'Cotización no encontrada.' };
-    if (!quote.client_email) return { success: false, error: 'El cliente no tiene email registrado.' };
-
-    try {
-        const resend = new Resend(process.env.RESEND_API_KEY);
-        const { render } = await import('@react-email/components');
-        const QuoteEmailComponent = (await import('@/components/emails/QuoteEmail')).default;
-
-        const clientHtml = await render(React.createElement(QuoteEmailComponent, { quote, isAdmin: false }));
-        
-        const eventDate = quote.event_date
-            ? new Date(quote.event_date + 'T12:00:00').toLocaleDateString('es-CL', { day: '2-digit', month: 'long', year: 'numeric' })
-            : '';
-
-        const { error } = await resend.emails.send({
-            from: FROM_EMAIL,
-            to: quote.client_email,
-            subject: `🍸 Tu cotización – ${eventDate}`,
-            html: clientHtml,
-        });
-
-        if (error) return { success: false, error: error.message };
-        return { success: true };
-    } catch (e: any) {
-        console.error('Error reenviando email:', e);
-        return { success: false, error: e.message };
-    }
-}
 
 // ── Save Admin Settings ──────────────────────────────────────────────────
 export async function saveAdminSettings(formData: FormData): Promise<{ success: boolean; error?: string }> {
@@ -887,9 +854,11 @@ export async function sendQuoteEmailAdmin(quoteId: string, emailType: 'draft' | 
         const { ADMIN_EMAIL } = await import('@/lib/config');
 
         let EmailComponent;
-        const isDirect = quote.service_type === 'direct' || quote.dispenser === 'desechable' || emailType === 'confirmation';
+        const isDirectSale = quote.service_type === 'direct' || quote.dispenser === 'desechable';
+        const isConfirmation = emailType === 'confirmation';
+        const useConfirmationTemplate = isDirectSale || isConfirmation;
 
-        if (isDirect) {
+        if (useConfirmationTemplate) {
             EmailComponent = (await import('@/components/emails/ConfirmationEmail')).default;
         } else {
             EmailComponent = (await import('@/components/emails/QuoteEmail')).default;
@@ -905,19 +874,30 @@ export async function sendQuoteEmailAdmin(quoteId: string, emailType: 'draft' | 
             event_date: eventDate
         };
 
+        let clientSubjectKey, adminSubjectKey, defaultClientSubject, defaultAdminSubject;
+
+        if (isDirectSale) {
+            clientSubjectKey = 'email_direct_sale_subject';
+            adminSubjectKey = 'email_direct_sale_admin_subject';
+            defaultClientSubject = `✅ Tu pedido ha sido confirmado – ${eventDate}`;
+            defaultAdminSubject = `[Pedido Confirmado] ${fullName} – ${eventDate}`;
+        } else if (isConfirmation) {
+            clientSubjectKey = 'email_quote_confirmed_subject';
+            adminSubjectKey = 'email_quote_confirmed_admin_subject';
+            defaultClientSubject = `✅ Reserva confirmada – ${eventDate}`;
+            defaultAdminSubject = `[Nueva Reserva] ${fullName} – ${eventDate}`;
+        } else {
+            clientSubjectKey = 'email_quote_draft_subject';
+            adminSubjectKey = 'email_quote_draft_admin_subject';
+            defaultClientSubject = `🍸 Tu cotización – ${eventDate}`;
+            defaultAdminSubject = `[Nueva Cotización] ${fullName} – ${eventDate}`;
+        }
+
         const [clientHtml, adminHtml, clientSubject, adminSubject] = await Promise.all([
             render(React.createElement(EmailComponent, { quote, isAdmin: false })),
             render(React.createElement(EmailComponent, { quote, isAdmin: true })),
-            SettingsService.getResolvedValue(
-                isDirect ? 'email_direct_sale_subject' : 'email_quote_draft_subject',
-                emailVars,
-                isDirect ? `✅ Tu pedido ha sido confirmado – ${eventDate}` : `🍸 Tu cotización – ${eventDate}`
-            ),
-            SettingsService.getResolvedValue(
-                isDirect ? 'email_direct_sale_admin_subject' : 'email_quote_draft_admin_subject',
-                emailVars,
-                isDirect ? `[Pedido Confirmado] ${fullName} – ${eventDate}` : `[Nueva Cotización] ${fullName} – ${eventDate}`
-            )
+            SettingsService.getResolvedValue(clientSubjectKey, emailVars, defaultClientSubject),
+            SettingsService.getResolvedValue(adminSubjectKey, emailVars, defaultAdminSubject)
         ]);
 
         await Promise.allSettled([

@@ -201,12 +201,9 @@ export default function CreateQuoteManualClient({ allProducts, comunas, eventTyp
     const handleSendEmail = async () => {
         if (!successData) return;
         startTransition(async () => {
-            const { resendOrderEmail, sendQuoteEmailAdmin } = await import('@/app/actions/admin/adminActions');
-            // Si es un evento (draft), usamos la nueva acción de email de cotización
-            // Si es venta directa (confirmed), usamos el reenvío normal
-            const res = serviceType === 'event' 
-                ? await sendQuoteEmailAdmin(successData.quoteId, 'draft')
-                : await resendOrderEmail(successData.quoteId);
+            const { sendQuoteEmailAdmin } = await import('@/app/actions/admin/adminActions');
+            const type = serviceType === 'event' ? 'draft' : 'confirmation';
+            const res = await sendQuoteEmailAdmin(successData.quoteId, type);
                 
             if (res.success) alert('Email enviado correctamente ✉️');
             else alert('Error: ' + res.error);

@@ -4,7 +4,7 @@ import { useState, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { 
-    updateQuoteStatus, sendDirectEmail, sendReviewEmail, updateQuoteAdmin, resendOrderEmail,
+    updateQuoteStatus, sendDirectEmail, sendReviewEmail, updateQuoteAdmin,
     addQuotePayment, deleteQuotePayment, updateQuoteItemsAdmin,
     sendQuoteEmailAdmin, syncQuoteToCalendarAdmin, deleteQuotePermanent
 } from '@/app/actions/admin/adminActions';
@@ -112,15 +112,6 @@ export default function QuoteDetailClient({ quote: initial, allProducts, eventTy
             const res = await sendReviewEmail(quote.id);
             if (res.success) { setQuote((q: any) => ({ ...q, review_email_sent: true })); showToast('Email de review enviado ⭐'); }
             else showToast(res.error || 'Error', false);
-        });
-    };
-
-    const handleResendOrder = () => {
-        if (!confirm('¿Deseas reenviar el correo oficial de cotización al cliente?')) return;
-        startTransition(async () => {
-            const res = await resendOrderEmail(quote.id);
-            if (res.success) showToast('Orden reenviada correctamente ✉️');
-            else showToast(res.error || 'Error al reenviar', false);
         });
     };
 
@@ -407,14 +398,6 @@ export default function QuoteDetailClient({ quote: initial, allProducts, eventTy
                         )}
                     </div>
                 </div>
-                <button onClick={handleResendOrder} disabled={isPending} style={{
-                    marginLeft: 'auto', padding: '6px 14px', borderRadius: '10px', fontSize: '12px', fontWeight: 700,
-                    background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
-                    color: '#94a3b8', cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s',
-                    opacity: isPending ? 0.5 : 1,
-                }}>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Send size={14}/> Reenvío Orden</span>
-                </button>
             </div>
 
             {/* Status Actions */}

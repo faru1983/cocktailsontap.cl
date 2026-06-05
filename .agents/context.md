@@ -22,6 +22,14 @@
 
 ## Ultimos Cambios
 
+### 05-06-2026 (Sesión 9)
+- **Unificación de Envíos de Correo Manual (Venta Desechable y Eventos)**:
+  - Se corrigió un bug en la creación manual de cotizaciones (`/admin/quotes/new`) y en la vista de detalle de la orden (`/admin/quotes/[token]`) donde las "Ventas Desechables" (venta directa) enviaban incorrectamente la plantilla de "Cotización de Evento" y omitían enviar una copia al administrador.
+  - Se eliminó la función redundante `resendOrderEmail` de `adminActions.ts`.
+  - Se reemplazó su uso en `CreateQuoteManualClient.tsx` y `QuoteDetailClient.tsx` por la función principal `sendQuoteEmailAdmin`, la cual verifica correctamente si la orden es Venta Directa o Evento, seleccionando la plantilla adecuada (`ConfirmationEmail` vs `QuoteEmail`) y enviando siempre la copia de respaldo al administrador.
+  - Se eliminó el botón redundante de "Reenvío Orden" en el dashboard de detalle, manteniendo únicamente el botón de "Enviar Email de Confirmación / Cotización" en la sección de Disparadores Manuales.
+- **Archivos Modificados**: `app/admin/quotes/new/CreateQuoteManualClient.tsx`, `app/admin/quotes/[id]/QuoteDetailClient.tsx`, `app/actions/admin/adminActions.ts`, `.agents/context.md`.
+
 ### 28-05-2026 (Sesión 8)
 - **Resolución de Advertencia de Seguridad en Supabase (`public_bucket_allows_listing`)**:
   - Se eliminó la política `Public Access for Everyone` con operación `SELECT` en la tabla `storage.objects` que afectaba al bucket `product-images`.
