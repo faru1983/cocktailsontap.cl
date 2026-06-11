@@ -1,0 +1,772 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Informe Estratégico Actualizado - Cocktails on Tap</title>
+  <style>
+    :root {
+      --bg: #0d0f14;
+      --panel: #161a22;
+      --panel2: #1f2633;
+      --text: #f8f3e9;
+      --muted: #bdb5a8;
+      --gold: #d9b66f;
+      --gold2: #f5d994;
+      --green: #8fd3a3;
+      --red: #e49a9a;
+      --blue: #9cc7ff;
+      --border: rgba(217,182,111,.26);
+      --soft: rgba(255,255,255,.055);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at 15% 0%, rgba(217,182,111,.20), transparent 32%),
+        radial-gradient(circle at 90% 10%, rgba(156,199,255,.12), transparent 30%),
+        linear-gradient(180deg, #10131a, #08090d 70%);
+      color: var(--text);
+      line-height: 1.68;
+    }
+
+    .wrap {
+      max-width: 1180px;
+      margin: auto;
+      padding: 42px 22px 80px;
+    }
+
+    .hero {
+      min-height: 620px;
+      padding: 58px;
+      border-radius: 34px;
+      border: 1px solid var(--border);
+      background:
+        linear-gradient(140deg, rgba(217,182,111,.16), rgba(255,255,255,.035) 42%, rgba(255,255,255,.015)),
+        rgba(255,255,255,.025);
+      box-shadow: 0 28px 88px rgba(0,0,0,.42);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero:before {
+      content: "";
+      position: absolute;
+      right: -180px;
+      top: -180px;
+      width: 520px;
+      height: 520px;
+      border-radius: 999px;
+      background: radial-gradient(circle, rgba(217,182,111,.25), transparent 70%);
+    }
+
+    .hero-inner { position: relative; z-index: 2; }
+
+    .eyebrow {
+      color: var(--gold2);
+      text-transform: uppercase;
+      letter-spacing: .18em;
+      font-size: 13px;
+      font-weight: 800;
+      margin-bottom: 22px;
+    }
+
+    h1 {
+      font-size: clamp(42px, 7vw, 82px);
+      line-height: .94;
+      letter-spacing: -.065em;
+      margin: 0 0 26px;
+      max-width: 920px;
+    }
+
+    h2 {
+      font-size: clamp(28px, 4vw, 44px);
+      line-height: 1.08;
+      letter-spacing: -.045em;
+      margin: 0 0 18px;
+    }
+
+    h3 {
+      font-size: 22px;
+      color: var(--gold2);
+      margin: 22px 0 10px;
+    }
+
+    p {
+      margin: 0 0 16px;
+      color: var(--muted);
+    }
+
+    .hero p {
+      font-size: 21px;
+      max-width: 830px;
+      color: #ded5c7;
+    }
+
+    .tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 28px;
+    }
+
+    .tag {
+      border: 1px solid var(--border);
+      color: var(--gold2);
+      background: rgba(255,255,255,.05);
+      padding: 10px 15px;
+      border-radius: 999px;
+      font-weight: 750;
+      font-size: 14px;
+    }
+
+    .section {
+      margin-top: 30px;
+      padding: 36px;
+      border-radius: 28px;
+      background: rgba(255,255,255,.038);
+      border: 1px solid rgba(255,255,255,.09);
+      box-shadow: 0 18px 54px rgba(0,0,0,.20);
+    }
+
+    .lead {
+      color: #eee6d8;
+      font-size: 20px;
+    }
+
+    .grid {
+      display: grid;
+      gap: 18px;
+      margin-top: 20px;
+    }
+
+    .two { grid-template-columns: repeat(2, minmax(0,1fr)); }
+    .three { grid-template-columns: repeat(3, minmax(0,1fr)); }
+    .four { grid-template-columns: repeat(4, minmax(0,1fr)); }
+
+    .card {
+      background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.025));
+      border: 1px solid rgba(255,255,255,.10);
+      border-radius: 22px;
+      padding: 24px;
+    }
+
+    .card strong {
+      display: block;
+      color: var(--text);
+      font-size: 18px;
+      margin-bottom: 8px;
+    }
+
+    .metric {
+      font-size: 38px;
+      font-weight: 900;
+      letter-spacing: -.05em;
+      color: var(--gold2);
+      line-height: 1;
+      margin-bottom: 8px;
+    }
+
+    .quote {
+      margin: 24px 0;
+      padding: 20px 0 20px 22px;
+      border-left: 4px solid var(--gold);
+      color: var(--text);
+      font-size: 27px;
+      line-height: 1.28;
+      letter-spacing: -.035em;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 18px;
+      overflow: hidden;
+      border-radius: 18px;
+    }
+
+    th, td {
+      padding: 16px;
+      border: 1px solid rgba(255,255,255,.105);
+      vertical-align: top;
+    }
+
+    th {
+      background: rgba(217,182,111,.15);
+      color: var(--gold2);
+      text-align: left;
+    }
+
+    td {
+      background: rgba(255,255,255,.025);
+      color: var(--muted);
+    }
+
+    ul {
+      color: var(--muted);
+      padding-left: 20px;
+      margin: 10px 0 0;
+    }
+
+    li { margin-bottom: 8px; }
+
+    .timeline {
+      display: grid;
+      gap: 18px;
+      margin-top: 20px;
+    }
+
+    .timeline-item {
+      display: grid;
+      grid-template-columns: 170px 1fr;
+      gap: 20px;
+      padding: 22px;
+      border-left: 4px solid var(--gold);
+      background: rgba(255,255,255,.035);
+      border-radius: 18px;
+    }
+
+    .date {
+      color: var(--gold2);
+      font-size: 13px;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      font-weight: 900;
+    }
+
+    .pill-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .pill {
+      border: 1px solid rgba(217,182,111,.28);
+      background: rgba(217,182,111,.09);
+      color: #ecd7a0;
+      padding: 8px 12px;
+      border-radius: 999px;
+      font-size: 14px;
+      font-weight: 800;
+    }
+
+    .good { color: var(--green); font-weight: 800; }
+    .bad { color: var(--red); font-weight: 800; }
+    .blue { color: var(--blue); font-weight: 800; }
+    .gold { color: var(--gold2); font-weight: 900; }
+
+    .message-box {
+      background: #10141d;
+      border: 1px solid rgba(217,182,111,.25);
+      border-radius: 22px;
+      padding: 24px;
+      margin-top: 18px;
+      color: #e9dfcf;
+      white-space: pre-line;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.025);
+    }
+
+    .footer {
+      text-align: center;
+      color: var(--muted);
+      margin-top: 38px;
+      font-size: 14px;
+    }
+
+    .print {
+      margin-top: 22px;
+      padding: 14px 18px;
+      border-radius: 18px;
+      border: 1px solid var(--border);
+      background: rgba(217,182,111,.08);
+      color: var(--gold2);
+      font-weight: 800;
+      max-width: 850px;
+    }
+
+    @media (max-width: 900px) {
+      .hero { padding: 34px; min-height: auto; }
+      .section { padding: 26px; }
+      .two, .three, .four { grid-template-columns: 1fr; }
+      .timeline-item { grid-template-columns: 1fr; }
+      h1 { font-size: 43px; }
+    }
+
+    @media print {
+      body { background: white; color: #111; }
+      .wrap { max-width: none; padding: 0; }
+      .hero, .section, .card, .message-box {
+        background: white !important;
+        box-shadow: none !important;
+        border-color: #ddd !important;
+      }
+      p, li, td { color: #333 !important; }
+      h1,h2,h3,strong,.quote { color: #111 !important; }
+      .gold,.tag,.pill,.eyebrow,.date,.metric { color: #8a6500 !important; }
+      .section { page-break-inside: avoid; }
+    }
+  </style>
+</head>
+
+<body>
+  <main class="wrap">
+    <section class="hero">
+      <div class="hero-inner">
+        <div class="eyebrow">Informe estratégico actualizado para socios</div>
+        <h1>Cocktails on Tap: el cóctel como activo central y los eventos como motor de caja</h1>
+        <p>
+          Diagnóstico actualizado incorporando el lanzamiento frío de los barriles desechables, la alta reacción de la publicidad, el problema de conversión, el valor por copa, la oportunidad B2B y el riesgo de distraerse del negocio principal.
+        </p>
+        <div class="tags">
+          <span class="tag">🍸 Cócteles premium RTD</span>
+          <span class="tag">🚰 Eventos on tap</span>
+          <span class="tag">📦 Barriles 5L</span>
+          <span class="tag">💬 Conversión WhatsApp</span>
+          <span class="tag">🏪 B2B pequeño</span>
+          <span class="tag">📈 Crecimiento prudente</span>
+        </div>
+        <div class="print">Documento preparado para discusión interna. Se puede abrir en navegador, compartir por WhatsApp o imprimir como PDF.</div>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>1. Resumen ejecutivo</h2>
+      <p class="lead">
+        Cocktails on Tap está enfrentando una pregunta estratégica natural en empresas que comienzan a madurar: ¿somos una empresa de servicios para eventos o una marca productora de cócteles premium listos para servir?
+      </p>
+      <p>
+        La respuesta más sana no es elegir una opción y abandonar la otra. La lectura recomendada es separar el <span class="gold">activo central</span> de los <span class="gold">canales de venta</span>.
+      </p>
+      <div class="quote">
+        El cóctel es el producto rey. Los eventos son el canal maduro que hoy paga las cuentas. Los barriles desechables son una nueva unidad en validación.
+      </div>
+      <p>
+        El lanzamiento de los barriles desechables fue frío en ventas, pero entregó una señal importante: la publicidad generó más reacción que la de eventos, la gente entendía rápido el producto y preguntaba mucho por precio. Esto no indica falta de interés. Indica que hay un problema de conversión, educación de valor y estrategia comercial.
+      </p>
+    </section>
+
+    <section class="section">
+      <h2>2. Evolución del negocio</h2>
+      <div class="timeline">
+        <div class="timeline-item">
+          <div class="date">Origen<br/>Eventos</div>
+          <div>
+            <h3>Servicio para eventos</h3>
+            <p>Cocktails on Tap comenzó ofreciendo coctelería para eventos mediante dispensadores portátiles y muro de coctelería.</p>
+            <ul>
+              <li>Instalación y retiro.</li>
+              <li>Estación de coctelería.</li>
+              <li>Accesorios de bar: palas, pinzas, recipientes, hielo y decoraciones.</li>
+              <li>Préstamo de copas y vasos.</li>
+              <li>Servicio pensado para celebraciones donde se busca experiencia, rapidez y diferenciación.</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="timeline-item">
+          <div class="date">Madurez<br/>+1 año</div>
+          <div>
+            <h3>Modelo operativo probado</h3>
+            <p>El negocio de eventos ya pasó la etapa de incertidumbre inicial. Funciona, se puede vender, se puede operar y genera caja. Es el negocio principal y debe protegerse.</p>
+          </div>
+        </div>
+
+        <div class="timeline-item">
+          <div class="date">Nueva línea<br/>RTD</div>
+          <div>
+            <h3>Barriles desechables de 5L</h3>
+            <p>Se lanzó una nueva área con barriles desechables Ready to Drink: misma calidad de cóctel, pero sin montaje ni retiro. El cliente pide, recibe, refrigera y sirve.</p>
+          </div>
+        </div>
+
+        <div class="timeline-item">
+          <div class="date">Aprendizaje<br/>Mercado</div>
+          <div>
+            <h3>Interés alto, conversión baja</h3>
+            <p>La publicidad de barriles generó más reacción que eventos, pero muchas consultas quedaron en curiosidad por precio. Esto sugiere que el producto interesa, pero no está siendo explicado ni vendido con suficiente claridad.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>3. Diagnóstico principal: no falta interés, falta conversión</h2>
+      <div class="grid two">
+        <div class="card">
+          <strong>Señales positivas</strong>
+          <ul>
+            <li><span class="good">Alta reacción</span> frente a la publicidad de barriles.</li>
+            <li>La gente entiende rápido de qué se trata.</li>
+            <li>El producto genera curiosidad inmediata.</li>
+            <li>La pregunta por precio demuestra intención inicial.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <strong>Señales de alerta</strong>
+          <ul>
+            <li><span class="bad">Baja conversión</span> después del primer contacto.</li>
+            <li>El cliente ve “$39.990 por un barril” y no “25 cócteles premium”.</li>
+            <li>La tienda actual probablemente no reduce suficiente fricción.</li>
+            <li>La respuesta por WhatsApp puede estar cerrando la conversación demasiado pronto.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="quote">
+        La publicidad abrió la puerta. El problema está en lo que ocurre después del “¿cuánto vale?”.
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>4. El precio no debe presentarse como barril, sino como copas</h2>
+      <p>
+        Un Mojito de 5L a $39.990 puede parecer caro si el cliente solo ve un envase. Pero si entiende que rinde aproximadamente 25 cócteles, la percepción cambia completamente.
+      </p>
+      <div class="grid four">
+        <div class="card">
+          <div class="metric">5L</div>
+          <strong>Formato</strong>
+          <p>Barril desechable listo para servir.</p>
+        </div>
+        <div class="card">
+          <div class="metric">25</div>
+          <strong>Rendimiento aprox.</strong>
+          <p>Cócteles por barril.</p>
+        </div>
+        <div class="card">
+          <div class="metric">$1.600</div>
+          <strong>Costo por copa</strong>
+          <p>Valor aproximado por cóctel.</p>
+        </div>
+        <div class="card">
+          <div class="metric">$5-7K</div>
+          <strong>Referencia bar</strong>
+          <p>Precio habitual por cóctel en bar.</p>
+        </div>
+      </div>
+      <p>
+        El cliente debe entender que no está comprando “un barril de Mojito”, sino una solución para servir cerca de 25 cócteles premium en segundos, sin bartender, sin preparación y con calidad estable por semanas refrigerado.
+      </p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Forma débil de comunicar</th>
+            <th>Forma recomendada</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Mojito 5L: $39.990</td>
+            <td>25 Mojitos premium listos para servir desde $1.600 por copa. Barril 5L: $39.990.</td>
+          </tr>
+          <tr>
+            <td>Barril desechable de cóctel</td>
+            <td>Cócteles de calidad bar especializado, listos para servir en segundos.</td>
+          </tr>
+          <tr>
+            <td>Dura semanas refrigerado</td>
+            <td>Proceso especial de elaboración y envasado que mantiene calidad, sabor y propiedades por semanas refrigerado.</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="section">
+      <h2>5. El activo estratégico: cócteles premium listos para servir</h2>
+      <p class="lead">
+        La empresa no debería definirse solamente por el dispensador, el muro o el evento. Esos son formatos. El activo más profundo es la capacidad de producir cócteles estables, ricos y servibles en segundos.
+      </p>
+      <div class="grid three">
+        <div class="card">
+          <strong>Producto líquido</strong>
+          <p>Recetas, ingredientes, balance, licores originales, insumos naturales y consistencia.</p>
+        </div>
+        <div class="card">
+          <strong>Proceso</strong>
+          <p>Elaboración y envasado especial que ayuda a conservar calidad por semanas refrigerado.</p>
+        </div>
+        <div class="card">
+          <strong>Canilla</strong>
+          <p>Formato simple: tirar la llave y servir un cóctel listo, sin preparación ni bartender.</p>
+        </div>
+      </div>
+      <div class="quote">
+        La promesa no es “vendemos barriles”. La promesa es “cócteles premium de calidad bar, listos en segundos”.
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>6. Canibalización: ¿los barriles le quitan mercado a eventos?</h2>
+      <p>
+        Es una preocupación válida, pero probablemente menor de lo que parece. El cliente de eventos y el cliente de barriles pueden compartir gusto por la coctelería, pero suelen tener situaciones de compra diferentes.
+      </p>
+      <table>
+        <thead>
+          <tr>
+            <th>Eventos</th>
+            <th>Barriles desechables</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Matrimonios, cumpleaños grandes, empresas, celebraciones donde importa la experiencia completa.</td>
+            <td>Juntas, cumpleaños pequeños, asados, regalos, consumo en casa o negocios que quieren vender cócteles sin montar un bar.</td>
+          </tr>
+          <tr>
+            <td>Requiere instalación, retiro, logística, estación, hielo, vasos, accesorios y experiencia visual.</td>
+            <td>Compra simple: pedir, recibir, refrigerar y servir.</td>
+          </tr>
+          <tr>
+            <td>Ticket mayor, decisión más planificada.</td>
+            <td>Ticket menor, compra más rápida o recurrente.</td>
+          </tr>
+        </tbody>
+      </table>
+      <p>
+        La clave es no mezclar demasiado los mensajes. Eventos debe seguir comunicando experiencia completa. Barriles debe comunicar conveniencia, rendimiento, calidad y precio por copa.
+      </p>
+    </section>
+
+    <section class="section">
+      <h2>7. Estrategia de conversión para WhatsApp</h2>
+      <p>
+        Hoy el cuello de botella parece estar en la conversación. El cliente pregunta precio, pero todavía no entiende valor. Por eso no basta responder el monto. Hay que reencuadrar la compra.
+      </p>
+      <div class="message-box">Hola 😊
+
+El barril de Mojito de 5L vale $39.990.
+
+Lo importante es que rinde aprox. 25 cócteles, por lo que cada copa queda cerca de $1.600.
+
+🍸 Es un cóctel comparable al de un bar especializado.
+❄️ Lo elaboramos y envasamos con un proceso especial para que mantenga su calidad por semanas refrigerado.
+🚰 Viene listo para servir, solo tiras la llave y listo.
+
+Para comparar, 25 mojitos en un bar podrían costar fácilmente entre $125.000 y $175.000.
+
+¿Lo estás buscando para una celebración en casa, regalo o para un negocio?</div>
+      <p>
+        La pregunta final es esencial porque abre el camino correcto: consumidor final, regalo, evento pequeño o B2B.
+      </p>
+    </section>
+
+    <section class="section">
+      <h2>8. Flujo comercial recomendado</h2>
+      <div class="grid three">
+        <div class="card">
+          <strong>1. Responder valor</strong>
+          <p>No entregar solo precio. Presentar rendimiento, precio por copa, calidad y duración.</p>
+        </div>
+        <div class="card">
+          <strong>2. Preguntar contexto</strong>
+          <p>Identificar si es casa, celebración, regalo o negocio.</p>
+        </div>
+        <div class="card">
+          <strong>3. Recomendar</strong>
+          <p>No mandar una lista larga al inicio. Sugerir 1 o 2 opciones según el caso.</p>
+        </div>
+        <div class="card">
+          <strong>4. Reducir fricción</strong>
+          <p>Enviar link directo de compra o reserva del producto recomendado.</p>
+        </div>
+        <div class="card">
+          <strong>5. Crear urgencia sana</strong>
+          <p>Indicar stock limitado, fecha de entrega o producción semanal si aplica.</p>
+        </div>
+        <div class="card">
+          <strong>6. Hacer seguimiento</strong>
+          <p>Si no responde, enviar recordatorio con valor, no solo “¿aún te interesa?”.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>9. Tienda virtual: qué debería mejorar</h2>
+      <p>
+        Antes de aumentar fuerte la publicidad, conviene mejorar la conversión. Si la tienda no explica bien el valor, más tráfico solo traerá más curiosos.
+      </p>
+      <table>
+        <thead>
+          <tr>
+            <th>Elemento</th>
+            <th>Recomendación</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Producto</td>
+            <td>Mostrar primero “25 cócteles premium” y después “barril 5L”.</td>
+          </tr>
+          <tr>
+            <td>Precio</td>
+            <td>Mostrar precio total y precio por copa.</td>
+          </tr>
+          <tr>
+            <td>Comparación</td>
+            <td>Comparar contra precio de bar para explicar ahorro.</td>
+          </tr>
+          <tr>
+            <td>Proceso</td>
+            <td>Explicar que existe elaboración y envasado especial para mantener calidad.</td>
+          </tr>
+          <tr>
+            <td>Casos de uso</td>
+            <td>Cumpleaños, asados, juntas, regalos, empresas, bares pequeños, moteles.</td>
+          </tr>
+          <tr>
+            <td>Compra</td>
+            <td>Permitir compra rápida, idealmente en pocos pasos.</td>
+          </tr>
+          <tr>
+            <td>Extras</td>
+            <td>Ofrecer hielo y decoraciones como upsell simple.</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="section">
+      <h2>10. Oportunidad B2B: bares pequeños, moteles y negocios no especializados</h2>
+      <p class="lead">
+        La oportunidad más interesante puede no estar solo en el consumidor final, sino en negocios que quieren vender cócteles sin montar una operación de bar.
+      </p>
+      <div class="grid three">
+        <div class="card">
+          <strong>Bares pequeños</strong>
+          <p>Pueden ofrecer cócteles estandarizados sin depender tanto de bartender, recetas internas o producción diaria.</p>
+        </div>
+        <div class="card">
+          <strong>Moteles</strong>
+          <p>Pueden sumar coctelería premium como experiencia adicional sin contratar personal especializado ni crear un bar completo.</p>
+        </div>
+        <div class="card">
+          <strong>Hoteles y alojamientos</strong>
+          <p>Pueden ofrecer aperitivos y experiencias simples con control de costos y calidad estable.</p>
+        </div>
+      </div>
+      <div class="quote">
+        Para B2B, la promesa cambia: “vende cócteles premium sin producirlos, sin bartender y con calidad constante”.
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>11. Email marketing y remarketing</h2>
+      <p>
+        La base de clientes de eventos es una ventaja enorme. Son personas que ya probaron el producto, confiaron en la marca y entienden la experiencia.
+      </p>
+      <div class="grid two">
+        <div class="card">
+          <strong>Email marketing</strong>
+          <ul>
+            <li>Campañas a clientes anteriores de eventos.</li>
+            <li>Promociones para cumpleaños, Fiestas Patrias, Navidad, Año Nuevo y verano.</li>
+            <li>Educación: rendimiento por copa, conservación, usos y preparación.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <strong>Remarketing</strong>
+          <ul>
+            <li>Anuncios a quienes interactuaron con Instagram.</li>
+            <li>Anuncios a quienes visitaron la tienda.</li>
+            <li>Campañas con testimonios, precio por copa y comparación con bar.</li>
+          </ul>
+        </div>
+      </div>
+      <p>
+        La comunicación no debería ser “compra un barril”, sino “resuelve 25 cócteles premium para tu próxima celebración”.
+      </p>
+    </section>
+
+    <section class="section">
+      <h2>12. Recomendación estratégica</h2>
+      <p>
+        No conviene abandonar ni descuidar eventos. Es el negocio que está validado y financia la empresa. Pero tampoco conviene apagar RTD, porque ya entregó señales de interés. La recomendación es desarrollar los barriles como una línea de negocio disciplinada, con presupuesto acotado, métricas y aprendizaje comercial.
+      </p>
+      <table>
+        <thead>
+          <tr>
+            <th>Área</th>
+            <th>Rol estratégico</th>
+            <th>Prioridad</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Eventos</td>
+            <td>Motor de caja, reputación, experiencia y contacto directo con clientes.</td>
+            <td><span class="good">Proteger y optimizar</span></td>
+          </tr>
+          <tr>
+            <td>Barriles RTD consumidor final</td>
+            <td>Línea en validación con potencial de recompra y estacionalidad.</td>
+            <td><span class="blue">Mejorar conversión antes de escalar publicidad</span></td>
+          </tr>
+          <tr>
+            <td>Barriles RTD B2B</td>
+            <td>Oportunidad de resolver un dolor real para negocios pequeños.</td>
+            <td><span class="gold">Probar activamente con pilotos</span></td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="quote">
+        No es “eventos versus barriles”. Es eventos financiando el aprendizaje de una marca de cócteles premium listos para servir.
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>13. Plan de acción sugerido</h2>
+      <div class="grid three">
+        <div class="card">
+          <strong>Próximos 30 días</strong>
+          <ul>
+            <li>Actualizar respuestas de WhatsApp.</li>
+            <li>Cambiar comunicación a “25 cócteles premium”.</li>
+            <li>Mostrar precio por copa.</li>
+            <li>Crear 3 mensajes de seguimiento.</li>
+            <li>Medir consultas, respuestas y cierres.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <strong>Próximos 90 días</strong>
+          <ul>
+            <li>Mejorar tienda virtual enfocada en conversión.</li>
+            <li>Crear landing B2B para bares/moteles.</li>
+            <li>Contactar 20 negocios pequeños.</li>
+            <li>Activar email marketing a clientes anteriores.</li>
+            <li>Probar remarketing con bajo presupuesto.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <strong>Próximos 6 meses</strong>
+          <ul>
+            <li>Separar métricas eventos vs RTD.</li>
+            <li>Identificar cócteles de mayor recompra.</li>
+            <li>Definir packs por ocasión.</li>
+            <li>Evaluar pilotos B2B recurrentes.</li>
+            <li>Decidir inversión futura con datos.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>14. Nueva definición propuesta</h2>
+      <div class="quote">
+        Cocktails on Tap produce cócteles premium listos para servir, con calidad comparable a un bar especializado, elaborados y envasados para mantener sus propiedades por semanas, disponibles a través de experiencias para eventos y barriles Ready to Drink.
+      </div>
+      <p>
+        Esta definición permite que el cóctel sea el rey, sin negar que el servicio de eventos sigue siendo el castillo que hoy sostiene la operación.
+      </p>
+    </section>
+
+    <div class="footer">
+      Informe estratégico actualizado · Cocktails on Tap · Preparado para conversación interna entre socios
+    </div>
+  </main>
+</body>
+</html>
