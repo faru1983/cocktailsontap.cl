@@ -22,6 +22,21 @@
 
 ## Ultimos Cambios
 
+### 21-06-2026 (Sesión 11)
+- **Optimización de SEO Técnico y Datos Estructurados (JSON-LD)**:
+  - Se configuró `metadataBase`, `canonical` y `twitter` (Twitter Cards) en el layout raíz de Next.js (`app/layout.tsx`).
+  - Se inyectó un script JSON-LD de tipo `LocalBusiness` en el `RootLayout` (`app/layout.tsx`) utilizando los parámetros oficiales (`SITE_URL`, `LOGO_URL`, `WHATSAPP_NUMBER`) de `lib/config.ts`.
+  - Se añadieron etiquetas `<h1>` semánticas y accesibles utilizando la clase `sr-only` en las páginas de entrada `/cotizar`, `/barriles` y `/eventos` para optimizar la jerarquía semántica para buscadores.
+- **Archivos Modificados**: `app/layout.tsx`, `app/cotizar/page.tsx`, `app/barriles/page.tsx`, `app/eventos/page.tsx`, `.agents/context.md`.
+
+### 21-06-2026 (Sesión 10)
+- **Botón Flotante de WhatsApp en Eventos y Barriles**:
+  - Se creó el componente `FloatingWhatsapp.tsx` en `components/shared/` para mostrar el botón flotante de WhatsApp de manera interactiva a los 20 segundos de cargada la página.
+  - El componente tiene un botón de cerrar `(X)` que oculta el widget de forma inmediata.
+  - El enlace a WhatsApp utiliza la variable preconfigurada `WHATSAPP_NUMBER` de `lib/config.ts` y envía el mensaje predefinido codificado: "Hola, estoy cotizando desde la pagina web y tengo algunas dudas.".
+  - Se importó y renderizó el componente `FloatingWhatsapp` en las páginas públicas de cotización de eventos (`app/eventos/page.tsx`) y de compra directa de barriles (`app/barriles/page.tsx`).
+- **Archivos Modificados/Creados**: `components/shared/FloatingWhatsapp.tsx` (Nuevo), `app/eventos/page.tsx`, `app/barriles/page.tsx`, `.agents/context.md`.
+
 ### 05-06-2026 (Sesión 9)
 - **Unificación de Envíos de Correo Manual (Venta Desechable y Eventos)**:
   - Se corrigió un bug en la creación manual de cotizaciones (`/admin/quotes/new`) y en la vista de detalle de la orden (`/admin/quotes/[token]`) donde las "Ventas Desechables" (venta directa) enviaban incorrectamente la plantilla de "Cotización de Evento" y omitían enviar una copia al administrador.

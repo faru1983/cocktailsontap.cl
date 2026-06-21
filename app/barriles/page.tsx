@@ -2,6 +2,7 @@ import { Suspense } from 'react';
 import type { Metadata } from 'next';
 import CotizarGateway from '@/components/wizard/CotizarGateway';
 import { fetchAllProductData } from '@/lib/serverData';
+import FloatingWhatsapp from '@/components/shared/FloatingWhatsapp';
 
 export const metadata: Metadata = {
     title: 'Compra Directa - Cocktails on Tap Chile',
@@ -13,6 +14,7 @@ export default async function BarrilesPage() {
 
     return (
         <main data-page="barriles" className="min-h-screen bg-brand-bg relative flex flex-col pt-8 md:pt-12">
+            <h1 className="sr-only">Compra Directa de Barriles Desechables - Cocktails on Tap Chile</h1>
             <div className="flex-1">
                 {/* Banner de Oferta de Lanzamiento */}
                 <div className="w-full max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 mb-8">
@@ -41,6 +43,8 @@ export default async function BarrilesPage() {
                     />
                 </Suspense>
             </div>
+            <FloatingWhatsapp />
         </main>
     );
 }
+
