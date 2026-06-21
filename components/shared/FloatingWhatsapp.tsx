@@ -25,7 +25,7 @@ export default function FloatingWhatsapp() {
     return (
         <div
             id="floating-whatsapp"
-            className={`fixed z-[100] bottom-8 right-8 transition-all duration-500 ${
+            className={`fixed z-[100] bottom-24 md:bottom-8 right-8 transition-all duration-500 ${
                 visible ? 'opacity-100 translate-y-0 visible' : 'opacity-0 translate-y-5 invisible'
             }`}
         >

@@ -35,6 +35,7 @@
   - El componente tiene un botón de cerrar `(X)` que oculta el widget de forma inmediata.
   - El enlace a WhatsApp utiliza la variable preconfigurada `WHATSAPP_NUMBER` de `lib/config.ts` y envía el mensaje predefinido codificado: "Hola, estoy cotizando desde la pagina web y tengo algunas dudas.".
   - Se importó y renderizó el componente `FloatingWhatsapp` en las páginas públicas de cotización de eventos (`app/eventos/page.tsx`) y de compra directa de barriles (`app/barriles/page.tsx`).
+  - Se ajustó la posición del botón en la versión móvil (`bottom-24 md:bottom-8`) para evitar superponerse con la barra de navegación fija inferior.
 - **Archivos Modificados/Creados**: `components/shared/FloatingWhatsapp.tsx` (Nuevo), `app/eventos/page.tsx`, `app/barriles/page.tsx`, `.agents/context.md`.
 
 ### 05-06-2026 (Sesión 9)
