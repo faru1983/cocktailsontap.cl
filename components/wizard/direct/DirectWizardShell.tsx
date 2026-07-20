@@ -99,16 +99,10 @@ export default function DirectWizardShell({ cocktails, comunas, categories, init
             setQuoteToken(result.token);
             setSendStatus('saved');
             setIsModalOpen(false);
-            // Desencadenar WhatsApp inmediatamente para aprovechar el gesto del usuario
-            wizard.sendWhatsAppQuote(result.token);
-            
-            // Redirigir a la página de la cotización con un flag de éxito
             router.push(`/cotizar/${result.token}?new=true`);
         } else {
             setSaveError(result.error ?? 'Error procesando tu compra.');
             setSendStatus('error');
-            // Intentar WhatsApp de todas formas
-            wizard.sendWhatsAppQuote();
         }
     };
 
@@ -151,7 +145,16 @@ export default function DirectWizardShell({ cocktails, comunas, categories, init
                 {sendStatus === 'error' && saveError && (
                     <div className="bg-amber-50 border border-amber-200 text-amber-800 rounded-2xl px-5 py-4 mb-6 text-[0.9rem] animate-slide-up">
                         <span className="font-bold">Aviso:</span> {saveError}
-                        <div className="mt-2 opacity-80 text-[0.8rem]">De todas formas puedes intentar enviar la información a través de WhatsApp.</div>
+                        <div className="mt-3">
+                            <a
+                                href={wizard.getWhatsAppQuoteUrl()}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#25D366] hover:bg-[#128c7e] text-white text-xs font-black no-underline transition-all active:scale-95"
+                            >
+                                Enviar por WhatsApp
+                            </a>
+                        </div>
                     </div>
                 )}
 

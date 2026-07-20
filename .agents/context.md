@@ -22,6 +22,18 @@
 
 ## Ultimos Cambios
 
+### 20-07-2026 (Sesión 19)
+- **Formato display WhatsApp (`WHATSAPP_LABEL`)**: `+56 9 XXXX XXXX` (ej. `+56 9 2967 2978`) desde los últimos 8 dígitos de `WHATSAPP_NUMBER`.
+- **Archivos**: `lib/config.ts`, `.agents/context.md`.
+
+### 20-07-2026 (Sesión 18)
+- **WhatsApp post-cotización: de auto-popup a CTA opcional**:
+  - Se eliminó `window.open` automático tras `createQuote` (lo bloqueaban los browsers).
+  - Nuevo CTA `<a href="wa.me?...">` en pantallas `?new=true` (evento y directo) y en error del wizard.
+  - Helpers: `buildWhatsAppMessageFromQuote` + `getWhatsAppUrl`; hook expone `getWhatsAppQuoteUrl`.
+  - Copy de modales actualizado (ya no promete redirección automática).
+- **Archivos**: `hooks/useWizard.ts`, `lib/wizardLogic.ts`, `EventWizardShell.tsx`, `DirectWizardShell.tsx`, checkout modals, `EventQuoteView.tsx`, `DirectQuoteView.tsx`, `EventWizardSuccess.tsx`, `.agents/context.md`.
+
 ### 20-07-2026 (Sesión 17)
 - **Ordenamiento por columnas en `/admin/gastos`**:
   - Encabezados de la tabla (Fecha, Familia/Sub, Medio, Monto) ordenables al click; Notas queda fijo.
@@ -52,15 +64,5 @@
   - Ahora hay una sola opción (`value="Otra"`) con label amigable; al elegirla sigue apareciendo el input manual (`otherComuna`).
 - **Archivos**: `components/wizard/events/EventWizardCheckoutModal.tsx`, `components/wizard/direct/DirectWizardCheckoutModal.tsx`, `.agents/context.md`.
 
-### 20-07-2026 (Sesión 13)
-- **Auto-envío de email de reseña en cambio masivo de estado**:
-  - `bulkUpdateQuoteStatus` ahora dispara `maybeAutoSendReview` (igual que el cambio individual) cuando el estado pasa a `completed` y `review_mode=auto`.
-  - `sendReviewEmail` ya evita reenvíos con `review_email_sent`; el helper no bloquea el update si Resend falla.
-  - Listado `/admin/quotes`: se selecciona `review_email_sent` y se muestra icono Star (lucide) junto al badge de estado cuando el correo ya se envió.
-- **Filtro Eventos / Desechables** en `/admin/quotes`:
-  - Nuevo query param `type` (`all` | `event` | `direct`) combinable con estado, búsqueda y paginación.
-  - Chips secundarios: Todos / Eventos / Desechables.
-- **Archivos**: `app/actions/admin/adminActions.ts`, `app/admin/quotes/page.tsx`, `app/admin/quotes/QuotesListClient.tsx`, `.agents/context.md`.
-
 ---
-*Ultima actualizacion: 20-07-2026 (Sesión 17)*
+*Ultima actualizacion: 20-07-2026 (Sesión 19)*

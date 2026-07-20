@@ -17,8 +17,8 @@ import type { Quote, QuoteItem, Comuna, CocktailForWizard, EventType, Product, I
 import ProductCatalog from '@/components/catalog/ProductCatalog';
 import QuoteSummaryProducts, { QuoteSummaryData } from '@/components/quote/QuoteSummaryProducts';
 import QuoteSummaryReservation, { QuoteSummaryReservationData } from '@/components/quote/QuoteSummaryReservation';
-import { buildWhatsAppMessage } from '@/lib/wizardLogic';
-import { WHATSAPP_NUMBER, WHATSAPP_URL } from '@/lib/config';
+import { buildWhatsAppMessageFromQuote, getWhatsAppUrl } from '@/lib/wizardLogic';
+import { WHATSAPP_URL } from '@/lib/config';
 import { WhatsappIcon } from '@/components/shared/icons';
 
 interface Props {
@@ -442,6 +442,21 @@ export default function DirectQuoteView({ quote, comunas, availableCocktails, ca
                         <Copy className="w-4 h-4" /> Copiar Datos de Cuenta
                     </button>
                     <div className="mt-4 pt-3 border-t border-green-200/60 flex flex-col items-center gap-2">
+                        {isNew && (
+                            <>
+                                <p className="text-[0.7rem] sm:text-[0.8rem] text-green-700 text-center font-bold leading-tight">
+                                    Opcional: envía el detalle de tu pedido a nuestro WhatsApp
+                                </p>
+                                <a
+                                    href={getWhatsAppUrl(buildWhatsAppMessageFromQuote({ ...quote, quote_items: items }))}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="w-full inline-flex justify-center items-center gap-1.5 px-4 py-2.5 bg-[#25D366] hover:bg-[#128c7e] text-white rounded-xl text-xs font-black transition-all active:scale-95 shadow-sm no-underline text-center mb-2"
+                                >
+                                    <WhatsappIcon className="w-3.5 h-3.5 fill-white" /> Enviar pedido por WhatsApp
+                                </a>
+                            </>
+                        )}
                         <p className="text-[0.7rem] sm:text-[0.8rem] text-green-700 text-center italic font-bold leading-tight">
                             Envía tu comprobante por WhatsApp o Email para validar tu pedido:
                         </p>

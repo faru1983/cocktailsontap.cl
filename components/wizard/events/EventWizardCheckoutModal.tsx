@@ -170,7 +170,7 @@ export default function EventWizardCheckoutModal({ wizard, comunas, onClose, onC
                                         )}
                                     </button>
                                     <p className="text-center text-brand-text-muted text-[0.7rem] mt-2.5 leading-tight">
-                                        Tu cotización será enviada a tu correo y tambien podrás enviarla por WhatsApp al finalizar.
+                                        Tu cotización será enviada a tu correo. Al finalizar podrás enviarla también por WhatsApp si lo deseas.
                                     </p>
                                 </div>
                             </form>

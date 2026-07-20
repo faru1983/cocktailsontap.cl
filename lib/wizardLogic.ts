@@ -1,6 +1,6 @@
-import type { CocktailForWizard, Comuna, WizardState, WizardSelection } from './types';
+import type { CocktailForWizard, Comuna, WizardState, WizardSelection, Quote, QuoteItem } from './types';
 import { formatCurrency } from './utils';
-import { SITE_URL, MURO_INSTALLATION_COST, MURO_COMPATIBLE_SIZES, MURO_MIN_LITERS, PROJECT_TIMEZONE } from './config';
+import { SITE_URL, WHATSAPP_URL, MURO_INSTALLATION_COST, MURO_COMPATIBLE_SIZES, MURO_MIN_LITERS, PROJECT_TIMEZONE } from './config';
 
 /**
  * UTILS DE FECHAS
@@ -364,6 +364,58 @@ export function buildWhatsAppMessage(state: WizardState, data: SummaryData, toke
     }
 
     return msg;
+}
+
+/**
+ * Mensaje de WhatsApp a partir de una cotización ya persistida (vista /cotizar/[token]).
+ */
+export function buildWhatsAppMessageFromQuote(quote: Quote & { quote_items: QuoteItem[] }): string {
+    const N = new Intl.NumberFormat('es-CL');
+    const isDirect = quote.service_type === 'direct';
+    const items = quote.quote_items || [];
+
+    const itemsText = items.map((item) => {
+        const normal = item.price_at_time * item.quantity;
+        const offer = item.offer_price_at_time * item.quantity;
+        const hasOffer = normal > offer;
+        return `- x${item.quantity} ${item.product_name} (${item.size}): ${hasOffer ? `~$${N.format(normal)}~ ` : ''}*$${N.format(offer)}*`;
+    }).join('\n');
+
+    const totalLiters = quote.total_liters ?? items.reduce((sum, i) => sum + (i.size_value || 0) * i.quantity, 0);
+    const totalCocktails = totalLiters * 5;
+    const guests = quote.guests || 0;
+    const shippingLabel = quote.shipping_cost === 0 ? '¡Gratis!' : formatCurrency(quote.shipping_cost);
+    const dispenserLabel = quote.dispenser === 'muro' ? 'Muro de Coctelería' : quote.dispenser === 'desechable' ? 'Barril Desechable' : 'Dispensador Portátil';
+    const discount = Math.max(0, (quote.total_normal_price || 0) - (quote.total_offer_price || 0)) + (quote.manual_discount || 0);
+
+    let msg = isDirect ? `*NUEVO PEDIDO*\n\n` : `*SOLICITUD DE COTIZACIÓN*\n\n`;
+    msg += `*PRODUCTOS:*\n${itemsText}\n`;
+    msg += `*Subtotal:* ${formatCurrency(quote.total_normal_price || 0)}\n`;
+    if (discount > 0) msg += `*Descuento:* -${formatCurrency(discount)}\n`;
+    msg += `*Traslados:* ${shippingLabel}\n`;
+    if (!isDirect) {
+        msg += `*${dispenserLabel}:* ${quote.installation_cost === 0 ? '¡Gratis!' : formatCurrency(quote.installation_cost || 0)}\n`;
+    }
+    msg += `*TOTAL: ${formatCurrency(quote.total_price || 0)}*\n\n`;
+
+    if (totalLiters > 0) {
+        msg += `*Notas:* \n`;
+        msg += `_Estas cotizando ${totalLiters}L con rendimiento total aprox. de ${totalCocktails} cócteles._\n`;
+        if (guests > 0) {
+            msg += `_Para ${guests} invitados tienes en promedio ${(totalCocktails / guests).toFixed(1)} cócteles x pers._\n\n`;
+        }
+    }
+
+    msg += isDirect
+        ? `*Comprobante de tu pedido aquí:* ${SITE_URL}/cotizar/${quote.token}\n`
+        : `*Confirma tu cotización aquí:* ${SITE_URL}/cotizar/${quote.token}\n`;
+
+    return msg;
+}
+
+/** URL wa.me con mensaje prearmado (usar en `<a href>`, no en window.open). */
+export function getWhatsAppUrl(message: string): string {
+    return `${WHATSAPP_URL}?text=${encodeURIComponent(message)}`;
 }
 
 /**

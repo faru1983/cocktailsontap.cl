@@ -203,7 +203,7 @@ export default function DirectWizardCheckoutModal({ wizard, comunas, onClose, on
                                         )}
                                     </button>
                                     <p className="text-center text-brand-text-muted text-[0.7rem] mt-2.5 leading-tight">
-                                        Tu pedido será procesado y te enviaremos el comprobante a tu email. También te redirigiremos a WhatsApp para enviar los detalles directamente.
+                                        Tu pedido será procesado y te enviaremos el comprobante a tu email. Al finalizar podrás enviarlo por WhatsApp si lo deseas.
                                     </p>
                                 </div>
                             </form>

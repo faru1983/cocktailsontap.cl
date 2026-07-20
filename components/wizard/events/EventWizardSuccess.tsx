@@ -1,8 +1,7 @@
 'use client';
 
 import React from 'react';
-import { CheckCircle, ArrowRight, Mail, MessageSquare, RefreshCw, Copy, ExternalLink } from 'lucide-react';
-import { WhatsappIcon } from '@/components/shared/icons';
+import { CheckCircle, ArrowRight, Mail, RefreshCw, Copy } from 'lucide-react';
 import { SITE_URL } from '@/lib/config';
 import { copyToClipboard } from '@/lib/utils';
 
@@ -10,10 +9,9 @@ interface WizardSuccessProps {
     token: string;
     clientEmail: string;
     onReset: () => void;
-    onOpenWhatsApp?: () => void;
 }
 
-export default function WizardSuccess({ token, clientEmail, onReset, onOpenWhatsApp }: WizardSuccessProps) {
+export default function WizardSuccess({ token, clientEmail, onReset }: WizardSuccessProps) {
     const quoteLink = `${SITE_URL}/cotizar/${token}`;
 
     const handleCopyLink = () => {

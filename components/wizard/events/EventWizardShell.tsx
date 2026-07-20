@@ -92,12 +92,10 @@ export default function EventWizardShell({ cocktails, eventTypes, comunas, categ
             setQuoteToken(result.token);
             setSendStatus('saved');
             setIsModalOpen(false);
-            wizard.sendWhatsAppQuote(result.token);
             router.push(`/cotizar/${result.token}?new=true`);
         } else {
             setSaveError(result.error ?? 'Error guardando la cotización.');
             setSendStatus('error');
-            wizard.sendWhatsAppQuote();
         }
     };
 
@@ -148,7 +146,17 @@ export default function EventWizardShell({ cocktails, eventTypes, comunas, categ
 
                 {sendStatus === 'error' && saveError && (
                     <div className="bg-amber-50 border border-amber-200 text-amber-800 rounded-2xl px-5 py-4 mb-6 text-[0.9rem] animate-slide-up">
-                        <strong>Nota:</strong> {saveError} Tu solicitud igual fue enviada por WhatsApp.
+                        <strong>Nota:</strong> {saveError}
+                        <div className="mt-3">
+                            <a
+                                href={wizard.getWhatsAppQuoteUrl()}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#25D366] hover:bg-[#128c7e] text-white text-xs font-black no-underline transition-all active:scale-95"
+                            >
+                                Enviar por WhatsApp
+                            </a>
+                        </div>
                     </div>
                 )}
 
@@ -158,7 +166,6 @@ export default function EventWizardShell({ cocktails, eventTypes, comunas, categ
                             token={quoteToken} 
                             clientEmail={state.contact.email} 
                             onReset={handleReset} 
-                            onOpenWhatsApp={() => wizard.sendWhatsAppQuote(quoteToken)}
                         />
                     ) : (
                         currentStep === 1 ? (

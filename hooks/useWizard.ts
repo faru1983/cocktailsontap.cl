@@ -3,8 +3,7 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import type { CocktailForWizard, Comuna, WizardState, WizardSelection } from '@/lib/types';
-import { calculateSmartConfig, calculateSummaryData, buildWhatsAppMessage } from '@/lib/wizardLogic';
-import { WHATSAPP_NUMBER } from '@/lib/config';
+import { calculateSmartConfig, calculateSummaryData, buildWhatsAppMessage, getWhatsAppUrl } from '@/lib/wizardLogic';
 import { getMinDateString } from '@/lib/wizardLogic';
 import { isValidPhoneE164 } from '@/lib/phone';
 
@@ -240,16 +239,16 @@ export function useWizard(cocktails: CocktailForWizard[], comunas: Comuna[], cat
         [state, cocktails, comunas]
     );
 
-    function sendWhatsAppQuote(token?: string) {
+    /** URL lista para `<a href>` — no usar window.open (lo bloquean los browsers). */
+    function getWhatsAppQuoteUrl(token?: string) {
         const data = calculateSummaryData(state, cocktails, comunas);
-        const msg = buildWhatsAppMessage(state, data, token);
-        window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`, '_blank');
+        return getWhatsAppUrl(buildWhatsAppMessage(state, data, token));
     }
 
     return {
         state, updateEventData, updateConsumption, updateContact,
         updateQuantity, toggleCocktail, toggleCategory, goToStep, reset,
-        validateStep, calculateSummaryData: calculateSummaryDataBound, calculateSmartConfig, sendWhatsAppQuote,
+        validateStep, calculateSummaryData: calculateSummaryDataBound, calculateSmartConfig, getWhatsAppQuoteUrl,
         initCategory, updateDispenser, updateServiceType
     };
 }

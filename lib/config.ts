@@ -24,7 +24,8 @@ export const FROM_EMAIL = `Cocktails on Tap <${ADMIN_EMAIL}>`;
 /** WhatsApp Business */
 export const WHATSAPP_NUMBER = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER ?? '56900000000';
 export const WHATSAPP_URL = `https://wa.me/${WHATSAPP_NUMBER}`;
-export const WHATSAPP_LABEL = '+56 9 ' + (process.env.NEXT_PUBLIC_WHATSAPP_NUMBER?.slice(3) || '0000 0000');
+const waLocal8 = WHATSAPP_NUMBER.slice(-8);
+export const WHATSAPP_LABEL = `+56 9 ${waLocal8.slice(0, 4)} ${waLocal8.slice(4)}`;
 
 /** Costo de instalación del Muro de Coctelería (en CLP) */
 export const MURO_INSTALLATION_COST = 50_000;
