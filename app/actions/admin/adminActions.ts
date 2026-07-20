@@ -349,6 +349,51 @@ export async function updateQuoteAdmin(quoteId: string, data: Record<string, any
     return { success: true };
 }
 
+export type ClientQuoteAddress = {
+    address: string;
+    comuna: string;
+    otherComuna: string;
+    lastUsed: string;
+};
+
+/** Direcciones únicas del historial de cotizaciones de un cliente (admin). */
+export async function getClientAddressesFromQuotes(
+    clientId: string
+): Promise<{ success: boolean; addresses?: ClientQuoteAddress[]; error?: string }> {
+    await checkAuth();
+    if (!clientId) return { success: false, error: 'clientId requerido' };
+
+    const db = createServerClient();
+    const { data, error } = await db
+        .from('quotes')
+        .select('client_address, comuna_name, comuna_other, created_at')
+        .eq('client_id', clientId)
+        .not('client_address', 'is', null)
+        .order('created_at', { ascending: false });
+
+    if (error) return { success: false, error: error.message };
+
+    const seen = new Map<string, ClientQuoteAddress>();
+    for (const row of data ?? []) {
+        const address = (row.client_address || '').trim();
+        if (address.length < 5) continue;
+
+        const comuna = (row.comuna_name || '').trim();
+        const otherComuna = (row.comuna_other || '').trim();
+        const key = `${address.toLowerCase()}|${comuna.toLowerCase()}|${otherComuna.toLowerCase()}`;
+        if (seen.has(key)) continue;
+
+        seen.set(key, {
+            address,
+            comuna,
+            otherComuna,
+            lastUsed: row.created_at,
+        });
+    }
+
+    return { success: true, addresses: Array.from(seen.values()) };
+}
+
 // ── Update Client Admin ──────────────────────────────────────────────────
 export async function updateClientAdmin(clientId: string, data: { first_name: string; last_name?: string; email: string; phone?: string }): Promise<{ success: boolean; error?: string }> {
     await checkAuth();

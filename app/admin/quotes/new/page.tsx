@@ -1,8 +1,12 @@
-import { createServerClient } from '@/lib/supabaseServer';
 import { fetchAllProductData, fetchAllClients } from '@/lib/serverData';
 import CreateQuoteManualClient from './CreateQuoteManualClient';
 
-export default async function NewQuotePage() {
+type SearchParams = Promise<{ type?: string }>;
+
+export default async function NewQuotePage({ searchParams }: { searchParams: SearchParams }) {
+    const params = await searchParams;
+    const initialServiceType = params.type === 'direct' ? 'direct' : 'event';
+
     const { products, comunas, eventTypes } = await fetchAllProductData();
     const clients = await fetchAllClients();
     
@@ -12,6 +16,7 @@ export default async function NewQuotePage() {
             comunas={comunas} 
             eventTypes={eventTypes} 
             existingClients={clients}
+            initialServiceType={initialServiceType}
         />
     );
 }

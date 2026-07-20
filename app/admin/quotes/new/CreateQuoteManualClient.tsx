@@ -3,8 +3,9 @@
 import { useState, useTransition, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Save, Plus, Trash2, Search, Check, AlertCircle, MessageCircle, RefreshCw, Copy, Calendar } from 'lucide-react';
+import { ArrowLeft, Save, Plus, Trash2, Search, Check, AlertCircle, MessageCircle, RefreshCw, Copy, Calendar, MapPin, Loader2 } from 'lucide-react';
 import { createQuote } from '@/app/actions/createQuote';
+import { getClientAddressesFromQuotes, type ClientQuoteAddress } from '@/app/actions/admin/adminActions';
 import type { Product, Comuna, EventType, WizardState } from '@/lib/types';
 import { calculateSummaryData } from '@/lib/wizardLogic';
 import { SITE_URL, MURO_INSTALLATION_COST } from '@/lib/config';
@@ -16,9 +17,10 @@ interface CreateQuoteManualClientProps {
     comunas: Comuna[];
     eventTypes: EventType[];
     existingClients: any[];
+    initialServiceType?: 'event' | 'direct';
 }
 
-export default function CreateQuoteManualClient({ allProducts, comunas, eventTypes, existingClients }: CreateQuoteManualClientProps) {
+export default function CreateQuoteManualClient({ allProducts, comunas, eventTypes, existingClients, initialServiceType = 'event' }: CreateQuoteManualClientProps) {
     const router = useRouter();
     const [isPending, startTransition] = useTransition();
     const [error, setError] = useState<string | null>(null);
@@ -36,6 +38,15 @@ export default function CreateQuoteManualClient({ allProducts, comunas, eventTyp
     });
 
     const [clientSearch, setClientSearch] = useState('');
+    const [clientAddresses, setClientAddresses] = useState<ClientQuoteAddress[]>([]);
+    const [addressesLoading, setAddressesLoading] = useState(false);
+    const [selectedAddressKey, setSelectedAddressKey] = useState<string | null>(null);
+
+    // Overrides (undefined means use default)
+    const [shippingOverride, setShippingOverride] = useState<number | undefined>(undefined);
+    const [installationOverride, setInstallationOverride] = useState<number | undefined>(undefined);
+    const [discountOverride, setDiscountOverride] = useState<number>(0);
+
     const filteredClients = useMemo(() => {
         if (!clientSearch) return [];
         return existingClients.filter(c => 
@@ -44,15 +55,46 @@ export default function CreateQuoteManualClient({ allProducts, comunas, eventTyp
         ).slice(0, 5);
     }, [clientSearch, existingClients]);
 
+    const addressKey = (a: ClientQuoteAddress) =>
+        `${a.address.toLowerCase()}|${a.comuna.toLowerCase()}|${a.otherComuna.toLowerCase()}`;
+
+    const applyAddress = (a: ClientQuoteAddress) => {
+        setContact(prev => ({
+            ...prev,
+            address: a.address,
+            comuna: a.comuna,
+            otherComuna: a.otherComuna,
+        }));
+        setSelectedAddressKey(addressKey(a));
+        setShippingOverride(undefined);
+    };
+
     const handleSelectClient = (c: any) => {
         setContact(prev => ({
             ...prev,
             firstName: c.first_name,
             lastName: c.last_name || '',
             email: c.email,
-            phone: normalizePhoneE164(c.phone || '') || ''
+            phone: normalizePhoneE164(c.phone || '') || '',
+            address: '',
+            comuna: '',
+            otherComuna: '',
         }));
         setClientSearch('');
+        setClientAddresses([]);
+        setSelectedAddressKey(null);
+        setShippingOverride(undefined);
+
+        setAddressesLoading(true);
+        void (async () => {
+            const res = await getClientAddressesFromQuotes(c.id);
+            setAddressesLoading(false);
+            if (!res.success || !res.addresses?.length) {
+                setClientAddresses([]);
+                return;
+            }
+            setClientAddresses(res.addresses);
+        })();
     };
 
     const [eventData, setEventData] = useState({
@@ -69,14 +111,9 @@ export default function CreateQuoteManualClient({ allProducts, comunas, eventTyp
         drinksPerPerson: 3 
     });
 
-    const [serviceType, setServiceType] = useState<'event' | 'direct'>('event');
+    const [serviceType, setServiceType] = useState<'event' | 'direct'>(initialServiceType);
     const [dispenser, setDispenser] = useState<'portatil' | 'muro'>('portatil');
     const [selections, setSelections] = useState<{ id: string; size: string; quantity: number; customPrice?: number }[]>([]);
-    
-    // Overrides (undefined means use default)
-    const [shippingOverride, setShippingOverride] = useState<number | undefined>(undefined);
-    const [installationOverride, setInstallationOverride] = useState<number | undefined>(undefined);
-    const [discountOverride, setDiscountOverride] = useState<number>(0);
     
     const [searchTerm, setSearchTerm] = useState('');
     const [successData, setSuccessData] = useState<{ token: string; quoteId: string } | null>(null);
@@ -381,27 +418,75 @@ export default function CreateQuoteManualClient({ allProducts, comunas, eventTyp
                                 />
                             </Field>
                         </div>
+
+                        {(addressesLoading || clientAddresses.length > 0) && (
+                            <div className="mt-6 pt-6 border-t border-white/5">
+                                <label className="flex items-center gap-2 text-slate-500 text-[10px] font-black uppercase tracking-widest mb-3">
+                                    <MapPin size={12} />
+                                    Direcciones anteriores
+                                    {addressesLoading && <Loader2 size={12} className="animate-spin text-[#E2A049]" />}
+                                </label>
+                                {!addressesLoading && clientAddresses.length > 0 && (
+                                    <div className="flex flex-col gap-2">
+                                        {clientAddresses.map((a) => {
+                                            const key = addressKey(a);
+                                            const selected = selectedAddressKey === key;
+                                            const comunaLabel = a.comuna === 'Otra' && a.otherComuna
+                                                ? a.otherComuna
+                                                : (a.comuna || 'Sin comuna');
+                                            return (
+                                                <button
+                                                    key={key}
+                                                    type="button"
+                                                    onClick={() => applyAddress(a)}
+                                                    className={`w-full text-left px-4 py-3 rounded-xl border transition-all flex items-start justify-between gap-3 ${
+                                                        selected
+                                                            ? 'border-[#E2A049] bg-[#E2A049]/10'
+                                                            : 'border-white/10 bg-black/20 hover:border-[#E2A049]/40 hover:bg-[#E2A049]/5'
+                                                    }`}
+                                                >
+                                                    <div className="min-w-0">
+                                                        <div className={`text-sm font-bold truncate ${selected ? 'text-[#E2A049]' : 'text-white'}`}>
+                                                            {a.address}
+                                                        </div>
+                                                        <div className="text-slate-500 text-xs mt-0.5">{comunaLabel}</div>
+                                                    </div>
+                                                    {selected && <Check size={16} className="text-[#E2A049] shrink-0 mt-0.5" />}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </SectionBox>
 
                     {serviceType === 'direct' ? (
                         <SectionBox title="Información de Despacho" icon={<span className="w-1.5 h-6 bg-[#E2A049] rounded-full" />}>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <Field label="Dirección (Calle y Número)" className="md:col-span-2">
-                                    <input value={contact.address} onChange={e => setContact(c => ({...c, address: e.target.value}))} className="admin-input" placeholder="Av. Siempre Viva 123" />
+                                    <input value={contact.address} onChange={e => {
+                                        setContact(c => ({...c, address: e.target.value}));
+                                        setSelectedAddressKey(null);
+                                    }} className="admin-input" placeholder="Av. Siempre Viva 123" />
                                 </Field>
                                 <Field label="Comuna">
                                     <div className="space-y-3">
                                         <select value={contact.comuna} onChange={e => {
                                             setContact(c => ({...c, comuna: e.target.value}));
                                             setShippingOverride(undefined); // Reset override on change
+                                            setSelectedAddressKey(null);
                                         }} className="admin-input appearance-none">
                                             <option value="" disabled hidden>Selecciona comuna...</option>
-                                            {comunas.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
+                                            {comunas.map(c => <option key={c.name} value={c.name}>{c.name === 'Otra' ? 'Otra / No está en la lista' : c.name}</option>)}
                                         </select>
                                         {contact.comuna === 'Otra' && (
                                             <input 
                                                 value={contact.otherComuna} 
-                                                onChange={e => setContact(c => ({...c, otherComuna: e.target.value}))} 
+                                                onChange={e => {
+                                                    setContact(c => ({...c, otherComuna: e.target.value}));
+                                                    setSelectedAddressKey(null);
+                                                }} 
                                                 className="admin-input animate-in slide-in-from-top-2 duration-200" 
                                                 placeholder="¿Cuál comuna?" 
                                             />
@@ -447,21 +532,28 @@ export default function CreateQuoteManualClient({ allProducts, comunas, eventTyp
                                         <input type="number" value={consumption.guests === 0 ? '' : consumption.guests} onChange={e => setConsumption(c => ({...c, guests: Number(e.target.value)}))} className="admin-input" placeholder="0" />
                                     </Field>
                                     <Field label="Dirección (Calle y Número)" className="md:col-span-2">
-                                        <input value={contact.address} onChange={e => setContact(c => ({...c, address: e.target.value}))} className="admin-input" placeholder="Av. Siempre Viva 123" />
+                                        <input value={contact.address} onChange={e => {
+                                            setContact(c => ({...c, address: e.target.value}));
+                                            setSelectedAddressKey(null);
+                                        }} className="admin-input" placeholder="Av. Siempre Viva 123" />
                                     </Field>
                                     <Field label="Comuna">
                                         <div className="space-y-3">
                                             <select value={contact.comuna} onChange={e => {
                                                 setContact(c => ({...c, comuna: e.target.value}));
                                                 setShippingOverride(undefined); // Reset override on change
+                                                setSelectedAddressKey(null);
                                             }} className="admin-input appearance-none">
                                                 <option value="" disabled hidden>Selecciona comuna...</option>
-                                                {comunas.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
+                                                {comunas.map(c => <option key={c.name} value={c.name}>{c.name === 'Otra' ? 'Otra / No está en la lista' : c.name}</option>)}
                                             </select>
                                             {contact.comuna === 'Otra' && (
                                                 <input 
                                                     value={contact.otherComuna} 
-                                                    onChange={e => setContact(c => ({...c, otherComuna: e.target.value}))} 
+                                                    onChange={e => {
+                                                        setContact(c => ({...c, otherComuna: e.target.value}));
+                                                        setSelectedAddressKey(null);
+                                                    }} 
                                                     className="admin-input animate-in slide-in-from-top-2 duration-200" 
                                                     placeholder="¿Cuál comuna?" 
                                                 />

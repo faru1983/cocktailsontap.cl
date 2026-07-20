@@ -22,6 +22,36 @@
 
 ## Ultimos Cambios
 
+### 20-07-2026 (Sesión 17)
+- **Ordenamiento por columnas en `/admin/gastos`**:
+  - Encabezados de la tabla (Fecha, Familia/Sub, Medio, Monto) ordenables al click; Notas queda fijo.
+  - Alterna asc/desc; columna activa en `#E2A049` con 🔼/🔽 (idéntico a cotizaciones/clientes).
+  - Default: fecha descendente. Aplica también a la vista mobile (misma lista ordenada).
+- **Archivos**: `app/admin/gastos/GastosClient.tsx`, `.agents/context.md`.
+
+### 20-07-2026 (Sesión 16)
+- **One-shot sync teléfonos → Google Contacts (E.164)**:
+  - Script temporal actualizó `phoneNumbers` de 250 contactos (solo teléfono; sin tocar notas/direcciones).
+  - 1ª pasada: cuota People API; 2ª pasada con backoff: **OK 75 + SKIP 175 + FAIL 0**.
+  - Script eliminado tras la corrida (no queda en el repo).
+- **Archivos**: solo `.agents/context.md` (script one-shot borrado).
+
+### 20-07-2026 (Sesión 15)
+- **Selector de direcciones desde historial (admin)**:
+  - Nueva action `getClientAddressesFromQuotes`: lee `client_address`/`comuna_*` de quotes del cliente, deduplica por clave normalizada y ordena por más reciente.
+  - En `/admin/quotes/new`, al elegir un cliente existente se listan esas direcciones; ninguna se precarga sola — hay que elegirla con un click (calle + comuna).
+  - Editar a mano la dirección desmarca la selección. Sin cambios de schema ni wizard público.
+- **Menú Nueva Cotización (Evento / Desechables)**:
+  - En `/admin/quotes`, el botón abre un dropdown: Reserva de Evento → `?type=event`, Venta Desechables → `?type=direct`.
+  - `/admin/quotes/new` lee el query param y deja lista la pestaña correspondiente.
+- **Archivos**: `app/actions/admin/adminActions.ts`, `app/admin/quotes/new/CreateQuoteManualClient.tsx`, `app/admin/quotes/new/page.tsx`, `app/admin/quotes/QuotesListClient.tsx`, `.agents/context.md`.
+
+### 20-07-2026 (Sesión 14)
+- **Fix duplicado de comuna "Otra" en wizards**:
+  - En `EventWizardCheckoutModal` y `DirectWizardCheckoutModal` se eliminó el `<option>` hardcodeado `Otra / No está en la lista` que coexistía con la fila `Otra` de BD.
+  - Ahora hay una sola opción (`value="Otra"`) con label amigable; al elegirla sigue apareciendo el input manual (`otherComuna`).
+- **Archivos**: `components/wizard/events/EventWizardCheckoutModal.tsx`, `components/wizard/direct/DirectWizardCheckoutModal.tsx`, `.agents/context.md`.
+
 ### 20-07-2026 (Sesión 13)
 - **Auto-envío de email de reseña en cambio masivo de estado**:
   - `bulkUpdateQuoteStatus` ahora dispara `maybeAutoSendReview` (igual que el cambio individual) cuando el estado pasa a `completed` y `review_mode=auto`.
@@ -32,39 +62,5 @@
   - Chips secundarios: Todos / Eventos / Desechables.
 - **Archivos**: `app/actions/admin/adminActions.ts`, `app/admin/quotes/page.tsx`, `app/admin/quotes/QuotesListClient.tsx`, `.agents/context.md`.
 
-### 20-07-2026 (Sesión 12)
-- **Celulares E.164 + PhoneInput global**:
-  - Nuevo `lib/phone.ts`: normalización E.164 con `+`, máscara de display (`+56 9 1234 5678`), validación Chile estricto + CO/PE/VE, `toWhatsAppDigits()`.
-  - Nuevo `components/ui/PhoneInput.tsx`: focus vacío → prefijo `+56 9 `; emite E.164 al padre; placeholder `+56 9 1234 5678`.
-  - Zod (`OptionalPhoneSchema` / `RequiredPhoneSchema`), `QuoteService`, admin actions y validaciones del wizard endurecidos.
-  - Reemplazo de inputs de celular en wizards, vistas `/cotizar/[token]`, admin (clientes, cotizaciones, recordatorios).
-  - Migración BD: 250 `clients.phone` + 283 `quotes.client_phone` normalizados de `+569-XXXXXXXX` → `+569XXXXXXXX`.
-  - Regla de oro #8 en `rules.md`.
-- **Archivos**: `lib/phone.ts`, `components/ui/PhoneInput.tsx`, `lib/types.ts`, `lib/utils.ts`, `lib/services/quoteService.ts`, `hooks/useWizard.ts`, wizards/quote/admin/emails, `.agents/rules/rules.md`, `.agents/context.md`.
-
-### 21-06-2026 (Sesión 11)
-- **Optimización de SEO Técnico y Datos Estructurados (JSON-LD)**:
-  - Se configuró `metadataBase`, `canonical` y `twitter` (Twitter Cards) en el layout raíz de Next.js (`app/layout.tsx`).
-  - Se inyectó un script JSON-LD de tipo `LocalBusiness` en el `RootLayout` (`app/layout.tsx`) utilizando los parámetros oficiales (`SITE_URL`, `LOGO_URL`, `WHATSAPP_NUMBER`) de `lib/config.ts`.
-  - Se añadieron etiquetas `<h1>` semánticas y accesibles utilizando la clase `sr-only` en las páginas de entrada `/cotizar`, `/barriles` y `/eventos` para optimizar la jerarquía semántica para buscadores.
-- **Archivos Modificados**: `app/layout.tsx`, `app/cotizar/page.tsx`, `app/barriles/page.tsx`, `app/eventos/page.tsx`, `.agents/context.md`.
-
-### 21-06-2026 (Sesión 10)
-- **Botón Flotante de WhatsApp en Eventos y Barriles**:
-  - Se creó el componente `FloatingWhatsapp.tsx` en `components/shared/` para mostrar el botón flotante de WhatsApp de manera interactiva a los 20 segundos de cargada la página.
-  - El componente tiene un botón de cerrar `(X)` que oculta el widget de forma inmediata.
-  - El enlace a WhatsApp utiliza la variable preconfigurada `WHATSAPP_NUMBER` de `lib/config.ts` y envía el mensaje predefinido codificado: "Hola, estoy cotizando desde la pagina web y tengo algunas dudas.".
-  - Se importó y renderizó el componente `FloatingWhatsapp` en las páginas públicas de cotización de eventos (`app/eventos/page.tsx`) y de compra directa de barriles (`app/barriles/page.tsx`).
-  - Se ajustó la posición del botón en la versión móvil (`bottom-24 md:bottom-8`) para evitar superponerse con la barra de navegación fija inferior.
-- **Archivos Modificados/Creados**: `components/shared/FloatingWhatsapp.tsx` (Nuevo), `app/eventos/page.tsx`, `app/barriles/page.tsx`, `.agents/context.md`.
-
-### 05-06-2026 (Sesión 9)
-- **Unificación de Envíos de Correo Manual (Venta Desechable y Eventos)**:
-  - Se corrigió un bug en la creación manual de cotizaciones (`/admin/quotes/new`) y en la vista de detalle de la orden (`/admin/quotes/[token]`) donde las "Ventas Desechables" (venta directa) enviaban incorrectamente la plantilla de "Cotización de Evento" y omitían enviar una copia al administrador.
-  - Se eliminó la función redundante `resendOrderEmail` de `adminActions.ts`.
-  - Se reemplazó su uso en `CreateQuoteManualClient.tsx` y `QuoteDetailClient.tsx` por la función principal `sendQuoteEmailAdmin`, la cual verifica correctamente si la orden es Venta Directa o Evento, seleccionando la plantilla adecuada (`ConfirmationEmail` vs `QuoteEmail`) y enviando siempre la copia de respaldo al administrador.
-  - Se eliminó el botón redundante de "Reenvío Orden" en el dashboard de detalle, manteniendo únicamente el botón de "Enviar Email de Confirmación / Cotización" en la sección de Disparadores Manuales.
-- **Archivos Modificados**: `app/admin/quotes/new/CreateQuoteManualClient.tsx`, `app/admin/quotes/[id]/QuoteDetailClient.tsx`, `app/actions/admin/adminActions.ts`, `.agents/context.md`.
-
 ---
-*Ultima actualizacion: 20-07-2026 (Sesión 13)*
+*Ultima actualizacion: 20-07-2026 (Sesión 17)*

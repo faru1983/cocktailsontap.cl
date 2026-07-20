@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState, useTransition, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { SITE_URL } from '@/lib/config';
 import SortSelect from '@/components/admin/SortSelect';
 import { bulkUpdateQuoteStatus } from '@/app/actions/admin/adminActions';
-import { Plus, Star } from 'lucide-react';
+import { Plus, Star, ChevronDown, Calendar, Package } from 'lucide-react';
 
 const statusBadge: Record<string, { label: string; color: string; bg: string }> = {
     draft:        { label: 'Borrador',       color: '#94a3b8', bg: 'rgba(148,163,184,0.12)' },
@@ -41,6 +41,19 @@ export default function QuotesListClient({
 }: QuotesListClientProps) {
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
     const [isPending, startTransition] = useTransition();
+    const [newMenuOpen, setNewMenuOpen] = useState(false);
+    const newMenuRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (!newMenuOpen) return;
+        const onPointerDown = (e: MouseEvent) => {
+            if (newMenuRef.current && !newMenuRef.current.contains(e.target as Node)) {
+                setNewMenuOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', onPointerDown);
+        return () => document.removeEventListener('mousedown', onPointerDown);
+    }, [newMenuOpen]);
 
     const toggleSelectAll = () => {
         if (selectedIds.length === initialQuotes.length) setSelectedIds([]);
@@ -161,6 +174,12 @@ export default function QuotesListClient({
                 .page-link:hover { border-color: #E2A049; color: #E2A049; }
                 .page-link.active { background: #E2A049; color: #1a1b26; border-color: #E2A049; }
                 .page-link.disabled { opacity: 0.4; pointer-events: none; }
+                .new-quote-menu-item {
+                    display: flex; align-items: center; gap: 12px; padding: 12px 14px;
+                    border-radius: 10px; text-decoration: none; color: #f1f5f9;
+                    transition: background 0.15s;
+                }
+                .new-quote-menu-item:hover { background: rgba(226,160,73,0.12); }
             `}</style>
 
             {/* Header */}
@@ -170,13 +189,50 @@ export default function QuotesListClient({
                         <h1 style={{ color: '#f1f5f9', fontSize: '24px', fontWeight: 900, margin: '0 0 3px' }}>Cotizaciones</h1>
                         <p style={{ color: '#475569', fontSize: '13px', margin: 0 }}>{totalCount} coincidencias found</p>
                     </div>
-                    <Link href="/admin/quotes/new" style={{
-                        padding: '10px 18px', borderRadius: '12px', background: '#E2A049', color: '#1a1a2e',
-                        fontSize: '13px', fontWeight: 800, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '8px',
-                        boxShadow: '0 4px 15px rgba(226,160,73,0.3)', transition: 'all 0.15s'
-                    }}>
-                        <Plus size={18} /> Nueva Cotización
-                    </Link>
+                    <div ref={newMenuRef} style={{ position: 'relative' }}>
+                        <button
+                            type="button"
+                            onClick={() => setNewMenuOpen(v => !v)}
+                            style={{
+                                padding: '10px 18px', borderRadius: '12px', background: '#E2A049', color: '#1a1a2e',
+                                fontSize: '13px', fontWeight: 800, border: 'none', cursor: 'pointer',
+                                display: 'flex', alignItems: 'center', gap: '8px',
+                                boxShadow: '0 4px 15px rgba(226,160,73,0.3)', transition: 'all 0.15s'
+                            }}
+                        >
+                            <Plus size={18} /> Nueva <ChevronDown size={16} style={{ opacity: 0.8, transform: newMenuOpen ? 'rotate(180deg)' : undefined, transition: 'transform 0.15s' }} />
+                        </button>
+                        {newMenuOpen && (
+                            <div style={{
+                                position: 'absolute', top: 'calc(100% + 8px)', left: 0, zIndex: 40,
+                                minWidth: '240px', background: '#1e2433', border: '1px solid rgba(226,160,73,0.25)',
+                                borderRadius: '14px', boxShadow: '0 16px 40px rgba(0,0,0,0.45)', padding: '6px',
+                            }}>
+                                <Link
+                                    href="/admin/quotes/new?type=event"
+                                    onClick={() => setNewMenuOpen(false)}
+                                    className="new-quote-menu-item"
+                                >
+                                    <Calendar size={18} style={{ color: '#E2A049', flexShrink: 0 }} />
+                                    <div>
+                                        <div style={{ fontSize: '13px', fontWeight: 800 }}>Reserva de Evento</div>
+                                        <div style={{ fontSize: '11px', color: '#64748b', marginTop: 2 }}>Cotización / borrador</div>
+                                    </div>
+                                </Link>
+                                <Link
+                                    href="/admin/quotes/new?type=direct"
+                                    onClick={() => setNewMenuOpen(false)}
+                                    className="new-quote-menu-item"
+                                >
+                                    <Package size={18} style={{ color: '#E2A049', flexShrink: 0 }} />
+                                    <div>
+                                        <div style={{ fontSize: '13px', fontWeight: 800 }}>Venta Desechables</div>
+                                        <div style={{ fontSize: '11px', color: '#64748b', marginTop: 2 }}>Pedido directo</div>
+                                    </div>
+                                </Link>
+                            </div>
+                        )}
+                    </div>
                 </div>
                 <form method="GET" action="/admin/quotes" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', width: '100%', maxWidth: 'max-content' }}>
                     {status && <input type="hidden" name="status" value={status} />}

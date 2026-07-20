@@ -133,9 +133,10 @@ export default function EventWizardCheckoutModal({ wizard, comunas, onClose, onC
                                         >
                                             <option value="">Selecciona comuna...</option>
                                             {comunas.map((c) => (
-                                                <option key={c.name} value={c.name}>{c.name}</option>
+                                                <option key={c.name} value={c.name}>
+                                                    {c.name === 'Otra' ? 'Otra / No está en la lista' : c.name}
+                                                </option>
                                             ))}
-                                            <option value="Otra">Otra / No está en la lista</option>
                                         </select>
                                     </div>
                                     {state.contact.comuna === 'Otra' && (

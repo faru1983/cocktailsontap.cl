@@ -111,6 +111,7 @@ export default function GastosClient({
     const [expenses, setExpenses] = useState(initialExpenses);
     const [filterCat, setFilterCat] = useState('');
     const [searchTerm, setSearchTerm] = useState('');
+    const [sort, setSort] = useState<{ key: keyof Expense; dir: 'asc' | 'desc' }>({ key: 'expense_date', dir: 'desc' });
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
 
@@ -139,15 +140,36 @@ export default function GastosClient({
         setExpenses(initialExpenses);
     }, [initialExpenses]);
 
+    const toggleSort = (key: keyof Expense) => {
+        setSort(prev => ({ key, dir: prev.key === key && prev.dir === 'desc' ? 'asc' : 'desc' }));
+    };
+
     const filteredExpenses = useMemo(() => {
-        return expenses.filter(e => {
+        const filtered = expenses.filter(e => {
             const matchesCat = !filterCat || e.category_id === filterCat;
             const matchesSearch = !searchTerm || 
                 e.notes?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                 e.subcategory_name?.toLowerCase().includes(searchTerm.toLowerCase());
             return matchesCat && matchesSearch;
         });
-    }, [expenses, filterCat, searchTerm]);
+
+        return [...filtered].sort((a, b) => {
+            let valA: string | number = a[sort.key] ?? '';
+            let valB: string | number = b[sort.key] ?? '';
+
+            if (sort.key === 'category_name') {
+                valA = `${a.category_name} ${a.subcategory_name}`.toLowerCase();
+                valB = `${b.category_name} ${b.subcategory_name}`.toLowerCase();
+            } else if (typeof valA === 'string') {
+                valA = valA.toLowerCase();
+                valB = String(valB).toLowerCase();
+            }
+
+            if (valA < valB) return sort.dir === 'asc' ? -1 : 1;
+            if (valA > valB) return sort.dir === 'asc' ? 1 : -1;
+            return 0;
+        });
+    }, [expenses, filterCat, searchTerm, sort]);
 
     const navigateToMonth = (month: string) => {
         if (!month) return;
@@ -418,10 +440,22 @@ export default function GastosClient({
                         <table className="w-full border-collapse">
                             <thead>
                                 <tr className="bg-white/[0.02]">
-                                    <th className="text-left py-4 px-6 text-slate-500 text-[11px] font-bold uppercase tracking-widest border-b border-white/5">Fecha</th>
-                                    <th className="text-left py-4 px-6 text-slate-500 text-[11px] font-bold uppercase tracking-widest border-b border-white/5">Familia / Sub</th>
-                                    <th className="text-left py-4 px-6 text-slate-500 text-[11px] font-bold uppercase tracking-widest border-b border-white/5">Medio</th>
-                                    <th className="text-left py-4 px-6 text-slate-500 text-[11px] font-bold uppercase tracking-widest border-b border-white/5">Monto</th>
+                                    {([
+                                        { label: 'Fecha', field: 'expense_date' as const },
+                                        { label: 'Familia / Sub', field: 'category_name' as const },
+                                        { label: 'Medio', field: 'payment_method' as const },
+                                        { label: 'Monto', field: 'amount' as const },
+                                    ]).map(h => (
+                                        <th
+                                            key={h.field}
+                                            className="text-left py-4 px-6 text-slate-500 text-[11px] font-bold uppercase tracking-widest border-b border-white/5 cursor-pointer"
+                                            onClick={() => toggleSort(h.field)}
+                                        >
+                                            <span className={`inline-flex items-center gap-1 ${sort.key === h.field ? 'text-[#E2A049]' : ''}`}>
+                                                {h.label}{sort.key === h.field && (sort.dir === 'asc' ? ' 🔼' : ' 🔽')}
+                                            </span>
+                                        </th>
+                                    ))}
                                     <th className="text-left py-4 px-6 text-slate-500 text-[11px] font-bold uppercase tracking-widest border-b border-white/5">Notas</th>
                                     <th className="text-right py-4 px-6 text-slate-500 text-[11px] font-bold uppercase tracking-widest border-b border-white/5"></th>
                                 </tr>

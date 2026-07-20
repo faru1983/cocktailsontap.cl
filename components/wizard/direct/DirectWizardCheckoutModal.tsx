@@ -139,9 +139,10 @@ export default function DirectWizardCheckoutModal({ wizard, comunas, onClose, on
                                         >
                                             <option value="">Selecciona...</option>
                                             {comunas.map((c) => (
-                                                <option key={c.name} value={c.name}>{c.name}</option>
+                                                <option key={c.name} value={c.name}>
+                                                    {c.name === 'Otra' ? 'Otra / No está en la lista' : c.name}
+                                                </option>
                                             ))}
-                                            <option value="Otra">Otra / No está en la lista</option>
                                         </select>
                                     </div>
                                 </div>
