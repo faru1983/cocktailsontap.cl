@@ -101,6 +101,13 @@ export default async function ClientsPage({ searchParams }: { searchParams: Sear
                 .cp-table-wrap table { border-collapse: collapse; width: 100%; }
                 .cp-row { position: relative; transition: background 0.15s; cursor: pointer; border-top: 1px solid rgba(255,255,255,0.04); }
                 .cp-row:hover { background: rgba(255,255,255,0.02) !important; }
+                .cp-row-link { color: inherit; text-decoration: none; }
+                .cp-row-link::after {
+                    content: '';
+                    position: absolute;
+                    inset: 0;
+                    z-index: 1;
+                }
 
                 /* ── Pagination ── */
                 .pagination-wrap { display: flex; justify-content: center; align-items: center; gap: 8px; margin-top: 24px; }
@@ -181,7 +188,7 @@ export default async function ClientsPage({ searchParams }: { searchParams: Sear
                                         </div>
                                     </td>
                                     <td style={{ padding: '14px 20px', color: '#f1f5f9', fontSize: '14px', fontWeight: 600, whiteSpace: 'nowrap' }}>
-                                        <Link href={`/admin/clients/${c.id}`} style={{ color: 'inherit', textDecoration: 'none' }}>
+                                        <Link href={`/admin/clients/${c.id}`} className="cp-row-link" aria-label={`Ver cliente ${c.first_name} ${c.last_name || ''}`.trim()}>
                                             {c.first_name}
                                         </Link>
                                     </td>

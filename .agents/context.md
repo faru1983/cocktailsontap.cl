@@ -22,6 +22,16 @@
 
 ## Ultimos Cambios
 
+### 20-07-2026 (Sesión 13)
+- **Auto-envío de email de reseña en cambio masivo de estado**:
+  - `bulkUpdateQuoteStatus` ahora dispara `maybeAutoSendReview` (igual que el cambio individual) cuando el estado pasa a `completed` y `review_mode=auto`.
+  - `sendReviewEmail` ya evita reenvíos con `review_email_sent`; el helper no bloquea el update si Resend falla.
+  - Listado `/admin/quotes`: se selecciona `review_email_sent` y se muestra icono Star (lucide) junto al badge de estado cuando el correo ya se envió.
+- **Filtro Eventos / Desechables** en `/admin/quotes`:
+  - Nuevo query param `type` (`all` | `event` | `direct`) combinable con estado, búsqueda y paginación.
+  - Chips secundarios: Todos / Eventos / Desechables.
+- **Archivos**: `app/actions/admin/adminActions.ts`, `app/admin/quotes/page.tsx`, `app/admin/quotes/QuotesListClient.tsx`, `.agents/context.md`.
+
 ### 20-07-2026 (Sesión 12)
 - **Celulares E.164 + PhoneInput global**:
   - Nuevo `lib/phone.ts`: normalización E.164 con `+`, máscara de display (`+56 9 1234 5678`), validación Chile estricto + CO/PE/VE, `toWhatsAppDigits()`.
@@ -56,11 +66,5 @@
   - Se eliminó el botón redundante de "Reenvío Orden" en el dashboard de detalle, manteniendo únicamente el botón de "Enviar Email de Confirmación / Cotización" en la sección de Disparadores Manuales.
 - **Archivos Modificados**: `app/admin/quotes/new/CreateQuoteManualClient.tsx`, `app/admin/quotes/[id]/QuoteDetailClient.tsx`, `app/actions/admin/adminActions.ts`, `.agents/context.md`.
 
-### 28-05-2026 (Sesión 8)
-- **Resolución de Advertencia de Seguridad en Supabase (`public_bucket_allows_listing`)**:
-  - Se eliminó la política `Public Access for Everyone` con operación `SELECT` en la tabla `storage.objects` que afectaba al bucket `product-images`.
-  - Esta política amplia permitía que cualquier cliente listara todos los archivos del bucket. Al ser un bucket público (`public=true`), los archivos individuales ya son accesibles mediante su URL pública sin necesidad de políticas RLS adicionales en `storage.objects`, por lo que se pudo remover la política de forma segura para corregir la vulnerabilidad sin afectar la visualización de imágenes de productos en el frontend.
-- **Archivos Modificados**: `.agents/context.md` y base de datos (Supabase).
-
 ---
-*Ultima actualizacion: 20-07-2026 (Sesión 12)*
+*Ultima actualizacion: 20-07-2026 (Sesión 13)*

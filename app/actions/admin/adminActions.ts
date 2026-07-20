@@ -521,6 +521,7 @@ export async function sendReviewEmail(quoteId: string): Promise<{ success: boole
     if (error) return { success: false, error: error.message };
 
     await db.from('quotes').update({ review_email_sent: true }).eq('id', quoteId);
+    revalidatePath('/admin/quotes');
     revalidatePath(`/admin/quotes/${quoteId}`);
     return { success: true };
 }
@@ -818,6 +819,12 @@ export async function bulkUpdateQuoteStatus(ids: string[], status: string) {
         .in('id', ids);
         
     if (error) throw new Error(error.message);
+
+    // Same auto-review path as single updateQuoteStatus
+    if (status === 'completed') {
+        await Promise.allSettled(ids.map((id) => maybeAutoSendReview(id, db)));
+    }
+
     revalidatePath('/admin/quotes');
     return { success: true };
 }
@@ -838,11 +845,16 @@ export async function updateSiteSetting(id: string, data: { value: string; is_ac
     return { success: true };
 }
 
-// Helper: auto-send review if setting is 'auto'
+// Helper: auto-send review if setting is 'auto' (skips if already sent via sendReviewEmail)
 async function maybeAutoSendReview(quoteId: string, db: any) {
-    const { data } = await db.from('admin_settings').select('value').eq('key', 'review_mode').single();
-    if (data?.value === 'auto') {
-        await sendReviewEmail(quoteId);
+    try {
+        const { data } = await db.from('admin_settings').select('value').eq('key', 'review_mode').single();
+        if (data?.value === 'auto') {
+            await sendReviewEmail(quoteId);
+        }
+    } catch (err) {
+        // Never block status updates if review email fails
+        console.error(`[maybeAutoSendReview] quote ${quoteId}:`, err);
     }
 }
 

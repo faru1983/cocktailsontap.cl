@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { SITE_URL } from '@/lib/config';
 import SortSelect from '@/components/admin/SortSelect';
 import { bulkUpdateQuoteStatus } from '@/app/actions/admin/adminActions';
-import { Plus } from 'lucide-react';
+import { Plus, Star } from 'lucide-react';
 
 const statusBadge: Record<string, { label: string; color: string; bg: string }> = {
     draft:        { label: 'Borrador',       color: '#94a3b8', bg: 'rgba(148,163,184,0.12)' },
@@ -19,6 +19,7 @@ const formatCLP = (n: number) => new Intl.NumberFormat('es-CL', { style: 'curren
 interface QuotesListClientProps {
     initialQuotes: any[];
     status: string;
+    type: string;
     q?: string;
     sort: string;
     order: string;
@@ -29,7 +30,8 @@ interface QuotesListClientProps {
 
 export default function QuotesListClient({ 
     initialQuotes, 
-    status, 
+    status,
+    type = 'all',
     q, 
     sort, 
     order,
@@ -63,29 +65,37 @@ export default function QuotesListClient({
         });
     };
 
+    const buildQuotesUrl = (overrides: Record<string, string | undefined> = {}) => {
+        const next = {
+            status: status || 'all',
+            type: type || 'all',
+            q: q || '',
+            sort,
+            order,
+            page: '1',
+            ...overrides,
+        };
+        const params = new URLSearchParams();
+        if (next.status) params.set('status', next.status);
+        if (next.type && next.type !== 'all') params.set('type', next.type);
+        if (next.q) params.set('q', next.q);
+        if (next.sort) params.set('sort', next.sort);
+        if (next.order) params.set('order', next.order);
+        if (next.page) params.set('page', next.page);
+        return `/admin/quotes?${params.toString()}`;
+    };
+
     const getSortLink = (field: string) => {
         const nextOrder = sort === field && order === 'desc' ? 'asc' : 'desc';
-        const params = new URLSearchParams();
-        if (status) params.set('status', status);
-        if (q) params.set('q', q);
-        params.set('sort', field);
-        params.set('order', nextOrder);
-        params.set('page', '1');
-        return `/admin/quotes?${params.toString()}`;
+        return buildQuotesUrl({ sort: field, order: nextOrder, page: '1' });
     };
 
-    const getPageLink = (p: number) => {
-        const params = new URLSearchParams();
-        if (status) params.set('status', status);
-        if (q) params.set('q', q);
-        if (sort) params.set('sort', sort);
-        if (order) params.set('order', order);
-        params.set('page', p.toString());
-        return `/admin/quotes?${params.toString()}`;
-    };
+    const getPageLink = (p: number) => buildQuotesUrl({ page: p.toString() });
 
-    const filterBase = (v: string) =>
-        `/admin/quotes?status=${v}${q ? `&q=${q}` : ''}${sort ? `&sort=${sort}` : ''}${order ? `&order=${order}` : ''}&page=1`;
+    const filterBase = (v: string) => buildQuotesUrl({ status: v, page: '1' });
+    /** Toggle: si ya está activo, lo desactiva (all); si no, lo activa */
+    const toggleType = (v: 'event' | 'direct') =>
+        buildQuotesUrl({ type: (type || 'all') === v ? 'all' : v, page: '1' });
 
     const filters = [
         { value: 'all', label: 'Todas' },
@@ -93,6 +103,11 @@ export default function QuotesListClient({
         { value: 'confirmed', label: 'Confirmadas' },
         { value: 'completed', label: 'Completadas' },
         { value: 'cancelled', label: 'Canceladas' },
+    ];
+
+    const typeToggles: { value: 'event' | 'direct'; label: string }[] = [
+        { value: 'event', label: 'Eventos' },
+        { value: 'direct', label: 'Desechables' },
     ];
 
     const sortFields = [
@@ -165,6 +180,7 @@ export default function QuotesListClient({
                 </div>
                 <form method="GET" action="/admin/quotes" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', width: '100%', maxWidth: 'max-content' }}>
                     {status && <input type="hidden" name="status" value={status} />}
+                    {type && type !== 'all' && <input type="hidden" name="type" value={type} />}
                     <input name="q" defaultValue={q || ''} placeholder="Buscar por nombre o email…" className="qp-search" />
                     <SortSelect name="sort_order" className="qp-sort-select" defaultValue={`${sort}-${order}`}>
                         <option value="event_date-asc">Evento (más antiguos)</option>
@@ -188,6 +204,19 @@ export default function QuotesListClient({
                                 color: active ? '#1a1a2e' : '#64748b',
                                 background: active ? '#E2A049' : 'rgba(255,255,255,0.05)',
                                 border: '1px solid ' + (active ? '#E2A049' : 'rgba(255,255,255,0.08)'),
+                            }}>{f.label}</Link>
+                        );
+                    })}
+                    <span style={{ width: '1px', alignSelf: 'stretch', background: 'rgba(255,255,255,0.1)', margin: '0 4px' }} aria-hidden />
+                    {typeToggles.map(f => {
+                        const active = (type || 'all') === f.value;
+                        return (
+                            <Link key={f.value} href={toggleType(f.value)} title={active ? 'Quitar filtro' : `Filtrar por ${f.label}`} style={{
+                                padding: '6px 13px', borderRadius: '20px', fontSize: '12px', fontWeight: 600,
+                                textDecoration: 'none',
+                                color: active ? '#1a1a2e' : '#64748b',
+                                background: active ? '#67e8f9' : 'rgba(255,255,255,0.05)',
+                                border: '1px solid ' + (active ? '#67e8f9' : 'rgba(255,255,255,0.08)'),
                             }}>{f.label}</Link>
                         );
                     })}
@@ -223,7 +252,14 @@ export default function QuotesListClient({
                                         {q.service_type === 'direct' && <span style={{ marginRight: '6px' }} title="Venta Directa">📦</span>}
                                         {q.client_name} {q.client_lastname || ''}
                                     </span>
-                                    <span style={{ padding: '3px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 700, color: badge.color, background: badge.bg }}>{badge.label}</span>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                        {q.review_email_sent && (
+                                            <span title="Email de reseña enviado" style={{ display: 'inline-flex', color: '#a78bfa' }}>
+                                                <Star size={14} fill="#a78bfa" />
+                                            </span>
+                                        )}
+                                        <span style={{ padding: '3px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 700, color: badge.color, background: badge.bg }}>{badge.label}</span>
+                                    </div>
                                 </div>
                                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '14px' }}>
                                     <div style={{ display: 'flex', flexDirection: 'column' }}>
@@ -288,7 +324,14 @@ export default function QuotesListClient({
                                     <td style={{ padding: '14px 20px', color: '#64748b', fontSize: '13px' }}>{q.comuna_name === 'Otra' && q.comuna_other ? q.comuna_other : (q.comuna_name || '—')}</td>
                                     <td style={{ padding: '14px 20px', color: '#E2A049', fontSize: '14px', fontWeight: 700 }}>{formatCLP(Number(q.total_price))}</td>
                                     <td style={{ padding: '14px 20px' }}>
-                                        <span style={{ display: 'inline-block', padding: '4px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 700, color: badge.color, background: badge.bg }}>{badge.label}</span>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                            <span style={{ display: 'inline-block', padding: '4px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 700, color: badge.color, background: badge.bg }}>{badge.label}</span>
+                                            {q.review_email_sent && (
+                                                <span title="Email de reseña enviado" style={{ display: 'inline-flex', color: '#a78bfa' }}>
+                                                    <Star size={14} fill="#a78bfa" />
+                                                </span>
+                                            )}
+                                        </div>
                                     </td>
                                     <td style={{ padding: '14px 20px' }}>
                                         {q.token && (
