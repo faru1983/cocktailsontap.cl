@@ -9,6 +9,7 @@ import { FROM_EMAIL, SITE_URL } from '@/lib/config';
 import { GoogleSyncService } from '@/lib/services/googleSyncService';
 import { validateSession } from '@/lib/adminAuth';
 import type { Quote, QuoteItem } from '@/lib/types';
+import { normalizePhoneE164 } from '@/lib/phone';
 
 async function checkAuth() {
     const isAuth = await validateSession();
@@ -245,8 +246,12 @@ export async function updateQuoteAdmin(quoteId: string, data: Record<string, any
         if (typeof v === 'object' && v !== null && k !== 'payments') continue;
 
         if (clientMap.includes(k)) {
-            clientFields[k] = v;
-            quoteFields[k] = v; // Field exists in both tables
+            let value = v;
+            if (k === 'client_phone' && typeof v === 'string') {
+                value = normalizePhoneE164(v) || v || null;
+            }
+            clientFields[k] = value;
+            quoteFields[k] = value; // Field exists in both tables
         } else {
             quoteFields[k] = v;
         }
@@ -349,8 +354,11 @@ export async function updateClientAdmin(clientId: string, data: { first_name: st
     await checkAuth();
     const db = createServerClient();
 
+    const normalizedPhone = data.phone ? (normalizePhoneE164(data.phone) || data.phone) : (data.phone || '');
+    const payload = { ...data, phone: normalizedPhone || null };
+
     // 1. Update Client Table (removed updated_at as it doesn't exist)
-    const { error: clientErr } = await db.from('clients').update(data).eq('id', clientId);
+    const { error: clientErr } = await db.from('clients').update(payload).eq('id', clientId);
     if (clientErr) return { success: false, error: clientErr.message };
 
     // 2. Proactive Sync: Update client info in ALL quotes with this client_id
@@ -359,7 +367,7 @@ export async function updateClientAdmin(clientId: string, data: { first_name: st
         client_name: data.first_name,
         client_lastname: data.last_name || '',
         client_email: data.email,
-        client_phone: data.phone || '',
+        client_phone: normalizedPhone || '',
         updated_at: new Date().toISOString()
     }).eq('client_id', clientId);
 

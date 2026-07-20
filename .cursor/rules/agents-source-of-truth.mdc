@@ -1,0 +1,18 @@
+---
+description: Fuente de verdad del proyecto — reglas y contexto viven en .agents (no duplicar)
+alwaysApply: true
+---
+
+# Acceso a reglas y contexto del proyecto
+
+La **única fuente de verdad** de este repo está en:
+
+- @.agents/rules/rules.md — arquitectura, reglas de oro, DB, flujos, protocolo AI
+- @.agents/context.md — estado actual, reglas de negocio recientes, últimos cambios
+
+## Obligatorio
+
+1. Al inicio de cada sesión: leer ambos archivos (ya referenciados arriba).
+2. Al terminar trabajo relevante: actualizar **solo** `.agents/context.md` (máx. últimas 5 sesiones), según el protocolo en `rules.md`.
+3. Si hay que agregar o corregir reglas permanentes: editar **solo** `.agents/rules/rules.md`.
+4. **No** copiar ni reescribir ese contenido en `.cursor/rules/`, `AGENTS.md`, ni otros archivos. Estos `.mdc` son solo el acceso directo de Cursor hacia `.agents`.

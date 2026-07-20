@@ -8,6 +8,8 @@ import { createQuote } from '@/app/actions/createQuote';
 import type { Product, Comuna, EventType, WizardState } from '@/lib/types';
 import { calculateSummaryData } from '@/lib/wizardLogic';
 import { SITE_URL, MURO_INSTALLATION_COST } from '@/lib/config';
+import PhoneInput from '@/components/ui/PhoneInput';
+import { isValidPhoneE164, toWhatsAppDigits, normalizePhoneE164 } from '@/lib/phone';
 
 interface CreateQuoteManualClientProps {
     allProducts: Product[];
@@ -48,7 +50,7 @@ export default function CreateQuoteManualClient({ allProducts, comunas, eventTyp
             firstName: c.first_name,
             lastName: c.last_name || '',
             email: c.email,
-            phone: c.phone || ''
+            phone: normalizePhoneE164(c.phone || '') || ''
         }));
         setClientSearch('');
     };
@@ -167,8 +169,8 @@ export default function CreateQuoteManualClient({ allProducts, comunas, eventTyp
         e.preventDefault();
         setError(null);
         
-        if (!contact.firstName || !contact.lastName || !contact.email || !contact.phone) {
-            return setError('Nombre, Apellido, Email y Celular son obligatorios.');
+        if (!contact.firstName || !contact.lastName || !contact.email || !isValidPhoneE164(contact.phone)) {
+            return setError('Nombre, Apellido, Email y un Celular válido (+56 9 ...) son obligatorios.');
         }
         if (selections.length === 0) {
             return setError('Debe seleccionar al menos un producto.');
@@ -222,10 +224,9 @@ export default function CreateQuoteManualClient({ allProducts, comunas, eventTyp
 
     const getWhatsAppUrl = () => {
         if (!successData) return '';
-        const phone = contact.phone.replace(/\D/g, '');
+        const phone = toWhatsAppDigits(contact.phone);
         const msg = `¡Hola *${contact.firstName}*! Te envío la cotización solicitada para tu evento\n\nPuedes revisarla, completar tus datos faltantes y reservarla directamente en este link:\n${SITE_URL}/cotizar/${successData.token}`;
-        const base = phone.startsWith('56') ? phone : '56' + phone;
-        return `https://wa.me/${base}?text=${encodeURIComponent(msg)}`;
+        return phone ? `https://wa.me/${phone}?text=${encodeURIComponent(msg)}` : '';
     };
 
     if (successData) {
@@ -372,7 +373,12 @@ export default function CreateQuoteManualClient({ allProducts, comunas, eventTyp
                                 <input required type="email" value={contact.email} onChange={e => setContact(c => ({...c, email: e.target.value}))} className="admin-input" placeholder="juan@correo.com" />
                             </Field>
                             <Field label="Celular" required>
-                                <input required value={contact.phone} onChange={e => setContact(c => ({...c, phone: e.target.value}))} className="admin-input" placeholder="+56 9..." />
+                                <PhoneInput
+                                    required
+                                    value={contact.phone}
+                                    onChange={(e164) => setContact(c => ({ ...c, phone: e164 }))}
+                                    className="admin-input"
+                                />
                             </Field>
                         </div>
                     </SectionBox>
@@ -695,11 +701,13 @@ export default function CreateQuoteManualClient({ allProducts, comunas, eventTyp
             </form>
 
             <style jsx>{`
-                .admin-input {
+                /* :global para que también aplique a PhoneInput (hijo en otro componente) */
+                :global(.admin-input) {
                     width: 100%; padding: 12px 18px; border-radius: 16px; font-size: 14px; outline: none; transition: all 0.2s; font-family: inherit;
                     background: rgba(0, 0, 0, 0.2); border: 1px solid rgba(255, 255, 255, 0.1); color: white;
                 }
-                .admin-input:focus { border-color: #E2A049; background: rgba(0, 0, 0, 0.3); }
+                :global(.admin-input:focus) { border-color: #E2A049; background: rgba(0, 0, 0, 0.3); }
+                :global(.admin-input::placeholder) { color: rgba(148, 163, 184, 0.9); }
                 .scrollbar-none::-webkit-scrollbar { display: none; }
             `}</style>
         </div>

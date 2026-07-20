@@ -22,9 +22,10 @@ Define la arquitectura, reglas irrompibles, convenciones de código, esquema de 
 | 5 | **Configuración Centralizada** | Usar siempre las constantes de `lib/config.ts` para URLs, números de contacto y montos base. Prohibido leer `process.env` directamente en componentes client-side. Todo cambio en `.env.local` debe reflejarse en `lib/config.ts`. |
 | 6 | **Proxy File Convention** | Prohibido crear `middleware.ts`. Este proyecto usa exclusivamente `proxy.ts` en la raíz para protección de rutas `/admin`. |
 | 7 | **Single Contact Source** | El número de WhatsApp oficial es la única vía de soporte mencionada. Usar `WHATSAPP_URL` o `WHATSAPP_NUMBER` de `lib/config.ts`. Nunca hardcodear números. |
-| 8 | **Iconografía Única** | Prohibido usar emojis o SVGs inline en la UI del dashboard administrativo. Usar exclusivamente **lucide-react** para iconos. Los emojis solo son aceptables en emails y asuntos de correo. |
-| 9 | **Dos Clientes Supabase** | `lib/supabase.ts` (anon key, lectura pública con caché). `lib/supabaseServer.ts` (service_role, solo Server Actions/Components). Nunca importar el server client en código client-side. |
-| 10 | **Contexto AI Actualizado** | Al finalizar cada sesión de trabajo, **actualizar `.agents/context.md`** con un resumen de los cambios realizados. Ver sección "Protocolo de Contexto AI" al final. |
+| 8 | **Celulares E.164** | Pedir celular con `PhoneInput` (`components/ui/PhoneInput.tsx`). Guardar siempre E.164 con `+` (ej. `+56912345678`) vía `lib/phone.ts`. UI: máscara `+56 9 1234 5678` (Chile default; acepta CO/PE/VE). WhatsApp: `toWhatsAppDigits()`. |
+| 9 | **Iconografía Única** | Prohibido usar emojis o SVGs inline en la UI del dashboard administrativo. Usar exclusivamente **lucide-react** para iconos. Los emojis solo son aceptables en emails y asuntos de correo. |
+| 10 | **Dos Clientes Supabase** | `lib/supabase.ts` (anon key, lectura pública con caché). `lib/supabaseServer.ts` (service_role, solo Server Actions/Components). Nunca importar el server client en código client-side. |
+| 11 | **Contexto AI Actualizado** | Al finalizar cada sesión de trabajo, **actualizar `.agents/context.md`** con un resumen de los cambios realizados. Ver sección "Protocolo de Contexto AI" al final. |
 
 ---
 
@@ -83,7 +84,8 @@ Define la arquitectura, reglas irrompibles, convenciones de código, esquema de 
 │   ├── adminAuth.ts          # Autenticación admin (SHA-256, cookies)
 │   ├── supabase.ts           # Cliente público (anon key)
 │   ├── supabaseServer.ts     # Cliente servidor (service_role key)
-│   ├── utils.ts              # Helpers (formatCurrency, formatPhoneNumber)
+│   ├── utils.ts              # Helpers (formatCurrency, copyToClipboard)
+│   ├── phone.ts              # Celulares E.164 (normalize, display, WhatsApp, validate)
 │   └── services/
 │       ├── quoteService.ts       # Transacciones de BD para cotizaciones
 │       ├── googleSyncService.ts  # Orquestación de Google Contacts/Calendar

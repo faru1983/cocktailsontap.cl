@@ -1,6 +1,7 @@
 import { createServerClient } from '@/lib/supabaseServer';
 import Link from 'next/link';
 import SortSelect from '@/components/admin/SortSelect';
+import { formatPhoneDisplay } from '@/lib/phone';
 
 const ITEMS_PER_PAGE = 30;
 
@@ -144,7 +145,7 @@ export default async function ClientsPage({ searchParams }: { searchParams: Sear
                                 <span className="cp-sync-badge" style={{ color: c.google_contact_id ? '#34d399' : '#475569' }}>
                                     {c.google_contact_id ? '✅ Sync' : '○ Sin sync'}
                                 </span>
-                                {c.phone && <span className="cp-card-phone">{c.phone}</span>}
+                                {c.phone && <span className="cp-card-phone">{formatPhoneDisplay(c.phone)}</span>}
                                 <span style={{ color: '#334155', fontSize: '11px', marginLeft: 'auto' }}>
                                     {new Date(c.created_at).toLocaleDateString('es-CL')}
                                 </span>
@@ -186,7 +187,7 @@ export default async function ClientsPage({ searchParams }: { searchParams: Sear
                                     </td>
                                     <td style={{ padding: '14px 20px', color: '#f1f5f9', fontSize: '14px', fontWeight: 600, whiteSpace: 'nowrap' }}>{c.last_name || '—'}</td>
                                     <td style={{ padding: '14px 20px', color: '#64748b', fontSize: '13px' }}>{c.email}</td>
-                                    <td style={{ padding: '14px 20px', color: '#64748b', fontSize: '13px', whiteSpace: 'nowrap' }}>{c.phone || '—'}</td>
+                                    <td style={{ padding: '14px 20px', color: '#64748b', fontSize: '13px', whiteSpace: 'nowrap' }}>{c.phone ? formatPhoneDisplay(c.phone) : '—'}</td>
                                     <td style={{ padding: '14px 20px' }}>
                                         <span style={{ fontSize: '12px', color: c.google_contact_id ? '#34d399' : '#94a3b8' }}>
                                             {c.google_contact_id ? '✅ Sincronizado' : '— Sin sync'}

@@ -1,6 +1,7 @@
 import { createServerClient } from '@/lib/supabaseServer';
 import type { WizardState, CocktailForWizard, Comuna, Quote, QuoteItem } from '@/lib/types';
 import { calculateSummaryData } from '@/lib/wizardLogic';
+import { normalizePhoneE164 } from '@/lib/phone';
 
 interface CreateQuoteResult {
     success: boolean;
@@ -35,7 +36,7 @@ export const QuoteService = {
             email: emailTrimmed,
             first_name: state.contact.firstName.trim() || existingClient?.first_name,
             last_name: state.contact.lastName?.trim() || existingClient?.last_name || null,
-            phone: state.contact.phone.trim() || existingClient?.phone || null,
+            phone: normalizePhoneE164(state.contact.phone) || existingClient?.phone || null,
         };
 
         const { data: clientData, error } = await db
@@ -90,7 +91,7 @@ export const QuoteService = {
                 client_name: state.contact.firstName.trim(),
                 client_lastname: state.contact.lastName?.trim() || null,
                 client_email: emailTrimmed || null,
-                client_phone: state.contact.phone.trim() || null,
+                client_phone: normalizePhoneE164(state.contact.phone) || null,
                 client_address: state.contact.address.trim() || null,
                 comments: state.contact.comments?.trim() || null,
 

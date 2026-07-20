@@ -4,26 +4,8 @@ export function formatCurrency(n: number) {
     return CLP.format(n);
 }
 
-/**
- * Formatea un string como número de teléfono: +XXX-XXXXXXXX
- * Permite borrar libremente y aplica el guion solo cuando hay números después del prefijo.
- */
-export function formatPhoneNumber(value: string): string {
-    if (!value) return '';
-
-    // Solo extraemos los números
-    const numbers = value.replace(/[^\d]/g, '');
-
-    // Si no hay números, dejamos el valor limpio o el '+' si existe
-    if (numbers.length === 0) return value.includes('+') ? '+' : '';
-
-    // Formato flexible: +XXX-XXXXXXXX...
-    // Ya no hay límite de 11 dígitos para permitir correcciones manuales
-    if (numbers.length > 3) {
-        return `+${numbers.slice(0, 3)}-${numbers.slice(3)}`;
-    }
-    return `+${numbers}`;
-}
+/** @deprecated Preferir formatPhoneDisplay / phoneInputToE164 desde `@/lib/phone`. */
+export { formatPhoneDisplay as formatPhoneNumber, phoneInputToE164, toWhatsAppDigits } from '@/lib/phone';
 
 export function copyToClipboard(text: string): Promise<boolean> {
     if (typeof window === 'undefined') return Promise.resolve(false);

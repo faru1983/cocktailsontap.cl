@@ -1,5 +1,7 @@
 'use client';
 
+import { formatPhoneDisplay } from '@/lib/phone';
+
 export interface QuoteSummaryReservationData {
     clientName: string;
     clientEmail: string;
@@ -41,7 +43,7 @@ export default function QuoteSummaryReservation({ data }: Props) {
                     {data.clientPhone && (
                         <div className="flex items-start gap-2">
                             <span className="font-bold text-brand-text-muted min-w-[85px]">Celular:</span>
-                            <span className="font-medium text-brand-text leading-tight">{data.clientPhone}</span>
+                            <span className="font-medium text-brand-text leading-tight">{formatPhoneDisplay(data.clientPhone)}</span>
                         </div>
                     )}
                     <div className="flex items-start gap-2">

@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { Html, Head, Preview, Body, Container, Section, Text, Link, Img } from '@react-email/components';
 import { formatCurrency } from '@/lib/utils';
+import { formatPhoneDisplay } from '@/lib/phone';
 import { SITE_URL, LOGO_URL, CONTACT_EMAIL, WHATSAPP_URL } from '@/lib/config';
 import type { Quote, QuoteItem } from '@/lib/types';
 
@@ -214,7 +215,7 @@ export const ReservationInfoSection: React.FC<{ quote: Quote, isDirect?: boolean
           <tbody>
             <Row label="Nombre" value={clientFullName} />
             <Row label="Email" value={quote.client_email || ''} />
-            {quote.client_phone && <Row label="Celular" value={quote.client_phone} />}
+            {quote.client_phone && <Row label="Celular" value={formatPhoneDisplay(quote.client_phone)} />}
             {fullAddress && <Row label="Dirección" value={fullAddress} />}
             {!directMode && <Row label="Evento" value={`${quote.event_type_other || quote.event_type_id || 'No especificado'} • ${quote.guests} pers.`} />}
             <Row label={directMode ? "Fecha Despacho" : "Fecha"} value={`${eventDate}${(!directMode && quote.start_time && quote.start_time !== '--:--') ? ` • ${quote.start_time}` : ''}`} />

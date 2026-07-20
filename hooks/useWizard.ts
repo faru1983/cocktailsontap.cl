@@ -6,6 +6,7 @@ import type { CocktailForWizard, Comuna, WizardState, WizardSelection } from '@/
 import { calculateSmartConfig, calculateSummaryData, buildWhatsAppMessage } from '@/lib/wizardLogic';
 import { WHATSAPP_NUMBER } from '@/lib/config';
 import { getMinDateString } from '@/lib/wizardLogic';
+import { isValidPhoneE164 } from '@/lib/phone';
 
 export { calculateSmartConfig };
 
@@ -206,7 +207,9 @@ export function useWizard(cocktails: CocktailForWizard[], comunas: Comuna[], cat
             if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(c.email)) {
                 return { valid: false, message: 'El formato del email no es válido.' };
             }
-            if (!c.phone.trim() || c.phone === '+569') return { valid: false, message: 'El celular es obligatorio para contactarte.' };
+            if (!isValidPhoneE164(c.phone)) {
+                return { valid: false, message: 'Ingresa un celular válido (ej: +56 9 1234 5678).' };
+            }
             if (!c.comuna.trim()) return { valid: false, message: 'Selecciona la comuna.' };
         }
         if (step === 3) {

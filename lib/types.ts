@@ -1,4 +1,27 @@
 import { z } from 'zod';
+import { normalizePhoneE164, isValidPhoneE164 } from '@/lib/phone';
+
+/** Celular opcional: vacío OK; si hay valor debe ser E.164 válido (CL/CO/PE/VE). */
+const OptionalPhoneSchema = z.preprocess(
+    (v) => {
+        if (v == null || v === '') return '';
+        return normalizePhoneE164(String(v)) ?? '';
+    },
+    z.union([
+        z.literal(''),
+        z.string().refine(isValidPhoneE164, {
+            message: 'Celular inválido. Usa formato +56 9 1234 5678',
+        }),
+    ])
+);
+
+/** Celular obligatorio en E.164. */
+export const RequiredPhoneSchema = z.preprocess(
+    (v) => normalizePhoneE164(String(v ?? '')) ?? '',
+    z.string().refine(isValidPhoneE164, {
+        message: 'Celular inválido. Usa formato +56 9 1234 5678',
+    })
+);
 
 export interface MeasurementUnit {
     id: string;
@@ -226,7 +249,7 @@ export const CreateQuoteSchema = z.object({
             firstName: z.string().min(2, 'Nombre muy corto'),
             lastName: z.string().min(2, 'Apellido muy corto'),
             email: z.string().email('Email inválido'),
-            phone: z.string().nullable().optional().or(z.literal('')),
+            phone: OptionalPhoneSchema,
             address: z.string().nullable().optional().or(z.literal('')),
             comuna: z.string().min(1, 'Selecciona una comuna'),
             otherComuna: z.string().nullable().optional().or(z.literal('')),
@@ -257,7 +280,7 @@ export const CreateQuoteSchema = z.object({
 
 export const ConfirmQuoteSchema = z.object({
     token: z.string(),
-    client_phone: z.string().min(8, 'Teléfono inválido'),
+    client_phone: RequiredPhoneSchema,
     client_lastname: z.string().min(2, 'Apellido es obligatorio'),
     client_address: z.string().min(5, 'Dirección inválida'),
     comuna_name: z.string().min(1, 'Comuna es obligatoria'),

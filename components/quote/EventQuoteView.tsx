@@ -2,7 +2,9 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { formatCurrency, formatPhoneNumber, copyToClipboard } from '@/lib/utils';
+import { formatCurrency, copyToClipboard } from '@/lib/utils';
+import { isValidPhoneE164, normalizePhoneE164 } from '@/lib/phone';
+import PhoneInput from '@/components/ui/PhoneInput';
 import { formatEventDate, calculateMaxPickupDate, getTodayString } from '@/lib/wizardLogic';
 import { confirmQuote } from '@/app/actions/confirmQuote';
 import { MURO_INSTALLATION_COST, PORTATIL_MIN_LITERS, MURO_MIN_LITERS } from '@/lib/config';
@@ -49,7 +51,7 @@ export default function EventQuoteView({ quote, comunas, availableCocktails, cat
     const eventCategories = useMemo(() => categories.filter(c => c !== 'Otros'), [categories]);
 
     // State para datos editables
-    const [phone, setPhone] = useState(quote.client_phone ?? '');
+    const [phone, setPhone] = useState(() => normalizePhoneE164(quote.client_phone ?? '') ?? '');
     const [lastName, setLastName] = useState(quote.client_lastname ?? '');
     const [address, setAddress] = useState(quote.client_address ?? '');
     const [eventDate, setEventDate] = useState(quote.event_date ?? '');
@@ -230,7 +232,7 @@ export default function EventQuoteView({ quote, comunas, availableCocktails, cat
     const validateAllFields = () => {
         const errors: Record<string, boolean> = {};
         
-        if (phone.trim().length < 8) errors.phone = true;
+        if (!isValidPhoneE164(phone)) errors.phone = true;
         if (lastName.trim().length < 2) errors.lastName = true;
         if (address.trim().length < 5) errors.address = true;
         if (!comuna || comuna === '...') errors.comuna = true;
@@ -785,16 +787,11 @@ export default function EventQuoteView({ quote, comunas, availableCocktails, cat
                                 <label className="text-[0.65rem] font-black text-brand-text-muted flex items-center gap-1.5 uppercase">
                                     <Phone className="w-3 h-3" /> Celular <span className="text-red-500">*</span>
                                 </label>
-                                    <input
+                                    <PhoneInput
                                         id="field-phone"
-                                        type="tel"
                                         value={phone}
-                                        onFocus={(e) => {
-                                            if (!e.target.value) setPhone('+569');
-                                            setValidationErrors(prev => ({ ...prev, phone: false }));
-                                        }}
-                                        onChange={(e) => setPhone(formatPhoneNumber(e.target.value))}
-                                        placeholder="+569-12345678"
+                                        onFocus={() => setValidationErrors(prev => ({ ...prev, phone: false }))}
+                                        onChange={(e164) => setPhone(e164)}
                                         className={`w-full px-3 py-2.5 bg-slate-50 border rounded-xl text-[0.95rem] font-bold focus:outline-none focus:border-primary focus:bg-white transition-all shadow-sm ${validationErrors.phone ? 'border-red-500 bg-red-50/30' : 'border-brand-border'}`}
                                     />
                                 </div>

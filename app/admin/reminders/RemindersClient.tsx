@@ -6,6 +6,8 @@ import {
     saveReminderTemplate, deleteReminderTemplate, sendBatchReminders, sendTestReminderEmail, logReminderSend 
 } from '@/app/actions/admin/adminActions';
 import { SITE_URL } from '@/lib/config';
+import { toWhatsAppDigits } from '@/lib/phone';
+import PhoneInput from '@/components/ui/PhoneInput';
 import { 
     Mail, MessageSquare, Trash2, Edit2, Plus, 
     X, Check, Send, Smartphone, Calendar,
@@ -191,7 +193,7 @@ export default function RemindersClient({ initialQuotes, initialTemplates }: { i
     };
 
     const getWhatsAppUrl = (quote: any, template: Template) => {
-        const phone = quote.client_phone?.replace(/\D/g, '');
+        const phone = quote.client_phone ? toWhatsAppDigits(quote.client_phone) : '';
         if (!phone) return null;
 
         const eventDateStr = quote.event_date 
@@ -206,8 +208,7 @@ export default function RemindersClient({ initialQuotes, initialTemplates }: { i
             .replace(/{total}/g, `*${totalStr}*`)
             .replace(/{link}/g, quote.token ? `${SITE_URL}/cotizar/${quote.token}` : '');
 
-        const base = phone.startsWith('56') ? phone : '56' + phone;
-        return `https://wa.me/${base}?text=${encodeURIComponent(msg)}`;
+        return `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
     };
 
     return (
@@ -506,7 +507,11 @@ export default function RemindersClient({ initialQuotes, initialTemplates }: { i
                                 <div className="bg-emerald-500/5 border border-emerald-500/10 p-6 rounded-2xl">
                                     <label className="block text-emerald-400 text-[10px] font-black uppercase tracking-widest mb-4">Simulador de WhatsApp</label>
                                     <div className="flex gap-3">
-                                        <input type="tel" className="flex-1 bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white text-sm outline-none focus:border-emerald-400 transition-colors" placeholder="56912345678" value={testInp.phone} onChange={e => setTestInp(prev => ({ ...prev, phone: e.target.value }))} />
+                                        <PhoneInput
+                                            className="flex-1 bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white text-sm outline-none focus:border-emerald-400 transition-colors"
+                                            value={testInp.phone}
+                                            onChange={(e164) => setTestInp(prev => ({ ...prev, phone: e164 }))}
+                                        />
                                         <button className="bg-emerald-500 text-emerald-950 px-5 rounded-xl font-black text-xs active:scale-95 transition-transform disabled:opacity-30 flex items-center gap-2" onClick={() => handleTestReminder('wa')} disabled={!testInp.phone}>
                                             <MessageSquare size={14}/> Abrir
                                         </button>

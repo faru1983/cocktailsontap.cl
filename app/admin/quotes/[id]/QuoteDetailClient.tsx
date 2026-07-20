@@ -10,7 +10,8 @@ import {
 } from '@/app/actions/admin/adminActions';
 import { SITE_URL } from '@/lib/config';
 import type { QuoteItem, Product } from '@/lib/types';
-import { formatPhoneNumber } from '@/lib/utils';
+import { formatPhoneDisplay, toWhatsAppDigits, normalizePhoneE164 } from '@/lib/phone';
+import PhoneInput from '@/components/ui/PhoneInput';
 import { 
     FileText, ShoppingBag, CreditCard, Mail, Edit2, Save, Send,
     Link as LinkIcon, Trash2, ArrowRight, MessageCircle, Star, ArrowLeft, X,
@@ -489,8 +490,8 @@ export default function QuoteDetailClient({ quote: initial, allProducts, eventTy
                 
                 <div style={{ display: 'flex', gap: '6px', marginLeft: 'auto' }}>
                     {(() => {
-                        const phone = quote.client_phone?.replace(/\D/g, '');
-                        const waUrl = phone ? `https://wa.me/${phone.startsWith('56') ? phone : '56' + phone}` : null;
+                        const phone = quote.client_phone ? toWhatsAppDigits(quote.client_phone) : '';
+                        const waUrl = phone ? `https://wa.me/${phone}` : null;
                         return (
                             <a href={waUrl || '#'} target={waUrl ? "_blank" : "_self"} rel="noopener noreferrer" 
                                 style={{
@@ -558,17 +559,26 @@ export default function QuoteDetailClient({ quote: initial, allProducts, eventTy
                                         <div key={field.key} style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                                             <label className="q-label" style={{ color: '#64748b', fontSize: '11px' }}>{field.label}</label>
                                             {isEditingInfo ? (
+                                                field.key === 'client_phone' ? (
+                                                    <PhoneInput
+                                                        value={normalizePhoneE164(editInfo[field.key] || '') || ''}
+                                                        onChange={(e164) => setEditInfo((prev: any) => ({ ...prev, [field.key]: e164 }))}
+                                                        className="q-input"
+                                                    />
+                                                ) : (
                                                 <input 
                                                     value={editInfo[field.key] || ''} 
                                                     onChange={(e) => {
-                                                        const val = field.key === 'client_phone' ? formatPhoneNumber(e.target.value) : e.target.value;
-                                                        setEditInfo((prev: any) => ({ ...prev, [field.key]: val }));
+                                                        setEditInfo((prev: any) => ({ ...prev, [field.key]: e.target.value }));
                                                     }}
                                                     className="q-input" 
                                                 />
+                                                )
                                             ) : (
                                                 <div style={{ color: '#f1f5f9', fontSize: '15px', fontWeight: 600, padding: '4px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                                                    {quote[field.key] || '—'}
+                                                    {field.key === 'client_phone' && quote[field.key]
+                                                        ? formatPhoneDisplay(quote[field.key])
+                                                        : (quote[field.key] || '—')}
                                                 </div>
                                             )}
                                         </div>

@@ -2,7 +2,9 @@
 
 import { useState, useTransition } from 'react';
 import Link from 'next/link';
-import { formatCurrency, formatPhoneNumber } from '@/lib/utils';
+import { formatCurrency } from '@/lib/utils';
+import { formatPhoneDisplay, normalizePhoneE164, toWhatsAppDigits } from '@/lib/phone';
+import PhoneInput from '@/components/ui/PhoneInput';
 import { updateClientAdmin, syncClientWithGoogle } from '@/app/actions/admin/adminActions';
 import { useRouter } from 'next/navigation';
 import { Edit2, Save, X, Phone, Mail, MessageCircle, RefreshCcw, User, ArrowLeft } from 'lucide-react';
@@ -43,7 +45,7 @@ export default function ClientDetailClient({ client: initialClient, quotes: init
         first_name: initialClient.first_name,
         last_name: initialClient.last_name || '',
         email: initialClient.email,
-        phone: initialClient.phone || '',
+        phone: normalizePhoneE164(initialClient.phone || '') || '',
     });
     const [isPending, startTransition] = useTransition();
     const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
@@ -143,7 +145,7 @@ export default function ClientDetailClient({ client: initialClient, quotes: init
                                 </div>
                             </div>
                             <div className="cd-meta">
-                                {client.phone && <div className="flex items-center gap-2 text-slate-400 text-sm"><Phone size={14}/> {client.phone}</div>}
+                                {client.phone && <div className="flex items-center gap-2 text-slate-400 text-sm"><Phone size={14}/> {formatPhoneDisplay(client.phone)}</div>}
                                 <div style={{ color: '#475569', fontSize: '12px' }}>
                                     Google: {client.google_contact_id ? '✅ Sincronizado' : '⚠️ Sin sync'}
                                 </div>
@@ -171,11 +173,11 @@ export default function ClientDetailClient({ client: initialClient, quotes: init
                                 <input className="q-input" type="email" value={editForm.email} onChange={e => setEditForm(f => ({ ...f, email: e.target.value }))} />
                             </div>
                             <div>
-                                <label className="q-label">Teléfono (ej: 56912345678)</label>
-                                <input 
-                                    className="q-input" 
-                                    value={editForm.phone} 
-                                    onChange={e => setEditForm(f => ({ ...f, phone: formatPhoneNumber(e.target.value) }))} 
+                                <label className="q-label">Celular (ej: +56 9 1234 5678)</label>
+                                <PhoneInput
+                                    className="q-input"
+                                    value={editForm.phone}
+                                    onChange={(e164) => setEditForm(f => ({ ...f, phone: e164 }))}
                                 />
                             </div>
                             <button className="flex justify-center items-center gap-2 bg-[#E2A049] text-black font-bold text-sm py-3 rounded-xl hover:bg-[#f0ad5c] transition-colors" onClick={handleSave} disabled={isPending}>
@@ -194,7 +196,7 @@ export default function ClientDetailClient({ client: initialClient, quotes: init
                                 <RefreshCcw size={16} className={isPending ? "animate-spin" : ""} /> {isPending ? 'Sincronizando...' : 'Sincronizar a Google'}
                             </button>
                             {client.phone && (
-                                <a href={`https://wa.me/${client.phone.replace(/\D/g, '').startsWith('56') ? client.phone.replace(/\D/g, '') : '56' + client.phone.replace(/\D/g, '')}`} target="_blank" rel="noopener"
+                                <a href={`https://wa.me/${toWhatsAppDigits(client.phone)}`} target="_blank" rel="noopener"
                                     className="flex justify-center items-center gap-2 w-full py-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-emerald-400 text-sm font-bold hover:bg-emerald-500/20 transition-all no-underline">
                                     <MessageCircle size={16}/> Escribir al WhatsApp
                                 </a>

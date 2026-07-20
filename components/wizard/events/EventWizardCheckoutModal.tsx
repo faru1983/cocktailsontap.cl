@@ -3,7 +3,8 @@
 import React, { useMemo } from 'react';
 import type { useWizard } from '@/hooks/useWizard';
 import type { Comuna } from '@/lib/types';
-import { formatPhoneNumber, formatCurrency } from '@/lib/utils';
+import { formatCurrency } from '@/lib/utils';
+import PhoneInput from '@/components/ui/PhoneInput';
 import { X, Loader2, Calendar, Users } from 'lucide-react';
 import { WhatsappIcon } from '@/components/shared/icons';
 import QuoteSummaryProducts from '@/components/quote/QuoteSummaryProducts';
@@ -113,12 +114,11 @@ export default function EventWizardCheckoutModal({ wizard, comunas, onClose, onC
                                 </div>
                                 <div>
                                     <label className="block font-bold mb-1 text-brand-text text-[0.8rem]">WhatsApp <span className="text-primary">*</span></label>
-                                    <input
-                                        type="tel" required placeholder="+569-12345678"
+                                    <PhoneInput
+                                        required
                                         className="w-full p-2.5 border border-slate-200 rounded-xl focus:border-primary focus:ring-2 focus:ring-primary/10 outline-none text-sm"
                                         value={state.contact.phone}
-                                        onFocus={(e) => { if (!e.target.value) updateContact('phone', '+569'); }}
-                                        onChange={(e) => updateContact('phone', formatPhoneNumber(e.target.value))}
+                                        onChange={(e164) => updateContact('phone', e164)}
                                     />
                                 </div>
 
