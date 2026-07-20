@@ -36,8 +36,7 @@ export default function EventWizardConfig({ wizard, eventTypes, onNext }: Props)
     // Dates logic
     const minPickupDate = state.eventData.date;
     const maxPickupDate = calculateMaxPickupDate(state.eventData.date);
-    const tomorrow = getMinDateString(1);
-    let minDate = tomorrow;
+    const minDate = getMinDateString(2);
 
     // Recommended Liters logic
     const guests = state.consumption.guests || 0;

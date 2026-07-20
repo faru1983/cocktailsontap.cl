@@ -23,8 +23,9 @@
 ## Ultimos Cambios
 
 ### 20-07-2026 (Sesión 19)
+- **Fecha mínima wizards (+2 días)**: evento (`EventWizardConfig`) y desechables (`DirectWizardCheckoutModal`) usan `getMinDateString(2)` — si hoy es 20, desde el 22.
 - **Formato display WhatsApp (`WHATSAPP_LABEL`)**: `+56 9 XXXX XXXX` (ej. `+56 9 2967 2978`) desde los últimos 8 dígitos de `WHATSAPP_NUMBER`.
-- **Archivos**: `lib/config.ts`, `.agents/context.md`.
+- **Archivos**: `components/wizard/events/EventWizardConfig.tsx`, `components/wizard/direct/DirectWizardCheckoutModal.tsx`, `lib/config.ts`, `.agents/context.md`.
 
 ### 20-07-2026 (Sesión 18)
 - **WhatsApp post-cotización: de auto-popup a CTA opcional**:

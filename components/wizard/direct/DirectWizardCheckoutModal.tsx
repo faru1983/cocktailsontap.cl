@@ -23,7 +23,7 @@ export default function DirectWizardCheckoutModal({ wizard, comunas, onClose, on
     // eslint-disable-next-line react-hooks/exhaustive-deps
     const summaryData = useMemo(() => wizard.calculateSummaryData(), [state.selections, state.contact.comuna]);
 
-    const minDate = getMinDateString(1);
+    const minDate = getMinDateString(2);
     
     // Validamos que haya al menos 1 producto principal (categoría !== 'Otros') y al menos 5 Litros
     const hasMainProduct = useMemo(() => {
