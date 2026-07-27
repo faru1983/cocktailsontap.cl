@@ -102,7 +102,7 @@ export default function RecetarioClient({
 }) {
     const router = useRouter();
     const [isPending, startTransition] = useTransition();
-    const [tab, setTab] = useState<Tab>('insumos');
+    const [tab, setTab] = useState<Tab>('produccion');
     const [search, setSearch] = useState('');
     type IngSortKey = 'name' | 'category' | 'format_qty' | 'format_price' | 'cost' | 'is_active';
     const [ingSort, setIngSort] = useState<{ key: IngSortKey; dir: 'asc' | 'desc' }>({
@@ -153,7 +153,7 @@ export default function RecetarioClient({
     const [mobileShowRecipeDetail, setMobileShowRecipeDetail] = useState(false);
 
     // ── Producción ──
-    const [prodMode, setProdMode] = useState<ProdMode>('manual');
+    const [prodMode, setProdMode] = useState<ProdMode>('quotes');
     const [manualLiters, setManualLiters] = useState<Record<string, string>>({});
     const [quoteRange, setQuoteRange] = useState<QuoteRange>('week');
     const [quotes, setQuotes] = useState<ProductionQuoteRow[]>([]);
@@ -402,7 +402,7 @@ export default function RecetarioClient({
         : null;
 
     const tabTitle =
-        tab === 'insumos' ? 'Insumos' : tab === 'recetas' ? 'Recetas y Costeo' : 'Producción';
+        tab === 'produccion' ? 'Producción' : tab === 'recetas' ? 'Recetas y Costeo' : 'Insumos';
 
     return (
         <div className="pb-16 w-full print:pb-0">
@@ -454,9 +454,9 @@ export default function RecetarioClient({
             <div className="flex flex-wrap sm:flex-nowrap gap-1.5 border-b border-white/5 mb-8 pb-3 print:hidden">
                 {(
                     [
-                        { id: 'insumos' as const, label: 'Insumos', icon: <Package size={14} /> },
-                        { id: 'recetas' as const, label: 'Recetas', icon: <BookOpen size={14} /> },
                         { id: 'produccion' as const, label: 'Producción', icon: <Calculator size={14} /> },
+                        { id: 'recetas' as const, label: 'Recetas', icon: <BookOpen size={14} /> },
+                        { id: 'insumos' as const, label: 'Insumos', icon: <Package size={14} /> },
                     ] as const
                 ).map((t) => (
                     <button
@@ -1134,8 +1134,8 @@ export default function RecetarioClient({
                     <div className="flex gap-2 mb-6 print:hidden">
                         {(
                             [
-                                { id: 'manual' as const, label: 'Manual' },
                                 { id: 'quotes' as const, label: 'Desde pedidos' },
+                                { id: 'manual' as const, label: 'Manual' },
                             ] as const
                         ).map((m) => (
                             <button
