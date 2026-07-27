@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState, useTransition } from 'react';
+import { useEffect, useMemo, useState, useTransition, Fragment } from 'react';
 import { useRouter } from 'next/navigation';
 import Modal from '@/components/admin/Modal';
 import { formatCurrency } from '@/lib/utils';
@@ -1349,18 +1349,80 @@ export default function RecetarioClient({
                                 <h3 className="text-base font-bold text-white print:text-black mb-3">
                                     Lista técnica
                                 </h3>
-                                {result.byCategory.map((group) => (
-                                    <div key={group.category} className="mb-5">
-                                        <h4 className="text-sm font-bold text-[#E2A049] print:text-slate-700 mb-2 pb-1 border-b border-white/10 print:border-slate-200">
-                                            {group.category}
+                                <table className="w-full border-collapse text-sm table-fixed mb-2">
+                                    <colgroup>
+                                        <col />
+                                        <col className="w-28" />
+                                        <col className="w-16" />
+                                    </colgroup>
+                                    <thead>
+                                        <tr>
+                                            <th className="text-left py-1 text-slate-500 text-[10px] uppercase">
+                                                Insumo
+                                            </th>
+                                            <th className="text-right py-1 pr-2 text-slate-500 text-[10px] uppercase">
+                                                Cantidad
+                                            </th>
+                                            <th className="text-right py-1 text-slate-500 text-[10px] uppercase">
+                                                Unidad
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {result.byCategory.map((group) => (
+                                            <Fragment key={group.category}>
+                                                <tr>
+                                                    <td
+                                                        colSpan={3}
+                                                        className="pt-4 pb-1 text-sm font-bold text-[#E2A049] print:text-slate-700 border-b border-white/10 print:border-slate-200"
+                                                    >
+                                                        {group.category}
+                                                    </td>
+                                                </tr>
+                                                {group.items.map((item) => (
+                                                    <tr
+                                                        key={item.ingredientId}
+                                                        className="border-t border-white/5 print:border-slate-100"
+                                                    >
+                                                        <td className="py-1.5 text-slate-200 print:text-slate-800">
+                                                            {item.name}
+                                                        </td>
+                                                        <td className="py-1.5 text-right pr-2 tabular-nums text-slate-300 print:text-slate-700">
+                                                            {roundQty(item.qty)}
+                                                        </td>
+                                                        <td className="py-1.5 text-right text-slate-400">
+                                                            {item.unit}
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </Fragment>
+                                        ))}
+                                    </tbody>
+                                </table>
+
+                                <h3 className="text-base font-bold text-white print:text-black mb-3 mt-8">
+                                    Recetas por cóctel
+                                </h3>
+                                {result.scaledRecipes.map((recipe) => (
+                                    <div key={recipe.productId} className="mb-6 last:mb-0">
+                                        <h4 className="text-sm font-black text-white print:text-black mb-3 pb-2 border-b border-white/10 print:border-slate-200">
+                                            {recipe.name}
+                                            <span className="text-[#E2A049] print:text-slate-600 font-bold ml-2">
+                                                {roundQty(recipe.liters)} L
+                                            </span>
                                         </h4>
-                                        <table className="w-full border-collapse text-sm mb-2">
+                                        <table className="w-full border-collapse text-sm table-fixed mb-2">
+                                            <colgroup>
+                                                <col />
+                                                <col className="w-28" />
+                                                <col className="w-16" />
+                                            </colgroup>
                                             <thead>
                                                 <tr>
                                                     <th className="text-left py-1 text-slate-500 text-[10px] uppercase">
                                                         Insumo
                                                     </th>
-                                                    <th className="text-right py-1 text-slate-500 text-[10px] uppercase">
+                                                    <th className="text-right py-1 pr-2 text-slate-500 text-[10px] uppercase">
                                                         Cantidad
                                                     </th>
                                                     <th className="text-right py-1 text-slate-500 text-[10px] uppercase">
@@ -1369,57 +1431,19 @@ export default function RecetarioClient({
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                {group.items.map((item) => (
-                                                    <tr key={item.ingredientId} className="border-t border-white/5 print:border-slate-100">
-                                                        <td className="py-1.5 text-slate-200 print:text-slate-800">{item.name}</td>
-                                                        <td className="py-1.5 text-right text-slate-300 print:text-slate-700">
-                                                            {roundQty(item.qty)}
-                                                        </td>
-                                                        <td className="py-1.5 text-right text-slate-400">{item.unit}</td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                ))}
-
-                                <h3 className="text-base font-bold text-white print:text-black mb-3 mt-8">
-                                    Lista de compras (formatos)
-                                </h3>
-                                {result.byCategory.map((group) => (
-                                    <div key={`buy-${group.category}`} className="mb-5">
-                                        <h4 className="text-sm font-bold text-[#E2A049] print:text-slate-700 mb-2 pb-1 border-b border-white/10 print:border-slate-200">
-                                            {group.category}
-                                        </h4>
-                                        <table className="w-full border-collapse text-sm mb-2">
-                                            <thead>
-                                                <tr>
-                                                    <th className="text-left py-1 text-slate-500 text-[10px] uppercase">
-                                                        Insumo
-                                                    </th>
-                                                    <th className="text-right py-1 text-slate-500 text-[10px] uppercase">
-                                                        Formatos
-                                                    </th>
-                                                    <th className="text-right py-1 text-slate-500 text-[10px] uppercase">
-                                                        Costo
-                                                    </th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {group.items.map((item) => (
-                                                    <tr key={`buy-${item.ingredientId}`} className="border-t border-white/5 print:border-slate-100">
+                                                {recipe.items.map((item) => (
+                                                    <tr
+                                                        key={`${recipe.productId}-${item.ingredientId}`}
+                                                        className="border-t border-white/5 print:border-slate-100"
+                                                    >
                                                         <td className="py-1.5 text-slate-200 print:text-slate-800">
                                                             {item.name}
-                                                            <span className="text-slate-500 text-xs ml-1">
-                                                                ({item.formatQty}
-                                                                {item.formatUnit})
-                                                            </span>
                                                         </td>
-                                                        <td className="py-1.5 text-right text-slate-300 print:text-slate-700 font-bold">
-                                                            {roundQty(item.packs, 2)}
+                                                        <td className="py-1.5 text-right pr-2 tabular-nums text-slate-300 print:text-slate-700">
+                                                            {roundQty(item.qty)}
                                                         </td>
                                                         <td className="py-1.5 text-right text-slate-400">
-                                                            {formatCurrency(item.lineCost)}
+                                                            {item.unit}
                                                         </td>
                                                     </tr>
                                                 ))}
@@ -1428,7 +1452,7 @@ export default function RecetarioClient({
                                     </div>
                                 ))}
 
-                                <div className="pt-4 border-t border-white/10 print:border-slate-200 flex justify-between items-center">
+                                <div className="pt-4 border-t border-white/10 print:border-slate-200 flex justify-between items-center mt-8">
                                     <span className="text-sm font-bold text-slate-400 print:text-slate-600">
                                         Costo estimado total
                                     </span>

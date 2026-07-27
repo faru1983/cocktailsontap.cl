@@ -51,12 +51,36 @@ export interface ProductionLine {
     lineCost: number;
 }
 
+export interface ScaledRecipeLine {
+    ingredientId: string;
+    name: string;
+    category: string;
+    qty: number;
+    unit: string;
+}
+
+export interface ScaledRecipe {
+    productId: string;
+    name: string;
+    liters: number;
+    items: ScaledRecipeLine[];
+    byCategory: { category: string; items: ScaledRecipeLine[] }[];
+}
+
 export interface ProductionResult {
     litersByProduct: Record<string, { productId: string; name: string; liters: number }>;
     technical: ProductionLine[];
     byCategory: { category: string; items: ProductionLine[] }[];
+    scaledRecipes: ScaledRecipe[];
     totalCost: number;
     skipped: string[];
+}
+
+function groupLinesByCategory(lines: ScaledRecipeLine[]): { category: string; items: ScaledRecipeLine[] }[] {
+    return INGREDIENT_CATEGORIES.map((category) => ({
+        category,
+        items: lines.filter((l) => l.category === category),
+    })).filter((g) => g.items.length > 0);
 }
 
 export function costPerUnit(ing: Pick<IngredientLike, 'format_price' | 'format_qty'>): number {
@@ -180,6 +204,7 @@ export function scaleProduction(
     const recipeByProduct = new Map(recipes.map((r) => [r.product_id, r]));
     const ingredientTotals = new Map<string, ProductionLine>();
     const litersByProduct: ProductionResult['litersByProduct'] = {};
+    const scaledRecipes: ScaledRecipe[] = [];
     const skipped: string[] = [];
 
     for (const [productId, liters] of Object.entries(litersByProductId)) {
@@ -190,15 +215,25 @@ export function scaleProduction(
             continue;
         }
         const name = recipe.products?.name || productId;
-        litersByProduct[productId] = { productId, name, liters: roundQty(liters) };
+        const roundedLiters = roundQty(liters);
+        litersByProduct[productId] = { productId, name, liters: roundedLiters };
 
         const base = Number(recipe.base_liters) || 5;
         const factor = liters / base;
+        const recipeLines: ScaledRecipeLine[] = [];
 
         for (const item of recipe.recipe_items || []) {
             const ing = item.ingredients;
             if (!ing || ing.is_active === false) continue;
             const qty = Number(item.qty_base) * factor;
+            recipeLines.push({
+                ingredientId: ing.id,
+                name: ing.name,
+                category: String(ing.category),
+                qty: roundQty(qty),
+                unit: String(ing.format_unit),
+            });
+
             const existing = ingredientTotals.get(ing.id);
             if (existing) {
                 existing.qty = roundQty(existing.qty + qty, 4);
@@ -222,7 +257,18 @@ export function scaleProduction(
                 });
             }
         }
+
+        recipeLines.sort((a, b) => a.name.localeCompare(b.name, 'es'));
+        scaledRecipes.push({
+            productId,
+            name,
+            liters: roundedLiters,
+            items: recipeLines,
+            byCategory: groupLinesByCategory(recipeLines),
+        });
     }
+
+    scaledRecipes.sort((a, b) => a.name.localeCompare(b.name, 'es'));
 
     // Recalculate packs/cost after aggregation with consistent rounding
     const technical = Array.from(ingredientTotals.values()).map((line) => {
@@ -246,7 +292,7 @@ export function scaleProduction(
 
     const totalCost = roundQty(technical.reduce((sum, t) => sum + t.lineCost, 0));
 
-    return { litersByProduct, technical, byCategory, totalCost, skipped };
+    return { litersByProduct, technical, byCategory, scaledRecipes, totalCost, skipped };
 }
 
 export function buildProductionWhatsAppMessage(result: ProductionResult): string {
@@ -273,13 +319,17 @@ export function buildProductionWhatsAppMessage(result: ProductionResult): string
         }
     }
 
-    message += '----------------------------------\n\n*Lista de Compras (formatos)*\n\n';
-    for (const group of result.byCategory) {
-        message += `*${group.category}*\n`;
-        for (const item of group.items) {
-            message += `- ${item.name}: ${roundQty(item.packs, 2)} × ${item.formatQty}${item.formatUnit}\n`;
+    message += '----------------------------------\n\n*Recetas por cóctel*\n\n';
+    if (result.scaledRecipes.length === 0) {
+        message += 'No hay recetas.\n';
+    } else {
+        for (const recipe of result.scaledRecipes) {
+            message += `*${recipe.name}* (${roundQty(recipe.liters)} L)\n`;
+            for (const item of recipe.items) {
+                message += `- ${item.name}: ${roundQty(item.qty)} ${item.unit}\n`;
+            }
+            message += '\n';
         }
-        message += '\n';
     }
 
     if (result.totalCost > 0) {
