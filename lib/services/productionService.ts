@@ -57,6 +57,7 @@ export interface ScaledRecipeLine {
     category: string;
     qty: number;
     unit: string;
+    formatQty: number;
 }
 
 export interface ScaledRecipe {
@@ -109,6 +110,34 @@ export function costRecipe(
 export function roundQty(n: number, decimals = 2): number {
     const f = 10 ** decimals;
     return Math.round(n * f) / f;
+}
+
+const BOTTLE_CATEGORIES = new Set<string>(['Licor', 'Bebida']);
+
+export function isBottleCategory(category: string): boolean {
+    return BOTTLE_CATEGORIES.has(category);
+}
+
+/** Botellas = qty / formato. Entero si es exacto; si no, 1 decimal. */
+export function formatBottleCount(qty: number, formatQty: number): string | null {
+    if (formatQty <= 0) return null;
+    const bottles = qty / formatQty;
+    const rounded = Math.round(bottles * 10) / 10;
+    if (Number.isInteger(rounded)) return String(rounded);
+    return rounded.toLocaleString('es-CL', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+}
+
+export function formatQtyWithBottles(
+    qty: number,
+    unit: string,
+    category: string,
+    formatQty: number
+): string {
+    const base = `${roundQty(qty)} ${unit}`;
+    if (!isBottleCategory(category) || formatQty <= 0) return base;
+    const bottles = formatBottleCount(qty, formatQty);
+    if (!bottles) return base;
+    return `(${bottles} bot.) ${roundQty(qty)} ${unit}`;
 }
 
 /** Fecha YYYY-MM-DD en timezone del proyecto. */
@@ -232,6 +261,7 @@ export function scaleProduction(
                 category: String(ing.category),
                 qty: roundQty(qty),
                 unit: String(ing.format_unit),
+                formatQty: Number(ing.format_qty) || 0,
             });
 
             const existing = ingredientTotals.get(ing.id);
@@ -313,7 +343,7 @@ export function buildProductionWhatsAppMessage(result: ProductionResult): string
         for (const group of result.byCategory) {
             message += `*${group.category}*\n`;
             for (const item of group.items) {
-                message += `- ${item.name}: ${roundQty(item.qty)} ${item.unit}\n`;
+                message += `- ${item.name}: ${formatQtyWithBottles(item.qty, item.unit, item.category, item.formatQty)}\n`;
             }
             message += '\n';
         }
@@ -326,7 +356,7 @@ export function buildProductionWhatsAppMessage(result: ProductionResult): string
         for (const recipe of result.scaledRecipes) {
             message += `*${recipe.name}* (${roundQty(recipe.liters)} L)\n`;
             for (const item of recipe.items) {
-                message += `- ${item.name}: ${roundQty(item.qty)} ${item.unit}\n`;
+                message += `- ${item.name}: ${formatQtyWithBottles(item.qty, item.unit, item.category, item.formatQty)}\n`;
             }
             message += '\n';
         }

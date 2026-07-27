@@ -22,6 +22,9 @@
 
 ## Ultimos Cambios
 
+### 27-07-2026 (Sesión 21)
+- **Recetario — Whiskcola Johnnie Walker**: insumo `Whisky Johnnie Walker Negro` (750 ml, $27.990, Licor) + receta para producto `Whiskcola Johnnie Walker Black Label 40°` (misma proporción piscola: 1200 ml whisky + 3800 ml Bebida Cola / 5 L).
+
 ### 27-07-2026 (Sesión 20)
 - **Módulo Recetario en admin** (`/admin/recetario`):
   - Tablas `ingredients`, `recipes`, `recipe_items` (RLS, solo service_role) + seed desde `calculadora.html` (23 recetas, 34 insumos; Maracuyá Spritz espumante 2250 ml).
@@ -50,12 +53,5 @@
   - Default: fecha descendente. Aplica también a la vista mobile (misma lista ordenada).
 - **Archivos**: `app/admin/gastos/GastosClient.tsx`, `.agents/context.md`.
 
-### 20-07-2026 (Sesión 16)
-- **One-shot sync teléfonos → Google Contacts (E.164)**:
-  - Script temporal actualizó `phoneNumbers` de 250 contactos (solo teléfono; sin tocar notas/direcciones).
-  - 1ª pasada: cuota People API; 2ª pasada con backoff: **OK 75 + SKIP 175 + FAIL 0**.
-  - Script eliminado tras la corrida (no queda en el repo).
-- **Archivos**: solo `.agents/context.md` (script one-shot borrado).
-
 ---
-*Ultima actualizacion: 27-07-2026 (Sesión 20)*
+*Ultima actualizacion: 27-07-2026 (Sesión 21)*

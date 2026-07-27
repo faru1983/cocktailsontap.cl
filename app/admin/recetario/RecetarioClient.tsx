@@ -23,6 +23,8 @@ import {
     aggregateFromQuotes,
     buildProductionWhatsAppMessage,
     roundQty,
+    isBottleCategory,
+    formatBottleCount,
     type ProductionResult,
     type QuoteRange,
     type IngredientCategory,
@@ -1388,7 +1390,20 @@ export default function RecetarioClient({
                                                             {item.name}
                                                         </td>
                                                         <td className="py-1.5 text-right pr-2 tabular-nums text-slate-300 print:text-slate-700">
-                                                            {roundQty(item.qty)}
+                                                            <div className="flex items-baseline justify-end gap-2">
+                                                                {isBottleCategory(item.category) &&
+                                                                    item.formatQty > 0 && (
+                                                                        <span className="text-[11px] text-slate-500 print:text-slate-600 shrink-0">
+                                                                            (
+                                                                            {formatBottleCount(
+                                                                                item.qty,
+                                                                                item.formatQty
+                                                                            )}{' '}
+                                                                            bot.)
+                                                                        </span>
+                                                                    )}
+                                                                <span>{roundQty(item.qty)}</span>
+                                                            </div>
                                                         </td>
                                                         <td className="py-1.5 text-right text-slate-400">
                                                             {item.unit}
@@ -1440,7 +1455,20 @@ export default function RecetarioClient({
                                                             {item.name}
                                                         </td>
                                                         <td className="py-1.5 text-right pr-2 tabular-nums text-slate-300 print:text-slate-700">
-                                                            {roundQty(item.qty)}
+                                                            <div className="flex items-baseline justify-end gap-2">
+                                                                {isBottleCategory(item.category) &&
+                                                                    item.formatQty > 0 && (
+                                                                        <span className="text-[11px] text-slate-500 print:text-slate-600 shrink-0">
+                                                                            (
+                                                                            {formatBottleCount(
+                                                                                item.qty,
+                                                                                item.formatQty
+                                                                            )}{' '}
+                                                                            bot.)
+                                                                        </span>
+                                                                    )}
+                                                                <span>{roundQty(item.qty)}</span>
+                                                            </div>
                                                         </td>
                                                         <td className="py-1.5 text-right text-slate-400">
                                                             {item.unit}
