@@ -57,6 +57,7 @@ Define la arquitectura, reglas irrompibles, convenciones de código, esquema de 
 │   │   ├── gastos/           # Gestión de gastos
 │   │   ├── logs/             # Logs de sincronización
 │   │   ├── products/         # Gestión de catálogo
+│   │   ├── recetario/        # Insumos, recetas/costeo y producción
 │   │   ├── quotes/           # Administración de cotizaciones
 │   │   ├── reminders/        # Sistema de recordatorios
 │   │   └── settings/         # Configuración dinámica (Cerebro Central)
@@ -89,9 +90,10 @@ Define la arquitectura, reglas irrompibles, convenciones de código, esquema de 
 │   └── services/
 │       ├── quoteService.ts       # Transacciones de BD para cotizaciones
 │       ├── googleSyncService.ts  # Orquestación de Google Contacts/Calendar
-│       └── settingsService.ts    # Configuración dinámica desde site_settings
+│       ├── settingsService.ts    # Configuración dinámica desde site_settings
+│       └── productionService.ts  # Costeo de recetas y escalado de producción
 ├── proxy.ts                  # Protección de rutas /admin (reemplaza middleware.ts)
-├── vercel.json               # Redirects (/agendar, /qr, /google) + Security Headers
+├── vercel.json               # Redirects (/agendar, /qr, /google, /calculadora.html) + Security Headers
 └── public/assets/            # Imágenes estáticas (logo, barriles, etc.)
 ```
 
@@ -114,6 +116,9 @@ Define la arquitectura, reglas irrompibles, convenciones de código, esquema de 
 | `expenses` | Registro de gastos del negocio | `amount`, `expense_date`, `category`, `description` |
 | `payment_methods` | Medios de pago configurables | `name`, `is_active` |
 | `site_settings` | Configuración dinámica (plantillas, templates) | `key` (unique), `category`, `value`, `is_active` |
+| `ingredients` | Insumos de producción (formato + precio de compra) | `name` (unique), `category`, `format_qty`, `format_unit` (`ml`\|`g`), `format_price`, `is_active` |
+| `recipes` | Recetas BOM vinculadas al catálogo de venta | `product_id` (unique FK → products), `base_liters` (default 5) |
+| `recipe_items` | Líneas de receta (cantidad base por insumo) | `recipe_id` FK, `ingredient_id` FK, unique (`recipe_id`,`ingredient_id`) |
 
 ### Campos Críticos en `quotes`
 - `token`: UUID auto-generado por Supabase, usado como URL pública `/cotizar/[token]`

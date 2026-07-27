@@ -307,3 +307,34 @@ export const ConfirmQuoteSchema = z.object({
         offer_price_at_time: z.coerce.number(),
     })).min(1, 'Debe haber al menos un producto'),
 });
+
+/** Recetario — insumos y recetas */
+export const IngredientCategorySchema = z.enum(['Licor', 'Bebida', 'Endulzante', 'Jugo', 'Otros']);
+export const FormatUnitSchema = z.enum(['ml', 'g']);
+
+export const IngredientSaveSchema = z.object({
+    id: z.string().uuid().optional().nullable(),
+    name: z.string().min(1, 'Nombre requerido').max(120),
+    category: IngredientCategorySchema,
+    format_qty: z.coerce.number().positive('Formato debe ser > 0'),
+    format_unit: FormatUnitSchema,
+    format_price: z.coerce.number().min(0, 'Precio inválido'),
+    is_active: z.boolean().optional().default(true),
+});
+
+export const RecipeItemSaveSchema = z.object({
+    ingredient_id: z.string().uuid(),
+    qty_base: z.coerce.number().positive('Cantidad debe ser > 0'),
+});
+
+export const RecipeSaveSchema = z.object({
+    id: z.string().uuid().optional().nullable(),
+    product_id: z.string().uuid(),
+    base_liters: z.coerce.number().positive().default(5),
+    notes: z.string().nullable().optional(),
+    is_active: z.boolean().optional().default(true),
+    items: z.array(RecipeItemSaveSchema).min(1, 'Agrega al menos un insumo'),
+});
+
+export type IngredientSaveInput = z.infer<typeof IngredientSaveSchema>;
+export type RecipeSaveInput = z.infer<typeof RecipeSaveSchema>;

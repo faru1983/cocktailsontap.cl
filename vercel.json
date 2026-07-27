@@ -32,6 +32,11 @@
           "value": "(www\\.)?cocktailsontap\\.cl$"
         }
       ]
+    },
+    {
+      "source": "/calculadora.html",
+      "destination": "/admin/recetario",
+      "permanent": true
     }
   ],
   "headers": [

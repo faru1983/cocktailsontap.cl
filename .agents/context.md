@@ -22,6 +22,14 @@
 
 ## Ultimos Cambios
 
+### 27-07-2026 (Sesión 20)
+- **Módulo Recetario en admin** (`/admin/recetario`):
+  - Tablas `ingredients`, `recipes`, `recipe_items` (RLS, solo service_role) + seed desde `calculadora.html` (23 recetas, 34 insumos; Maracuyá Spritz espumante 2250 ml).
+  - Tabs: Insumos (CRUD + precio/formato), Recetas (BOM + costeo/margen vs `product_prices`), Producción (manual o desde cotizaciones `confirmed`: semana/7 días/mes).
+  - Lista de compras en formatos **sin redondear** (ej. 1,5 botellas); WhatsApp + imprimir. Sin historial.
+  - Nav sidebar + redirect `/calculadora.html` → `/admin/recetario`.
+- **Archivos**: `app/admin/recetario/*`, `app/actions/admin/recetarioActions.ts`, `lib/services/productionService.ts`, `lib/types.ts`, `AdminSidebar.tsx`, `vercel.json`, `public/calculadora.html`, `.agents/*`.
+
 ### 20-07-2026 (Sesión 19)
 - **Fecha mínima wizards (+2 días)**: evento (`EventWizardConfig`) y desechables (`DirectWizardCheckoutModal`) usan `getMinDateString(2)` — si hoy es 20, desde el 22.
 - **Formato display WhatsApp (`WHATSAPP_LABEL`)**: `+56 9 XXXX XXXX` (ej. `+56 9 2967 2978`) desde los últimos 8 dígitos de `WHATSAPP_NUMBER`.
@@ -49,21 +57,5 @@
   - Script eliminado tras la corrida (no queda en el repo).
 - **Archivos**: solo `.agents/context.md` (script one-shot borrado).
 
-### 20-07-2026 (Sesión 15)
-- **Selector de direcciones desde historial (admin)**:
-  - Nueva action `getClientAddressesFromQuotes`: lee `client_address`/`comuna_*` de quotes del cliente, deduplica por clave normalizada y ordena por más reciente.
-  - En `/admin/quotes/new`, al elegir un cliente existente se listan esas direcciones; ninguna se precarga sola — hay que elegirla con un click (calle + comuna).
-  - Editar a mano la dirección desmarca la selección. Sin cambios de schema ni wizard público.
-- **Menú Nueva Cotización (Evento / Desechables)**:
-  - En `/admin/quotes`, el botón abre un dropdown: Reserva de Evento → `?type=event`, Venta Desechables → `?type=direct`.
-  - `/admin/quotes/new` lee el query param y deja lista la pestaña correspondiente.
-- **Archivos**: `app/actions/admin/adminActions.ts`, `app/admin/quotes/new/CreateQuoteManualClient.tsx`, `app/admin/quotes/new/page.tsx`, `app/admin/quotes/QuotesListClient.tsx`, `.agents/context.md`.
-
-### 20-07-2026 (Sesión 14)
-- **Fix duplicado de comuna "Otra" en wizards**:
-  - En `EventWizardCheckoutModal` y `DirectWizardCheckoutModal` se eliminó el `<option>` hardcodeado `Otra / No está en la lista` que coexistía con la fila `Otra` de BD.
-  - Ahora hay una sola opción (`value="Otra"`) con label amigable; al elegirla sigue apareciendo el input manual (`otherComuna`).
-- **Archivos**: `components/wizard/events/EventWizardCheckoutModal.tsx`, `components/wizard/direct/DirectWizardCheckoutModal.tsx`, `.agents/context.md`.
-
 ---
-*Ultima actualizacion: 20-07-2026 (Sesión 19)*
+*Ultima actualizacion: 27-07-2026 (Sesión 20)*
