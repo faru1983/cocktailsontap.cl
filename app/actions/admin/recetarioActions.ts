@@ -6,8 +6,10 @@ import { validateSession } from '@/lib/adminAuth';
 import { PROJECT_TIMEZONE } from '@/lib/config';
 import {
     IngredientSaveSchema,
+    IngredientPatchSchema,
     RecipeSaveSchema,
     type IngredientSaveInput,
+    type IngredientPatchInput,
     type RecipeSaveInput,
 } from '@/lib/types';
 import { rangeFor, type QuoteRange } from '@/lib/services/productionService';
@@ -36,6 +38,7 @@ export async function saveIngredient(raw: IngredientSaveInput) {
         format_qty: data.format_qty,
         format_unit: data.format_unit,
         format_price: data.format_price,
+        supplier: data.supplier?.trim() ? data.supplier.trim() : null,
         is_active: data.is_active ?? true,
         updated_at: new Date().toISOString(),
     };
@@ -100,18 +103,39 @@ export async function deleteIngredient(id: string) {
 }
 
 export async function updateIngredientPrice(id: string, formatPrice: number) {
+    return patchIngredient({ id, format_price: formatPrice });
+}
+
+export async function patchIngredient(raw: IngredientPatchInput) {
     await checkAuth();
-    if (formatPrice < 0 || Number.isNaN(formatPrice)) {
-        return { success: false, error: 'Precio inválido.' };
+    const parsed = IngredientPatchSchema.safeParse(raw);
+    if (!parsed.success) {
+        return { success: false, error: parsed.error.issues[0]?.message || 'Datos inválidos' };
     }
+    const { id, ...fields } = parsed.data;
+    const payload: Record<string, unknown> = { updated_at: new Date().toISOString() };
+    if (fields.name !== undefined) payload.name = fields.name.trim();
+    if (fields.category !== undefined) payload.category = fields.category;
+    if (fields.format_qty !== undefined) payload.format_qty = fields.format_qty;
+    if (fields.format_unit !== undefined) payload.format_unit = fields.format_unit;
+    if (fields.format_price !== undefined) payload.format_price = fields.format_price;
+    if (fields.supplier !== undefined) {
+        payload.supplier = fields.supplier?.trim() ? fields.supplier.trim() : null;
+    }
+    if (fields.is_active !== undefined) payload.is_active = fields.is_active;
+
+    if (Object.keys(payload).length <= 1) {
+        return { success: false, error: 'Sin cambios.' };
+    }
+
     const db = createServerClient();
-    const { error } = await db
-        .from('ingredients')
-        .update({ format_price: formatPrice, updated_at: new Date().toISOString() })
-        .eq('id', id);
+    const { error } = await db.from('ingredients').update(payload).eq('id', id);
     if (error) {
-        console.error('updateIngredientPrice:', error);
-        return { success: false, error: 'No se pudo actualizar el precio.' };
+        console.error('patchIngredient:', error);
+        return {
+            success: false,
+            error: error.code === '23505' ? 'Ya existe un insumo con ese nombre.' : 'No se pudo actualizar el insumo.',
+        };
     }
     revalidateRecetario();
     return { success: true };

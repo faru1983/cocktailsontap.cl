@@ -116,7 +116,7 @@ Define la arquitectura, reglas irrompibles, convenciones de código, esquema de 
 | `expenses` | Registro de gastos del negocio | `amount`, `expense_date`, `category`, `description` |
 | `payment_methods` | Medios de pago configurables | `name`, `is_active` |
 | `site_settings` | Configuración dinámica (plantillas, templates) | `key` (unique), `category`, `value`, `is_active` |
-| `ingredients` | Insumos de producción (formato + precio de compra) | `name` (unique), `category`, `format_qty`, `format_unit` (`ml`\|`g`), `format_price`, `is_active` |
+| `ingredients` | Insumos de producción (formato + precio de compra) | `name` (unique), `category`, `format_qty`, `format_unit` (`ml`\|`g`), `format_price`, `supplier` (nullable), `is_active` |
 | `recipes` | Recetas BOM vinculadas al catálogo de venta | `product_id` (unique FK → products), `base_liters` (default 5) |
 | `recipe_items` | Líneas de receta (cantidad base por insumo) | `recipe_id` FK, `ingredient_id` FK, unique (`recipe_id`,`ingredient_id`) |
 

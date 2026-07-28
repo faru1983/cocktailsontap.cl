@@ -22,6 +22,9 @@
 
 ## Ultimos Cambios
 
+### 27-07-2026 (Sesión 22)
+- **Recetario — columna Proveedor + edición inline**: `ingredients.supplier` (nullable) con seed desde lista de compra (mapeo de nombres; Pulpa Guayarauco → Pulpa Maracuyá; Azúcar Blanca → Jarabe de azúcar; Bebida Gaseosa → Bebida Cola; etc.). Desktop: doble clic en celdas (nombre, categoría, proveedor, formato, precio). Mobile: muestra proveedor en cards. Modal con campo proveedor + datalist.
+
 ### 27-07-2026 (Sesión 21)
 - **Recetario — Whiskcola Johnnie Walker**: insumo `Whisky Johnnie Walker Negro` (750 ml, $27.990, Licor) + receta para producto `Whiskcola Johnnie Walker Black Label 40°` (misma proporción piscola: 1200 ml whisky + 3800 ml Bebida Cola / 5 L).
 
@@ -31,7 +34,7 @@
   - Tabs: Insumos (CRUD + precio/formato), Recetas (BOM + costeo/margen vs `product_prices`), Producción (manual o desde cotizaciones `confirmed`: semana/7 días/mes).
   - Lista de compras en formatos **sin redondear** (ej. 1,5 botellas); WhatsApp + imprimir. Sin historial.
   - Nav sidebar + redirect `/calculadora.html` → `/admin/recetario`.
-- **Archivos**: `app/admin/recetario/*`, `app/actions/admin/recetarioActions.ts`, `lib/services/productionService.ts`, `lib/types.ts`, `AdminSidebar.tsx`, `vercel.json`, `public/calculadora.html`, `.agents/*`.
+  - **Archivos**: `app/admin/recetario/*`, `app/actions/admin/recetarioActions.ts`, `lib/services/productionService.ts`, `lib/types.ts`, `AdminSidebar.tsx`, `vercel.json`, `public/calculadora.html`, `.agents/*`.
 
 ### 20-07-2026 (Sesión 19)
 - **Fecha mínima wizards (+2 días)**: evento (`EventWizardConfig`) y desechables (`DirectWizardCheckoutModal`) usan `getMinDateString(2)` — si hoy es 20, desde el 22.
@@ -46,12 +49,5 @@
   - Copy de modales actualizado (ya no promete redirección automática).
 - **Archivos**: `hooks/useWizard.ts`, `lib/wizardLogic.ts`, `EventWizardShell.tsx`, `DirectWizardShell.tsx`, checkout modals, `EventQuoteView.tsx`, `DirectQuoteView.tsx`, `EventWizardSuccess.tsx`, `.agents/context.md`.
 
-### 20-07-2026 (Sesión 17)
-- **Ordenamiento por columnas en `/admin/gastos`**:
-  - Encabezados de la tabla (Fecha, Familia/Sub, Medio, Monto) ordenables al click; Notas queda fijo.
-  - Alterna asc/desc; columna activa en `#E2A049` con 🔼/🔽 (idéntico a cotizaciones/clientes).
-  - Default: fecha descendente. Aplica también a la vista mobile (misma lista ordenada).
-- **Archivos**: `app/admin/gastos/GastosClient.tsx`, `.agents/context.md`.
-
 ---
-*Ultima actualizacion: 27-07-2026 (Sesión 21)*
+*Ultima actualizacion: 27-07-2026 (Sesión 22)*

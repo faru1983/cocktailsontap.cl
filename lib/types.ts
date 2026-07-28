@@ -319,7 +319,19 @@ export const IngredientSaveSchema = z.object({
     format_qty: z.coerce.number().positive('Formato debe ser > 0'),
     format_unit: FormatUnitSchema,
     format_price: z.coerce.number().min(0, 'Precio inválido'),
+    supplier: z.string().max(120).nullable().optional(),
     is_active: z.boolean().optional().default(true),
+});
+
+export const IngredientPatchSchema = z.object({
+    id: z.string().uuid(),
+    name: z.string().min(1).max(120).optional(),
+    category: IngredientCategorySchema.optional(),
+    format_qty: z.coerce.number().positive().optional(),
+    format_unit: FormatUnitSchema.optional(),
+    format_price: z.coerce.number().min(0).optional(),
+    supplier: z.string().max(120).nullable().optional(),
+    is_active: z.boolean().optional(),
 });
 
 export const RecipeItemSaveSchema = z.object({
@@ -337,4 +349,5 @@ export const RecipeSaveSchema = z.object({
 });
 
 export type IngredientSaveInput = z.infer<typeof IngredientSaveSchema>;
+export type IngredientPatchInput = z.infer<typeof IngredientPatchSchema>;
 export type RecipeSaveInput = z.infer<typeof RecipeSaveSchema>;

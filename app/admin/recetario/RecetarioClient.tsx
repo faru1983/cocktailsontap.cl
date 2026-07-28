@@ -9,6 +9,7 @@ import {
     toggleIngredientStatus,
     deleteIngredient,
     updateIngredientPrice,
+    patchIngredient,
     saveRecipe,
     toggleRecipeStatus,
     deleteRecipe,
@@ -29,6 +30,7 @@ import {
     type QuoteRange,
     type IngredientCategory,
 } from '@/lib/services/productionService';
+import type { IngredientPatchInput } from '@/lib/types';
 import {
     Plus,
     Pencil,
@@ -54,8 +56,11 @@ type Ingredient = {
     format_qty: number;
     format_unit: string;
     format_price: number;
+    supplier: string | null;
     is_active: boolean;
 };
+
+type IngEditField = 'name' | 'category' | 'format' | 'format_price' | 'supplier';
 
 type RecipeItem = {
     id?: string;
@@ -106,11 +111,12 @@ export default function RecetarioClient({
     const [isPending, startTransition] = useTransition();
     const [tab, setTab] = useState<Tab>('produccion');
     const [search, setSearch] = useState('');
-    type IngSortKey = 'name' | 'category' | 'format_qty' | 'format_price' | 'cost' | 'is_active';
+    type IngSortKey = 'name' | 'category' | 'supplier' | 'format_qty' | 'format_price' | 'cost' | 'is_active';
     const [ingSort, setIngSort] = useState<{ key: IngSortKey; dir: 'asc' | 'desc' }>({
         key: 'name',
         dir: 'asc',
     });
+    const [ingEdit, setIngEdit] = useState<{ id: string; field: IngEditField } | null>(null);
 
     const toggleIngSort = (key: IngSortKey) => {
         setIngSort((prev) => ({
@@ -129,11 +135,20 @@ export default function RecetarioClient({
             format_qty: number;
             format_unit: 'ml' | 'g';
             format_price: number;
+            supplier: string;
             is_active: boolean;
         };
     }>({
         open: false,
-        data: { name: '', category: 'Licor', format_qty: 750, format_unit: 'ml', format_price: 0, is_active: true },
+        data: {
+            name: '',
+            category: 'Licor',
+            format_qty: 750,
+            format_unit: 'ml',
+            format_price: 0,
+            supplier: '',
+            is_active: true,
+        },
     });
 
     // ── Recetas modal ──
@@ -177,12 +192,24 @@ export default function RecetarioClient({
         [products, recipeProductIds]
     );
 
+    const supplierOptions = useMemo(() => {
+        const set = new Set<string>();
+        for (const i of ingredients) {
+            const s = i.supplier?.trim();
+            if (s) set.add(s);
+        }
+        return Array.from(set).sort((a, b) => a.localeCompare(b, 'es'));
+    }, [ingredients]);
+
     const filteredIngredients = useMemo(() => {
         const q = search.trim().toLowerCase();
         const list = !q
             ? [...ingredients]
             : ingredients.filter(
-                  (i) => i.name.toLowerCase().includes(q) || i.category.toLowerCase().includes(q)
+                  (i) =>
+                      i.name.toLowerCase().includes(q) ||
+                      i.category.toLowerCase().includes(q) ||
+                      (i.supplier || '').toLowerCase().includes(q)
               );
 
         return list.sort((a, b) => {
@@ -204,6 +231,9 @@ export default function RecetarioClient({
             } else if (ingSort.key === 'category') {
                 valA = a.category.toLowerCase();
                 valB = b.category.toLowerCase();
+            } else if (ingSort.key === 'supplier') {
+                valA = (a.supplier || '').toLowerCase();
+                valB = (b.supplier || '').toLowerCase();
             } else {
                 valA = a.name.toLowerCase();
                 valB = b.name.toLowerCase();
@@ -268,21 +298,44 @@ export default function RecetarioClient({
                     format_qty: Number(ing.format_qty),
                     format_unit: (ing.format_unit as 'ml' | 'g') || 'ml',
                     format_price: Number(ing.format_price),
+                    supplier: ing.supplier || '',
                     is_active: ing.is_active,
                 },
             });
         } else {
             setIngModal({
                 open: true,
-                data: { name: '', category: 'Licor', format_qty: 750, format_unit: 'ml', format_price: 0, is_active: true },
+                data: {
+                    name: '',
+                    category: 'Licor',
+                    format_qty: 750,
+                    format_unit: 'ml',
+                    format_price: 0,
+                    supplier: '',
+                    is_active: true,
+                },
             });
         }
+    };
+
+    const applyIngredientPatch = (id: string, patch: Omit<IngredientPatchInput, 'id'>) => {
+        startTransition(async () => {
+            const res = await patchIngredient({ id, ...patch });
+            if (!res.success) alert(res.error);
+            else {
+                setIngEdit(null);
+                router.refresh();
+            }
+        });
     };
 
     const submitIngredient = (e: React.FormEvent) => {
         e.preventDefault();
         startTransition(async () => {
-            const res = await saveIngredient(ingModal.data);
+            const res = await saveIngredient({
+                ...ingModal.data,
+                supplier: ingModal.data.supplier.trim() || null,
+            });
             if (!res.success) {
                 alert(res.error);
                 return;
@@ -558,6 +611,14 @@ export default function RecetarioClient({
                                         </div>
                                         <div>
                                             <div className="text-[10px] text-slate-500 uppercase font-bold tracking-wider mb-1">
+                                                Proveedor
+                                            </div>
+                                            <div className="text-slate-200 font-semibold truncate">
+                                                {ing.supplier || '—'}
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <div className="text-[10px] text-slate-500 uppercase font-bold tracking-wider mb-1">
                                                 Costo/u
                                             </div>
                                             <div className="text-slate-200 font-semibold">
@@ -594,7 +655,7 @@ export default function RecetarioClient({
                         })}
                     </div>
 
-                    {/* Desktop table */}
+                    {/* Desktop table — doble clic para editar celdas */}
                     <div className="hidden md:block bg-[#1e2433] rounded-2xl border border-white/5 overflow-hidden shadow-2xl">
                         <div className="overflow-x-auto">
                             <table className="w-full border-collapse">
@@ -604,6 +665,7 @@ export default function RecetarioClient({
                                             [
                                                 { label: 'Nombre', field: 'name' as const },
                                                 { label: 'Categoría', field: 'category' as const },
+                                                { label: 'Proveedor', field: 'supplier' as const },
                                                 { label: 'Formato', field: 'format_qty' as const },
                                                 { label: 'Precio', field: 'format_price' as const },
                                                 { label: 'Costo/u', field: 'cost' as const },
@@ -632,42 +694,250 @@ export default function RecetarioClient({
                                 <tbody>
                                     {filteredIngredients.map((ing) => {
                                         const unitCost = costPerUnit(ing);
+                                        const editing = (field: IngEditField) =>
+                                            ingEdit?.id === ing.id && ingEdit.field === field;
+                                        const cellClass =
+                                            'py-3 px-4 text-sm cursor-default select-none';
                                         return (
                                             <tr
                                                 key={ing.id}
                                                 className={`border-b border-white/5 ${!ing.is_active ? 'opacity-50' : ''}`}
                                             >
-                                                <td className="py-3 px-4 text-sm font-bold text-white">{ing.name}</td>
-                                                <td className="py-3 px-4 text-xs text-[#E2A049] font-bold uppercase tracking-wider">
-                                                    {ing.category}
+                                                <td
+                                                    className={`${cellClass} font-bold text-white`}
+                                                    onDoubleClick={() =>
+                                                        setIngEdit({ id: ing.id, field: 'name' })
+                                                    }
+                                                    title="Doble clic para editar"
+                                                >
+                                                    {editing('name') ? (
+                                                        <input
+                                                            autoFocus
+                                                            defaultValue={ing.name}
+                                                            className="w-full min-w-[10rem] bg-[#0d1117] border border-[#E2A049]/50 rounded-lg px-2 py-1.5 text-sm text-white outline-none"
+                                                            onBlur={(e) => {
+                                                                const val = e.target.value.trim();
+                                                                if (!val || val === ing.name) {
+                                                                    setIngEdit(null);
+                                                                    return;
+                                                                }
+                                                                applyIngredientPatch(ing.id, { name: val });
+                                                            }}
+                                                            onKeyDown={(e) => {
+                                                                if (e.key === 'Escape') setIngEdit(null);
+                                                                if (e.key === 'Enter')
+                                                                    (e.target as HTMLInputElement).blur();
+                                                            }}
+                                                        />
+                                                    ) : (
+                                                        ing.name
+                                                    )}
                                                 </td>
-                                                <td className="py-3 px-4 text-sm text-slate-300">
-                                                    {Number(ing.format_qty)} {ing.format_unit}
+                                                <td
+                                                    className={`${cellClass} text-xs text-[#E2A049] font-bold uppercase tracking-wider`}
+                                                    onDoubleClick={() =>
+                                                        setIngEdit({ id: ing.id, field: 'category' })
+                                                    }
+                                                    title="Doble clic para editar"
+                                                >
+                                                    {editing('category') ? (
+                                                        <select
+                                                            autoFocus
+                                                            defaultValue={ing.category}
+                                                            className="bg-[#0d1117] border border-[#E2A049]/50 rounded-lg px-2 py-1.5 text-xs text-[#E2A049] outline-none"
+                                                            onBlur={(e) => {
+                                                                const val = e.target.value as IngredientCategory;
+                                                                if (val === ing.category) {
+                                                                    setIngEdit(null);
+                                                                    return;
+                                                                }
+                                                                applyIngredientPatch(ing.id, {
+                                                                    category: val,
+                                                                });
+                                                            }}
+                                                            onChange={(e) => {
+                                                                const val = e.target.value as IngredientCategory;
+                                                                if (val === ing.category) {
+                                                                    setIngEdit(null);
+                                                                    return;
+                                                                }
+                                                                applyIngredientPatch(ing.id, {
+                                                                    category: val,
+                                                                });
+                                                            }}
+                                                            onKeyDown={(e) => {
+                                                                if (e.key === 'Escape') setIngEdit(null);
+                                                            }}
+                                                        >
+                                                            {INGREDIENT_CATEGORIES.map((c) => (
+                                                                <option key={c} value={c}>
+                                                                    {c}
+                                                                </option>
+                                                            ))}
+                                                        </select>
+                                                    ) : (
+                                                        ing.category
+                                                    )}
                                                 </td>
-                                                <td className="py-3 px-4">
-                                                    <input
-                                                        type="number"
-                                                        min={0}
-                                                        defaultValue={Number(ing.format_price)}
-                                                        key={`${ing.id}-${ing.format_price}`}
-                                                        className="w-28 bg-[#0d1117] border border-white/10 rounded-lg px-2 py-1.5 text-sm text-slate-200"
-                                                        onBlur={(e) => {
-                                                            const val = parseFloat(e.target.value);
-                                                            if (
-                                                                Number.isNaN(val) ||
-                                                                val === Number(ing.format_price)
-                                                            )
-                                                                return;
-                                                            startTransition(async () => {
-                                                                const res = await updateIngredientPrice(
-                                                                    ing.id,
-                                                                    val
-                                                                );
-                                                                if (!res.success) alert(res.error);
-                                                                else router.refresh();
-                                                            });
-                                                        }}
-                                                    />
+                                                <td
+                                                    className={`${cellClass} text-slate-300`}
+                                                    onDoubleClick={() =>
+                                                        setIngEdit({ id: ing.id, field: 'supplier' })
+                                                    }
+                                                    title="Doble clic para editar"
+                                                >
+                                                    {editing('supplier') ? (
+                                                        <>
+                                                            <input
+                                                                autoFocus
+                                                                list="ingredient-suppliers"
+                                                                defaultValue={ing.supplier || ''}
+                                                                className="w-full min-w-[8rem] bg-[#0d1117] border border-[#E2A049]/50 rounded-lg px-2 py-1.5 text-sm text-slate-200 outline-none"
+                                                                onBlur={(e) => {
+                                                                    const val = e.target.value.trim();
+                                                                    const prev = (ing.supplier || '').trim();
+                                                                    if (val === prev) {
+                                                                        setIngEdit(null);
+                                                                        return;
+                                                                    }
+                                                                    applyIngredientPatch(ing.id, {
+                                                                        supplier: val || null,
+                                                                    });
+                                                                }}
+                                                                onKeyDown={(e) => {
+                                                                    if (e.key === 'Escape') setIngEdit(null);
+                                                                    if (e.key === 'Enter')
+                                                                        (e.target as HTMLInputElement).blur();
+                                                                }}
+                                                            />
+                                                        </>
+                                                    ) : (
+                                                        ing.supplier || (
+                                                            <span className="text-slate-600">—</span>
+                                                        )
+                                                    )}
+                                                </td>
+                                                <td
+                                                    className={`${cellClass} text-slate-300`}
+                                                    onDoubleClick={() =>
+                                                        setIngEdit({ id: ing.id, field: 'format' })
+                                                    }
+                                                    title="Doble clic para editar"
+                                                >
+                                                    {editing('format') ? (
+                                                        <div className="flex items-center gap-1.5">
+                                                            <input
+                                                                autoFocus
+                                                                type="number"
+                                                                min={0.01}
+                                                                step="any"
+                                                                defaultValue={Number(ing.format_qty)}
+                                                                className="w-24 bg-[#0d1117] border border-[#E2A049]/50 rounded-lg px-2 py-1.5 text-sm text-slate-200 outline-none"
+                                                                id={`fmt-qty-${ing.id}`}
+                                                                onKeyDown={(e) => {
+                                                                    if (e.key === 'Escape') setIngEdit(null);
+                                                                    if (e.key === 'Enter')
+                                                                        (e.target as HTMLInputElement).blur();
+                                                                }}
+                                                                onBlur={(e) => {
+                                                                    const qty = parseFloat(e.target.value);
+                                                                    const unitEl = document.getElementById(
+                                                                        `fmt-unit-${ing.id}`
+                                                                    ) as HTMLSelectElement | null;
+                                                                    const unit = (unitEl?.value ||
+                                                                        ing.format_unit) as 'ml' | 'g';
+                                                                    if (
+                                                                        Number.isNaN(qty) ||
+                                                                        qty <= 0 ||
+                                                                        (qty === Number(ing.format_qty) &&
+                                                                            unit === ing.format_unit)
+                                                                    ) {
+                                                                        setIngEdit(null);
+                                                                        return;
+                                                                    }
+                                                                    applyIngredientPatch(ing.id, {
+                                                                        format_qty: qty,
+                                                                        format_unit: unit,
+                                                                    });
+                                                                }}
+                                                            />
+                                                            <select
+                                                                id={`fmt-unit-${ing.id}`}
+                                                                defaultValue={ing.format_unit}
+                                                                className="bg-[#0d1117] border border-[#E2A049]/50 rounded-lg px-2 py-1.5 text-sm text-slate-200 outline-none"
+                                                                onChange={(e) => {
+                                                                    const unit = e.target.value as 'ml' | 'g';
+                                                                    const qtyEl = document.getElementById(
+                                                                        `fmt-qty-${ing.id}`
+                                                                    ) as HTMLInputElement | null;
+                                                                    const qty = parseFloat(
+                                                                        qtyEl?.value || String(ing.format_qty)
+                                                                    );
+                                                                    if (
+                                                                        Number.isNaN(qty) ||
+                                                                        qty <= 0 ||
+                                                                        (qty === Number(ing.format_qty) &&
+                                                                            unit === ing.format_unit)
+                                                                    ) {
+                                                                        setIngEdit(null);
+                                                                        return;
+                                                                    }
+                                                                    applyIngredientPatch(ing.id, {
+                                                                        format_qty: qty,
+                                                                        format_unit: unit,
+                                                                    });
+                                                                }}
+                                                                onKeyDown={(e) => {
+                                                                    if (e.key === 'Escape') setIngEdit(null);
+                                                                }}
+                                                            >
+                                                                <option value="ml">ml</option>
+                                                                <option value="g">g</option>
+                                                            </select>
+                                                        </div>
+                                                    ) : (
+                                                        `${Number(ing.format_qty)} ${ing.format_unit}`
+                                                    )}
+                                                </td>
+                                                <td
+                                                    className={cellClass}
+                                                    onDoubleClick={() =>
+                                                        setIngEdit({ id: ing.id, field: 'format_price' })
+                                                    }
+                                                    title="Doble clic para editar"
+                                                >
+                                                    {editing('format_price') ? (
+                                                        <input
+                                                            autoFocus
+                                                            type="number"
+                                                            min={0}
+                                                            defaultValue={Number(ing.format_price)}
+                                                            className="w-28 bg-[#0d1117] border border-[#E2A049]/50 rounded-lg px-2 py-1.5 text-sm text-slate-200 outline-none"
+                                                            onBlur={(e) => {
+                                                                const val = parseFloat(e.target.value);
+                                                                if (
+                                                                    Number.isNaN(val) ||
+                                                                    val < 0 ||
+                                                                    val === Number(ing.format_price)
+                                                                ) {
+                                                                    setIngEdit(null);
+                                                                    return;
+                                                                }
+                                                                applyIngredientPatch(ing.id, {
+                                                                    format_price: val,
+                                                                });
+                                                            }}
+                                                            onKeyDown={(e) => {
+                                                                if (e.key === 'Escape') setIngEdit(null);
+                                                                if (e.key === 'Enter')
+                                                                    (e.target as HTMLInputElement).blur();
+                                                            }}
+                                                        />
+                                                    ) : (
+                                                        <span className="text-slate-200">
+                                                            {formatCurrency(Number(ing.format_price))}
+                                                        </span>
+                                                    )}
                                                 </td>
                                                 <td className="py-3 px-4 text-sm text-slate-400">
                                                     {formatCurrency(unitCost)}/{ing.format_unit}
@@ -724,7 +994,15 @@ export default function RecetarioClient({
                                     })}
                                 </tbody>
                             </table>
+                            <datalist id="ingredient-suppliers">
+                                {supplierOptions.map((s) => (
+                                    <option key={s} value={s} />
+                                ))}
+                            </datalist>
                         </div>
+                        <p className="px-4 py-2 text-[10px] text-slate-600 border-t border-white/5">
+                            Doble clic en una celda para editar (nombre, categoría, proveedor, formato, precio).
+                        </p>
                     </div>
                 </>
             )}
@@ -1582,6 +1860,26 @@ export default function RecetarioClient({
                                 }))
                             }
                         />
+                    </div>
+                    <div>
+                        <label className={labelClass}>Proveedor</label>
+                        <input
+                            list="ingredient-suppliers-modal"
+                            className={inputClass}
+                            placeholder="Ej. Distribuidora Dorsal"
+                            value={ingModal.data.supplier}
+                            onChange={(e) =>
+                                setIngModal((p) => ({
+                                    ...p,
+                                    data: { ...p.data, supplier: e.target.value },
+                                }))
+                            }
+                        />
+                        <datalist id="ingredient-suppliers-modal">
+                            {supplierOptions.map((s) => (
+                                <option key={s} value={s} />
+                            ))}
+                        </datalist>
                     </div>
                     <div className="flex gap-3 pt-2">
                         <button
