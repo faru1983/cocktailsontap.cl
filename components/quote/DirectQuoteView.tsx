@@ -90,11 +90,11 @@ export default function DirectQuoteView({ quote, comunas, availableCocktails, ca
         setShowSuccessScreen(isConfirmedParam);
     }, [isConfirmedParam]);
 
-    // ─── Meta Pixel: Registro de Venta Directa (Confirmada) ───────────────────
+    // ─── Meta Pixel: Venta directa = Purchase al crear (pago por transferencia) ─
     useEffect(() => {
         if (isNew) {
             const totals = calculateTotals();
-            fp.event('Purchase', {
+            fp.trackOnce(`purchase_${quote.token}`, 'Purchase', {
                 content_name: 'Pedido de Barril Desechable',
                 content_category: 'Venta Directa',
                 value: totals.totalFinal,
@@ -110,7 +110,8 @@ export default function DirectQuoteView({ quote, comunas, availableCocktails, ca
                 em: quote.client_email || undefined,
                 ph: phone || undefined,
                 fn: quote.client_name || undefined,
-                ln: lastName || undefined
+                ln: lastName || undefined,
+                ct: comuna && comuna !== 'Otra' ? comuna : (comunaOther || undefined),
             });
         }
     }, [isNew]);
@@ -378,8 +379,8 @@ export default function DirectQuoteView({ quote, comunas, availableCocktails, ca
                 router.refresh();
             }, 150);
 
-            // ─── Meta Pixel: Registro de Pedido Confirmado ───────────────────
-            fp.event('Purchase', {
+            // Misma onceKey que al crear: no duplica si ya se disparó en ?new=true
+            fp.trackOnce(`purchase_${quote.token}`, 'Purchase', {
                 content_name: 'Pedido de Barril Desechable (Confirmado)',
                 content_category: 'Venta Directa',
                 value: totals.totalFinal,
@@ -395,7 +396,8 @@ export default function DirectQuoteView({ quote, comunas, availableCocktails, ca
                 em: quote.client_email || undefined,
                 ph: phone || undefined,
                 fn: quote.client_name || undefined,
-                ln: lastName || undefined
+                ln: lastName || undefined,
+                ct: comuna && comuna !== 'Otra' ? comuna : (comunaOther || undefined),
             });
         } else {
             setConfirmError(result.error ?? 'Error al confirmar. Intenta nuevamente.');

@@ -22,6 +22,13 @@
 
 ## Ultimos Cambios
 
+### 29-07-2026 (Sesión 23)
+- **Meta Pixel hardening**: `MetaPixel` client — solo prod `cocktailsontap.cl` / `www`; sin `/admin`, sin `*.vercel.app`, sin localhost. PageView en navegación SPA pública.
+- **Anti-refresh**: `trackOnce` + `eventID` (`lead_TOKEN` / `purchase_TOKEN`) en Event/Direct quote views.
+- **Advanced Matching**: normaliza em/ph/fn/ln + `country: cl` + `ct` (comuna). Venta directa sigue como Purchase al crear (OK negocio).
+- **Manual Meta**: confirmar dominio `cocktailsontap.cl`; descartar preview `…vercel.app` en Events Manager.
+- **Archivos**: `lib/fpixel.ts`, `components/shared/MetaPixel.tsx`, `app/layout.tsx`, `EventQuoteView.tsx`, `DirectQuoteView.tsx`, `.agents/*`.
+
 ### 27-07-2026 (Sesión 22)
 - **Recetario — columna Proveedor + edición inline**: `ingredients.supplier` (nullable) con seed desde lista de compra (mapeo de nombres; Pulpa Guayarauco → Pulpa Maracuyá; Azúcar Blanca → Jarabe de azúcar; Bebida Gaseosa → Bebida Cola; etc.). Desktop: doble clic en celdas (nombre, categoría, proveedor, formato, precio). Mobile: muestra proveedor en cards. Modal con campo proveedor + datalist.
 
@@ -41,13 +48,5 @@
 - **Formato display WhatsApp (`WHATSAPP_LABEL`)**: `+56 9 XXXX XXXX` (ej. `+56 9 2967 2978`) desde los últimos 8 dígitos de `WHATSAPP_NUMBER`.
 - **Archivos**: `components/wizard/events/EventWizardConfig.tsx`, `components/wizard/direct/DirectWizardCheckoutModal.tsx`, `lib/config.ts`, `.agents/context.md`.
 
-### 20-07-2026 (Sesión 18)
-- **WhatsApp post-cotización: de auto-popup a CTA opcional**:
-  - Se eliminó `window.open` automático tras `createQuote` (lo bloqueaban los browsers).
-  - Nuevo CTA `<a href="wa.me?...">` en pantallas `?new=true` (evento y directo) y en error del wizard.
-  - Helpers: `buildWhatsAppMessageFromQuote` + `getWhatsAppUrl`; hook expone `getWhatsAppQuoteUrl`.
-  - Copy de modales actualizado (ya no promete redirección automática).
-- **Archivos**: `hooks/useWizard.ts`, `lib/wizardLogic.ts`, `EventWizardShell.tsx`, `DirectWizardShell.tsx`, checkout modals, `EventQuoteView.tsx`, `DirectQuoteView.tsx`, `EventWizardSuccess.tsx`, `.agents/context.md`.
-
 ---
-*Ultima actualizacion: 27-07-2026 (Sesión 22)*
+*Ultima actualizacion: 29-07-2026 (Sesión 23)*

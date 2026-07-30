@@ -40,7 +40,7 @@ Define la arquitectura, reglas irrompibles, convenciones de código, esquema de 
 - **Integraciones**: Google APIs SDK — People API (Contacts), Calendar API
 - **Type Safety**: TypeScript + Zod (schemas en `lib/types.ts`)
 - **Icons**: lucide-react (exclusivamente)
-- **Analytics**: Google Analytics + Meta Pixel
+- **Analytics**: Google Analytics + Meta Pixel (`lib/fpixel.ts`, `components/shared/MetaPixel.tsx`). Pixel solo en `cocktailsontap.cl` (no `/admin`, no `*.vercel.app`, no localhost). Conversiones con `trackOnce` + `eventID` estable por token.
 - **Hosting**: Vercel (free tier optimizado)
 
 ### Estructura de Directorios

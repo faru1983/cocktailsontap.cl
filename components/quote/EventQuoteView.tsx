@@ -203,7 +203,7 @@ export default function EventQuoteView({ quote, comunas, availableCocktails, cat
     useEffect(() => {
         if (isNew) {
             const totals = calculateTotals();
-            fp.event('Lead', {
+            fp.trackOnce(`lead_${quote.token}`, 'Lead', {
                 content_name: 'Cotización de Evento (Borrador)',
                 content_category: 'Servicio de Eventos',
                 value: totals.totalFinal,
@@ -218,10 +218,11 @@ export default function EventQuoteView({ quote, comunas, availableCocktails, cat
                 em: quote.client_email || undefined,
                 ph: phone || undefined,
                 fn: quote.client_name || undefined,
-                ln: lastName || undefined
+                ln: lastName || undefined,
+                ct: comuna && comuna !== 'Otra' ? comuna : (comunaOther || undefined),
             });
         }
-    }, [isNew]); // Solo una vez al montar si es nuevo
+    }, [isNew]); // trackOnce evita re-disparo en refresh
 
     const totals = calculateTotals();
     const totalPaid = (quote.payments || []).reduce((sum: number, p) => sum + (Number(p.amount) || 0), 0);
@@ -462,7 +463,7 @@ export default function EventQuoteView({ quote, comunas, availableCocktails, cat
             }, 150);
 
             // ─── Meta Pixel: Registro de Conversión (Reserva Confirmada) ──────
-            fp.event('Purchase', {
+            fp.trackOnce(`purchase_${quote.token}`, 'Purchase', {
                 content_name: 'Reserva de Evento Confirmada',
                 content_category: 'Servicio de Eventos',
                 value: totals.totalFinal,
@@ -473,12 +474,13 @@ export default function EventQuoteView({ quote, comunas, availableCocktails, cat
                     quantity: item.quantity
                 })),
                 content_type: 'product',
-                order_id: quote.token // Usamos el token como ID de transacción
+                order_id: quote.token
             }, {
                 em: quote.client_email || undefined,
                 ph: phone || undefined,
                 fn: quote.client_name || undefined,
-                ln: lastName || undefined
+                ln: lastName || undefined,
+                ct: comuna && comuna !== 'Otra' ? comuna : (comunaOther || undefined),
             });
         } else {
             setConfirmError(result.error ?? 'Error al confirmar. Intenta nuevamente.');
