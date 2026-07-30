@@ -39,7 +39,7 @@ export const GoogleSyncService = {
              const quoteUrl = `${SITE_URL}/cotizar/${quoteToken}`;
 
              const rawPhone = state.contact.phone.trim();
-             const phoneToSend = (rawPhone === '+569' || rawPhone === '+56 9' || rawPhone === '') ? undefined : rawPhone;
+             const phoneToSend = (rawPhone === '+56' || rawPhone === '+569' || rawPhone === '+56 9' || rawPhone === '') ? undefined : rawPhone;
              const street = state.contact.address.trim();
              const isAddressComplete = street.length > 0 && /[a-zA-Z]/.test(street);
 

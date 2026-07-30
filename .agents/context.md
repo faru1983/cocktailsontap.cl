@@ -22,6 +22,10 @@
 
 ## Ultimos Cambios
 
+### 30-07-2026 (Sesión 25)
+- **PhoneInput**: al focus solo inyecta `+56` (ya no `+569`). El usuario escribe el 9 móvil. Validación Chile sigue `+569` + 8 dígitos. Sin cambios de DB.
+- **Archivos**: `lib/phone.ts`, `components/ui/PhoneInput.tsx`, `lib/services/googleSyncService.ts`, `.agents/rules/rules.md`.
+
 ### 30-07-2026 (Sesión 24)
 - **CSV audiencias Meta** + upload MCP a cuenta USD: Excluir compradores, seed eventos/desechables, drafts. Script `scripts/export-meta-audiences.mjs`.
 - **Leads Web** excluye compradores + IG/FB. Creado **COT - Lookalike 1% eventos CL** (listo para usar después; no reemplaza el público actual).
@@ -40,13 +44,5 @@
 ### 27-07-2026 (Sesión 21)
 - **Recetario — Whiskcola Johnnie Walker**: insumo `Whisky Johnnie Walker Negro` (750 ml, $27.990, Licor) + receta para producto `Whiskcola Johnnie Walker Black Label 40°` (misma proporción piscola: 1200 ml whisky + 3800 ml Bebida Cola / 5 L).
 
-### 27-07-2026 (Sesión 20)
-- **Módulo Recetario en admin** (`/admin/recetario`):
-  - Tablas `ingredients`, `recipes`, `recipe_items` (RLS, solo service_role) + seed desde `calculadora.html` (23 recetas, 34 insumos; Maracuyá Spritz espumante 2250 ml).
-  - Tabs: Insumos (CRUD + precio/formato), Recetas (BOM + costeo/margen vs `product_prices`), Producción (manual o desde cotizaciones `confirmed`: semana/7 días/mes).
-  - Lista de compras en formatos **sin redondear** (ej. 1,5 botellas); WhatsApp + imprimir. Sin historial.
-  - Nav sidebar + redirect `/calculadora.html` → `/admin/recetario`.
-  - **Archivos**: `app/admin/recetario/*`, `app/actions/admin/recetarioActions.ts`, `lib/services/productionService.ts`, `lib/types.ts`, `AdminSidebar.tsx`, `vercel.json`, `public/calculadora.html`, `.agents/*`.
-
 ---
-*Ultima actualizacion: 30-07-2026 (Sesión 24)*
+*Ultima actualizacion: 30-07-2026 (Sesión 25)*

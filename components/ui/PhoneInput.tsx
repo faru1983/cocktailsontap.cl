@@ -5,7 +5,7 @@ import {
     phoneInputToE164,
     digitsOnly,
     PHONE_PLACEHOLDER,
-    CHILE_MOBILE_PREFIX_E164,
+    CHILE_COUNTRY_PREFIX_E164,
     isChilePrefixOnly,
 } from '@/lib/phone';
 
@@ -26,7 +26,7 @@ interface PhoneInputProps {
 /**
  * Input global de celular.
  * - Vacío: placeholder (+56 9 1234 5678)
- * - Al focus: inyecta prefijo Chile (+56 9)
+ * - Al focus: inyecta prefijo país Chile (+56); el 9 móvil lo escribe el usuario
  * - Emite E.164 con '+' al padre (+56912345678)
  * - Permite CO (+57), PE (+51), VE (+58) borrando el prefijo
  */
@@ -47,7 +47,7 @@ export default function PhoneInput({
 
     const handleFocus = (e: React.FocusEvent<HTMLInputElement>) => {
         if (!value || isChilePrefixOnly(value)) {
-            onChange(CHILE_MOBILE_PREFIX_E164);
+            onChange(CHILE_COUNTRY_PREFIX_E164);
         }
         onFocus?.();
         requestAnimationFrame(() => {
@@ -79,7 +79,7 @@ export default function PhoneInput({
             } else if (digits.startsWith('9')) {
                 onChange(phoneInputToE164(digits));
             } else {
-                onChange(phoneInputToE164('569' + digits));
+                onChange(phoneInputToE164('56' + digits));
             }
             return;
         }

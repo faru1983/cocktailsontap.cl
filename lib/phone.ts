@@ -123,4 +123,5 @@ export function toWhatsAppDigits(input: string): string {
 }
 
 export const PHONE_PLACEHOLDER = '+56 9 1234 5678';
-export const CHILE_MOBILE_PREFIX_E164 = '+569';
+/** Prefijo país Chile al enfocar el input (sin el 9 móvil; el usuario lo escribe). */
+export const CHILE_COUNTRY_PREFIX_E164 = '+56';
