@@ -43,7 +43,7 @@ export default async function BarrilesPage() {
                     />
                 </Suspense>
             </div>
-            <FloatingWhatsapp />
+            <FloatingWhatsapp message="Hola, estoy en la web comprando unos barriles desechables y tengo las siguientes dudas:" />
         </main>
     );
 }

@@ -26,7 +26,7 @@ export default async function EventosPage() {
                     />
                 </Suspense>
             </div>
-            <FloatingWhatsapp />
+            <FloatingWhatsapp message="Hola, estoy cotizando un evento y tengo las siguientes dudas:" />
         </main>
     );
 }

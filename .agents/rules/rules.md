@@ -16,7 +16,7 @@ Define la arquitectura, reglas irrompibles, convenciones de código, esquema de 
 | # | Regla | Detalle |
 |---|-------|---------|
 | 1 | **Tailwind CSS v4 Only** | Prohibido crear archivos `.css` adicionales ni etiquetas `<style>`. Solo clases utilitarias de Tailwind. El archivo `globals.css` existe únicamente para el `@import "tailwindcss"` y definir el `@theme` con tokens de diseño. |
-| 2 | **Server Actions First** | Toda mutación (POST/PUT/DELETE) se realiza mediante **Next.js Server Actions** ubicadas en `app/actions/`. Prohibido crear API Routes (`app/api/*`) para mutaciones. |
+| 2 | **Server Actions + API v1** | Mutaciones **web/admin**: Server Actions en `app/actions/`. Mutaciones **integraciones externas** (WhatsApp, Meta, CRM): `app/api/v1/*` autenticadas con `INTEGRATION_API_KEY`, que llaman la misma capa de servicios (`createQuoteCore`, etc.). No duplicar lógica de negocio en las rutas HTTP. |
 | 3 | **Capa de Servicios** | La lógica pesada de infraestructura (DB, Google APIs, Resend) reside en `lib/services/`. Los Server Actions solo **orquestan** llamadas a servicios, validaciones Zod y respuestas. |
 | 4 | **Zero Trust Financials** | Nunca confiar en precios del frontend. Todo total se **recalcula en el servidor** consultando `product_prices` y `comunas` en Supabase antes de persistir. |
 | 5 | **Configuración Centralizada** | Usar siempre las constantes de `lib/config.ts` para URLs, números de contacto y montos base. Prohibido leer `process.env` directamente en componentes client-side. Todo cambio en `.env.local` debe reflejarse en `lib/config.ts`. |
@@ -47,10 +47,13 @@ Define la arquitectura, reglas irrompibles, convenciones de código, esquema de 
 
 ```
 ├── app/
-│   ├── actions/              # Server Actions (mutaciones)
+│   ├── actions/              # Server Actions (mutaciones web/admin)
 │   │   ├── admin/            # Actions del panel admin (CRUD)
-│   │   ├── createQuote.ts    # Crear cotización (draft)
+│   │   ├── createQuote.ts    # Wrapper → createQuoteCore
 │   │   └── confirmQuote.ts   # Confirmar cotización
+│   ├── api/v1/               # Integraciones HTTP (Bearer INTEGRATION_API_KEY)
+│   │   ├── quotes/           # POST cotización evento (draft)
+│   │   └── direct-sales/     # POST venta desechable (confirmed)
 │   ├── admin/                # Dashboard administrativo (protegido por proxy.ts)
 │   │   ├── clients/          # Gestión de clientes
 │   │   ├── estadisticas/     # Estadísticas y BI
@@ -87,7 +90,12 @@ Define la arquitectura, reglas irrompibles, convenciones de código, esquema de 
 │   ├── supabaseServer.ts     # Cliente servidor (service_role key)
 │   ├── utils.ts              # Helpers (formatCurrency, copyToClipboard)
 │   ├── phone.ts              # Celulares E.164 (normalize, display, WhatsApp, validate)
+│   ├── integrationAuth.ts        # Bearer INTEGRATION_API_KEY
+│   ├── integrationSchemas.ts     # Zod DTOs /api/v1
+│   ├── integrationMapper.ts      # DTO → WizardState
+│   ├── integrationApi.ts         # Handler compartido v1
 │   └── services/
+│       ├── createQuoteCore.ts    # Dominio crear cotización (web + API)
 │       ├── quoteService.ts       # Transacciones de BD para cotizaciones
 │       ├── googleSyncService.ts  # Orquestación de Google Contacts/Calendar
 │       ├── settingsService.ts    # Configuración dinámica desde site_settings
@@ -160,16 +168,19 @@ Define la arquitectura, reglas irrompibles, convenciones de código, esquema de 
 
 ## 🚀 Flujos de Ejecución (Server Actions)
 
-### `createQuote` — Crear Borrador
+### `createQuoteCore` — Crear cotización (web + `/api/v1`)
 ```
-1. Validar esquema Zod (CreateQuoteSchema)
+1. Validar esquema Zod (CreateQuoteSchema) salvo isAdmin
 2. Upsert Cliente (clients) → Obtener clientId
-3. Calcular precios con calculateSummaryData()
+3. Calcular precios con calculateSummaryData() (Zero Trust; catálogo server-side en API)
 4. Insert quote + quote_items (congelar precios)
-5. Google Sync → Crear/Actualizar contacto (try-catch, no bloquea)
-6. Resend → Enviar emails (cliente + admin, try-catch)
-7. Return { success, token }
+5. Google Sync → Contacto (+ Calendar si direct)
+6. Resend → Emails (cliente + admin)
+7. Return { success, token, quoteId, totalPrice, status }
 ```
+- Web/admin: `app/actions/createQuote.ts` → core
+- Integraciones: `POST /api/v1/quotes` | `POST /api/v1/direct-sales` → mapper DTO → core
+- Confirmación de evento: solo cliente en `/cotizar/[token]` (sin endpoint v1)
 
 ### `confirmQuote` — Confirmar Reserva
 ```
@@ -251,4 +262,4 @@ Para mantener la eficiencia en sesiones con agentes de IA:
    - Issues conocidos pendientes
 3. Mantener la sección "Últimos Cambios" limitada a las **últimas 5 sesiones**.
 
-*Última actualización: 07-04-2026*
+*Última actualización: 30-07-2026*

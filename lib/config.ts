@@ -41,3 +41,10 @@ export const MURO_COMPATIBLE_SIZES = [10, 20, 30];
 
 /** Timezone del proyecto (Chile) */
 export const PROJECT_TIMEZONE = 'America/Santiago';
+
+/**
+ * API key para integraciones externas (/api/v1/*).
+ * Solo server-side — leer process.env.INTEGRATION_API_KEY en lib/integrationAuth.ts.
+ * No exportar el valor al client.
+ */
+export const INTEGRATION_API_KEY_ENV = 'INTEGRATION_API_KEY';

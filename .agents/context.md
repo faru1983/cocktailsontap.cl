@@ -17,10 +17,18 @@
 - La base de datos es prioridad. Si Google o Resend fallan, el error se guarda en `comments` de la cotizacion para auditoria, sin bloquear al usuario.
 
 ## Flujos de Venta
-- **Evento**: Draft -> Confirmado (via link unico).
+- **Evento**: Draft -> Confirmado (via link unico). Confirmacion siempre la hace el cliente.
 - **Venta Directa (Desechables)**: Confirmado directo (sin draft).
+- **Integraciones** (`/api/v1`): mismo dominio que la web; auth Bearer `INTEGRATION_API_KEY`. Campo opcional `source` (whatsapp/meta/…) se antepone a comments.
 
 ## Ultimos Cambios
+
+### 30-07-2026 (Sesión 27)
+- **FloatingWhatsApp**: mensaje custom por página — `/eventos` (cotizar evento) y `/barriles` (barriles desechables). Prop `message` en `FloatingWhatsapp`.
+
+### 30-07-2026 (Sesión 26)
+- **API ventas v1** (base CRM multicanal): `POST /api/v1/quotes` (evento draft), `POST /api/v1/direct-sales` (desechable confirmed). Auth `INTEGRATION_API_KEY`. Dominio en `createQuoteCore`; web action es wrapper.
+- **Archivos**: `lib/services/createQuoteCore.ts`, `lib/integration*.ts`, `app/api/v1/*`, `app/actions/createQuote.ts`, `.agents/*`, `README.md`, `lib/config.ts`.
 
 ### 30-07-2026 (Sesión 25)
 - **PhoneInput**: al focus solo inyecta `+56` (ya no `+569`). El usuario escribe el 9 móvil. Validación Chile sigue `+569` + 8 dígitos. Sin cambios de DB.
@@ -41,8 +49,5 @@
 ### 27-07-2026 (Sesión 22)
 - **Recetario — columna Proveedor + edición inline**: `ingredients.supplier` (nullable) con seed desde lista de compra (mapeo de nombres; Pulpa Guayarauco → Pulpa Maracuyá; Azúcar Blanca → Jarabe de azúcar; Bebida Gaseosa → Bebida Cola; etc.). Desktop: doble clic en celdas (nombre, categoría, proveedor, formato, precio). Mobile: muestra proveedor en cards. Modal con campo proveedor + datalist.
 
-### 27-07-2026 (Sesión 21)
-- **Recetario — Whiskcola Johnnie Walker**: insumo `Whisky Johnnie Walker Negro` (750 ml, $27.990, Licor) + receta para producto `Whiskcola Johnnie Walker Black Label 40°` (misma proporción piscola: 1200 ml whisky + 3800 ml Bebida Cola / 5 L).
-
 ---
-*Ultima actualizacion: 30-07-2026 (Sesión 25)*
+*Ultima actualizacion: 30-07-2026 (Sesión 27)*

@@ -5,7 +5,14 @@ import { X } from 'lucide-react';
 import { WhatsappIcon } from './icons';
 import { WHATSAPP_NUMBER } from '@/lib/config';
 
-export default function FloatingWhatsapp() {
+const DEFAULT_MESSAGE = 'Hola, estoy cotizando desde la pagina web y tengo algunas dudas.';
+
+interface FloatingWhatsappProps {
+    /** Mensaje prearmado al abrir WhatsApp */
+    message?: string;
+}
+
+export default function FloatingWhatsapp({ message = DEFAULT_MESSAGE }: FloatingWhatsappProps) {
     const [visible, setVisible] = useState(false);
     const [closed, setClosed] = useState(false);
 
@@ -19,7 +26,6 @@ export default function FloatingWhatsapp() {
 
     if (closed) return null;
 
-    const message = 'Hola, estoy cotizando desde la pagina web y tengo algunas dudas.';
     const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
 
     return (

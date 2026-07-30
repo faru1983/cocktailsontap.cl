@@ -21,6 +21,7 @@
 - [Requisitos Previos](#-requisitos-previos)
 - [Instalación y Desarrollo](#-instalación-y-desarrollo)
 - [Variables de Entorno](#-variables-de-entorno)
+- [API de ventas v1 (integraciones)](#-api-de-ventas-v1-integraciones)
 - [Esquema de Base de Datos](#-esquema-de-base-de-datos)
 - [Flujos de Negocio](#-flujos-de-negocio)
 - [Sistema de Cotización (Wizard)](#-sistema-de-cotización-wizard)
@@ -53,7 +54,7 @@
 
 ### 🛡️ Seguridad y Arquitectura
 - **Zero Trust Pricing**: Los totales nunca se confían del frontend; se recalculan en el servidor consultando precios vigentes en Supabase.
-- **Server Actions First**: Todas las mutaciones utilizan Next.js Server Actions con validación Zod. Sin API Routes.
+- **Server Actions (web) + API v1 (integraciones)**: Mutaciones del sitio vía Server Actions. Cotizar/vender desde WhatsApp, Meta u otros canales vía `POST /api/v1/*` con Bearer token (mismo dominio `createQuoteCore`).
 - **Protección Admin**: `proxy.ts` protege todas las rutas `/admin/*` con autenticación SHA-256.
 
 ### 📊 Panel Administrativo
@@ -89,14 +90,17 @@
 cocktailsontap.cl/
 │
 ├── app/                          # 📁 Next.js App Router
-│   ├── actions/                  # Server Actions (mutaciones)
+│   ├── actions/                  # Server Actions (mutaciones web/admin)
 │   │   ├── admin/                # Admin CRUD Actions
 │   │   │   ├── adminActions.ts   # Cotizaciones (edit, delete, status, pagos, sync)
 │   │   │   ├── authActions.ts    # Login/Logout
 │   │   │   ├── gastosActions.ts  # CRUD Gastos + Medios de pago
 │   │   │   └── productActions.ts # CRUD Productos
-│   │   ├── createQuote.ts        # Crear borrador de cotización
+│   │   ├── createQuote.ts        # Wrapper → createQuoteCore
 │   │   └── confirmQuote.ts       # Confirmar reserva (cliente)
+│   ├── api/v1/                   # Integraciones HTTP (Bearer INTEGRATION_API_KEY)
+│   │   ├── quotes/route.ts       # POST cotización evento (draft)
+│   │   └── direct-sales/route.ts # POST venta desechable (confirmed)
 │   │
 │   ├── admin/                    # Dashboard administrativo (protegido)
 │   │   ├── layout.tsx            # Layout con sidebar + validación de sesión
@@ -299,8 +303,77 @@ Crea un archivo `.env.local` en la raíz del proyecto con las siguientes variabl
 | `NEXT_PUBLIC_SITE_URL` | Public | URL base del sitio (ej: `http://localhost:3000`) |
 | `NEXT_PUBLIC_WHATSAPP_NUMBER` | Public | Número WhatsApp en formato internacional (ej: `56912345678`) |
 | `ADMIN_PASSWORD` | Secret | Contraseña para acceder al panel `/admin` |
+| `AUTH_SALT` | Secret | Salt para hash de sesión admin |
+| `INTEGRATION_API_KEY` | Secret | Bearer token para `POST /api/v1/*` (WhatsApp bot, CRM, Meta futuro) |
 
 > ⚠️ **Importante**: Toda variable `NEXT_PUBLIC_*` debe reflejarse también en `lib/config.ts`. Las variables sin prefijo `NEXT_PUBLIC_` nunca deben leerse desde componentes client-side.
+
+---
+
+## 🔌 API de ventas v1 (integraciones)
+
+Punto de entrada HTTP para crear cotizaciones y ventas desde canales externos (WhatsApp hoy; Meta/CRM mañana). La web sigue usando Server Actions; ambos llaman a `createQuoteCore`.
+
+**Auth:** header `Authorization: Bearer <INTEGRATION_API_KEY>`
+
+**Confirmación de evento:** no hay endpoint. El cliente confirma en `/cotizar/{token}`.
+
+### `POST /api/v1/quotes` — Cotización evento (draft)
+
+```json
+{
+  "source": "whatsapp",
+  "client": {
+    "firstName": "Ana",
+    "lastName": "Pérez",
+    "email": "ana@email.com",
+    "phone": "+56912345678",
+    "comuna": "Providencia",
+    "address": "",
+    "comments": ""
+  },
+  "event": { "date": "2026-09-15", "type": "", "startTime": "" },
+  "consumption": { "guests": 50, "drinksPerPerson": 3 },
+  "dispenser": "portatil",
+  "items": [{ "productId": "<uuid>", "size": "10L", "quantity": 2 }]
+}
+```
+
+### `POST /api/v1/direct-sales` — Venta desechable (confirmed)
+
+```json
+{
+  "source": "whatsapp",
+  "client": {
+    "firstName": "Ana",
+    "lastName": "Pérez",
+    "email": "ana@email.com",
+    "phone": "+56912345678",
+    "comuna": "Providencia"
+  },
+  "event": { "date": "2026-09-15" },
+  "items": [{ "productId": "<uuid>", "size": "5L - Desechable", "quantity": 1 }]
+}
+```
+
+> El string `size` debe coincidir exactamente con la etiqueta del catálogo (ej. `10L`, `5L - Desechable`).
+
+### Respuesta OK
+
+```json
+{
+  "success": true,
+  "token": "...",
+  "quoteId": "...",
+  "url": "https://cocktailsontap.cl/cotizar/...",
+  "totalPrice": 89000,
+  "status": "draft"
+}
+```
+
+Errores: `401` auth, `400` validación/catálogo, `503` si falta `INTEGRATION_API_KEY`, `500` inesperado.
+
+Campo opcional `source`: se antepone a `comments` como `[whatsapp]` para trazabilidad (sin columna DB aún).
 
 ---
 
