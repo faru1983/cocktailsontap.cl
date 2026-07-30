@@ -22,6 +22,11 @@
 
 ## Ultimos Cambios
 
+### 30-07-2026 (Sesión 24)
+- **CSV audiencias Meta** + upload MCP a cuenta USD: Excluir compradores, seed eventos/desechables, drafts. Script `scripts/export-meta-audiences.mjs`.
+- **Leads Web** excluye compradores + IG/FB. Creado **COT - Lookalike 1% eventos CL** (listo para usar después; no reemplaza el público actual).
+- **Ads**: campaña `Leads Web` activa ($8/día, OUTCOME_LEADS → Lead pixel).
+
 ### 29-07-2026 (Sesión 23)
 - **Meta Pixel hardening**: `MetaPixel` client — solo prod `cocktailsontap.cl` / `www`; sin `/admin`, sin `*.vercel.app`, sin localhost. PageView en navegación SPA pública.
 - **Anti-refresh**: `trackOnce` + `eventID` (`lead_TOKEN` / `purchase_TOKEN`) en Event/Direct quote views.
@@ -43,10 +48,5 @@
   - Nav sidebar + redirect `/calculadora.html` → `/admin/recetario`.
   - **Archivos**: `app/admin/recetario/*`, `app/actions/admin/recetarioActions.ts`, `lib/services/productionService.ts`, `lib/types.ts`, `AdminSidebar.tsx`, `vercel.json`, `public/calculadora.html`, `.agents/*`.
 
-### 20-07-2026 (Sesión 19)
-- **Fecha mínima wizards (+2 días)**: evento (`EventWizardConfig`) y desechables (`DirectWizardCheckoutModal`) usan `getMinDateString(2)` — si hoy es 20, desde el 22.
-- **Formato display WhatsApp (`WHATSAPP_LABEL`)**: `+56 9 XXXX XXXX` (ej. `+56 9 2967 2978`) desde los últimos 8 dígitos de `WHATSAPP_NUMBER`.
-- **Archivos**: `components/wizard/events/EventWizardConfig.tsx`, `components/wizard/direct/DirectWizardCheckoutModal.tsx`, `lib/config.ts`, `.agents/context.md`.
-
 ---
-*Ultima actualizacion: 29-07-2026 (Sesión 23)*
+*Ultima actualizacion: 30-07-2026 (Sesión 24)*
