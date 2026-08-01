@@ -52,6 +52,7 @@ Define la arquitectura, reglas irrompibles, convenciones de código, esquema de 
 │   │   ├── createQuote.ts    # Wrapper → createQuoteCore
 │   │   └── confirmQuote.ts   # Confirmar cotización
 │   ├── api/v1/               # Integraciones HTTP (Bearer INTEGRATION_API_KEY)
+│   │   ├── catalog/          # GET catálogo activo (productos, precios, comunas)
 │   │   ├── quotes/           # POST cotización evento (draft)
 │   │   └── direct-sales/     # POST venta desechable (confirmed)
 │   ├── admin/                # Dashboard administrativo (protegido por proxy.ts)
@@ -179,7 +180,7 @@ Define la arquitectura, reglas irrompibles, convenciones de código, esquema de 
 7. Return { success, token, quoteId, totalPrice, status }
 ```
 - Web/admin: `app/actions/createQuote.ts` → core
-- Integraciones: `POST /api/v1/quotes` | `POST /api/v1/direct-sales` → mapper DTO → core
+- Integraciones: `GET /api/v1/catalog` (lectura) | `POST /api/v1/quotes` | `POST /api/v1/direct-sales` → mapper DTO → core
 - Confirmación de evento: solo cliente en `/cotizar/[token]` (sin endpoint v1)
 
 ### `confirmQuote` — Confirmar Reserva

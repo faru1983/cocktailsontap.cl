@@ -19,9 +19,27 @@
 ## Flujos de Venta
 - **Evento**: Draft -> Confirmado (via link unico). Confirmacion siempre la hace el cliente.
 - **Venta Directa (Desechables)**: Confirmado directo (sin draft).
-- **Integraciones** (`/api/v1`): mismo dominio que la web; auth Bearer `INTEGRATION_API_KEY`. Campo opcional `source` (whatsapp/meta/…) se antepone a comments.
+- **Integraciones** (`/api/v1`): mismo dominio que la web; auth Bearer `INTEGRATION_API_KEY`.
+  - `GET /catalog` — productos/precios/comunas (lectura para WhatsApp).
+  - `POST /quotes` | `POST /direct-sales` — crear venta.
+  - Campo opcional `source` (whatsapp/meta/…) se antepone a comments.
 
 ## Ultimos Cambios
+
+### 01-08-2026 (Sesión 29)
+- **API v1 catálogo**: `GET /api/v1/catalog` (Bearer `INTEGRATION_API_KEY`) — productos activos con `size` exactos, precios, comunas y eventTypes. Reutiliza `fetchAllProductData` (caché 5 min).
+- **WhatsApp bot**: consume el catálogo con caché en RAM + aliases; el mapa UUID hardcodeado queda solo como fallback.
+- **Archivos**: `app/api/v1/catalog/route.ts`, README, `.agents/rules/rules.md`; bot `cot-api.js` / `cot-catalog.js` / `cot-event-quote.js`.
+
+### 31-07-2026 (Sesión 28)
+- **Meta Ads review (MCP)**: campaña `Leads Web` (`120249000651830069`) activa, optimiza Pixel Lead (`1739547250109039`).
+- **Datos**: hoy ~2020 impr / 97 clics / 45 LPV / ~$10.57 — **0 Lead**. Desde lanzamiento (30–31): ~$22.24, **1 Lead** (Adry). WhatsApp Eventos (30d): ~$82, **115 chats** (~$0.71) + 8 Meta-leads → canal probado; web aún sin test justo.
+- **Decisión**: mantener web como test limpio con presupuesto bajo (no pivotar 100% a WA aún).
+- **Cambios aplicados (MCP)**:
+  - Presupuesto CBO `Leads Web` bajado **$20 → $8/día** (`daily_budget` 800).
+  - Anuncio Seba (`120249046881730069`): creativo nuevo `1113170721173605` con destino corregido `home → /eventos`, CTA `GET_QUOTE`, copy “Cotiza en la web”. (creativo previo iba a home).
+- **Victor corregido** (`120249001480050069`): creativo nuevo `1708099757127438` — destino `/eventos`, CTA `GET_QUOTE`, copy “Cotiza en la web” (antes “escríbenos”).
+- **Pixel en prod**: confirmado en `cocktailsontap.cl/eventos` (`fbq` loaded, script `meta-pixel`, ID correcto). Hardening ya en `main`/origen. No requiere redeploy.
 
 ### 30-07-2026 (Sesión 27)
 - **FloatingWhatsApp**: mensaje custom por página — `/eventos` (cotizar evento) y `/barriles` (barriles desechables). Prop `message` en `FloatingWhatsapp`.
@@ -34,20 +52,5 @@
 - **PhoneInput**: al focus solo inyecta `+56` (ya no `+569`). El usuario escribe el 9 móvil. Validación Chile sigue `+569` + 8 dígitos. Sin cambios de DB.
 - **Archivos**: `lib/phone.ts`, `components/ui/PhoneInput.tsx`, `lib/services/googleSyncService.ts`, `.agents/rules/rules.md`.
 
-### 30-07-2026 (Sesión 24)
-- **CSV audiencias Meta** + upload MCP a cuenta USD: Excluir compradores, seed eventos/desechables, drafts. Script `scripts/export-meta-audiences.mjs`.
-- **Leads Web** excluye compradores + IG/FB. Creado **COT - Lookalike 1% eventos CL** (listo para usar después; no reemplaza el público actual).
-- **Ads**: campaña `Leads Web` activa ($8/día, OUTCOME_LEADS → Lead pixel).
-
-### 29-07-2026 (Sesión 23)
-- **Meta Pixel hardening**: `MetaPixel` client — solo prod `cocktailsontap.cl` / `www`; sin `/admin`, sin `*.vercel.app`, sin localhost. PageView en navegación SPA pública.
-- **Anti-refresh**: `trackOnce` + `eventID` (`lead_TOKEN` / `purchase_TOKEN`) en Event/Direct quote views.
-- **Advanced Matching**: normaliza em/ph/fn/ln + `country: cl` + `ct` (comuna). Venta directa sigue como Purchase al crear (OK negocio).
-- **Manual Meta**: confirmar dominio `cocktailsontap.cl`; descartar preview `…vercel.app` en Events Manager.
-- **Archivos**: `lib/fpixel.ts`, `components/shared/MetaPixel.tsx`, `app/layout.tsx`, `EventQuoteView.tsx`, `DirectQuoteView.tsx`, `.agents/*`.
-
-### 27-07-2026 (Sesión 22)
-- **Recetario — columna Proveedor + edición inline**: `ingredients.supplier` (nullable) con seed desde lista de compra (mapeo de nombres; Pulpa Guayarauco → Pulpa Maracuyá; Azúcar Blanca → Jarabe de azúcar; Bebida Gaseosa → Bebida Cola; etc.). Desktop: doble clic en celdas (nombre, categoría, proveedor, formato, precio). Mobile: muestra proveedor en cards. Modal con campo proveedor + datalist.
-
 ---
-*Ultima actualizacion: 30-07-2026 (Sesión 27)*
+*Ultima actualizacion: 01-08-2026 (Sesión 29)*

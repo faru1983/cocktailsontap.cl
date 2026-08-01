@@ -99,6 +99,7 @@ cocktailsontap.cl/
 │   │   ├── createQuote.ts        # Wrapper → createQuoteCore
 │   │   └── confirmQuote.ts       # Confirmar reserva (cliente)
 │   ├── api/v1/                   # Integraciones HTTP (Bearer INTEGRATION_API_KEY)
+│   │   ├── catalog/route.ts      # GET catálogo (productos, precios, comunas)
 │   │   ├── quotes/route.ts       # POST cotización evento (draft)
 │   │   └── direct-sales/route.ts # POST venta desechable (confirmed)
 │   │
@@ -317,6 +318,30 @@ Punto de entrada HTTP para crear cotizaciones y ventas desde canales externos (W
 **Auth:** header `Authorization: Bearer <INTEGRATION_API_KEY>`
 
 **Confirmación de evento:** no hay endpoint. El cliente confirma en `/cotizar/{token}`.
+
+### `GET /api/v1/catalog` — Catálogo activo (lectura)
+
+Devuelve productos activos con tamaños/precios (etiquetas `size` exactas para los POST), comunas y tipos de evento. Misma auth Bearer. Caché server vía `fetchAllProductData` (5 min).
+
+```json
+{
+  "success": true,
+  "products": [
+    {
+      "id": "<uuid>",
+      "name": "Mojito Tradicional",
+      "category": "Clásicos",
+      "sizes": [
+        { "size": "10L", "sizeValue": 10, "unit": "L", "isDisposable": false, "price": 45000, "offerPrice": 45000 },
+        { "size": "5L - Desechable", "sizeValue": 5, "unit": "L", "isDisposable": true, "price": 35000, "offerPrice": 35000 }
+      ]
+    }
+  ],
+  "comunas": [{ "name": "Providencia", "cost": 15000, "freeFrom": 30, "directSaleDeliveryCost": 8000 }],
+  "eventTypes": [{ "id": "<uuid>", "name": "Matrimonio" }],
+  "fetchedAt": "2026-08-01T15:00:00.000Z"
+}
+```
 
 ### `POST /api/v1/quotes` — Cotización evento (draft)
 
