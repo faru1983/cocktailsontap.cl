@@ -22,9 +22,12 @@
 - **Integraciones** (`/api/v1`): mismo dominio que la web; auth Bearer `INTEGRATION_API_KEY`.
   - `GET /catalog` — productos/precios/comunas (lectura para WhatsApp).
   - `POST /quotes` | `POST /direct-sales` — crear venta.
-  - Campo opcional `source` (whatsapp/meta/…) se antepone a comments.
+  - Campo opcional `source` (`web` | `admin` | `whatsapp`) → columna `quotes.source` (migración 02-08-2026). Mapper aún antepone tag en comments como respaldo.
 
 ## Ultimos Cambios
+
+### 02-08-2026 (Sesión 30)
+- **DB `quotes.source`**: columna + backfill. Código escribe `web`/`admin`/`whatsapp` al crear; filtros y badges en admin.
 
 ### 01-08-2026 (Sesión 29)
 - **API v1 catálogo**: `GET /api/v1/catalog` (Bearer `INTEGRATION_API_KEY`) — productos activos con `size` exactos, precios, comunas y eventTypes. Reutiliza `fetchAllProductData` (caché 5 min).

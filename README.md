@@ -398,7 +398,7 @@ Devuelve productos activos con tamaños/precios (etiquetas `size` exactas para l
 
 Errores: `401` auth, `400` validación/catálogo, `503` si falta `INTEGRATION_API_KEY`, `500` inesperado.
 
-Campo opcional `source`: se antepone a `comments` como `[whatsapp]` para trazabilidad (sin columna DB aún).
+Campo opcional `source` (`web` | `admin` | `whatsapp`): se persiste en `quotes.source`. El mapper aún antepone `[whatsapp]` a `comments` como respaldo legado hasta fase 2 del código.
 
 ---
 
@@ -491,6 +491,7 @@ CREATE TABLE quotes (
   client_phone TEXT,
   client_address TEXT,
   comments TEXT,
+  source TEXT NOT NULL DEFAULT 'web' CHECK (source IN ('web', 'admin', 'whatsapp')),
   
   -- Evento
   event_type_id TEXT,              -- ID del event_type o nombre libre

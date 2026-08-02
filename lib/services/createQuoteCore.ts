@@ -7,6 +7,7 @@ import { ADMIN_EMAIL, FROM_EMAIL } from '@/lib/config';
 import { QuoteService } from '@/lib/services/quoteService';
 import { GoogleSyncService } from '@/lib/services/googleSyncService';
 import { SettingsService } from '@/lib/services/settingsService';
+import { resolveQuoteSource, type QuoteSource } from '@/lib/quoteSource';
 
 export interface CreateQuoteInput {
     state: WizardState;
@@ -14,6 +15,8 @@ export interface CreateQuoteInput {
     comunas: Comuna[];
     skipEmail?: boolean;
     isAdmin?: boolean;
+    /** Canal explícito; si falta, admin → admin y web → web. API WhatsApp pasa whatsapp. */
+    source?: QuoteSource;
     overrides?: { shippingCost?: number; installationCost?: number; manualDiscount?: number };
 }
 
@@ -32,7 +35,8 @@ export interface CreateQuoteResult {
  */
 export async function createQuoteCore(input: CreateQuoteInput): Promise<CreateQuoteResult> {
     try {
-        const { state, cocktails, comunas, skipEmail, isAdmin, overrides } = input;
+        const { state, cocktails, comunas, skipEmail, isAdmin, overrides, source: sourceInput } = input;
+        const source = resolveQuoteSource({ source: sourceInput, isAdmin });
 
         if (!isAdmin) {
             const validation = CreateQuoteSchema.safeParse(input);
@@ -55,7 +59,7 @@ export async function createQuoteCore(input: CreateQuoteInput): Promise<CreateQu
         }
 
         const clientId = await QuoteService.upsertClient(state);
-        const createResult = await QuoteService.createDraftQuote(state, cocktails, comunas, clientId, overrides);
+        const createResult = await QuoteService.createDraftQuote(state, cocktails, comunas, clientId, overrides, source);
 
         if (!createResult.success || !createResult.token || !createResult.quote) {
             return { success: false, error: createResult.error || 'No se pudo guardar la cotización.' };

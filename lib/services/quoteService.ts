@@ -1,5 +1,6 @@
 import { createServerClient } from '@/lib/supabaseServer';
 import type { WizardState, CocktailForWizard, Comuna, Quote, QuoteItem } from '@/lib/types';
+import type { QuoteSource } from '@/lib/quoteSource';
 import { calculateSummaryData } from '@/lib/wizardLogic';
 import { normalizePhoneE164 } from '@/lib/phone';
 
@@ -69,7 +70,8 @@ export const QuoteService = {
         cocktails: CocktailForWizard[],
         comunas: Comuna[],
         clientId: string | null,
-        overrides?: { shippingCost?: number; installationCost?: number; manualDiscount?: number }
+        overrides?: { shippingCost?: number; installationCost?: number; manualDiscount?: number },
+        source: QuoteSource = 'web'
     ): Promise<CreateQuoteResult> {
         const db = createServerClient();
         const data = calculateSummaryData(state, cocktails, comunas);
@@ -117,6 +119,7 @@ export const QuoteService = {
                 total_price: finalTotalPrice,
                 total_liters: data.totalLiters,
                 service_type: state.serviceType || 'event',
+                source,
             })
             .select('*')
             .single();

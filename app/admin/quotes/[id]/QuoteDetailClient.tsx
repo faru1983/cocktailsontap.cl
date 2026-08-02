@@ -18,6 +18,7 @@ import {
     Calendar
 } from 'lucide-react';
 import type { Comuna } from '@/lib/types';
+import { sourceBadge, normalizeQuoteSource } from '@/lib/quoteSource';
 
 const statusFlow = ['draft', 'confirmed', 'completed', 'cancelled'];
 const statusBadge: Record<string, { label: string; color: string; bg: string }> = {
@@ -270,6 +271,7 @@ export default function QuoteDetailClient({ quote: initial, allProducts, eventTy
     const balance = Number(quote.total_price) - totalPaid;
 
     const badge = statusBadge[quote.status] || statusBadge.draft;
+    const srcBadge = sourceBadge[normalizeQuoteSource(quote.source)];
 
     if (isDeleting) {
         return (
@@ -387,6 +389,9 @@ export default function QuoteDetailClient({ quote: initial, allProducts, eventTy
                         <span style={{ color: '#64748b', fontSize: '12px', fontWeight: 600 }}>({formatDateWithDashes(quote.created_at)})</span>
                         <span style={{ display: 'inline-block', padding: '4px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 700, color: badge.color, background: badge.bg }}>
                             {badge.label}
+                        </span>
+                        <span style={{ display: 'inline-block', padding: '4px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 700, color: srcBadge.color, background: srcBadge.bg }}>
+                            {srcBadge.label}
                         </span>
                         {quote.service_type === 'direct' ? (
                             <span style={{ display: 'inline-block', padding: '4px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 700, color: '#60a5fa', background: 'rgba(96,165,250,0.1)' }}>

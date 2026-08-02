@@ -166,6 +166,10 @@ export interface ICart {
 
 export type QuoteStatus = 'draft' | 'confirmed' | 'cancelled' | 'completed';
 
+/** Re-export: fuente de verdad en `lib/quoteSource.ts`. */
+import type { QuoteSource } from '@/lib/quoteSource';
+export type { QuoteSource };
+
 export interface Client {
     id: string;
     first_name: string;
@@ -233,6 +237,7 @@ export interface Quote {
     total_liters: number | null;
 
     service_type?: 'event' | 'direct' | null;
+    source?: QuoteSource;
     google_event_id?: string | null;
     google_pickup_event_id?: string | null;
     // Items y Relaciones

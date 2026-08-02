@@ -131,6 +131,7 @@ Define la arquitectura, reglas irrompibles, convenciones de código, esquema de 
 
 ### Campos Críticos en `quotes`
 - `token`: UUID auto-generado por Supabase, usado como URL pública `/cotizar/[token]`
+- `source`: Canal al crear — `web` | `admin` | `whatsapp` (default `web`)
 - `status`: Enum `draft | confirmed | completed | cancelled`
 - `dispenser`: Enum `portatil | muro`
 - `total_price`: Recalculado server-side en confirmación

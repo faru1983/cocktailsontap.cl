@@ -4,6 +4,7 @@ import { verifyIntegrationAuth } from '@/lib/integrationAuth';
 import { fetchAllProductData } from '@/lib/serverData';
 import { createQuoteCore } from '@/lib/services/createQuoteCore';
 import type { WizardState } from '@/lib/types';
+import type { QuoteSource } from '@/lib/quoteSource';
 import { validateItemsAgainstCatalog } from '@/lib/integrationMapper';
 
 export function jsonError(status: number, error: string) {
@@ -13,7 +14,7 @@ export function jsonError(status: number, error: string) {
 export async function handleIntegrationCreate(opts: {
     request: Request;
     parseBody: (raw: unknown) =>
-        | { ok: true; state: WizardState; items: { productId: string; size: string; quantity: number }[] }
+        | { ok: true; state: WizardState; items: { productId: string; size: string; quantity: number }[]; source?: QuoteSource }
         | { ok: false; error: string };
 }) {
     const auth = verifyIntegrationAuth(opts.request);
@@ -43,6 +44,7 @@ export async function handleIntegrationCreate(opts: {
         state: parsed.state,
         cocktails,
         comunas,
+        source: parsed.source ?? 'whatsapp',
     });
 
     if (!result.success || !result.token) {

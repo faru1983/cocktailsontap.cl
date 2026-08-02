@@ -1,6 +1,7 @@
 import { IntegrationEventQuoteSchema } from '@/lib/integrationSchemas';
 import { mapEventQuoteToWizardState } from '@/lib/integrationMapper';
 import { handleIntegrationCreate, jsonError } from '@/lib/integrationApi';
+import { normalizeQuoteSource } from '@/lib/quoteSource';
 
 export async function POST(request: Request) {
     try {
@@ -19,6 +20,7 @@ export async function POST(request: Request) {
                     ok: true,
                     state: mapEventQuoteToWizardState(dto),
                     items: dto.items,
+                    source: dto.source ? normalizeQuoteSource(dto.source) : 'whatsapp',
                 };
             },
         });

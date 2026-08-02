@@ -6,6 +6,7 @@ import { SITE_URL } from '@/lib/config';
 import SortSelect from '@/components/admin/SortSelect';
 import { bulkUpdateQuoteStatus } from '@/app/actions/admin/adminActions';
 import { Plus, Star, ChevronDown, Calendar, Package } from 'lucide-react';
+import { sourceBadge, normalizeQuoteSource } from '@/lib/quoteSource';
 
 const statusBadge: Record<string, { label: string; color: string; bg: string }> = {
     draft:        { label: 'Borrador',       color: '#94a3b8', bg: 'rgba(148,163,184,0.12)' },
@@ -20,6 +21,7 @@ interface QuotesListClientProps {
     initialQuotes: any[];
     status: string;
     type: string;
+    source: string;
     q?: string;
     sort: string;
     order: string;
@@ -32,6 +34,7 @@ export default function QuotesListClient({
     initialQuotes, 
     status,
     type = 'all',
+    source = 'all',
     q, 
     sort, 
     order,
@@ -82,6 +85,7 @@ export default function QuotesListClient({
         const next = {
             status: status || 'all',
             type: type || 'all',
+            source: source || 'all',
             q: q || '',
             sort,
             order,
@@ -91,6 +95,7 @@ export default function QuotesListClient({
         const params = new URLSearchParams();
         if (next.status) params.set('status', next.status);
         if (next.type && next.type !== 'all') params.set('type', next.type);
+        if (next.source && next.source !== 'all') params.set('source', next.source);
         if (next.q) params.set('q', next.q);
         if (next.sort) params.set('sort', next.sort);
         if (next.order) params.set('order', next.order);
@@ -110,6 +115,9 @@ export default function QuotesListClient({
     const toggleType = (v: 'event' | 'direct') =>
         buildQuotesUrl({ type: (type || 'all') === v ? 'all' : v, page: '1' });
 
+    const toggleSource = (v: 'web' | 'admin' | 'whatsapp') =>
+        buildQuotesUrl({ source: (source || 'all') === v ? 'all' : v, page: '1' });
+
     const filters = [
         { value: 'all', label: 'Todas' },
         { value: 'draft', label: 'Borradores' },
@@ -121,6 +129,12 @@ export default function QuotesListClient({
     const typeToggles: { value: 'event' | 'direct'; label: string }[] = [
         { value: 'event', label: 'Eventos' },
         { value: 'direct', label: 'Desechables' },
+    ];
+
+    const sourceToggles: { value: 'web' | 'admin' | 'whatsapp'; label: string }[] = [
+        { value: 'web', label: 'Web' },
+        { value: 'admin', label: 'Admin' },
+        { value: 'whatsapp', label: 'WhatsApp' },
     ];
 
     const sortFields = [
@@ -237,6 +251,7 @@ export default function QuotesListClient({
                 <form method="GET" action="/admin/quotes" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', width: '100%', maxWidth: 'max-content' }}>
                     {status && <input type="hidden" name="status" value={status} />}
                     {type && type !== 'all' && <input type="hidden" name="type" value={type} />}
+                    {source && source !== 'all' && <input type="hidden" name="source" value={source} />}
                     <input name="q" defaultValue={q || ''} placeholder="Buscar por nombre o email…" className="qp-search" />
                     <SortSelect name="sort_order" className="qp-sort-select" defaultValue={`${sort}-${order}`}>
                         <option value="event_date-asc">Evento (más antiguos)</option>
@@ -276,6 +291,20 @@ export default function QuotesListClient({
                             }}>{f.label}</Link>
                         );
                     })}
+                    <span style={{ width: '1px', alignSelf: 'stretch', background: 'rgba(255,255,255,0.1)', margin: '0 4px' }} aria-hidden />
+                    {sourceToggles.map(f => {
+                        const active = (source || 'all') === f.value;
+                        const sb = sourceBadge[f.value];
+                        return (
+                            <Link key={f.value} href={toggleSource(f.value)} title={active ? 'Quitar filtro' : `Origen ${f.label}`} style={{
+                                padding: '6px 13px', borderRadius: '20px', fontSize: '12px', fontWeight: 600,
+                                textDecoration: 'none',
+                                color: active ? '#1a1a2e' : sb.color,
+                                background: active ? sb.color : sb.bg,
+                                border: '1px solid ' + (active ? sb.color : `${sb.color}40`),
+                            }}>{f.label}</Link>
+                        );
+                    })}
                 </div>
 
                 {selectedIds.length > 0 && (
@@ -296,6 +325,7 @@ export default function QuotesListClient({
                     <div style={{ textAlign: 'center', padding: '40px', color: '#475569' }}>No se encontraron cotizaciones.</div>
                 ) : initialQuotes.map((q: any) => {
                     const badge = statusBadge[q.status] || statusBadge.draft;
+                    const srcBadge = sourceBadge[normalizeQuoteSource(q.source)];
                     const isSelected = selectedIds.includes(q.id);
                     return (
                         <div key={q.id} className="qp-card" style={{ borderLeft: isSelected ? '4px solid #E2A049' : '1px solid rgba(255,255,255,0.06)' }}>
@@ -314,6 +344,7 @@ export default function QuotesListClient({
                                                 <Star size={14} fill="#a78bfa" />
                                             </span>
                                         )}
+                                        <span style={{ padding: '3px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 700, color: srcBadge.color, background: srcBadge.bg }}>{srcBadge.label}</span>
                                         <span style={{ padding: '3px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 700, color: badge.color, background: badge.bg }}>{badge.label}</span>
                                     </div>
                                 </div>
@@ -360,6 +391,7 @@ export default function QuotesListClient({
                             <tr><td colSpan={10} style={{ padding: '48px 20px', textAlign: 'center', color: '#475569' }}>No se encontraron cotizaciones.</td></tr>
                         ) : initialQuotes.map((q: any) => {
                             const badge = statusBadge[q.status] || statusBadge.draft;
+                            const srcBadge = sourceBadge[normalizeQuoteSource(q.source)];
                             const isSelected = selectedIds.includes(q.id);
                             return (
                                 <tr key={q.id} className={`qp-row ${isSelected ? 'selected' : ''}`}>
@@ -371,6 +403,7 @@ export default function QuotesListClient({
                                             {q.service_type === 'direct' && <span style={{ marginRight: '6px' }} title="Venta Directa">📦</span>}
                                             {q.client_name} {q.client_lastname || ''}
                                         </Link>
+                                        <span style={{ display: 'inline-block', marginLeft: '8px', padding: '2px 8px', borderRadius: '20px', fontSize: '10px', fontWeight: 700, color: srcBadge.color, background: srcBadge.bg }}>{srcBadge.label}</span>
                                     </td>
                                     <td style={{ padding: '14px 20px', color: '#64748b', fontSize: '13px' }}>{q.client_email || '—'}</td>
                                     <td style={{ padding: '14px 20px', color: '#94a3b8', fontSize: '13px' }}>
