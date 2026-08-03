@@ -86,6 +86,27 @@ export async function createQuoteCore(input: CreateQuoteInput): Promise<CreateQu
         }
 
         const isDirect = state.serviceType === 'direct';
+
+        // CRM lifecycle: draft → quoted; direct sale → customer
+        if (clientId) {
+            try {
+                const { advanceClientStage } = await import('@/lib/services/clientLifecycleService');
+                await advanceClientStage(
+                    clientId,
+                    isDirect ? 'customer' : 'quoted',
+                    {
+                        reason: isDirect
+                            ? `Direct sale created (${source})`
+                            : `Event quote draft created (${source})`,
+                        source,
+                        quoteId: createResult.quote.id,
+                        intent: isDirect ? 'direct' : 'event',
+                    }
+                );
+            } catch (stageErr) {
+                console.error('CRM stage advance on quote create failed:', stageErr);
+            }
+        }
         const resendKey = process.env.RESEND_API_KEY;
         const fullQuote = {
             ...createResult.quote,

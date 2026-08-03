@@ -115,6 +115,18 @@ export async function confirmQuote(formData: unknown): Promise<ConfirmQuoteResul
             } catch (syncErr) {
                 console.error('[ConfirmQuote] client sync error:', syncErr);
             }
+
+            try {
+                const { advanceClientStage } = await import('@/lib/services/clientLifecycleService');
+                await advanceClientStage(quote.client_id, 'customer', {
+                    reason: isDirectSale ? 'Direct sale confirmed' : 'Event quote confirmed',
+                    source: 'web',
+                    quoteId: quote.id,
+                    intent: isDirectSale ? 'direct' : 'event',
+                });
+            } catch (stageErr) {
+                console.error('[ConfirmQuote] CRM stage advance error:', stageErr);
+            }
         }
 
         quoteToSync = {

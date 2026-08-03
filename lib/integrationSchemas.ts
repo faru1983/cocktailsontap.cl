@@ -86,10 +86,23 @@ export const IntegrationContactSchema = z.object({
         z.string().email('Email inválido').optional()
     ),
     source: z.enum(['whatsapp', 'web', 'admin', 'meta']).optional().default('whatsapp'),
-    touchpointType: z.string().min(1).max(64).optional().default('bot_started'),
+    /** bot_started → curious; human_reply|intent_selected|menu_choice|engaged → engaged */
+    touchpointType: z
+        .enum([
+            'bot_started',
+            'human_reply',
+            'intent_selected',
+            'menu_choice',
+            'engaged',
+            'admin_note',
+        ])
+        .or(z.string().min(1).max(64))
+        .optional()
+        .default('bot_started'),
     ctwaClid: z.string().max(512).optional(),
     fbc: z.string().max(512).optional(),
     fbp: z.string().max(512).optional(),
+    /** When true, fire CAPI Lead/Contact once per stage transition (stable event_id). */
     sendCapiLead: z.boolean().optional().default(true),
     payload: z.record(z.string(), z.unknown()).optional().default({}),
 });

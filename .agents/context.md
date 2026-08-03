@@ -44,27 +44,37 @@
 
   - `GET /catalog` — productos/precios/comunas (lectura para WhatsApp).
 
-  - `POST /contacts` — primer contacto phone-first (sin cotización); touchpoint + CAPI opcional.
+  - `POST /contacts` — primer contacto / engagement phone-first; avanza `lifecycle_stage` + CAPI opcional.
 
-  - `POST /quotes` | `POST /direct-sales` — crear venta.
+  - `POST /quotes` | `POST /direct-sales` — crear venta (también avanza stage).
 
   - Campo opcional `source` (`web` | `admin` | `whatsapp`) → columna `quotes.source`.
 
 
 
-## Identidad CRM
+## Identidad + ciclo de vida CRM
 
-- Tabla `clients` (UUID = persona / CAPI `external_id`). Matching vía `client_identifiers` (N emails/phones).
+- Tabla `clients` (UUID = persona / CAPI `external_id`). Matching vía `client_identifiers`.
 
-- `clients.email`/`phone` = espejo del primary; email nullable (WhatsApp sin email OK).
+- `lifecycle_stage`: `curious` → `engaged` → `quoted` → `customer` (monotónico). `lost` solo manual en admin.
 
-- Auto-merge + `client_merge_logs` si phone/email cruzan personas de forma segura; si no → `possible_duplicate`.
+- `intent`: `event` | `direct` | `unknown`. Historial en `client_stage_events`.
 
-- Env CAPI: `META_CAPI_ACCESS_TOKEN` (+ opcional `META_CAPI_TEST_EVENT_CODE`).
+- Bot (`whatsapp-cot`): welcome → `bot_started` (curious); menú Eventos/Barriles/Humano → `intent_selected` (engaged).
 
 
 
 ## Ultimos Cambios
+
+
+
+### 03-08-2026 (Sesión 36) — CRM lifecycle stages
+
+- Schema: `clients.lifecycle_stage/intent/notes/tags/timestamps` + `client_stage_events`; backfill desde quotes.
+- `advanceClientStage` + wiring contacts / createQuoteCore / confirmQuote.
+- Admin: filtros por etapa, badge, notes/tags, cambio manual (+ lost), timeline.
+- Bot WA: `createContactViaApi` + sync curious/engaged en `ESPERANDO_INTENCION`.
+- CAPI: Lead/Contact estables por cliente (`lead_client_{id}` / `contact_client_{id}`).
 
 
 
@@ -73,6 +83,7 @@
 - CAPI también en cotizaciones/ventas **web** (además de WhatsApp): mismo `event_id` que Pixel (`lead_{token}` / `purchase_{token}`) para dedupe Meta.
 - Confirmación de evento → CAPI Purchase; cookies `_fbc`/`_fbp` en Server Actions. Admin no dispara CAPI.
 - **Pendiente ops**: token en Vercel; probar en Events Manager (TEST code); luego quitar test code en prod.
+
 
 
 ### 03-08-2026 (Sesión 34) — CRM Identity Lifecycle
@@ -99,14 +110,6 @@
 
 
 
-### 03-08-2026 (Sesión 31)
-
-- Meta Ads review; CTA LEARN_MORE vía API con posts existentes no viable (app Dev).
-
-
-
 ---
 
-*Ultima actualizacion: 03-08-2026 (Sesión 35)*
-
-
+*Ultima actualizacion: 03-08-2026 (Sesión 36)*

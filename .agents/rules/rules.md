@@ -99,7 +99,8 @@ Define la arquitectura, reglas irrompibles, convenciones de código, esquema de 
 │   └── services/
 │       ├── createQuoteCore.ts    # Dominio crear cotización (web + API)
 │       ├── clientService.ts      # Resolve/create/merge persona + identifiers + touchpoints
-│       ├── metaCapiService.ts    # Meta Conversions API (Lead/Contact) server-side
+│       ├── clientLifecycleService.ts # advanceClientStage + stage events + CAPI Lead/Contact once
+│       ├── metaCapiService.ts    # Meta Conversions API (Lead/Contact/Purchase) server-side
 │       ├── quoteService.ts       # Transacciones de BD para cotizaciones
 │       ├── googleSyncService.ts  # Orquestación de Google Contacts/Calendar
 │       ├── settingsService.ts    # Configuración dinámica desde site_settings
@@ -117,9 +118,10 @@ Define la arquitectura, reglas irrompibles, convenciones de código, esquema de 
 
 | Tabla | Propósito | Claves |
 |-------|-----------|--------|
-| `clients` | Persona CRM (UUID = identidad / CAPI `external_id`) | `email`/`phone` = espejo del primary (email nullable); matching vía `client_identifiers` |
+| `clients` | Persona CRM (UUID = identidad / CAPI `external_id`) | `email`/`phone` = espejo del primary (email nullable); matching vía `client_identifiers`; **`lifecycle_stage`**: `curious`\|`engaged`\|`quoted`\|`customer`\|`lost` (manual); `intent` event\|direct\|unknown; notes/tags |
 | `client_identifiers` | N emails / N phones por persona | `UNIQUE (type, value)`; un primary email y un primary phone por cliente |
 | `client_touchpoints` | Primer contacto / attribution (WA, Meta) | `client_id`, `channel`, `type`, `meta_ctwa_clid`, `meta_fbc`, `meta_fbp` |
+| `client_stage_events` | Historial de avances de etapa CRM | `from_stage`, `to_stage`, `reason`, `source`, `meta_event_sent` |
 | `client_merge_logs` | Auditoría de merges (auto o manual) | `from_client_id`, `into_client_id`, `reason`, `details` |
 | `quotes` | Cotizaciones (draft/confirmed/completed/cancelled) | `token` (unique, auto-gen), `client_id` FK |
 | `quote_items` | Items de cada cotización con precios congelados | `quote_id` FK, `product_id` FK nullable |
@@ -193,11 +195,17 @@ Define la arquitectura, reglas irrompibles, convenciones de código, esquema de 
 - Integraciones: `GET /api/v1/catalog` | `POST /api/v1/contacts` | `POST /api/v1/quotes` | `POST /api/v1/direct-sales`
 - Confirmación de evento: solo cliente en `/cotizar/[token]` (sin endpoint v1); CAPI Purchase `purchase_{token}` en `confirmQuote`
 
-### Identidad CRM (`clientService`)
+### Identidad CRM (`clientService` + `clientLifecycleService`)
 - Matching: `client_identifiers` UNIQUE(type, value). Phone-first en WhatsApp; email secundario cuando exista.
 - `clients.email` / `clients.phone` = **espejo del primary** (email nullable). Sin emails sintéticos.
 - Auto-merge si phone y email apuntan a personas distintas y el caso es seguro (nombres compatibles o ficha pobre) → `client_merge_logs`; si conflicto fuerte → `possible_duplicate`.
-- `POST /api/v1/contacts`: phone requerido; crea/resuelve persona + touchpoint; opcional CAPI Lead/Contact.
+- **Ciclo de vida** (`clients.lifecycle_stage`): monotónico `curious < engaged < quoted < customer`. `lost` solo manual (admin). Desde `lost` se puede reabrir con quote/compra.
+- Avance: `advanceClientStage` en `lib/services/clientLifecycleService.ts` → historial en `client_stage_events`.
+  - `POST /api/v1/contacts` `bot_started` → curious + CAPI Lead `lead_client_{id}` (una vez)
+  - `intent_selected` / `human_reply` → engaged + CAPI Contact `contact_client_{id}` (una vez)
+  - createQuote evento → quoted; direct sale / confirmQuote → customer (+ `intent`)
+- Bot WhatsApp (`whatsapp-cot`): `createContactViaApi` en welcome (curious) y al elegir menú (engaged).
+- `POST /api/v1/contacts`: phone requerido; crea/resuelve persona + touchpoint; CAPI vía stage engine.
 
 ### `confirmQuote` — Confirmar Reserva
 ```
@@ -220,8 +228,8 @@ Define la arquitectura, reglas irrompibles, convenciones de código, esquema de 
 - Env: `META_CAPI_ACCESS_TOKEN` (requerido), opcional `META_CAPI_TEST_EVENT_CODE`, `META_CAPI_API_VERSION`.
 - `user_data.external_id` = hash SHA256 de `clients.id`; `em`/`ph` hasheados de **todos** los identifiers; `ctwa_clid`/`fbc`/`fbp` desde touchpoint o cookies `_fbc`/`_fbp` (web).
 - Disparo:
-  - `POST /api/v1/contacts` → Lead (nuevo) / Contact (existente)
-  - Crear quote web/whatsapp → Lead o Purchase (mismo `event_id` que Pixel)
+  - Ciclo CRM: Lead `lead_client_{id}` / Contact `contact_client_{id}` (una vez por persona, vía `advanceClientStage`)
+  - Crear quote web/whatsapp → Lead o Purchase (mismo `event_id` que Pixel: `lead_{token}` / `purchase_{token}`)
   - Confirmar evento web → Purchase `purchase_{token}`
 - Activar campañas PAUSED solo tras validar en Events Manager.
 
@@ -287,4 +295,4 @@ Para mantener la eficiencia en sesiones con agentes de IA:
    - Issues conocidos pendientes
 3. Mantener la sección "Últimos Cambios" limitada a las **últimas 5 sesiones**.
 
-*Última actualización: 03-08-2026*
+*Última actualización: 03-08-2026 (Sesión 36)*

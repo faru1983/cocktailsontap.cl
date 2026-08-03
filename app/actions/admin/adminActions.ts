@@ -472,6 +472,61 @@ export async function setClientPrimaryIdentifierAdmin(
     return { success: true };
 }
 
+export async function updateClientCrmAdmin(
+    clientId: string,
+    data: {
+        lifecycle_stage?: string;
+        notes?: string | null;
+        tags?: string[];
+        intent?: string | null;
+    }
+): Promise<{ success: boolean; error?: string }> {
+    await checkAuth();
+    const db = createServerClient();
+    const lifecycle = await import('@/lib/services/clientLifecycleService');
+
+    try {
+        if (data.lifecycle_stage) {
+            if (!(lifecycle.LIFECYCLE_STAGES as string[]).includes(data.lifecycle_stage)) {
+                return { success: false, error: 'Etapa inválida.' };
+            }
+            await lifecycle.advanceClientStage(
+                clientId,
+                data.lifecycle_stage as import('@/lib/services/clientLifecycleService').ClientLifecycleStage,
+                {
+                    reason: 'Manual admin stage change',
+                    source: 'admin',
+                    force: true,
+                    intent: (data.intent ?? undefined) as
+                        | import('@/lib/services/clientLifecycleService').ClientIntent
+                        | undefined,
+                }
+            );
+        }
+
+        const patch: Record<string, unknown> = {
+            updated_at: new Date().toISOString(),
+            last_activity_at: new Date().toISOString(),
+        };
+        if (data.notes !== undefined) patch.notes = data.notes;
+        if (data.tags !== undefined) patch.tags = data.tags;
+        if (data.intent !== undefined && !data.lifecycle_stage) {
+            patch.intent = data.intent;
+        }
+
+        if (data.notes !== undefined || data.tags !== undefined || (data.intent !== undefined && !data.lifecycle_stage)) {
+            const { error } = await db.from('clients').update(patch).eq('id', clientId);
+            if (error) return { success: false, error: error.message };
+        }
+
+        revalidatePath(`/admin/clients/${clientId}`);
+        revalidatePath('/admin/clients');
+        return { success: true };
+    } catch (e: any) {
+        return { success: false, error: e?.message || 'No se pudo actualizar el CRM.' };
+    }
+}
+
 // ── Sync Client With Google ─────────────────────────────────────────────
 export async function syncClientWithGoogle(clientId: string): Promise<{ success: boolean; error?: string }> {
     await checkAuth();

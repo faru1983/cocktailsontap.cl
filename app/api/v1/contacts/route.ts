@@ -6,11 +6,23 @@ import {
     recordTouchpoint,
     type ClientTouchSource,
 } from '@/lib/services/clientService';
-import { sendMetaCapiEvent } from '@/lib/services/metaCapiService';
+import {
+    advanceClientStage,
+    type ClientLifecycleStage,
+} from '@/lib/services/clientLifecycleService';
+
+const ENGAGE_TOUCHPOINT_TYPES = new Set([
+    'human_reply',
+    'engaged',
+    'intent_selected',
+    'menu_choice',
+]);
 
 /**
  * POST /api/v1/contacts
- * Primer contacto WhatsApp (phone-only OK). Crea/resuelve persona + touchpoint.
+ * Primer contacto / engagement WhatsApp (phone-only OK).
+ * - bot_started → curious + Lead (si nuevo o aún curious)
+ * - human_reply / intent_selected → engaged + Contact
  */
 export async function POST(request: Request) {
     const auth = verifyIntegrationAuth(request);
@@ -57,24 +69,21 @@ export async function POST(request: Request) {
             },
         });
 
-        let capi: { success: boolean; skipped?: boolean; error?: string } | undefined;
-        if (dto.sendCapiLead) {
-            const eventId = `contact_lead_${resolved.clientId}_${touchpointId || Date.now()}`;
-            capi = await sendMetaCapiEvent({
-                eventName: resolved.created ? 'Lead' : 'Contact',
-                eventId,
-                clientId: resolved.clientId,
-                actionSource: 'chat',
-                touchpointId: touchpointId || undefined,
-                ctwaClid: dto.ctwaClid,
-                fbc: dto.fbc,
-                fbp: dto.fbp,
-                customData: {
-                    content_name: 'WhatsApp First Contact',
-                    content_category: 'Messaging',
-                },
-            });
-        }
+        const isEngage = ENGAGE_TOUCHPOINT_TYPES.has(dto.touchpointType);
+        const targetStage: ClientLifecycleStage = isEngage ? 'engaged' : 'curious';
+        const fireCapi = dto.sendCapiLead !== false;
+
+        const stage = await advanceClientStage(resolved.clientId, targetStage, {
+            reason: isEngage
+                ? `WhatsApp engagement (${dto.touchpointType})`
+                : `WhatsApp first contact (${dto.touchpointType})`,
+            source: dto.source,
+            touchpointId,
+            fireCapi,
+            ctwaClid: dto.ctwaClid,
+            fbc: dto.fbc,
+            fbp: dto.fbp,
+        });
 
         return Response.json({
             success: true,
@@ -83,7 +92,9 @@ export async function POST(request: Request) {
             merged: resolved.merged,
             possibleDuplicate: resolved.possibleDuplicate,
             touchpointId,
-            capi,
+            lifecycleStage: stage.toStage,
+            stageChanged: stage.changed,
+            metaEventSent: stage.metaEventSent,
         });
     } catch (err: any) {
         console.error('POST /api/v1/contacts:', err);

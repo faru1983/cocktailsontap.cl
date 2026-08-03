@@ -4,9 +4,27 @@ import { useState, useTransition } from 'react';
 import Link from 'next/link';
 import { formatPhoneDisplay, normalizePhoneE164, toWhatsAppDigits } from '@/lib/phone';
 import PhoneInput from '@/components/ui/PhoneInput';
-import { updateClientAdmin, syncClientWithGoogle, setClientPrimaryIdentifierAdmin } from '@/app/actions/admin/adminActions';
+import {
+    updateClientAdmin,
+    syncClientWithGoogle,
+    setClientPrimaryIdentifierAdmin,
+    updateClientCrmAdmin,
+} from '@/app/actions/admin/adminActions';
 import { useRouter } from 'next/navigation';
-import { Edit2, Save, X, Phone, Mail, MessageCircle, RefreshCcw, ArrowLeft, AlertTriangle, GitMerge, Star } from 'lucide-react';
+import {
+    Edit2,
+    Save,
+    X,
+    Phone,
+    Mail,
+    MessageCircle,
+    RefreshCcw,
+    ArrowLeft,
+    AlertTriangle,
+    GitMerge,
+    Star,
+    Activity,
+} from 'lucide-react';
 
 interface Client {
     id: string;
@@ -19,6 +37,12 @@ interface Client {
     possible_duplicate?: boolean | null;
     merged_into_id?: string | null;
     first_touch_source?: string | null;
+    lifecycle_stage?: string | null;
+    intent?: string | null;
+    notes?: string | null;
+    tags?: string[] | null;
+    stage_changed_at?: string | null;
+    last_activity_at?: string | null;
 }
 
 interface Quote {
@@ -46,11 +70,29 @@ interface MergeLog {
     created_at: string;
 }
 
+interface StageEvent {
+    id: string;
+    from_stage: string | null;
+    to_stage: string;
+    reason: string;
+    source: string | null;
+    meta_event_sent: string | null;
+    created_at: string;
+}
+
 const statusBadge: Record<string, { label: string; color: string; bg: string }> = {
     draft: { label: 'Borrador', color: '#94a3b8', bg: 'rgba(148,163,184,0.1)' },
     confirmed: { label: 'Confirmada', color: '#34d399', bg: 'rgba(52,211,153,0.1)' },
     completed: { label: 'Completada', color: '#a78bfa', bg: 'rgba(167,139,250,0.1)' },
     cancelled: { label: 'Cancelada', color: '#f87171', bg: 'rgba(248,113,113,0.1)' },
+};
+
+const stageMeta: Record<string, { label: string; color: string; bg: string }> = {
+    curious: { label: 'Curioso', color: '#94a3b8', bg: 'rgba(148,163,184,0.12)' },
+    engaged: { label: 'Engaged', color: '#38bdf8', bg: 'rgba(56,189,248,0.12)' },
+    quoted: { label: 'Cotizó', color: '#E2A049', bg: 'rgba(226,160,73,0.15)' },
+    customer: { label: 'Cliente', color: '#34d399', bg: 'rgba(52,211,153,0.12)' },
+    lost: { label: 'Perdido', color: '#f87171', bg: 'rgba(248,113,113,0.12)' },
 };
 
 const formatCLP = (n: number) =>
@@ -61,11 +103,13 @@ export default function ClientDetailClient({
     quotes: initialQuotes,
     identifiers: initialIdentifiers = [],
     merges = [],
+    stageEvents = [],
 }: {
     client: Client;
     quotes: Quote[];
     identifiers?: Identifier[];
     merges?: MergeLog[];
+    stageEvents?: StageEvent[];
 }) {
     const [client, setClient] = useState(initialClient);
     const [identifiers, setIdentifiers] = useState(initialIdentifiers);
@@ -76,6 +120,12 @@ export default function ClientDetailClient({
         email: initialClient.email || '',
         phone: normalizePhoneE164(initialClient.phone || '') || '',
     });
+    const [crmForm, setCrmForm] = useState({
+        lifecycle_stage: initialClient.lifecycle_stage || 'curious',
+        intent: initialClient.intent || '',
+        notes: initialClient.notes || '',
+        tags: (initialClient.tags || []).join(', '),
+    });
     const [isPending, startTransition] = useTransition();
     const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
     const router = useRouter();
@@ -83,6 +133,8 @@ export default function ClientDetailClient({
     const totalSpent = initialQuotes
         .filter((q: Quote) => ['confirmed', 'completed'].includes(q.status))
         .reduce((s: number, q: Quote) => s + Number(q.total_price), 0);
+
+    const stage = stageMeta[client.lifecycle_stage || 'curious'] || stageMeta.curious;
 
     const showToast = (msg: string, ok = true) => {
         setToast({ msg, ok });
@@ -112,6 +164,34 @@ export default function ClientDetailClient({
                 router.refresh();
             } else {
                 showToast(res.error || 'Error al actualizar cliente', false);
+            }
+        });
+    };
+
+    const handleSaveCrm = () => {
+        startTransition(async () => {
+            const tags = crmForm.tags
+                .split(',')
+                .map((t) => t.trim())
+                .filter(Boolean);
+            const res = await updateClientCrmAdmin(client.id, {
+                lifecycle_stage: crmForm.lifecycle_stage,
+                intent: crmForm.intent || null,
+                notes: crmForm.notes || null,
+                tags,
+            });
+            if (res.success) {
+                setClient((prev) => ({
+                    ...prev,
+                    lifecycle_stage: crmForm.lifecycle_stage,
+                    intent: crmForm.intent || null,
+                    notes: crmForm.notes || null,
+                    tags,
+                }));
+                showToast('CRM actualizado');
+                router.refresh();
+            } else {
+                showToast(res.error || 'Error al actualizar CRM', false);
             }
         });
     };
@@ -220,6 +300,21 @@ export default function ClientDetailClient({
                                         {client.first_name} {client.last_name || ''}
                                     </h2>
                                     <p>{client.email || 'Sin email primario'}</p>
+                                    <span
+                                        style={{
+                                            display: 'inline-block',
+                                            marginTop: 8,
+                                            padding: '4px 10px',
+                                            borderRadius: 20,
+                                            fontSize: 11,
+                                            fontWeight: 700,
+                                            color: stage.color,
+                                            background: stage.bg,
+                                        }}
+                                    >
+                                        {stage.label}
+                                        {client.intent ? ` · ${client.intent}` : ''}
+                                    </span>
                                 </div>
                             </div>
                             <div className="cd-meta">
@@ -230,6 +325,12 @@ export default function ClientDetailClient({
                                 )}
                                 {client.first_touch_source && (
                                     <div style={{ color: '#64748b', fontSize: '12px' }}>Primer contacto: {client.first_touch_source}</div>
+                                )}
+                                {client.last_activity_at && (
+                                    <div style={{ color: '#64748b', fontSize: '12px' }}>
+                                        Última actividad:{' '}
+                                        {new Date(client.last_activity_at).toLocaleString('es-CL')}
+                                    </div>
                                 )}
                                 <div style={{ color: '#475569', fontSize: '12px' }}>
                                     Google: {client.google_contact_id ? 'Sincronizado' : 'Sin sync'}
@@ -303,6 +404,119 @@ export default function ClientDetailClient({
                 </div>
 
                 <div className="flex flex-col gap-4">
+                    <div className="cd-quotes">
+                        <div style={{ padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                            <h3 style={{ color: '#f1f5f9', fontSize: '15px', fontWeight: 700, margin: 0 }}>
+                                Ciclo de vida CRM
+                            </h3>
+                        </div>
+                        <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+                            <div>
+                                <label className="q-label">Etapa</label>
+                                <select
+                                    className="q-input"
+                                    value={crmForm.lifecycle_stage}
+                                    onChange={(e) =>
+                                        setCrmForm((f) => ({ ...f, lifecycle_stage: e.target.value }))
+                                    }
+                                >
+                                    <option value="curious">Curioso</option>
+                                    <option value="engaged">Engaged</option>
+                                    <option value="quoted">Cotizó</option>
+                                    <option value="customer">Cliente</option>
+                                    <option value="lost">Perdido</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="q-label">Intención</label>
+                                <select
+                                    className="q-input"
+                                    value={crmForm.intent}
+                                    onChange={(e) => setCrmForm((f) => ({ ...f, intent: e.target.value }))}
+                                >
+                                    <option value="">Sin definir</option>
+                                    <option value="event">Evento</option>
+                                    <option value="direct">Barril desechable</option>
+                                    <option value="unknown">Desconocida</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="q-label">Tags (separados por coma)</label>
+                                <input
+                                    className="q-input"
+                                    value={crmForm.tags}
+                                    onChange={(e) => setCrmForm((f) => ({ ...f, tags: e.target.value }))}
+                                    placeholder="vip, corporate…"
+                                />
+                            </div>
+                            <div>
+                                <label className="q-label">Notas</label>
+                                <textarea
+                                    className="q-input"
+                                    rows={3}
+                                    value={crmForm.notes}
+                                    onChange={(e) => setCrmForm((f) => ({ ...f, notes: e.target.value }))}
+                                    placeholder="Bitácora corta del cliente…"
+                                    style={{ resize: 'vertical', minHeight: 72 }}
+                                />
+                            </div>
+                            <button
+                                type="button"
+                                onClick={handleSaveCrm}
+                                disabled={isPending}
+                                className="flex justify-center items-center gap-2 bg-[#E2A049] text-black font-bold text-sm py-3 rounded-xl hover:bg-[#f0ad5c] transition-colors disabled:opacity-50 cursor-pointer"
+                            >
+                                <Save size={16} /> {isPending ? 'Guardando…' : 'Guardar CRM'}
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="cd-quotes">
+                        <div style={{ padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                            <h3
+                                style={{
+                                    color: '#f1f5f9',
+                                    fontSize: '15px',
+                                    fontWeight: 700,
+                                    margin: 0,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 8,
+                                }}
+                            >
+                                <Activity size={16} /> Historial de etapas ({stageEvents.length})
+                            </h3>
+                        </div>
+                        <div style={{ padding: '12px 20px' }}>
+                            {stageEvents.length === 0 ? (
+                                <div style={{ color: '#475569', fontSize: '13px', padding: '12px 0' }}>
+                                    Sin cambios de etapa registrados.
+                                </div>
+                            ) : (
+                                stageEvents.map((ev) => {
+                                    const to = stageMeta[ev.to_stage] || stageMeta.curious;
+                                    return (
+                                        <div key={ev.id} className="id-row" style={{ alignItems: 'flex-start' }}>
+                                            <div>
+                                                <div style={{ color: '#f1f5f9', fontSize: 13, fontWeight: 700 }}>
+                                                    {ev.from_stage || '—'} → {to.label}
+                                                </div>
+                                                <div style={{ color: '#94a3b8', fontSize: 12, marginTop: 2 }}>
+                                                    {ev.reason}
+                                                </div>
+                                                <div style={{ color: '#475569', fontSize: 11, marginTop: 2 }}>
+                                                    {new Date(ev.created_at).toLocaleString('es-CL')}
+                                                    {ev.source ? ` · ${ev.source}` : ''}
+                                                    {ev.meta_event_sent ? ` · CAPI ${ev.meta_event_sent}` : ''}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })
+                            )}
+                        </div>
+                    </div>
+
                     <div className="cd-quotes">
                         <div style={{ padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
                             <h3 style={{ color: '#f1f5f9', fontSize: '15px', fontWeight: 700, margin: 0 }}>Identificadores ({identifiers.length})</h3>
