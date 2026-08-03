@@ -68,5 +68,32 @@ export const IntegrationDirectSaleSchema = z.object({
     comments: z.string().optional().default(''),
 });
 
+/** POST /api/v1/contacts — primer contacto / upsert persona (phone-first). */
+export const IntegrationContactSchema = z.object({
+    phone: z.preprocess(
+        (v) => normalizePhoneE164(String(v ?? '')) ?? '',
+        z.string().refine(isValidPhoneE164, {
+            message: 'Celular inválido. Usa formato +56 9 1234 5678',
+        })
+    ),
+    firstName: z.string().min(1).max(120).optional(),
+    lastName: z.string().max(120).optional().default(''),
+    email: z.preprocess(
+        (v) => {
+            if (v == null || v === '') return undefined;
+            return String(v).trim().toLowerCase();
+        },
+        z.string().email('Email inválido').optional()
+    ),
+    source: z.enum(['whatsapp', 'web', 'admin', 'meta']).optional().default('whatsapp'),
+    touchpointType: z.string().min(1).max(64).optional().default('bot_started'),
+    ctwaClid: z.string().max(512).optional(),
+    fbc: z.string().max(512).optional(),
+    fbp: z.string().max(512).optional(),
+    sendCapiLead: z.boolean().optional().default(true),
+    payload: z.record(z.string(), z.unknown()).optional().default({}),
+});
+
 export type IntegrationEventQuoteInput = z.infer<typeof IntegrationEventQuoteSchema>;
 export type IntegrationDirectSaleInput = z.infer<typeof IntegrationDirectSaleSchema>;
+export type IntegrationContactInput = z.infer<typeof IntegrationContactSchema>;

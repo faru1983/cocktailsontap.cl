@@ -11,6 +11,7 @@ import { createServerClient } from '@/lib/supabaseServer';
 import { fetchAllProductData } from '@/lib/serverData';
 import { calculateSummaryData, formatEventDate } from '@/lib/wizardLogic';
 import { ADMIN_EMAIL, FROM_EMAIL, PORTATIL_MIN_LITERS, MURO_MIN_LITERS } from '@/lib/config';
+import { normalizePhoneE164 } from '@/lib/phone';
 
 interface ConfirmQuoteResult {
     success: boolean;
@@ -82,8 +83,10 @@ export async function confirmQuote(formData: unknown): Promise<ConfirmQuoteResul
         })));
         if (insertResult.error) throw new Error(insertResult.error.message);
 
+        const normalizedPhone = normalizePhoneE164(data.client_phone) || data.client_phone;
+
         const updateResult = await db.from('quotes').update({
-            status: 'confirmed', client_lastname: data.client_lastname, client_phone: data.client_phone,
+            status: 'confirmed', client_lastname: data.client_lastname, client_phone: normalizedPhone,
             client_address: data.client_address, comuna_name: data.comuna_name, event_date: data.event_date,
             start_time: data.start_time, pickup_date: data.pickup_date, pickup_time: data.pickup_time,
             dispenser: data.dispenser, total_price: total, total_liters: summary.totalLiters,
@@ -94,6 +97,25 @@ export async function confirmQuote(formData: unknown): Promise<ConfirmQuoteResul
             updated_at: new Date().toISOString()
         }).eq('token', data.token);
         if (updateResult.error) throw new Error(updateResult.error.message);
+
+        // Keep clients + identifiers in sync with confirmation contact data
+        if (quote.client_id) {
+            try {
+                const { syncClientFromContact } = await import('@/lib/services/clientService');
+                await syncClientFromContact(
+                    quote.client_id,
+                    {
+                        firstName: quote.client_name,
+                        lastName: data.client_lastname,
+                        email: quote.client_email,
+                        phone: normalizedPhone,
+                    },
+                    'web'
+                );
+            } catch (syncErr) {
+                console.error('[ConfirmQuote] client sync error:', syncErr);
+            }
+        }
 
         quoteToSync = {
             ...quote,
@@ -156,6 +178,21 @@ export async function confirmQuote(formData: unknown): Promise<ConfirmQuoteResul
                 }
                 await Promise.all(emailsToSend);
             } catch (e) { console.error('[ConfirmQuote] Error Emails:', e); }
+
+            // Meta CAPI Purchase (same event_id as Pixel: purchase_{token})
+            if (quoteToSync.client_id) {
+                try {
+                    const { sendQuotePurchaseCapi } = await import('@/lib/services/metaCapiService');
+                    await sendQuotePurchaseCapi({
+                        clientId: quoteToSync.client_id,
+                        token: quoteToSync.token,
+                        value: quoteToSync.total_price,
+                        contentName: 'Reserva de Evento Confirmada',
+                    });
+                } catch (e) {
+                    console.error('[ConfirmQuote] Error CAPI Purchase:', e);
+                }
+            }
 
             revalidatePath(`/cotizar/${quoteToSync.token}`);
         } catch (e) {

@@ -58,8 +58,28 @@ export async function createQuoteCore(input: CreateQuoteInput): Promise<CreateQu
             }
         }
 
-        const clientId = await QuoteService.upsertClient(state);
+        const clientId = await QuoteService.upsertClient(state, source);
         const createResult = await QuoteService.createDraftQuote(state, cocktails, comunas, clientId, overrides, source);
+
+        // CAPI mirrors Pixel event_id (lead_TOKEN / purchase_TOKEN) for web + WhatsApp
+        if (clientId && createResult.success && createResult.token && (source === 'web' || source === 'whatsapp')) {
+            try {
+                const { sendQuoteCreatedCapi } = await import('@/lib/services/metaCapiService');
+                const isDirect = state.serviceType === 'direct';
+                await sendQuoteCreatedCapi({
+                    clientId,
+                    token: createResult.token,
+                    isDirect,
+                    source,
+                    value: createResult.quote?.total_price,
+                    contentName: isDirect
+                        ? (source === 'whatsapp' ? 'Venta WhatsApp' : 'Pedido de Barril Desechable')
+                        : (source === 'whatsapp' ? 'Cotización WhatsApp' : 'Cotización de Evento (Borrador)'),
+                });
+            } catch (capiErr) {
+                console.error('CAPI quote-created failed:', capiErr);
+            }
+        }
 
         if (!createResult.success || !createResult.token || !createResult.quote) {
             return { success: false, error: createResult.error || 'No se pudo guardar la cotización.' };

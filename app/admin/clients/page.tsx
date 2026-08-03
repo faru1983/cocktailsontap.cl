@@ -10,12 +10,15 @@ async function getClients(search?: string, sort = 'created_at', order = 'desc', 
     const from = (page - 1) * ITEMS_PER_PAGE;
     const to = from + ITEMS_PER_PAGE - 1;
 
-    let query = db.from('clients').select('id, first_name, last_name, email, phone, google_contact_id, created_at', { count: 'exact' });
-    
+    let query = db
+        .from('clients')
+        .select('id, first_name, last_name, email, phone, google_contact_id, possible_duplicate, merged_into_id, created_at', { count: 'exact' })
+        .is('merged_into_id', null);
+
     if (search) {
-        query = query.or(`first_name.ilike.%${search}%,email.ilike.%${search}%,last_name.ilike.%${search}%`);
+        query = query.or(`first_name.ilike.%${search}%,email.ilike.%${search}%,last_name.ilike.%${search}%,phone.ilike.%${search}%`);
     }
-    
+
     query = query.order(sort, { ascending: order === 'asc' });
     query = query.range(from, to);
 
@@ -150,8 +153,14 @@ export default async function ClientsPage({ searchParams }: { searchParams: Sear
                             <div className="cp-card-email">{c.email}</div>
                             <div className="cp-card-footer">
                                 <span className="cp-sync-badge" style={{ color: c.google_contact_id ? '#34d399' : '#475569' }}>
-                                    {c.google_contact_id ? '✅ Sync' : '○ Sin sync'}
+                                    {c.google_contact_id ? 'Sync' : 'Sin sync'}
                                 </span>
+                                {c.possible_duplicate && (
+                                    <span style={{ fontSize: '11px', fontWeight: 700, color: '#fbbf24' }}>Posible dup</span>
+                                )}
+                                {c.merged_into_id && (
+                                    <span style={{ fontSize: '11px', fontWeight: 700, color: '#94a3b8' }}>Fusionado</span>
+                                )}
                                 {c.phone && <span className="cp-card-phone">{formatPhoneDisplay(c.phone)}</span>}
                                 <span style={{ color: '#334155', fontSize: '11px', marginLeft: 'auto' }}>
                                     {new Date(c.created_at).toLocaleDateString('es-CL')}
@@ -193,11 +202,19 @@ export default async function ClientsPage({ searchParams }: { searchParams: Sear
                                         </Link>
                                     </td>
                                     <td style={{ padding: '14px 20px', color: '#f1f5f9', fontSize: '14px', fontWeight: 600, whiteSpace: 'nowrap' }}>{c.last_name || '—'}</td>
-                                    <td style={{ padding: '14px 20px', color: '#64748b', fontSize: '13px' }}>{c.email}</td>
+                                    <td style={{ padding: '14px 20px', color: '#64748b', fontSize: '13px' }}>
+                                        {c.email || '—'}
+                                        {c.possible_duplicate && (
+                                            <span style={{ marginLeft: 8, fontSize: 10, fontWeight: 700, color: '#fbbf24' }}>DUP?</span>
+                                        )}
+                                        {c.merged_into_id && (
+                                            <span style={{ marginLeft: 8, fontSize: 10, fontWeight: 700, color: '#94a3b8' }}>MERGED</span>
+                                        )}
+                                    </td>
                                     <td style={{ padding: '14px 20px', color: '#64748b', fontSize: '13px', whiteSpace: 'nowrap' }}>{c.phone ? formatPhoneDisplay(c.phone) : '—'}</td>
                                     <td style={{ padding: '14px 20px' }}>
                                         <span style={{ fontSize: '12px', color: c.google_contact_id ? '#34d399' : '#94a3b8' }}>
-                                            {c.google_contact_id ? '✅ Sincronizado' : '— Sin sync'}
+                                            {c.google_contact_id ? 'Sincronizado' : '— Sin sync'}
                                         </span>
                                     </td>
                                     <td style={{ padding: '14px 20px', color: '#64748b', fontSize: '12px', whiteSpace: 'nowrap' }}>{new Date(c.created_at).toLocaleDateString('es-CL')}</td>

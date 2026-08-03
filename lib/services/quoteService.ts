@@ -3,6 +3,7 @@ import type { WizardState, CocktailForWizard, Comuna, Quote, QuoteItem } from '@
 import type { QuoteSource } from '@/lib/quoteSource';
 import { calculateSummaryData } from '@/lib/wizardLogic';
 import { normalizePhoneE164 } from '@/lib/phone';
+import { resolveOrCreateClient, type ClientTouchSource } from '@/lib/services/clientService';
 
 interface CreateQuoteResult {
     success: boolean;
@@ -19,39 +20,28 @@ interface CreateQuoteResult {
  */
 export const QuoteService = {
     /**
-     * Upserts a client based on their email.
+     * Resolve/create person via clientService (phone-first + multi-identifiers).
      */
-    async upsertClient(state: WizardState): Promise<string | null> {
-        const db = createServerClient();
-        const emailTrimmed = state.contact.email.trim().toLowerCase();
+    async upsertClient(state: WizardState, source: QuoteSource = 'web'): Promise<string | null> {
+        const emailTrimmed = state.contact.email?.trim().toLowerCase() || '';
+        const phone = normalizePhoneE164(state.contact.phone || '') || '';
 
-        if (!emailTrimmed) return null;
+        if (!emailTrimmed && !phone) return null;
 
-        const { data: existingClient } = await db
-            .from('clients')
-            .select('id, first_name, last_name, phone')
-            .eq('email', emailTrimmed)
-            .single();
-
-        const clientUpdate: any = {
-            email: emailTrimmed,
-            first_name: state.contact.firstName.trim() || existingClient?.first_name,
-            last_name: state.contact.lastName?.trim() || existingClient?.last_name || null,
-            phone: normalizePhoneE164(state.contact.phone) || existingClient?.phone || null,
-        };
-
-        const { data: clientData, error } = await db
-            .from('clients')
-            .upsert(clientUpdate, { onConflict: 'email' })
-            .select('id')
-            .single();
-
-        if (error || !clientData) {
-            console.error('Error in upsertClient:', error);
+        try {
+            const result = await resolveOrCreateClient({
+                firstName: state.contact.firstName,
+                lastName: state.contact.lastName,
+                email: emailTrimmed || null,
+                phone: phone || null,
+                source: source as ClientTouchSource,
+                channel: source === 'whatsapp' ? 'whatsapp' : source === 'admin' ? 'admin' : 'web',
+            });
+            return result.clientId;
+        } catch (err) {
+            console.error('Error in upsertClient:', err);
             return null;
         }
-
-        return clientData.id;
     },
 
     /**

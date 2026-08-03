@@ -264,23 +264,29 @@ export async function updateQuoteAdmin(quoteId: string, data: Record<string, any
     const { error } = await db.from('quotes').update(quoteFields).eq('id', quoteId);
     if (error) return { success: false, error: error.message };
 
-    // Update client and Google Contact
+    // Update client (identifiers + primary mirror) and Google Contact
     if (quote.client_id && Object.keys(clientFields).length > 0) {
-        // Map quote fields to clients table fields
-        const clientsUpdate: Record<string, any> = {};
-        if (clientFields.client_name !== undefined) clientsUpdate.first_name = clientFields.client_name;
-        if (clientFields.client_lastname !== undefined) clientsUpdate.last_name = clientFields.client_lastname;
-        if (clientFields.client_email !== undefined) clientsUpdate.email = clientFields.client_email;
-        if (clientFields.client_phone !== undefined) clientsUpdate.phone = clientFields.client_phone;
+        try {
+            const { syncClientFromContact } = await import('@/lib/services/clientService');
+            await syncClientFromContact(
+                quote.client_id,
+                {
+                    firstName: clientFields.client_name,
+                    lastName: clientFields.client_lastname,
+                    email: clientFields.client_email,
+                    phone: clientFields.client_phone,
+                },
+                'admin'
+            );
+        } catch (e: any) {
+            console.error('Error syncing client identifiers in updateQuoteAdmin:', e);
+        }
 
-        // Note: No updated_at in clients table. We select specific fields to avoid schema cache issues.
         const { data: updatedClient } = await db.from('clients')
-            .update(clientsUpdate)
-            .eq('id', quote.client_id)
             .select('id, first_name, last_name, email, phone, google_contact_id')
+            .eq('id', quote.client_id)
             .single();
-        
-        // Trigger Google Contact Sync
+
         if (updatedClient) {
             try {
                 const { syncGoogleContact } = await import('@/lib/googleSync');
@@ -288,12 +294,11 @@ export async function updateQuoteAdmin(quoteId: string, data: Record<string, any
                     resourceName: updatedClient.google_contact_id || undefined,
                     firstName: updatedClient.first_name,
                     lastName: updatedClient.last_name || '',
-                    email: updatedClient.email,
+                    email: updatedClient.email || '',
                     phone: updatedClient.phone || '',
                 });
             } catch (e: any) {
                 console.error('Error syncing Google Contact in updateQuoteAdmin:', e);
-                // Log Contact Sync Error
                 try {
                     await db.from('sync_logs').insert({
                         quote_id: quoteId,
@@ -400,14 +405,24 @@ export async function updateClientAdmin(clientId: string, data: { first_name: st
     const db = createServerClient();
 
     const normalizedPhone = data.phone ? (normalizePhoneE164(data.phone) || data.phone) : (data.phone || '');
-    const payload = { ...data, phone: normalizedPhone || null };
 
-    // 1. Update Client Table (removed updated_at as it doesn't exist)
-    const { error: clientErr } = await db.from('clients').update(payload).eq('id', clientId);
-    if (clientErr) return { success: false, error: clientErr.message };
+    try {
+        const { syncClientFromContact } = await import('@/lib/services/clientService');
+        await syncClientFromContact(
+            clientId,
+            {
+                firstName: data.first_name,
+                lastName: data.last_name,
+                email: data.email,
+                phone: normalizedPhone || null,
+            },
+            'admin'
+        );
+    } catch (e: any) {
+        return { success: false, error: e?.message || 'No se pudo actualizar el cliente.' };
+    }
 
-    // 2. Proactive Sync: Update client info in ALL quotes with this client_id
-    // This addresses the user's request for "entrelazamiento"
+    // Proactive Sync: Update client info in ALL quotes with this client_id
     await db.from('quotes').update({
         client_name: data.first_name,
         client_lastname: data.last_name || '',
@@ -416,7 +431,7 @@ export async function updateClientAdmin(clientId: string, data: { first_name: st
         updated_at: new Date().toISOString()
     }).eq('client_id', clientId);
 
-    // 3. Sync Google Contact
+    // Sync Google Contact
     try {
         const { syncGoogleContact } = await import('@/lib/googleSync');
         const { data: fullClient } = await db.from('clients')
@@ -429,7 +444,7 @@ export async function updateClientAdmin(clientId: string, data: { first_name: st
                 resourceName: fullClient.google_contact_id || undefined,
                 firstName: fullClient.first_name,
                 lastName: fullClient.last_name || '',
-                email: fullClient.email,
+                email: fullClient.email || undefined,
                 phone: fullClient.phone || '',
             });
         }
@@ -439,9 +454,21 @@ export async function updateClientAdmin(clientId: string, data: { first_name: st
 
     revalidatePath('/admin/clients');
     revalidatePath(`/admin/clients/${clientId}`);
-    // Also revalidate quotes since they might be affected
     revalidatePath('/admin/quotes'); 
     
+    return { success: true };
+}
+
+export async function setClientPrimaryIdentifierAdmin(
+    clientId: string,
+    identifierId: string
+): Promise<{ success: boolean; error?: string }> {
+    await checkAuth();
+    const { setPrimaryIdentifier } = await import('@/lib/services/clientService');
+    const res = await setPrimaryIdentifier(clientId, identifierId);
+    if (!res.success) return res;
+    revalidatePath(`/admin/clients/${clientId}`);
+    revalidatePath('/admin/clients');
     return { success: true };
 }
 

@@ -174,8 +174,24 @@ export interface Client {
     id: string;
     first_name: string;
     last_name: string | null;
-    email: string;
+    email: string | null;
     phone: string | null;
+    created_at: string;
+    google_contact_id?: string | null;
+    first_touch_source?: string | null;
+    first_touch_at?: string | null;
+    merged_into_id?: string | null;
+    possible_duplicate?: boolean | null;
+    updated_at?: string | null;
+}
+
+export interface ClientIdentifier {
+    id: string;
+    client_id: string;
+    type: 'email' | 'phone';
+    value: string;
+    is_primary: boolean;
+    source: string | null;
     created_at: string;
 }
 

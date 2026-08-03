@@ -40,7 +40,7 @@ Define la arquitectura, reglas irrompibles, convenciones de código, esquema de 
 - **Integraciones**: Google APIs SDK — People API (Contacts), Calendar API
 - **Type Safety**: TypeScript + Zod (schemas en `lib/types.ts`)
 - **Icons**: lucide-react (exclusivamente)
-- **Analytics**: Google Analytics + Meta Pixel (`lib/fpixel.ts`, `components/shared/MetaPixel.tsx`). Pixel solo en `cocktailsontap.cl` (no `/admin`, no `*.vercel.app`, no localhost). Conversiones con `trackOnce` + `eventID` estable por token.
+- **Analytics**: Google Analytics + Meta Pixel (`lib/fpixel.ts`) + Meta CAPI server (`lib/services/metaCapiService.ts`). Pixel browser solo en `cocktailsontap.cl` (no `/admin`, no `*.vercel.app`, no localhost). Conversiones con `trackOnce` + `eventID` estable; CAPI con el mismo `event_id` cuando aplica.
 - **Hosting**: Vercel (free tier optimizado)
 
 ### Estructura de Directorios
@@ -53,6 +53,7 @@ Define la arquitectura, reglas irrompibles, convenciones de código, esquema de 
 │   │   └── confirmQuote.ts   # Confirmar cotización
 │   ├── api/v1/               # Integraciones HTTP (Bearer INTEGRATION_API_KEY)
 │   │   ├── catalog/          # GET catálogo activo (productos, precios, comunas)
+│   │   ├── contacts/         # POST primer contacto WhatsApp (phone-only OK + touchpoint + CAPI)
 │   │   ├── quotes/           # POST cotización evento (draft)
 │   │   └── direct-sales/     # POST venta desechable (confirmed)
 │   ├── admin/                # Dashboard administrativo (protegido por proxy.ts)
@@ -97,6 +98,8 @@ Define la arquitectura, reglas irrompibles, convenciones de código, esquema de 
 │   ├── integrationApi.ts         # Handler compartido v1
 │   └── services/
 │       ├── createQuoteCore.ts    # Dominio crear cotización (web + API)
+│       ├── clientService.ts      # Resolve/create/merge persona + identifiers + touchpoints
+│       ├── metaCapiService.ts    # Meta Conversions API (Lead/Contact) server-side
 │       ├── quoteService.ts       # Transacciones de BD para cotizaciones
 │       ├── googleSyncService.ts  # Orquestación de Google Contacts/Calendar
 │       ├── settingsService.ts    # Configuración dinámica desde site_settings
@@ -114,7 +117,10 @@ Define la arquitectura, reglas irrompibles, convenciones de código, esquema de 
 
 | Tabla | Propósito | Claves |
 |-------|-----------|--------|
-| `clients` | CRM de clientes | `email` (unique), `google_contact_id` |
+| `clients` | Persona CRM (UUID = identidad / CAPI `external_id`) | `email`/`phone` = espejo del primary (email nullable); matching vía `client_identifiers` |
+| `client_identifiers` | N emails / N phones por persona | `UNIQUE (type, value)`; un primary email y un primary phone por cliente |
+| `client_touchpoints` | Primer contacto / attribution (WA, Meta) | `client_id`, `channel`, `type`, `meta_ctwa_clid`, `meta_fbc`, `meta_fbp` |
+| `client_merge_logs` | Auditoría de merges (auto o manual) | `from_client_id`, `into_client_id`, `reason`, `details` |
 | `quotes` | Cotizaciones (draft/confirmed/completed/cancelled) | `token` (unique, auto-gen), `client_id` FK |
 | `quote_items` | Items de cada cotización con precios congelados | `quote_id` FK, `product_id` FK nullable |
 | `products` | Catálogo de cócteles | `is_active`, `display_order`, `category_id` FK |
@@ -173,16 +179,25 @@ Define la arquitectura, reglas irrompibles, convenciones de código, esquema de 
 ### `createQuoteCore` — Crear cotización (web + `/api/v1`)
 ```
 1. Validar esquema Zod (CreateQuoteSchema) salvo isAdmin
-2. Upsert Cliente (clients) → Obtener clientId
+2. resolveOrCreateClient (phone-first + identifiers; auto-merge si seguro) → clientId
 3. Calcular precios con calculateSummaryData() (Zero Trust; catálogo server-side en API)
 4. Insert quote + quote_items (congelar precios)
-5. Google Sync → Contacto (+ Calendar si direct)
-6. Resend → Emails (cliente + admin)
-7. Return { success, token, quoteId, totalPrice, status }
+5. CAPI (web + whatsapp, no admin): mismo `event_id` que Pixel
+   - evento draft → Lead `lead_{token}`
+   - venta directa → Purchase `purchase_{token}`
+6. Google Sync → Contacto (+ Calendar si direct)
+7. Resend → Emails (cliente + admin)
+8. Return { success, token, quoteId, totalPrice, status }
 ```
 - Web/admin: `app/actions/createQuote.ts` → core
-- Integraciones: `GET /api/v1/catalog` (lectura) | `POST /api/v1/quotes` | `POST /api/v1/direct-sales` → mapper DTO → core
-- Confirmación de evento: solo cliente en `/cotizar/[token]` (sin endpoint v1)
+- Integraciones: `GET /api/v1/catalog` | `POST /api/v1/contacts` | `POST /api/v1/quotes` | `POST /api/v1/direct-sales`
+- Confirmación de evento: solo cliente en `/cotizar/[token]` (sin endpoint v1); CAPI Purchase `purchase_{token}` en `confirmQuote`
+
+### Identidad CRM (`clientService`)
+- Matching: `client_identifiers` UNIQUE(type, value). Phone-first en WhatsApp; email secundario cuando exista.
+- `clients.email` / `clients.phone` = **espejo del primary** (email nullable). Sin emails sintéticos.
+- Auto-merge si phone y email apuntan a personas distintas y el caso es seguro (nombres compatibles o ficha pobre) → `client_merge_logs`; si conflicto fuerte → `possible_duplicate`.
+- `POST /api/v1/contacts`: phone requerido; crea/resuelve persona + touchpoint; opcional CAPI Lead/Contact.
 
 ### `confirmQuote` — Confirmar Reserva
 ```
@@ -193,14 +208,22 @@ Define la arquitectura, reglas irrompibles, convenciones de código, esquema de 
    - shippingCost desde comunas DB
    - installationCost según reglas del Muro
 4. Sync items (delete eliminados, insert nuevos, update cantidades)
-5. Update datos del cliente (phone, lastname)
-6. Update quote principal con totales recalculados
-7. Google Sync (blocking):
+5. Update quote + syncClientFromContact (identifiers + mirror)
+6. Google Sync (blocking):
    - updateContactConfirmedStatus()
    - scheduleCalendarEvents() → Guardar event IDs
-8. Resend → Emails de confirmación (cliente + admin)
-9. revalidatePath → Invalidar caché de la página
+7. Resend → Emails de confirmación (cliente + admin)
+8. revalidatePath → Invalidar caché de la página
 ```
+
+### Meta CAPI (`metaCapiService`)
+- Env: `META_CAPI_ACCESS_TOKEN` (requerido), opcional `META_CAPI_TEST_EVENT_CODE`, `META_CAPI_API_VERSION`.
+- `user_data.external_id` = hash SHA256 de `clients.id`; `em`/`ph` hasheados de **todos** los identifiers; `ctwa_clid`/`fbc`/`fbp` desde touchpoint o cookies `_fbc`/`_fbp` (web).
+- Disparo:
+  - `POST /api/v1/contacts` → Lead (nuevo) / Contact (existente)
+  - Crear quote web/whatsapp → Lead o Purchase (mismo `event_id` que Pixel)
+  - Confirmar evento web → Purchase `purchase_{token}`
+- Activar campañas PAUSED solo tras validar en Events Manager.
 
 ---
 
@@ -264,4 +287,4 @@ Para mantener la eficiencia en sesiones con agentes de IA:
    - Issues conocidos pendientes
 3. Mantener la sección "Últimos Cambios" limitada a las **últimas 5 sesiones**.
 
-*Última actualización: 30-07-2026*
+*Última actualización: 03-08-2026*

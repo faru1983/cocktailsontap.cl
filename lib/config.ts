@@ -48,3 +48,14 @@ export const PROJECT_TIMEZONE = 'America/Santiago';
  * No exportar el valor al client.
  */
 export const INTEGRATION_API_KEY_ENV = 'INTEGRATION_API_KEY';
+
+/** Meta Pixel ID (público; también en lib/fpixel.ts). */
+export const META_PIXEL_ID = process.env.NEXT_PUBLIC_META_PIXEL_ID ?? '1739547250109039';
+
+/**
+ * Meta Conversions API — solo server-side.
+ * META_CAPI_ACCESS_TOKEN en Vercel / .env.local
+ */
+export const META_CAPI_ACCESS_TOKEN = process.env.META_CAPI_ACCESS_TOKEN ?? '';
+export const META_CAPI_API_VERSION = process.env.META_CAPI_API_VERSION ?? 'v21.0';
+export const META_CAPI_TEST_EVENT_CODE = process.env.META_CAPI_TEST_EVENT_CODE ?? '';
