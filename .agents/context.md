@@ -71,6 +71,25 @@
 
 
 
+### 04-08-2026 (Sesión 44) — CTWA clid → CRM/CAPI
+
+- Bot (`whatsapp-cot`): `logic/meta-ctwa.js` extrae `externalAdReply.ctwaClid` (y señales opacas FB_Ads/ctwa_ad). Se guarda en sesión; `POST /contacts` manda `ctwaClid`. Backfill `ctwa_attribution` si el clid llega tras el Lead curious (resend Baileys).
+- Web CAPI: con `ctwa_clid` usa `action_source: business_messaging` + `messaging_channel: whatsapp`.
+- Tests: extractor + body contacts en `test-cot-api-mocked.mjs`. `npm run verify` OK.
+- **Deploy**: bot + web (CAPI) para que Meta empiece a recibir clids en Contact/Lead WA.
+
+
+
+### 04-08-2026 (Sesión 43) — Auditoría Meta Ads + Pixel/CAPI (CLI)
+
+- **Activa**: `WA Eventos | Leads Lookalike` (`120249116759320069`) — ACTIVE, presupuesto **$50/día** USD, opt CONVERSATIONS→WhatsApp. Hoy ~$23 gastados, **14 conversaciones** (~$1.66 CPA), 11 `fb_pixel_lead` atribuidos. Creativos: Carlos > Seba > Carlos2 > Adry.
+- **Pausada**: `Contact CAPI Eventos | Lookalike` (`120249116861310069`) — sigue PAUSED ($20/día).
+- **Pixel `1739547250109039` (Datos Web COT)**: instalado en prod (chunk JS + host gate `cocktailsontap.cl`). Últimos 7d: PageView 1380 / Lead 26 / Contact 9 / Purchase 2. Últimas 48h: PV 323 / Lead 24 / Contact 9 / Purchase 2.
+- **CAPI**: token OK (test POST `events_received:1` con `TEST92040` solo local). CRM hoy: 14 Lead curious + 5 Contact engaged + 1 Lead quoted. `META_CAPI_TEST_EVENT_CODE` está en `.env.local` — **no debe estar en Vercel prod**.
+- **Gap atribución**: 0 `ctwa_clid`/`fbc`/`fbp` en touchpoints 14d; el bot aún no pasa referral CTWA al `POST /contacts`. Matching actual = teléfono hasheado + external_id.
+
+
+
 ### 03-08-2026 (Sesión 42) — Meta Ads WA Conversations + Contact Lookalike
 
 - Borradas CAPI archivadas y el primer intento Website-Lead (ubicación sitio web bloqueada).
@@ -98,23 +117,6 @@
 
 
 
-### 03-08-2026 (Sesión 39) — Nombre WA no más "WhatsApp"
-
-- Bot: `sanitizeWaPushName` (`~Mona 🐵` → `Mona 🐵`); sync tardío `profile_name` cuando pushName llega después.
-- CRM: default placeholder `Cliente` (no `WhatsApp`); backfill si llega nombre real.
-- Corregido cliente Mona (+56990618538); otros placeholder `WhatsApp` → `Cliente`.
-
-
-
-### 03-08-2026 (Sesión 38) — CAPI centralizado en CRM + admin como canal
-
-- `advanceClientStage` = **única puerta CAPI**: curious/engaged (Lead/Contact) + quoted/customer con `quoteToken` (Lead/Purchase + `value`).
-- Admin cotización/venta manual dispara CAPI (`action_source: phone_call`); mismo tratamiento que web/WhatsApp.
-- Quitado CAPI suelto de `createQuoteCore` y `confirmQuote`; wrappers `sendQuoteCreatedCapi` / `sendQuotePurchaseCapi` eliminados.
-- `meta_event_sent` guarda `event_id` completo (`lead_client_*`, `lead_{token}`, `purchase_{token}`).
-
-
-
 ---
 
-*Ultima actualizacion: 03-08-2026 (Sesión 42)*
+*Ultima actualizacion: 04-08-2026 (Sesión 44)*
