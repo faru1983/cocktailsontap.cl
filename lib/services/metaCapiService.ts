@@ -1,17 +1,20 @@
 import { createHash } from 'crypto';
 import { META_PIXEL_ID, SITE_URL } from '@/lib/config';
 
-/** Runtime env (no module-level const — evita inlining vacío en build de Vercel). */
+/** Runtime env — clave dinámica para que Turbopack no inlinee vacío en build. */
 function metaCapiAccessToken(): string {
-    return process.env.META_CAPI_ACCESS_TOKEN?.trim() ?? '';
+    const key = ['META', 'CAPI', 'ACCESS', 'TOKEN'].join('_');
+    return (process.env[key] ?? '').trim();
 }
 
 function metaCapiApiVersion(): string {
-    return process.env.META_CAPI_API_VERSION?.trim() || 'v21.0';
+    const key = ['META', 'CAPI', 'API', 'VERSION'].join('_');
+    return (process.env[key] ?? '').trim() || 'v21.0';
 }
 
 function metaCapiTestEventCode(): string {
-    return process.env.META_CAPI_TEST_EVENT_CODE?.trim() ?? '';
+    const key = ['META', 'CAPI', 'TEST', 'EVENT', 'CODE'].join('_');
+    return (process.env[key] ?? '').trim();
 }
 import { getClientIdentifiersForCapi } from '@/lib/services/clientService';
 import { createServerClient } from '@/lib/supabaseServer';
