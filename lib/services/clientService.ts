@@ -44,6 +44,23 @@ function normalizeNamePart(value?: string | null): string {
         .toLowerCase();
 }
 
+/** Nombres genéricos del CRM que deben reemplazarse cuando llega un pushName real. */
+function isPlaceholderClientName(value?: string | null): boolean {
+    const raw = (value || '').trim();
+    if (!raw) return true;
+    const lower = raw.toLowerCase();
+    if (['whatsapp', 'whats app', 'cliente', 'cliente wa', 'lead'].includes(lower)) return true;
+    // "Cliente +56912345678" / "Cliente 569..."
+    if (/^cliente(\s+\+?\d[\d\s-]*)?$/i.test(raw)) return true;
+    return false;
+}
+
+/** Fallback cuando WhatsApp aún no envió pushName. */
+function defaultClientDisplayName(phone?: string | null): string {
+    const e164 = phone ? normalizePhoneE164(phone) : null;
+    return e164 ? `Cliente ${e164}` : 'Cliente';
+}
+
 function namesCompatible(
     a: { first_name?: string | null; last_name?: string | null },
     b: { first_name?: string | null; last_name?: string | null }
@@ -349,7 +366,10 @@ export async function resolveOrCreateClient(input: ResolveClientInput): Promise<
     }
 
     if (!clientId) {
-        const firstName = (input.firstName || '').trim() || (phone ? 'WhatsApp' : 'Cliente');
+        const rawName = (input.firstName || '').trim();
+        const firstName = isPlaceholderClientName(rawName)
+            ? defaultClientDisplayName(phone)
+            : rawName;
         const { data: createdClient, error } = await db
             .from('clients')
             .insert({
@@ -399,8 +419,9 @@ export async function resolveOrCreateClient(input: ResolveClientInput): Promise<
 
         const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
         const row = await getClientRow(clientId);
-        if (input.firstName?.trim() && (!row?.first_name || row.first_name === 'WhatsApp')) {
-            patch.first_name = input.firstName.trim();
+        const incomingName = input.firstName?.trim() || '';
+        if (incomingName && !isPlaceholderClientName(incomingName) && isPlaceholderClientName(row?.first_name)) {
+            patch.first_name = incomingName;
         }
         if (input.lastName?.trim() && !row?.last_name) {
             patch.last_name = input.lastName.trim();

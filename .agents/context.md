@@ -71,6 +71,24 @@
 
 
 
+### 03-08-2026 (Sesión 40) — CTWA Curioso + Engaged por estado del bot
+
+- **Curioso**: primer mensaje (`bot_started`), incl. copy predefinido Meta.
+- **Engaged** solo por **cambio de estado** (`notifyCrmOnBotStateChange`):
+  - sale de `EVENTOS_RECOGIDA_DATOS` / `BARRILES_FILTRO_CANAL` → otro paso
+  - o elige en menú welcome (`routerMenuShown`) → Eventos/Barriles/Humano
+- Sin pushName: `Cliente +569…`.
+
+
+
+### 03-08-2026 (Sesión 39) — Nombre WA no más "WhatsApp"
+
+- Bot: `sanitizeWaPushName` (`~Mona 🐵` → `Mona 🐵`); sync tardío `profile_name` cuando pushName llega después.
+- CRM: default placeholder `Cliente` (no `WhatsApp`); backfill si llega nombre real.
+- Corregido cliente Mona (+56990618538); otros placeholder `WhatsApp` → `Cliente`.
+
+
+
 ### 03-08-2026 (Sesión 38) — CAPI centralizado en CRM + admin como canal
 
 - `advanceClientStage` = **única puerta CAPI**: curious/engaged (Lead/Contact) + quoted/customer con `quoteToken` (Lead/Purchase + `value`).
@@ -89,29 +107,6 @@
 
 
 
-### 03-08-2026 (Sesión 36) — CRM lifecycle stages
-
-- Schema: `clients.lifecycle_stage/intent/notes/tags/timestamps` + `client_stage_events`; backfill desde quotes.
-- `advanceClientStage` + wiring contacts / createQuoteCore / confirmQuote.
-- Admin: filtros por etapa, badge, notes/tags, cambio manual (+ lost), timeline.
-- Bot WA: `createContactViaApi` + sync curious/engaged en `ESPERANDO_INTENCION`.
-- CAPI: Lead/Contact estables por cliente (`lead_client_{id}` / `contact_client_{id}`).
-
-
-
-### 03-08-2026 (Sesión 35) — Web Pixel + CAPI
-
-- CAPI también en cotizaciones/ventas **web** (además de WhatsApp): mismo `event_id` que Pixel (`lead_{token}` / `purchase_{token}`) para dedupe Meta.
-- Confirmación de evento → CAPI Purchase; cookies `_fbc`/`_fbp` en Server Actions. Admin no dispara CAPI.
-
-
-
-### 03-08-2026 (Sesión 34) — CRM Identity Lifecycle
-
-- DB identifiers/touchpoints/merge_logs; clientService; `POST /api/v1/contacts`; metaCapiService; admin UI; merges Jenniffer/Juan; backups con RLS.
-
-
-
 ---
 
-*Ultima actualizacion: 03-08-2026 (Sesión 38)*
+*Ultima actualizacion: 03-08-2026 (Sesión 40)*

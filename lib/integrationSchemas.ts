@@ -95,6 +95,7 @@ export const IntegrationContactSchema = z.object({
             'menu_choice',
             'engaged',
             'admin_note',
+            'profile_name',
         ])
         .or(z.string().min(1).max(64))
         .optional()
