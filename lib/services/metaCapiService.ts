@@ -1,5 +1,5 @@
 import { createHash } from 'crypto';
-import { META_PIXEL_ID, SITE_URL } from '@/lib/config';
+import { META_PIXEL_ID } from '@/lib/config';
 import { getClientIdentifiersForCapi } from '@/lib/services/clientService';
 import { createServerClient } from '@/lib/supabaseServer';
 import { digitsOnly } from '@/lib/phone';
@@ -35,7 +35,7 @@ export interface SendMetaCapiInput {
     eventId: string;
     clientId: string;
     eventTime?: number;
-    actionSource?: 'website' | 'chat' | 'other';
+    actionSource?: 'website' | 'chat' | 'phone_call' | 'other';
     eventSourceUrl?: string;
     customData?: Record<string, unknown>;
     /** Override attribution from a specific touchpoint */
@@ -167,70 +167,3 @@ export async function sendMetaCapiEvent(
     }
 }
 
-/**
- * Mirror browser Pixel events for quotes (same event_id → Meta dedupe).
- * - Event draft → Lead `lead_{token}`
- * - Direct sale → Purchase `purchase_{token}`
- */
-export async function sendQuoteCreatedCapi(opts: {
-    clientId: string;
-    token: string;
-    isDirect: boolean;
-    source: 'web' | 'admin' | 'whatsapp';
-    value?: number;
-    contentName?: string;
-}): Promise<void> {
-    if (opts.source === 'admin') return;
-
-    const cookies = opts.source === 'web' ? await readMetaBrowserCookies() : {};
-    const isDirect = opts.isDirect;
-    const eventName = isDirect ? 'Purchase' : 'Lead';
-    const eventId = isDirect ? `purchase_${opts.token}` : `lead_${opts.token}`;
-
-    await sendMetaCapiEvent({
-        eventName,
-        eventId,
-        clientId: opts.clientId,
-        actionSource: opts.source === 'whatsapp' ? 'chat' : 'website',
-        eventSourceUrl: `${SITE_URL}/cotizar/${opts.token}`,
-        fbc: cookies.fbc,
-        fbp: cookies.fbp,
-        customData: {
-            content_name:
-                opts.contentName ||
-                (isDirect ? 'Pedido de Barril Desechable' : 'Cotización de Evento (Borrador)'),
-            content_category: isDirect ? 'Venta Directa' : 'Servicio de Eventos',
-            currency: 'CLP',
-            value: opts.value,
-            order_id: opts.token,
-            content_type: 'product',
-        },
-    });
-}
-
-/** Mirror Pixel Purchase on event confirmation (`purchase_{token}`). */
-export async function sendQuotePurchaseCapi(opts: {
-    clientId: string;
-    token: string;
-    value?: number;
-    contentName?: string;
-}): Promise<void> {
-    const cookies = await readMetaBrowserCookies();
-    await sendMetaCapiEvent({
-        eventName: 'Purchase',
-        eventId: `purchase_${opts.token}`,
-        clientId: opts.clientId,
-        actionSource: 'website',
-        eventSourceUrl: `${SITE_URL}/cotizar/${opts.token}`,
-        fbc: cookies.fbc,
-        fbp: cookies.fbp,
-        customData: {
-            content_name: opts.contentName || 'Reserva de Evento Confirmada',
-            content_category: 'Servicio de Eventos',
-            currency: 'CLP',
-            value: opts.value,
-            order_id: opts.token,
-            content_type: 'product',
-        },
-    });
-}

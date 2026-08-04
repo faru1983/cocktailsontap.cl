@@ -50,6 +50,8 @@
 
   - Campo opcional `source` (`web` | `admin` | `whatsapp`) → columna `quotes.source`.
 
+- **Admin** = canal real (wizard manual / teléfono): misma creación vía `createQuoteCore` + CAPI.
+
 
 
 ## Identidad + ciclo de vida CRM
@@ -62,9 +64,19 @@
 
 - Bot (`whatsapp-cot`): welcome → `bot_started` (curious); menú Eventos/Barriles/Humano → `intent_selected` (engaged).
 
+- **CAPI solo desde `advanceClientStage`** (web / whatsapp / admin).
 
 
 ## Ultimos Cambios
+
+
+
+### 03-08-2026 (Sesión 38) — CAPI centralizado en CRM + admin como canal
+
+- `advanceClientStage` = **única puerta CAPI**: curious/engaged (Lead/Contact) + quoted/customer con `quoteToken` (Lead/Purchase + `value`).
+- Admin cotización/venta manual dispara CAPI (`action_source: phone_call`); mismo tratamiento que web/WhatsApp.
+- Quitado CAPI suelto de `createQuoteCore` y `confirmQuote`; wrappers `sendQuoteCreatedCapi` / `sendQuotePurchaseCapi` eliminados.
+- `meta_event_sent` guarda `event_id` completo (`lead_client_*`, `lead_{token}`, `purchase_{token}`).
 
 
 
@@ -100,18 +112,6 @@
 
 
 
-### 03-08-2026 (Sesión 33)
-
-- **Meta Ads CLI**: 2 campañas **PAUSED** listas para CAPI:
-
-  - `Leads WA Eventos | CAPI` (`120249106504230069`) — CBO **$8/día**, Pixel Lead.
-
-  - `Leads WA Barriles | CAPI` (`120249106504370069`) — CBO **$2/día**.
-
-- Snapshot: `C:\Users\FaRu\.meta-ads-cli\capi_campaigns_ready.json`
-
-
-
 ---
 
-*Ultima actualizacion: 03-08-2026 (Sesión 37)*
+*Ultima actualizacion: 03-08-2026 (Sesión 38)*

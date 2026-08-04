@@ -118,10 +118,17 @@ export async function confirmQuote(formData: unknown): Promise<ConfirmQuoteResul
 
             try {
                 const { advanceClientStage } = await import('@/lib/services/clientLifecycleService');
+                const quoteSource =
+                    quote.source === 'admin' || quote.source === 'whatsapp' ? quote.source : 'web';
                 await advanceClientStage(quote.client_id, 'customer', {
                     reason: isDirectSale ? 'Direct sale confirmed' : 'Event quote confirmed',
-                    source: 'web',
+                    source: quoteSource,
                     quoteId: quote.id,
+                    quoteToken: data.token,
+                    value: total,
+                    contentName: isDirectSale
+                        ? 'Pedido de Barril Desechable'
+                        : 'Reserva de Evento Confirmada',
                     intent: isDirectSale ? 'direct' : 'event',
                 });
             } catch (stageErr) {
@@ -190,21 +197,6 @@ export async function confirmQuote(formData: unknown): Promise<ConfirmQuoteResul
                 }
                 await Promise.all(emailsToSend);
             } catch (e) { console.error('[ConfirmQuote] Error Emails:', e); }
-
-            // Meta CAPI Purchase (same event_id as Pixel: purchase_{token})
-            if (quoteToSync.client_id) {
-                try {
-                    const { sendQuotePurchaseCapi } = await import('@/lib/services/metaCapiService');
-                    await sendQuotePurchaseCapi({
-                        clientId: quoteToSync.client_id,
-                        token: quoteToSync.token,
-                        value: quoteToSync.total_price,
-                        contentName: 'Reserva de Evento Confirmada',
-                    });
-                } catch (e) {
-                    console.error('[ConfirmQuote] Error CAPI Purchase:', e);
-                }
-            }
 
             revalidatePath(`/cotizar/${quoteToSync.token}`);
         } catch (e) {

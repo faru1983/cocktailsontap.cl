@@ -99,7 +99,7 @@ Define la arquitectura, reglas irrompibles, convenciones de código, esquema de 
 │   └── services/
 │       ├── createQuoteCore.ts    # Dominio crear cotización (web + API)
 │       ├── clientService.ts      # Resolve/create/merge persona + identifiers + touchpoints
-│       ├── clientLifecycleService.ts # advanceClientStage + stage events + CAPI Lead/Contact once
+│       ├── clientLifecycleService.ts # advanceClientStage + stage events + CAPI único (Lead/Contact/Purchase)
 │       ├── metaCapiService.ts    # Meta Conversions API (Lead/Contact/Purchase) server-side
 │       ├── quoteService.ts       # Transacciones de BD para cotizaciones
 │       ├── googleSyncService.ts  # Orquestación de Google Contacts/Calendar
@@ -178,33 +178,36 @@ Define la arquitectura, reglas irrompibles, convenciones de código, esquema de 
 
 ## 🚀 Flujos de Ejecución (Server Actions)
 
-### `createQuoteCore` — Crear cotización (web + `/api/v1`)
+### `createQuoteCore` — Crear cotización (web + `/api/v1` + admin)
 ```
 1. Validar esquema Zod (CreateQuoteSchema) salvo isAdmin
 2. resolveOrCreateClient (phone-first + identifiers; auto-merge si seguro) → clientId
 3. Calcular precios con calculateSummaryData() (Zero Trust; catálogo server-side en API)
 4. Insert quote + quote_items (congelar precios)
-5. CAPI (web + whatsapp, no admin): mismo `event_id` que Pixel
-   - evento draft → Lead `lead_{token}`
-   - venta directa → Purchase `purchase_{token}`
+5. advanceClientStage (única puerta CAPI):
+   - evento draft → quoted + Lead `lead_{token}` (+ value)
+   - venta directa → customer + Purchase `purchase_{token}` (+ value)
+   - Canales: web | whatsapp | admin (admin = canal manual/teléfono, action_source phone_call)
 6. Google Sync → Contacto (+ Calendar si direct)
 7. Resend → Emails (cliente + admin)
 8. Return { success, token, quoteId, totalPrice, status }
 ```
 - Web/admin: `app/actions/createQuote.ts` → core
 - Integraciones: `GET /api/v1/catalog` | `POST /api/v1/contacts` | `POST /api/v1/quotes` | `POST /api/v1/direct-sales`
-- Confirmación de evento: solo cliente en `/cotizar/[token]` (sin endpoint v1); CAPI Purchase `purchase_{token}` en `confirmQuote`
+- Confirmación de evento: solo cliente en `/cotizar/[token]` (sin endpoint v1); CAPI Purchase vía `advanceClientStage` en `confirmQuote`
 
 ### Identidad CRM (`clientService` + `clientLifecycleService`)
 - Matching: `client_identifiers` UNIQUE(type, value). Phone-first en WhatsApp; email secundario cuando exista.
 - `clients.email` / `clients.phone` = **espejo del primary** (email nullable). Sin emails sintéticos.
 - Auto-merge si phone y email apuntan a personas distintas y el caso es seguro (nombres compatibles o ficha pobre) → `client_merge_logs`; si conflicto fuerte → `possible_duplicate`.
 - **Ciclo de vida** (`clients.lifecycle_stage`): monotónico `curious < engaged < quoted < customer`. `lost` solo manual (admin). Desde `lost` se puede reabrir con quote/compra.
-- Avance: `advanceClientStage` en `lib/services/clientLifecycleService.ts` → historial en `client_stage_events`.
+- Avance: `advanceClientStage` en `lib/services/clientLifecycleService.ts` → historial en `client_stage_events` + **única salida CAPI**.
   - `POST /api/v1/contacts` `bot_started` → curious + CAPI Lead `lead_client_{id}` (una vez)
   - `intent_selected` / `human_reply` → engaged + CAPI Contact `contact_client_{id}` (una vez)
-  - createQuote evento → quoted; direct sale / confirmQuote → customer (+ `intent`)
-- Bot WhatsApp (`whatsapp-cot`): `createContactViaApi` en welcome (curious) y al elegir menú (engaged).
+  - createQuote evento → quoted + Lead `lead_{token}` (+ value); direct sale → customer + Purchase `purchase_{token}` (+ value)
+  - confirmQuote → customer + Purchase `purchase_{token}` (+ value)
+  - Admin cotización/venta manual = mismo flujo CAPI que web/WhatsApp (`action_source: phone_call`)
+- Bot WhatsApp (`whatsapp-cot`): `createContactViaApi` en welcome (curious) y al elegir menú (engaged). No habla con Meta; solo API CRM.
 - `POST /api/v1/contacts`: phone requerido; crea/resuelve persona + touchpoint; CAPI vía stage engine.
 
 ### `confirmQuote` — Confirmar Reserva
@@ -217,20 +220,22 @@ Define la arquitectura, reglas irrompibles, convenciones de código, esquema de 
    - installationCost según reglas del Muro
 4. Sync items (delete eliminados, insert nuevos, update cantidades)
 5. Update quote + syncClientFromContact (identifiers + mirror)
-6. Google Sync (blocking):
+6. advanceClientStage → customer + CAPI Purchase `purchase_{token}` (+ value)
+7. Google Sync (blocking):
    - updateContactConfirmedStatus()
    - scheduleCalendarEvents() → Guardar event IDs
-7. Resend → Emails de confirmación (cliente + admin)
-8. revalidatePath → Invalidar caché de la página
+8. Resend → Emails de confirmación (cliente + admin)
+9. revalidatePath → Invalidar caché de la página
 ```
 
-### Meta CAPI (`metaCapiService`)
+### Meta CAPI (`metaCapiService` + `advanceClientStage`)
 - Env: `META_CAPI_ACCESS_TOKEN` (requerido), opcional `META_CAPI_TEST_EVENT_CODE`, `META_CAPI_API_VERSION`.
 - `user_data.external_id` = hash SHA256 de `clients.id`; `em`/`ph` hasheados de **todos** los identifiers; `ctwa_clid`/`fbc`/`fbp` desde touchpoint o cookies `_fbc`/`_fbp` (web).
-- Disparo:
-  - Ciclo CRM: Lead `lead_client_{id}` / Contact `contact_client_{id}` (una vez por persona, vía `advanceClientStage`)
-  - Crear quote web/whatsapp → Lead o Purchase (mismo `event_id` que Pixel: `lead_{token}` / `purchase_{token}`)
-  - Confirmar evento web → Purchase `purchase_{token}`
+- **Disparo solo desde `advanceClientStage`** (no desde createQuoteCore / confirmQuote / bot):
+  - Ciclo CRM: Lead `lead_client_{id}` / Contact `contact_client_{id}` (una vez por persona)
+  - Cotización: Lead `lead_{token}` o Purchase `purchase_{token}` (+ `value` CLP; mismo event_id que Pixel)
+  - Canales: web (`website`), whatsapp (`chat`), admin (`phone_call`)
+- `meta_event_sent` guarda el `event_id` completo (no solo el nombre del evento).
 - Activar campañas PAUSED solo tras validar en Events Manager.
 
 ---

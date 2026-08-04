@@ -1,5 +1,10 @@
 import { createServerClient } from '@/lib/supabaseServer';
-import { sendMetaCapiEvent } from '@/lib/services/metaCapiService';
+import {
+    sendMetaCapiEvent,
+    readMetaBrowserCookies,
+    type MetaCapiEventName,
+} from '@/lib/services/metaCapiService';
+import { SITE_URL } from '@/lib/config';
 
 export type ClientLifecycleStage = 'curious' | 'engaged' | 'quoted' | 'customer' | 'lost';
 export type ClientIntent = 'event' | 'direct' | 'unknown';
@@ -37,8 +42,17 @@ export interface AdvanceStageOpts {
     intent?: ClientIntent | null;
     /** Force set even when rank would not advance (admin / lost). */
     force?: boolean;
-    /** Fire CAPI Lead/Contact with stable per-client event_id when advancing to curious/engaged. */
+    /**
+     * CRM lifecycle CAPI (curious→Lead / engaged→Contact): only when `true`.
+     * Quote commerce CAPI (quoted→Lead / customer→Purchase with token): default on
+     * when `quoteToken` is set; pass `false` to skip.
+     */
     fireCapi?: boolean;
+    /** Quote token → event_id `lead_{token}` / `purchase_{token}` (dedupe con Pixel). */
+    quoteToken?: string | null;
+    /** Monto CLP para Lead/Purchase de cotización. */
+    value?: number | null;
+    contentName?: string | null;
     ctwaClid?: string | null;
     fbc?: string | null;
     fbp?: string | null;
@@ -56,10 +70,26 @@ function isLifecycleStage(value: string | null | undefined): value is ClientLife
     return !!value && (LIFECYCLE_STAGES as string[]).includes(value);
 }
 
+function resolveActionSource(
+    source?: string
+): 'website' | 'chat' | 'phone_call' | 'other' {
+    if (source === 'whatsapp') return 'chat';
+    if (source === 'admin') return 'phone_call';
+    if (source === 'web') return 'website';
+    return 'other';
+}
+
 /**
  * Advance (or force-set) client lifecycle stage. Automatic path is monotonic:
  * curious < engaged < quoted < customer. `lost` only via force. From `lost`,
  * a new quote/sale can reopen to quoted/customer.
+ *
+ * **Única puerta de salida CAPI** del CRM:
+ * - curious + fireCapi → Lead `lead_client_{id}` (una vez)
+ * - engaged + fireCapi → Contact `contact_client_{id}` (una vez)
+ * - quoted + quoteToken → Lead `lead_{token}` (+ value)
+ * - customer + quoteToken → Purchase `purchase_{token}` (+ value)
+ * Incluye web, whatsapp y admin (admin = canal manual real / teléfono).
  */
 export async function advanceClientStage(
     clientId: string,
@@ -125,27 +155,30 @@ export async function advanceClientStage(
 
     await db.from('clients').update(patch).eq('id', row.id);
 
-    // CAPI Lead/Contact once per client (stable event_id). Fire even when stage
-    // unchanged — e.g. new client defaults to curious then contacts with bot_started.
-    if (opts.fireCapi && (toStage === 'curious' || toStage === 'engaged')) {
-        const eventName = toStage === 'curious' ? 'Lead' : 'Contact';
+    const actionSource = resolveActionSource(opts.source);
+
+    // ─── CAPI A: ciclo CRM (curious / engaged) — una vez por persona ─────────
+    // Fire even when stage unchanged (e.g. new client defaults to curious then bot_started).
+    // meta_event_sent guarda el event_id estable (no solo "Lead") para no chocar con Lead de cotización.
+    if (opts.fireCapi === true && (toStage === 'curious' || toStage === 'engaged')) {
+        const eventName: MetaCapiEventName = toStage === 'curious' ? 'Lead' : 'Contact';
+        const stableId =
+            toStage === 'curious' ? `lead_client_${row.id}` : `contact_client_${row.id}`;
+        const legacyLabel = eventName; // datos antiguos guardaban solo "Lead"/"Contact"
+
         const { count: priorCapi } = await db
             .from('client_stage_events')
             .select('id', { count: 'exact', head: true })
             .eq('client_id', row.id)
-            .eq('meta_event_sent', eventName);
+            .or(`meta_event_sent.eq.${stableId},meta_event_sent.eq.${legacyLabel}`);
 
         if (!priorCapi) {
-            const stableId =
-                toStage === 'curious'
-                    ? `lead_client_${row.id}`
-                    : `contact_client_${row.id}`;
             try {
                 const capi = await sendMetaCapiEvent({
                     eventName,
                     eventId: stableId,
                     clientId: row.id,
-                    actionSource: opts.source === 'web' ? 'website' : 'chat',
+                    actionSource,
                     touchpointId: opts.touchpointId || undefined,
                     ctwaClid: opts.ctwaClid,
                     fbc: opts.fbc,
@@ -157,9 +190,70 @@ export async function advanceClientStage(
                         lifecycle_stage: toStage,
                     },
                 });
-                if (capi.success) metaEventSent = eventName;
+                if (capi.success) metaEventSent = stableId;
             } catch (err) {
-                console.error('advanceClientStage CAPI error:', err);
+                console.error('advanceClientStage CAPI lifecycle error:', err);
+            }
+        }
+    }
+
+    // ─── CAPI B: cotización / venta (quoted / customer + token) — por token ───
+    // Incluye admin (teléfono / wizard manual). Se dispara aunque la etapa no cambie
+    // (cliente recurrente → nueva Purchase).
+    const fireQuoteCapi =
+        !!opts.quoteToken &&
+        (toStage === 'quoted' || toStage === 'customer') &&
+        opts.fireCapi !== false;
+
+    if (fireQuoteCapi && opts.quoteToken) {
+        const eventName: MetaCapiEventName = toStage === 'quoted' ? 'Lead' : 'Purchase';
+        const eventId =
+            toStage === 'quoted' ? `lead_${opts.quoteToken}` : `purchase_${opts.quoteToken}`;
+
+        // Dedupe por event_id (token único) — no reenviar el mismo Lead/Purchase
+        const { count: priorQuoteCapi } = await db
+            .from('client_stage_events')
+            .select('id', { count: 'exact', head: true })
+            .eq('client_id', row.id)
+            .eq('meta_event_sent', eventId);
+        const alreadySent = (priorQuoteCapi ?? 0) > 0;
+
+        if (!alreadySent) {
+            try {
+                const cookies =
+                    opts.source === 'web' ? await readMetaBrowserCookies() : {};
+                const isPurchase = eventName === 'Purchase';
+                const defaultName = isPurchase
+                    ? opts.intent === 'direct'
+                        ? 'Pedido de Barril Desechable'
+                        : 'Reserva de Evento Confirmada'
+                    : 'Cotización de Evento (Borrador)';
+
+                const capi = await sendMetaCapiEvent({
+                    eventName,
+                    eventId,
+                    clientId: row.id,
+                    actionSource,
+                    eventSourceUrl: `${SITE_URL}/cotizar/${opts.quoteToken}`,
+                    touchpointId: opts.touchpointId || undefined,
+                    ctwaClid: opts.ctwaClid,
+                    fbc: opts.fbc ?? cookies.fbc,
+                    fbp: opts.fbp ?? cookies.fbp,
+                    customData: {
+                        content_name: opts.contentName || defaultName,
+                        content_category:
+                            opts.intent === 'direct' ? 'Venta Directa' : 'Servicio de Eventos',
+                        currency: 'CLP',
+                        value: opts.value ?? undefined,
+                        order_id: opts.quoteToken,
+                        content_type: 'product',
+                        lifecycle_stage: toStage,
+                        quote_source: opts.source || null,
+                    },
+                });
+                if (capi.success) metaEventSent = eventId;
+            } catch (err) {
+                console.error('advanceClientStage CAPI quote error:', err);
             }
         }
     }
