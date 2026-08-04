@@ -1,11 +1,18 @@
 import { createHash } from 'crypto';
-import {
-    META_PIXEL_ID,
-    META_CAPI_ACCESS_TOKEN,
-    META_CAPI_API_VERSION,
-    META_CAPI_TEST_EVENT_CODE,
-    SITE_URL,
-} from '@/lib/config';
+import { META_PIXEL_ID, SITE_URL } from '@/lib/config';
+
+/** Runtime env (no module-level const — evita inlining vacío en build de Vercel). */
+function metaCapiAccessToken(): string {
+    return process.env.META_CAPI_ACCESS_TOKEN?.trim() ?? '';
+}
+
+function metaCapiApiVersion(): string {
+    return process.env.META_CAPI_API_VERSION?.trim() || 'v21.0';
+}
+
+function metaCapiTestEventCode(): string {
+    return process.env.META_CAPI_TEST_EVENT_CODE?.trim() ?? '';
+}
 import { getClientIdentifiersForCapi } from '@/lib/services/clientService';
 import { createServerClient } from '@/lib/supabaseServer';
 import { digitsOnly } from '@/lib/phone';
@@ -59,7 +66,8 @@ export async function readMetaBrowserCookies(): Promise<{ fbc?: string; fbp?: st
 export async function sendMetaCapiEvent(
     input: SendMetaCapiInput
 ): Promise<{ success: boolean; error?: string; skipped?: boolean }> {
-    if (!META_CAPI_ACCESS_TOKEN) {
+    const accessToken = metaCapiAccessToken();
+    if (!accessToken) {
         return { success: false, skipped: true, error: 'META_CAPI_ACCESS_TOKEN no configurado.' };
     }
 
@@ -134,11 +142,12 @@ export async function sendMetaCapiEvent(
     const body: Record<string, unknown> = {
         data: [event],
     };
-    if (META_CAPI_TEST_EVENT_CODE) {
-        body.test_event_code = META_CAPI_TEST_EVENT_CODE;
+    const testEventCode = metaCapiTestEventCode();
+    if (testEventCode) {
+        body.test_event_code = testEventCode;
     }
 
-    const url = `https://graph.facebook.com/${META_CAPI_API_VERSION}/${META_PIXEL_ID}/events?access_token=${encodeURIComponent(META_CAPI_ACCESS_TOKEN)}`;
+    const url = `https://graph.facebook.com/${metaCapiApiVersion()}/${META_PIXEL_ID}/events?access_token=${encodeURIComponent(accessToken)}`;
 
     try {
         const res = await fetch(url, {

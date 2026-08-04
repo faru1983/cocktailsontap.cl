@@ -54,8 +54,6 @@ export const META_PIXEL_ID = process.env.NEXT_PUBLIC_META_PIXEL_ID ?? '173954725
 
 /**
  * Meta Conversions API — solo server-side.
- * META_CAPI_ACCESS_TOKEN en Vercel / .env.local
+ * Leer process.env en lib/services/metaCapiService.ts (no exportar el token aquí;
+ * un const a nivel de módulo se inlinea vacío en el build de Vercel).
  */
-export const META_CAPI_ACCESS_TOKEN = process.env.META_CAPI_ACCESS_TOKEN ?? '';
-export const META_CAPI_API_VERSION = process.env.META_CAPI_API_VERSION ?? 'v21.0';
-export const META_CAPI_TEST_EVENT_CODE = process.env.META_CAPI_TEST_EVENT_CODE ?? '';
