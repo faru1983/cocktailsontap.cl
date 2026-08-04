@@ -1,29 +1,26 @@
 import { createHash } from 'crypto';
 import { META_PIXEL_ID, SITE_URL } from '@/lib/config';
+import { getClientIdentifiersForCapi } from '@/lib/services/clientService';
+import { createServerClient } from '@/lib/supabaseServer';
+import { digitsOnly } from '@/lib/phone';
 
-/** Runtime env — clave dinámica para que Turbopack no inlinee vacío en build. */
+/** Runtime env — acceso directo como INTEGRATION_API_KEY (lib/integrationAuth.ts). */
 function metaCapiAccessToken(): string {
-    const key = ['META', 'CAPI', 'ACCESS', 'TOKEN'].join('_');
-    return (process.env[key] ?? '').trim();
+    return process.env.META_CAPI_ACCESS_TOKEN?.trim() ?? '';
 }
 
 function metaCapiApiVersion(): string {
-    const key = ['META', 'CAPI', 'API', 'VERSION'].join('_');
-    return (process.env[key] ?? '').trim() || 'v21.0';
+    return process.env.META_CAPI_API_VERSION?.trim() || 'v21.0';
 }
 
 function metaCapiTestEventCode(): string {
-    const key = ['META', 'CAPI', 'TEST', 'EVENT', 'CODE'].join('_');
-    return (process.env[key] ?? '').trim();
+    return process.env.META_CAPI_TEST_EVENT_CODE?.trim() ?? '';
 }
 
 /** Diagnóstico server-side (no expone el valor del token). */
 export function isMetaCapiConfigured(): boolean {
     return metaCapiAccessToken().length > 0;
 }
-import { getClientIdentifiersForCapi } from '@/lib/services/clientService';
-import { createServerClient } from '@/lib/supabaseServer';
-import { digitsOnly } from '@/lib/phone';
 
 function sha256Normalize(value: string): string {
     const normalized = value.trim().toLowerCase();
