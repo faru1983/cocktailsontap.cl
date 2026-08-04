@@ -87,6 +87,40 @@ async function findIdentifier(type: IdentifierType, value: string) {
     return data;
 }
 
+/**
+ * findClientIdByPhone: Busca cliente por teléfono en identifiers Y en clients.phone.
+ * Evita INSERT duplicado cuando el cliente existe en la columna phone pero aún
+ * no tiene fila en client_identifiers (migraciones / datos legacy).
+ */
+async function findClientIdByPhone(phone: string): Promise<string | null> {
+    const normalized = normalizePhoneE164(phone);
+    if (!normalized) return null;
+
+    const ident = await findIdentifier('phone', normalized);
+    if (ident?.client_id) {
+        return resolveCanonicalClientId(ident.client_id);
+    }
+
+    const db = createServerClient();
+    const { data } = await db
+        .from('clients')
+        .select('id')
+        .eq('phone', normalized)
+        .is('merged_into_id', null)
+        .maybeSingle();
+
+    if (data?.id) {
+        return resolveCanonicalClientId(data.id as string);
+    }
+    return null;
+}
+
+function isUniqueViolation(err: { code?: string; message?: string } | null | undefined): boolean {
+    if (!err) return false;
+    if (err.code === '23505') return true;
+    return /duplicate key|unique constraint/i.test(String(err.message || ''));
+}
+
 async function getClientRow(clientId: string) {
     const db = createServerClient();
     const { data } = await db
@@ -334,6 +368,10 @@ export async function resolveOrCreateClient(input: ResolveClientInput): Promise<
     const emailMatch = email ? await findIdentifier('email', email) : null;
 
     let phoneClientId = phoneMatch ? await resolveCanonicalClientId(phoneMatch.client_id) : null;
+    // Fallback: cliente creado solo con clients.phone (sin identifier aún)
+    if (!phoneClientId && phone) {
+        phoneClientId = await findClientIdByPhone(phone);
+    }
     let emailClientId = emailMatch ? await resolveCanonicalClientId(emailMatch.client_id) : null;
 
     let clientId: string | null = null;
@@ -384,6 +422,17 @@ export async function resolveOrCreateClient(input: ResolveClientInput): Promise<
             .single();
 
         if (error || !createdClient?.id) {
+            // Carrera o cliente legacy: otro request creó el mismo phone entre el SELECT y el INSERT
+            if (phone && isUniqueViolation(error)) {
+                const existingId = await findClientIdByPhone(phone);
+                if (existingId) {
+                    clientId = existingId;
+                    if (phone) await ensureIdentifier(clientId, 'phone', phone, source, true);
+                    if (email) await ensureIdentifier(clientId, 'email', email, source, true);
+                    await syncPrimaryMirror(clientId);
+                    return { clientId, created: false, merged, possibleDuplicate };
+                }
+            }
             console.error('resolveOrCreateClient create error:', error);
             throw new Error(error?.message || 'No se pudo crear el cliente.');
         }

@@ -71,6 +71,23 @@
 
 
 
+### 03-08-2026 (Sesión 42) — Meta Ads WA Conversations + Contact Lookalike
+
+- Borradas CAPI archivadas y el primer intento Website-Lead (ubicación sitio web bloqueada).
+- **Pausada 1 (usar primero)**: `WA Eventos | Leads Lookalike` — OUTCOME_LEADS + **WHATSAPP** + CONVERSATIONS, $20/día, lookalike 1% eventos.
+- **Pausada 2 (después)**: `Contact CAPI Eventos | Lookalike` — optimiza evento **Contact** (sitio web/CAPI; Meta no permite Contact+WhatsApp a la vez). Mismos creativos WA.
+- Snapshot: `~/.meta-ads-cli/campaigns_recreated_wa_fix.json`.
+
+
+
+### 03-08-2026 (Sesión 41) — Etiquetas WA default en engaged / quoted
+
+- Bot (`whatsapp-cot`): al pasar a **engaged** aplica etiqueta Business **Cliente potencial** (`id=4`); al cerrar cotización evento o venta barril aplica **Nuevo pedido** (`id=6`).
+- IDs descubiertos con `scripts/try-chat-label.mjs --watch` (labels.association). `ensure=false`: solo `addChatLabel`, sin `addLabel` (no pisa defaults de WA).
+- SOS sigue con `Asistencia` (ensure=true). Cotizacion Barriles/Eventos quedan en config como opcionales.
+
+
+
 ### 03-08-2026 (Sesión 40) — CTWA Curioso + Engaged por estado del bot
 
 - **Curioso**: primer mensaje (`bot_started`), incl. copy predefinido Meta.
@@ -98,15 +115,6 @@
 
 
 
-### 03-08-2026 (Sesión 37) — CAPI producción verificado
-
-- `META_CAPI_ACCESS_TOKEN` en Vercel Production (valor = Events Manager CAPI token, no Ads CLI).
-- Token se lee en runtime en `metaCapiService` (no const en `config.ts`).
-- Verificado end-to-end: `POST /api/v1/contacts` → `metaEventSent: Lead` / `Contact`.
-- Bot WA → CRM + CAPI operativo.
-
-
-
 ---
 
-*Ultima actualizacion: 03-08-2026 (Sesión 40)*
+*Ultima actualizacion: 03-08-2026 (Sesión 42)*
