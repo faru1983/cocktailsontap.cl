@@ -68,6 +68,15 @@
 
 
 
+### 03-08-2026 (Sesión 37) — CAPI producción verificado
+
+- `META_CAPI_ACCESS_TOKEN` en Vercel Production (valor = Events Manager CAPI token, no Ads CLI).
+- Token se lee en runtime en `metaCapiService` (no const en `config.ts`).
+- Verificado end-to-end: `POST /api/v1/contacts` → `metaEventSent: Lead` / `Contact`.
+- Bot WA → CRM + CAPI operativo.
+
+
+
 ### 03-08-2026 (Sesión 36) — CRM lifecycle stages
 
 - Schema: `clients.lifecycle_stage/intent/notes/tags/timestamps` + `client_stage_events`; backfill desde quotes.
@@ -82,7 +91,6 @@
 
 - CAPI también en cotizaciones/ventas **web** (además de WhatsApp): mismo `event_id` que Pixel (`lead_{token}` / `purchase_{token}`) para dedupe Meta.
 - Confirmación de evento → CAPI Purchase; cookies `_fbc`/`_fbp` en Server Actions. Admin no dispara CAPI.
-- **Pendiente ops**: token en Vercel; probar en Events Manager (TEST code); luego quitar test code en prod.
 
 
 
@@ -104,12 +112,6 @@
 
 
 
-### 03-08-2026 (Sesión 32) — Análisis CRM / ciclo de vida (sin código)
-
-- Análisis previo: upsert solo por email; sin CAPI. Resuelto en Sesión 34.
-
-
-
 ---
 
-*Ultima actualizacion: 03-08-2026 (Sesión 36)*
+*Ultima actualizacion: 03-08-2026 (Sesión 37)*

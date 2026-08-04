@@ -10,7 +10,6 @@ import {
     advanceClientStage,
     type ClientLifecycleStage,
 } from '@/lib/services/clientLifecycleService';
-import { isMetaCapiConfigured } from '@/lib/services/metaCapiService';
 
 const ENGAGE_TOUCHPOINT_TYPES = new Set([
     'human_reply',
@@ -96,7 +95,6 @@ export async function POST(request: Request) {
             lifecycleStage: stage.toStage,
             stageChanged: stage.changed,
             metaEventSent: stage.metaEventSent,
-            metaCapiConfigured: isMetaCapiConfigured(),
         });
     } catch (err: any) {
         console.error('POST /api/v1/contacts:', err);

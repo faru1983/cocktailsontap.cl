@@ -17,11 +17,6 @@ function metaCapiTestEventCode(): string {
     return process.env.META_CAPI_TEST_EVENT_CODE?.trim() ?? '';
 }
 
-/** Diagnóstico server-side (no expone el valor del token). */
-export function isMetaCapiConfigured(): boolean {
-    return metaCapiAccessToken().length > 0;
-}
-
 function sha256Normalize(value: string): string {
     const normalized = value.trim().toLowerCase();
     return createHash('sha256').update(normalized).digest('hex');
