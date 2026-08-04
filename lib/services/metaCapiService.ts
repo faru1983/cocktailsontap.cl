@@ -16,6 +16,11 @@ function metaCapiTestEventCode(): string {
     const key = ['META', 'CAPI', 'TEST', 'EVENT', 'CODE'].join('_');
     return (process.env[key] ?? '').trim();
 }
+
+/** Diagnóstico server-side (no expone el valor del token). */
+export function isMetaCapiConfigured(): boolean {
+    return metaCapiAccessToken().length > 0;
+}
 import { getClientIdentifiersForCapi } from '@/lib/services/clientService';
 import { createServerClient } from '@/lib/supabaseServer';
 import { digitsOnly } from '@/lib/phone';
