@@ -43,6 +43,8 @@ export interface SendMetaCapiInput {
     ctwaClid?: string | null;
     fbc?: string | null;
     fbp?: string | null;
+    /** Comuna/ciudad para EMQ (hasheada en user_data.ct). */
+    city?: string | null;
 }
 
 /** Read Meta browser cookies when available (Server Actions / RSC). */
@@ -121,6 +123,7 @@ export async function sendMetaCapiEvent(
     if (phones.length) userData.ph = phones.map(hashPhoneE164);
     if (client?.first_name) userData.fn = [sha256Normalize(client.first_name)];
     if (client?.last_name) userData.ln = [sha256Normalize(client.last_name)];
+    if (input.city?.trim()) userData.ct = [sha256Normalize(input.city.trim())];
     if (fbc) userData.fbc = fbc;
     if (fbp) userData.fbp = fbp;
 

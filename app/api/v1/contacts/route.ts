@@ -4,11 +4,13 @@ import { jsonError } from '@/lib/integrationApi';
 import {
     resolveOrCreateClient,
     recordTouchpoint,
+    appendClientCrmNote,
     type ClientTouchSource,
 } from '@/lib/services/clientService';
 import {
     advanceClientStage,
     type ClientLifecycleStage,
+    type ClientIntent,
 } from '@/lib/services/clientLifecycleService';
 
 const ENGAGE_TOUCHPOINT_TYPES = new Set([
@@ -18,11 +20,15 @@ const ENGAGE_TOUCHPOINT_TYPES = new Set([
     'menu_choice',
 ]);
 
+function isClientIntent(value: string | undefined): value is ClientIntent {
+    return value === 'event' || value === 'direct' || value === 'unknown';
+}
+
 /**
  * POST /api/v1/contacts
  * Primer contacto / engagement WhatsApp (phone-only OK).
- * - bot_started → curious + Lead (si nuevo o aún curious)
- * - human_reply / intent_selected → engaged + Contact
+ * - bot_started → curious (CRM/touchpoint; sin CAPI Lead)
+ * - human_reply / intent_selected → engaged + Contact CAPI (+ intent, snapshot en payload/notes)
  */
 export async function POST(request: Request) {
     const auth = verifyIntegrationAuth(request);
@@ -71,7 +77,9 @@ export async function POST(request: Request) {
 
         const isEngage = ENGAGE_TOUCHPOINT_TYPES.has(dto.touchpointType);
         const targetStage: ClientLifecycleStage = isEngage ? 'engaged' : 'curious';
-        const fireCapi = dto.sendCapiLead !== false;
+        // Lifecycle CAPI solo en engaged; curious no infla Lead de baja calidad en Meta
+        const fireCapi = isEngage && dto.sendCapiLead !== false;
+        const intent = isClientIntent(dto.intent) ? dto.intent : undefined;
 
         const stage = await advanceClientStage(resolved.clientId, targetStage, {
             reason: isEngage
@@ -80,10 +88,21 @@ export async function POST(request: Request) {
             source: dto.source,
             touchpointId,
             fireCapi,
+            intent,
             ctwaClid: dto.ctwaClid,
             fbc: dto.fbc,
             fbp: dto.fbp,
+            engagedGuests: dto.engagedGuests,
+            engagedComuna: dto.engagedComuna,
         });
+
+        if (isEngage && dto.crmNote?.trim()) {
+            try {
+                await appendClientCrmNote(resolved.clientId, dto.crmNote.trim());
+            } catch (noteErr) {
+                console.error('POST /api/v1/contacts append note:', noteErr);
+            }
+        }
 
         return Response.json({
             success: true,

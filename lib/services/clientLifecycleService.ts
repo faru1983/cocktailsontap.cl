@@ -28,7 +28,7 @@ export const LIFECYCLE_STAGES: ClientLifecycleStage[] = [
 
 export const STAGE_LABELS: Record<ClientLifecycleStage, string> = {
     curious: 'Curioso',
-    engaged: 'Engaged',
+    engaged: 'Interesado',
     quoted: 'Cotizó',
     customer: 'Cliente',
     lost: 'Perdido',
@@ -43,7 +43,8 @@ export interface AdvanceStageOpts {
     /** Force set even when rank would not advance (admin / lost). */
     force?: boolean;
     /**
-     * CRM lifecycle CAPI (curious→Lead / engaged→Contact): only when `true`.
+     * CRM lifecycle CAPI (engaged→Contact): only when `true`.
+     * `curious` solo CRM/touchpoint — no Lead CAPI (señal de baja calidad en Meta).
      * Quote commerce CAPI (quoted→Lead / customer→Purchase with token): default on
      * when `quoteToken` is set; pass `false` to skip.
      */
@@ -56,6 +57,9 @@ export interface AdvanceStageOpts {
     ctwaClid?: string | null;
     fbc?: string | null;
     fbp?: string | null;
+    /** Señales Meta Contact (Interesado WA con datos mínimos del flujo). */
+    engagedGuests?: number | null;
+    engagedComuna?: string | null;
 }
 
 export interface AdvanceStageResult {
@@ -85,7 +89,7 @@ function resolveActionSource(
  * a new quote/sale can reopen to quoted/customer.
  *
  * **Única puerta de salida CAPI** del CRM:
- * - curious + fireCapi → Lead `lead_client_{id}` (una vez)
+ * - curious → solo etapa CRM (sin CAPI)
  * - engaged + fireCapi → Contact `contact_client_{id}` (una vez)
  * - quoted + quoteToken → Lead `lead_{token}` (+ value)
  * - customer + quoteToken → Purchase `purchase_{token}` (+ value)
@@ -157,14 +161,12 @@ export async function advanceClientStage(
 
     const actionSource = resolveActionSource(opts.source);
 
-    // ─── CAPI A: ciclo CRM (curious / engaged) — una vez por persona ─────────
-    // Fire even when stage unchanged (e.g. new client defaults to curious then bot_started).
-    // meta_event_sent guarda el event_id estable (no solo "Lead") para no chocar con Lead de cotización.
-    if (opts.fireCapi === true && (toStage === 'curious' || toStage === 'engaged')) {
-        const eventName: MetaCapiEventName = toStage === 'curious' ? 'Lead' : 'Contact';
-        const stableId =
-            toStage === 'curious' ? `lead_client_${row.id}` : `contact_client_${row.id}`;
-        const legacyLabel = eventName; // datos antiguos guardaban solo "Lead"/"Contact"
+    // ─── CAPI A: ciclo CRM (engaged) — una vez por persona ───────────────────
+    // curious: solo CRM + touchpoint (ctwa_clid guardado); sin Lead CAPI en Meta.
+    if (opts.fireCapi === true && toStage === 'engaged') {
+        const eventName: MetaCapiEventName = 'Contact';
+        const stableId = `contact_client_${row.id}`;
+        const legacyLabel = eventName; // datos antiguos guardaban solo "Contact"
 
         const { count: priorCapi } = await db
             .from('client_stage_events')
@@ -174,6 +176,29 @@ export async function advanceClientStage(
 
         if (!priorCapi) {
             try {
+                const intent = opts.intent;
+                const contentName =
+                    intent === 'direct'
+                        ? 'CRM Barriles Contact'
+                        : intent === 'event'
+                          ? 'CRM Eventos Contact'
+                          : 'CRM Interesado Contact';
+                const contentCategory =
+                    intent === 'direct'
+                        ? 'Venta Directa'
+                        : intent === 'event'
+                          ? 'Servicio de Eventos'
+                          : 'CRM Lifecycle';
+
+                const customData: Record<string, unknown> = {
+                    content_name: contentName,
+                    content_category: contentCategory,
+                    lifecycle_stage: toStage,
+                };
+                if (opts.engagedGuests != null && opts.engagedGuests > 0) {
+                    customData.num_guests = opts.engagedGuests;
+                }
+
                 const capi = await sendMetaCapiEvent({
                     eventName,
                     eventId: stableId,
@@ -183,12 +208,8 @@ export async function advanceClientStage(
                     ctwaClid: opts.ctwaClid,
                     fbc: opts.fbc,
                     fbp: opts.fbp,
-                    customData: {
-                        content_name:
-                            toStage === 'curious' ? 'CRM Curious Lead' : 'CRM Engaged Contact',
-                        content_category: 'CRM Lifecycle',
-                        lifecycle_stage: toStage,
-                    },
+                    city: opts.engagedComuna,
+                    customData,
                 });
                 if (capi.success) metaEventSent = stableId;
             } catch (err) {

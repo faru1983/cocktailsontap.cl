@@ -515,6 +515,29 @@ export async function recordTouchpoint(opts: {
     return data?.id ?? null;
 }
 
+/**
+ * appendClientCrmNote: Agrega una línea a clients.notes sin duplicar la misma línea.
+ * Usado cuando el bot marca Interesado con snapshot de datos del flujo.
+ */
+export async function appendClientCrmNote(clientId: string, noteLine: string): Promise<void> {
+    const line = noteLine.trim();
+    if (!line) return;
+
+    const db = createServerClient();
+    const { data } = await db.from('clients').select('notes').eq('id', clientId).maybeSingle();
+    const existing = String(data?.notes || '').trim();
+    if (existing.includes(line)) return;
+
+    const notes = existing ? `${existing}\n${line}` : line;
+    await db
+        .from('clients')
+        .update({
+            notes,
+            updated_at: new Date().toISOString(),
+        })
+        .eq('id', clientId);
+}
+
 export async function listClientIdentifiers(clientId: string): Promise<ClientIdentifierRow[]> {
     const db = createServerClient();
     const { data } = await db

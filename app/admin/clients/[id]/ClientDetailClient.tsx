@@ -89,7 +89,7 @@ const statusBadge: Record<string, { label: string; color: string; bg: string }> 
 
 const stageMeta: Record<string, { label: string; color: string; bg: string }> = {
     curious: { label: 'Curioso', color: '#94a3b8', bg: 'rgba(148,163,184,0.12)' },
-    engaged: { label: 'Engaged', color: '#38bdf8', bg: 'rgba(56,189,248,0.12)' },
+    engaged: { label: 'Interesado', color: '#38bdf8', bg: 'rgba(56,189,248,0.12)' },
     quoted: { label: 'Cotizó', color: '#E2A049', bg: 'rgba(226,160,73,0.15)' },
     customer: { label: 'Cliente', color: '#34d399', bg: 'rgba(52,211,153,0.12)' },
     lost: { label: 'Perdido', color: '#f87171', bg: 'rgba(248,113,113,0.12)' },
@@ -421,7 +421,7 @@ export default function ClientDetailClient({
                                     }
                                 >
                                     <option value="curious">Curioso</option>
-                                    <option value="engaged">Engaged</option>
+                                    <option value="engaged">Interesado</option>
                                     <option value="quoted">Cotizó</option>
                                     <option value="customer">Cliente</option>
                                     <option value="lost">Perdido</option>

@@ -202,8 +202,8 @@ Define la arquitectura, reglas irrompibles, convenciones de código, esquema de 
 - Auto-merge si phone y email apuntan a personas distintas y el caso es seguro (nombres compatibles o ficha pobre) → `client_merge_logs`; si conflicto fuerte → `possible_duplicate`.
 - **Ciclo de vida** (`clients.lifecycle_stage`): monotónico `curious < engaged < quoted < customer`. `lost` solo manual (admin). Desde `lost` se puede reabrir con quote/compra.
 - Avance: `advanceClientStage` en `lib/services/clientLifecycleService.ts` → historial en `client_stage_events` + **única salida CAPI**.
-  - `POST /api/v1/contacts` `bot_started` → curious + CAPI Lead `lead_client_{id}` (una vez)
-  - `intent_selected` / `human_reply` → engaged + CAPI Contact `contact_client_{id}` (una vez)
+  - `POST /api/v1/contacts` `bot_started` → curious (CRM/touchpoint; sin CAPI Lead)
+  - `intent_selected` / `human_reply` → Interesado + CAPI Contact (con snapshot WA en touchpoint/notes)
   - createQuote evento → quoted + Lead `lead_{token}` (+ value); direct sale → customer + Purchase `purchase_{token}` (+ value)
   - confirmQuote → customer + Purchase `purchase_{token}` (+ value)
   - Admin cotización/venta manual = mismo flujo CAPI que web/WhatsApp (`action_source: phone_call`)
@@ -232,7 +232,7 @@ Define la arquitectura, reglas irrompibles, convenciones de código, esquema de 
 - Env: `META_CAPI_ACCESS_TOKEN` (requerido), opcional `META_CAPI_TEST_EVENT_CODE`, `META_CAPI_API_VERSION`.
 - `user_data.external_id` = hash SHA256 de `clients.id`; `em`/`ph` hasheados de **todos** los identifiers; `ctwa_clid`/`fbc`/`fbp` desde touchpoint o cookies `_fbc`/`_fbp` (web).
 - **Disparo solo desde `advanceClientStage`** (no desde createQuoteCore / confirmQuote / bot):
-  - Ciclo CRM: Lead `lead_client_{id}` / Contact `contact_client_{id}` (una vez por persona)
+  - Ciclo CRM: Contact `contact_client_{id}` (una vez por persona, solo engaged); curious sin CAPI
   - Cotización: Lead `lead_{token}` o Purchase `purchase_{token}` (+ `value` CLP; mismo event_id que Pixel)
   - Canales: web (`website`), whatsapp (`chat`), admin (`phone_call`)
 - `meta_event_sent` guarda el `event_id` completo (no solo el nombre del evento).

@@ -103,8 +103,16 @@ export const IntegrationContactSchema = z.object({
     ctwaClid: z.string().max(512).optional(),
     fbc: z.string().max(512).optional(),
     fbp: z.string().max(512).optional(),
-    /** When true, fire CAPI Lead/Contact once per stage transition (stable event_id). */
+    /** When true on engage touchpoints, fire CAPI Contact once per person. Curious never fires CAPI. */
     sendCapiLead: z.boolean().optional().default(true),
+    /** CRM intent al pasar a Interesado (event | direct). */
+    intent: z.enum(['event', 'direct', 'unknown']).optional(),
+    /** Línea auto en clients.notes (snapshot WA Interesado). */
+    crmNote: z.string().max(500).optional(),
+    engagedGuests: z.coerce.number().int().min(0).optional(),
+    engagedCelebration: z.string().max(120).optional(),
+    engagedEventDate: z.string().max(80).optional(),
+    engagedComuna: z.string().max(120).optional(),
     payload: z.record(z.string(), z.unknown()).optional().default({}),
 });
 

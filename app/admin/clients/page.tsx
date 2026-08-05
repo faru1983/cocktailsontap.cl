@@ -142,7 +142,7 @@ export default async function ClientsPage({ searchParams }: { searchParams: Sear
     const stageTabs: { key: string; label: string }[] = [
         { key: 'all', label: 'Todos' },
         { key: 'curious', label: 'Curiosos' },
-        { key: 'engaged', label: 'Engaged' },
+        { key: 'engaged', label: 'Interesados' },
         { key: 'quoted', label: 'Cotizaron' },
         { key: 'customer', label: 'Clientes' },
         { key: 'lost', label: 'Perdidos' },

@@ -69,9 +69,19 @@
 
 ## Ultimos Cambios
 
+### 05-08-2026 (Sesión 47) — Interesado solo con datos del flujo + snapshot CRM/CAPI
 
+- Bot: Interesado **no** en menú welcome; solo al salir de intro Eventos/Barriles (`flow_entry_exit`).
+- `POST /contacts` recibe `intent`, snapshot (invitados, comuna, etc.), `crmNote` → touchpoint + `clients.intent` + notas.
+- CAPI Contact: `content_category` por intent, `num_guests`, comuna hasheada (`user_data.ct`).
 
-### 04-08-2026 (Sesión 45) — Hotfix: no forzar business_messaging en Lead/Contact
+### 05-08-2026 (Sesión 46) — Sin Lead CAPI en `curious`
+
+- Decisión: Lead de primer mensaje (`curious`) inflaba conversiones de baja calidad en Meta (14 curious vs 5 engaged en CRM).
+- `advanceClientStage`: CAPI lifecycle solo en `engaged` → Contact; `curious` sigue registrando CRM + touchpoint (`ctwa_clid`).
+- `POST /api/v1/contacts`: `fireCapi` solo si touchpoint es engage (`intent_selected`, etc.).
+- **Redeploy web** para prod; bot sin cambio de comportamiento (solo comentarios).
+
 
 - Causa: al mandar `ctwa_clid` forzábamos `action_source: business_messaging`. Meta **rechaza** Lead/Contact con ese origen (solo acepta Purchase/LeadSubmitted) → CAPI 400 y Contact deja de aparecer en Events Manager.
 - Fix: volver a `action_source: chat` (whatsapp) / website / phone_call. Se mantiene `custom_data.ctwa_clid` cuando exista.
