@@ -459,6 +459,86 @@ export async function updateClientAdmin(clientId: string, data: { first_name: st
     return { success: true };
 }
 
+// ── Delete Client Permanent ──────────────────────────────────────────────
+export async function deleteClientPermanent(clientId: string): Promise<{ success: boolean; error?: string }> {
+    await checkAuth();
+    const db = createServerClient();
+
+    try {
+        // Confirmamos que el cliente todavía existe antes de iniciar una eliminación irreversible.
+        const { data: client, error: clientError } = await db
+            .from('clients')
+            .select('id')
+            .eq('id', clientId)
+            .single();
+
+        if (clientError || !client) {
+            return { success: false, error: 'Cliente no encontrado.' };
+        }
+
+        // Obtenemos todas sus cotizaciones para limpiar primero las tablas que dependen de ellas.
+        const { data: quotes, error: quotesError } = await db
+            .from('quotes')
+            .select('id')
+            .eq('client_id', clientId);
+
+        if (quotesError) throw quotesError;
+        const quoteIds = (quotes || []).map((quote) => quote.id);
+
+        // Los eventos de etapa apuntan al cliente, cotizaciones y touchpoints; deben salir primero.
+        const { error: stageEventsError } = await db
+            .from('client_stage_events')
+            .delete()
+            .eq('client_id', clientId);
+        if (stageEventsError) throw stageEventsError;
+
+        if (quoteIds.length > 0) {
+            // Borramos los hijos de cada cotización antes de eliminar la cotización principal.
+            const quoteDependencies = await Promise.all([
+                db.from('quote_items').delete().in('quote_id', quoteIds),
+                db.from('sync_logs').delete().in('quote_id', quoteIds),
+                db.from('reminder_logs').delete().in('quote_id', quoteIds),
+            ]);
+            const dependencyError = quoteDependencies.find((result) => result.error)?.error;
+            if (dependencyError) throw dependencyError;
+
+            const { error: deleteQuotesError } = await db
+                .from('quotes')
+                .delete()
+                .in('id', quoteIds);
+            if (deleteQuotesError) throw deleteQuotesError;
+        }
+
+        // Quitamos las relaciones restantes del CRM para no dejar datos personales huérfanos.
+        const clientDependencies = await Promise.all([
+            db.from('client_identifiers').delete().eq('client_id', clientId),
+            db.from('client_touchpoints').delete().eq('client_id', clientId),
+            db.from('client_merge_logs').delete().or(`from_client_id.eq.${clientId},into_client_id.eq.${clientId}`),
+            db.from('clients').update({ merged_into_id: null }).eq('merged_into_id', clientId),
+        ]);
+        const clientDependencyError = clientDependencies.find((result) => result.error)?.error;
+        if (clientDependencyError) throw clientDependencyError;
+
+        const { error: deleteClientError } = await db
+            .from('clients')
+            .delete()
+            .eq('id', clientId);
+        if (deleteClientError) throw deleteClientError;
+
+        revalidatePath('/admin/clients');
+        revalidatePath('/admin/quotes');
+        return { success: true };
+    } catch (error: unknown) {
+        console.error('Error deleting client permanently:', error);
+        return {
+            success: false,
+            error: error instanceof Error
+                ? error.message
+                : 'No se pudo eliminar el cliente y sus cotizaciones.',
+        };
+    }
+}
+
 export async function setClientPrimaryIdentifierAdmin(
     clientId: string,
     identifierId: string

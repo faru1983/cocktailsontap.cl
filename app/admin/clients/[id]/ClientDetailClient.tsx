@@ -4,7 +4,9 @@ import { useState, useTransition } from 'react';
 import Link from 'next/link';
 import { formatPhoneDisplay, normalizePhoneE164, toWhatsAppDigits } from '@/lib/phone';
 import PhoneInput from '@/components/ui/PhoneInput';
+import Modal from '@/components/admin/Modal';
 import {
+    deleteClientPermanent,
     updateClientAdmin,
     syncClientWithGoogle,
     setClientPrimaryIdentifierAdmin,
@@ -24,6 +26,7 @@ import {
     GitMerge,
     Star,
     Activity,
+    Trash2,
 } from 'lucide-react';
 
 interface Client {
@@ -127,6 +130,8 @@ export default function ClientDetailClient({
         tags: (initialClient.tags || []).join(', '),
     });
     const [isPending, startTransition] = useTransition();
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
     const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
     const router = useRouter();
 
@@ -165,6 +170,22 @@ export default function ClientDetailClient({
             } else {
                 showToast(res.error || 'Error al actualizar cliente', false);
             }
+        });
+    };
+
+    const handleDeleteClient = () => {
+        setIsDeleting(true);
+        startTransition(async () => {
+            const res = await deleteClientPermanent(client.id);
+            if (res.success) {
+                router.push('/admin/clients');
+                router.refresh();
+                return;
+            }
+
+            setIsDeleting(false);
+            setShowDeleteModal(false);
+            showToast(res.error || 'No se pudo eliminar el cliente', false);
         });
     };
 
@@ -251,20 +272,32 @@ export default function ClientDetailClient({
                 <Link href="/admin/clients" className="flex items-center gap-2 text-[#E2A049] text-sm font-bold hover:text-white transition-colors no-underline">
                     <ArrowLeft size={16} /> Volver a Clientes
                 </Link>
-                <button
-                    onClick={() => setIsEditing(!isEditing)}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold border transition-colors ${isEditing ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' : 'bg-[#E2A049]/10 text-[#E2A049] border-[#E2A049]/20'}`}
-                >
-                    {isEditing ? (
-                        <>
-                            <X size={14} /> Cancelar Edición
-                        </>
-                    ) : (
-                        <>
-                            <Edit2 size={14} /> Editar Perfil
-                        </>
-                    )}
-                </button>
+                <div className="flex items-center gap-2">
+                    <button
+                        type="button"
+                        onClick={() => setShowDeleteModal(true)}
+                        disabled={isPending || isDeleting}
+                        className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold border transition-colors bg-rose-500/10 text-rose-400 border-rose-500/20 hover:bg-rose-500/20 disabled:opacity-50 cursor-pointer"
+                    >
+                        <Trash2 size={14} /> {isDeleting ? 'Eliminando...' : 'Eliminar'}
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setIsEditing(!isEditing)}
+                        disabled={isPending || isDeleting}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold border transition-colors disabled:opacity-50 cursor-pointer ${isEditing ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' : 'bg-[#E2A049]/10 text-[#E2A049] border-[#E2A049]/20'}`}
+                    >
+                        {isEditing ? (
+                            <>
+                                <X size={14} /> Cancelar Edición
+                            </>
+                        ) : (
+                            <>
+                                <Edit2 size={14} /> Editar Perfil
+                            </>
+                        )}
+                    </button>
+                </div>
             </div>
 
             {(client.possible_duplicate || merges.length > 0) && (
@@ -673,6 +706,58 @@ export default function ClientDetailClient({
                     </div>
                 </div>
             </div>
+
+            <Modal
+                isOpen={showDeleteModal}
+                onClose={() => {
+                    if (!isDeleting) setShowDeleteModal(false);
+                }}
+                title="Eliminar cliente"
+            >
+                <div className="flex flex-col gap-4">
+                    <div className="flex items-start gap-3 px-4 py-3 rounded-xl border border-rose-500/30 bg-rose-500/10">
+                        <AlertTriangle size={18} className="text-rose-400 shrink-0 mt-0.5" />
+                        <div className="text-sm text-rose-200">
+                            Esta acción es permanente y no se puede deshacer.
+                        </div>
+                    </div>
+
+                    <div className="text-sm text-slate-300">
+                        Se eliminará a{' '}
+                        <span className="font-bold text-slate-100">
+                            {client.first_name} {client.last_name || ''}
+                        </span>{' '}
+                        junto con sus identificadores, touchpoints e historial de etapas.
+                    </div>
+
+                    <div className="text-sm text-slate-300">
+                        {initialQuotes.length === 0
+                            ? 'Este cliente no tiene cotizaciones asociadas.'
+                            : initialQuotes.length === 1
+                                ? 'También se eliminará su cotización y todos sus registros asociados.'
+                                : `También se eliminarán sus ${initialQuotes.length} cotizaciones y todos sus registros asociados.`}
+                    </div>
+
+                    <div className="flex justify-end gap-3 pt-2">
+                        <button
+                            type="button"
+                            onClick={() => setShowDeleteModal(false)}
+                            disabled={isDeleting}
+                            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border border-white/10 text-slate-300 hover:bg-white/5 transition-colors disabled:opacity-50 cursor-pointer"
+                        >
+                            <X size={16} /> Cancelar
+                        </button>
+                        <button
+                            type="button"
+                            onClick={handleDeleteClient}
+                            disabled={isDeleting}
+                            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold bg-rose-500 text-white hover:bg-rose-400 transition-colors disabled:opacity-50 cursor-pointer"
+                        >
+                            <Trash2 size={16} /> {isDeleting ? 'Eliminando...' : 'Sí, eliminar'}
+                        </button>
+                    </div>
+                </div>
+            </Modal>
 
             {toast && (
                 <div
