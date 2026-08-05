@@ -1,4 +1,6 @@
-export const FB_PIXEL_ID = '1739547250109039';
+// Debe coincidir con META_PIXEL_ID en lib/config.ts (mismo fallback hardcodeado
+// para que el script del browser y las llamadas server-side a CAPI usen el mismo Pixel ID).
+export const FB_PIXEL_ID = process.env.NEXT_PUBLIC_META_PIXEL_ID ?? '1739547250109039';
 
 declare global {
   interface Window {
