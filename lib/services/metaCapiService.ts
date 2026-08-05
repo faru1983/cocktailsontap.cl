@@ -35,7 +35,7 @@ export interface SendMetaCapiInput {
     eventId: string;
     clientId: string;
     eventTime?: number;
-    actionSource?: 'website' | 'chat' | 'phone_call' | 'business_messaging' | 'other';
+    actionSource?: 'website' | 'chat' | 'phone_call' | 'other';
     eventSourceUrl?: string;
     customData?: Record<string, unknown>;
     /** Override attribution from a specific touchpoint */
@@ -124,30 +124,19 @@ export async function sendMetaCapiEvent(
     if (fbc) userData.fbc = fbc;
     if (fbp) userData.fbp = fbp;
 
-    // ctwa_clid: Click-to-WhatsApp. Meta recomienda business_messaging + canal whatsapp.
+    // ctwa_clid mejora atribución CTWA. NO usar action_source business_messaging
+    // con Lead/Contact: Meta lo rechaza (solo acepta Purchase/LeadSubmitted ahí).
     const customData: Record<string, unknown> = { ...(input.customData || {}) };
     if (ctwaClid) customData.ctwa_clid = ctwaClid;
-
-    const hasCtwa = Boolean(ctwaClid);
-    // Si el evento trae clid CTWA, preferimos business_messaging aunque el caller mande "chat"
-    let actionSource = input.actionSource ?? (hasCtwa ? 'business_messaging' : 'chat');
-    if (hasCtwa && (actionSource === 'chat' || actionSource === 'other')) {
-        actionSource = 'business_messaging';
-    }
 
     const event: Record<string, unknown> = {
         event_name: input.eventName,
         event_time: input.eventTime ?? Math.floor(Date.now() / 1000),
         event_id: input.eventId,
-        action_source: actionSource,
+        action_source: input.actionSource ?? 'chat',
         user_data: userData,
         custom_data: customData,
     };
-
-    // Canal de mensajería obligatorio cuando action_source = business_messaging
-    if (actionSource === 'business_messaging' || hasCtwa) {
-        event.messaging_channel = 'whatsapp';
-    }
 
     if (input.eventSourceUrl) event.event_source_url = input.eventSourceUrl;
 

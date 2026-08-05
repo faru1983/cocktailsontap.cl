@@ -71,6 +71,15 @@
 
 
 
+### 04-08-2026 (Sesión 45) — Hotfix: no forzar business_messaging en Lead/Contact
+
+- Causa: al mandar `ctwa_clid` forzábamos `action_source: business_messaging`. Meta **rechaza** Lead/Contact con ese origen (solo acepta Purchase/LeadSubmitted) → CAPI 400 y Contact deja de aparecer en Events Manager.
+- Fix: volver a `action_source: chat` (whatsapp) / website / phone_call. Se mantiene `custom_data.ctwa_clid` cuando exista.
+- Nota: la campaña WA Lookalike sigue ACTIVE y generando conversaciones; el dataset en “0 ad sets” es porque Contact Lookalike está PAUSED y WA optimiza CONVERSATIONS (no el pixel).
+- **Redeploy web** obligatorio para que prod deje de rechazar eventos.
+
+
+
 ### 04-08-2026 (Sesión 44) — CTWA clid → CRM/CAPI
 
 - Bot (`whatsapp-cot`): `logic/meta-ctwa.js` extrae `externalAdReply.ctwaClid` (y señales opacas FB_Ads/ctwa_ad). Se guarda en sesión; `POST /contacts` manda `ctwaClid`. Backfill `ctwa_attribution` si el clid llega tras el Lead curious (resend Baileys).
@@ -107,16 +116,6 @@
 
 
 
-### 03-08-2026 (Sesión 40) — CTWA Curioso + Engaged por estado del bot
-
-- **Curioso**: primer mensaje (`bot_started`), incl. copy predefinido Meta.
-- **Engaged** solo por **cambio de estado** (`notifyCrmOnBotStateChange`):
-  - sale de `EVENTOS_RECOGIDA_DATOS` / `BARRILES_FILTRO_CANAL` → otro paso
-  - o elige en menú welcome (`routerMenuShown`) → Eventos/Barriles/Humano
-- Sin pushName: `Cliente +569…`.
-
-
-
 ---
 
-*Ultima actualizacion: 04-08-2026 (Sesión 44)*
+*Ultima actualizacion: 04-08-2026 (Sesión 45)*

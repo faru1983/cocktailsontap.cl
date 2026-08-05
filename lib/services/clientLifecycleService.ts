@@ -71,11 +71,8 @@ function isLifecycleStage(value: string | null | undefined): value is ClientLife
 }
 
 function resolveActionSource(
-    source?: string,
-    opts?: { ctwaClid?: string | null }
-): 'website' | 'chat' | 'phone_call' | 'business_messaging' | 'other' {
-    // CTWA: Meta atribuye mejor con business_messaging + ctwa_clid
-    if (opts?.ctwaClid && (source === 'whatsapp' || !source)) return 'business_messaging';
+    source?: string
+): 'website' | 'chat' | 'phone_call' | 'other' {
     if (source === 'whatsapp') return 'chat';
     if (source === 'admin') return 'phone_call';
     if (source === 'web') return 'website';
@@ -158,7 +155,7 @@ export async function advanceClientStage(
 
     await db.from('clients').update(patch).eq('id', row.id);
 
-    const actionSource = resolveActionSource(opts.source, { ctwaClid: opts.ctwaClid });
+    const actionSource = resolveActionSource(opts.source);
 
     // ─── CAPI A: ciclo CRM (curious / engaged) — una vez por persona ─────────
     // Fire even when stage unchanged (e.g. new client defaults to curious then bot_started).
