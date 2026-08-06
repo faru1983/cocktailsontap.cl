@@ -184,6 +184,11 @@ export const PriceBreakdownSection: React.FC<{ quote: Quote, isDirect?: boolean 
           <td style={{ fontSize: '17px', color: brandDark, fontWeight: 900, padding: '10px 0 0' }}>TOTAL</td>
           <td style={{ fontSize: '17px', color: brandDark, fontWeight: 900, textAlign: 'right', padding: '10px 0 0' }}>{formatCurrency(quote.total_price)}</td>
         </tr>
+        <tr>
+          <td colSpan={2} style={{ fontSize: '11px', color: gray, padding: '6px 0 0', fontWeight: 500 }}>
+            Valores netos. No incluyen IVA.
+          </td>
+        </tr>
       </tbody>
     </table>
   );

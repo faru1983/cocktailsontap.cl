@@ -55,6 +55,9 @@ export const ConfirmationEmail: React.FC<Readonly<ConfirmationEmailProps>> = ({ 
         <Text style={{ color: '#166534', margin: '10px 0 0', fontSize: '12px' }}>
             {isDirect ? 'Monto a depositar (Pago total 100%). Envía el comprobante por correo o WhatsApp.' : 'Monto a depositar (Pago total 100%). Envía el comprobante por correo o WhatsApp.'}
         </Text>
+        <Text style={{ color: '#166534', margin: '6px 0 0', fontSize: '11px', opacity: 0.85 }}>
+            Valores netos. No incluyen IVA.
+        </Text>
       </Section>
 
       <Section style={{ backgroundColor: lightGray, borderRadius: '12px', padding: '20px 24px', marginBottom: '28px', border: `1px solid ${borderColor}` }}>

@@ -40,6 +40,12 @@
 
 ## Ultimos Cambios
 
+### 06-08-2026 (Sesión 49) — Nota valores netos / sin IVA en carrito, resumen, emails y URL
+
+- `CartModal` (landing): bajo el Total, texto “Valores netos. No incluyen IVA.”
+- `QuoteSummaryProducts` (wizards, `/cotizar/[token]`): misma nota bajo el TOTAL.
+- Emails: `PriceBreakdownSection` en `EmailShared` (Quote/Direct/Confirmation) + banner de monto en `ConfirmationEmail`.
+
 ### 05-08-2026 (Sesión 48) — Eliminación permanente de clientes desde admin
 
 - Perfil `/admin/clients/[id]`: botón **Eliminar** a la izquierda de **Editar Perfil**, con confirmación irreversible y aviso de cuántas cotizaciones se borrarán.
@@ -66,13 +72,6 @@
 - Nota: la campaña WA Lookalike sigue ACTIVE y generando conversaciones; el dataset en “0 ad sets” es porque Contact Lookalike está PAUSED y WA optimiza CONVERSATIONS (no el pixel).
 - **Redeploy web** obligatorio para que prod deje de rechazar eventos.
 
-### 04-08-2026 (Sesión 44) — CTWA clid → CRM/CAPI
-
-- Bot (`whatsapp-cot`): `logic/meta-ctwa.js` extrae `externalAdReply.ctwaClid` (y señales opacas FB_Ads/ctwa_ad). Se guarda en sesión; `POST /contacts` manda `ctwaClid`. Backfill `ctwa_attribution` si el clid llega tras el Lead curious (resend Baileys).
-- Web CAPI: con `ctwa_clid` usa `action_source: business_messaging` + `messaging_channel: whatsapp`.
-- Tests: extractor + body contacts en `test-cot-api-mocked.mjs`. `npm run verify` OK.
-- **Deploy**: bot + web (CAPI) para que Meta empiece a recibir clids en Contact/Lead WA.
-
 ---
 
-*Ultima actualizacion: 05-08-2026 (Sesión 48)*
+*Ultima actualizacion: 06-08-2026 (Sesión 49)*

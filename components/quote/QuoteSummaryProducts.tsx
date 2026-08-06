@@ -190,6 +190,9 @@ export default function QuoteSummaryProducts({ data, isEditable = false, onUpdat
                     <span className={`font-black text-brand-text ${compact ? 'text-[0.9rem]' : 'text-[1rem]'}`}>TOTAL</span>
                     <span className={`font-black text-primary ${compact ? 'text-xl sm:text-2xl' : 'text-2xl'}`}>{formatCurrency(data.totalPrice)}</span>
                 </div>
+                <p className={`text-brand-text-muted font-medium m-0 ${compact ? 'text-[0.7rem] pt-1' : 'text-[0.75rem] pt-1.5'}`}>
+                    Valores netos. No incluyen IVA.
+                </p>
             </div>
         </div>
     );

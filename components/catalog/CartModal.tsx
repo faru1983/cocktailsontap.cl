@@ -130,6 +130,9 @@ export default function CartModal({ items, isOpen, onClose, onUpdateQuantity, on
                                     <span>Total:</span>
                                     <span>{formatCurrency(total)}</span>
                                 </div>
+                                <p className="text-[0.75rem] text-brand-text-muted font-medium m-0 pt-1">
+                                    Valores netos. No incluyen IVA.
+                                </p>
 
                                 {onCtaClick ? (
                                     <button
