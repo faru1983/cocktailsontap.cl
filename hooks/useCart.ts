@@ -4,6 +4,7 @@ import { useState, useCallback } from 'react';
 import type { CartItem } from '@/lib/types';
 
 import { formatCurrency } from '@/lib/utils';
+import { getWhatsAppUrl } from '@/lib/wizardLogic';
 
 function key(productId: string, size: string) {
     return `${productId}__${size}`;
@@ -61,8 +62,9 @@ export function useCart() {
         text += `\nSubtotal: ${formatCurrency(subtotal)}`;
         if (discount > 0) text += `\nDescuento: -${formatCurrency(discount)}`;
         text += `\n*TOTAL: ${formatCurrency(total)}*`;
+        text += `\n\n_Valores netos. No incluyen IVA._`;
 
-        window.open(`https://wa.me?text=${encodeURIComponent(text)}`, '_blank');
+        window.open(getWhatsAppUrl(text), '_blank');
     }, [items, getTotalPrice]);
 
     const cartQuantityByKey = new Map(items.map((i) => [key(i.productId, i.size), i.quantity]));

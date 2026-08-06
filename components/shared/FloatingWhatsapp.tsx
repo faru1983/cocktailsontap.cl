@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { WhatsappIcon } from './icons';
-import { WHATSAPP_NUMBER } from '@/lib/config';
+import { WHATSAPP_URL } from '@/lib/config';
 
 const DEFAULT_MESSAGE = 'Hola, estoy cotizando desde la pagina web y tengo algunas dudas.';
 
@@ -26,7 +26,7 @@ export default function FloatingWhatsapp({ message = DEFAULT_MESSAGE }: Floating
 
     if (closed) return null;
 
-    const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
+    const whatsappUrl = `${WHATSAPP_URL}?text=${encodeURIComponent(message)}`;
 
     return (
         <div

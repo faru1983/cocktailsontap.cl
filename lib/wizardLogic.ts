@@ -344,7 +344,8 @@ export function buildWhatsAppMessage(state: WizardState, data: SummaryData, toke
     if (data.totalDiscount > 0) msg += `*Descuento:* -${formatCurrency(data.totalDiscount)}\n`;
     msg += `*Traslados:* ${data.shippingLabel}\n`;
     msg += `*${data.dispenserLabel}:* ${data.installationCost === 0 ? '¡Gratis!' : formatCurrency(data.installationCost)}\n`;
-    msg += `*TOTAL: ${formatCurrency(data.totalPrice)}*\n\n`;
+    msg += `*TOTAL: ${formatCurrency(data.totalPrice)}*\n`;
+    msg += `_Valores netos. No incluyen IVA._\n\n`;
 
     // Solo mostrar el rendimiento si realmente hay litros acumulados
     if (data.totalLiters > 0) {
@@ -396,7 +397,8 @@ export function buildWhatsAppMessageFromQuote(quote: Quote & { quote_items: Quot
     if (!isDirect) {
         msg += `*${dispenserLabel}:* ${quote.installation_cost === 0 ? '¡Gratis!' : formatCurrency(quote.installation_cost || 0)}\n`;
     }
-    msg += `*TOTAL: ${formatCurrency(quote.total_price || 0)}*\n\n`;
+    msg += `*TOTAL: ${formatCurrency(quote.total_price || 0)}*\n`;
+    msg += `_Valores netos. No incluyen IVA._\n\n`;
 
     if (totalLiters > 0) {
         msg += `*Notas:* \n`;

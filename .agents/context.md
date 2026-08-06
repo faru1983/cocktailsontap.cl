@@ -40,11 +40,10 @@
 
 ## Ultimos Cambios
 
-### 06-08-2026 (Sesión 49) — Nota valores netos / sin IVA en carrito, resumen, emails y URL
+### 06-08-2026 (Sesión 49) — Nota IVA + auditoría WhatsApp
 
-- `CartModal` (landing): bajo el Total, texto “Valores netos. No incluyen IVA.”
-- `QuoteSummaryProducts` (wizards, `/cotizar/[token]`): misma nota bajo el TOTAL.
-- Emails: `PriceBreakdownSection` en `EmailShared` (Quote/Direct/Confirmation) + banner de monto en `ConfirmationEmail`.
+- Nota “Valores netos. No incluyen IVA.”: `CartModal`, `QuoteSummaryProducts`, emails (`EmailShared` + `ConfirmationEmail`).
+- WhatsApp: contacto de negocio vía `WHATSAPP_NUMBER`/`WHATSAPP_URL` (`NEXT_PUBLIC_WHATSAPP_NUMBER`). `useCart` y `FloatingWhatsapp` alineados a esa fuente. Único hardcode: crédito “FaRu” en Footer (número del desarrollador, no del negocio). Admin usa `wa.me` al teléfono del cliente (correcto).
 
 ### 05-08-2026 (Sesión 48) — Eliminación permanente de clientes desde admin
 
