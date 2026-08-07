@@ -40,6 +40,11 @@
 
 ## Ultimos Cambios
 
+### 07-08-2026 (Sesión 50) — Fix temática “Otro” duplicada en admin
+
+- Causa: en `/admin/quotes/new` el select de temática mapeaba `eventTypes` (ya incluye `Otro` en DB) y además hardcodeaba `<option value="Otro">`.
+- Fix: se eliminó la opción hardcodeada en `CreateQuoteManualClient.tsx`. Wizard y detalle de cotización ya usaban solo `eventTypes`.
+
 ### 06-08-2026 (Sesión 49) — Nota IVA + auditoría WhatsApp
 
 - Nota “Valores netos. No incluyen IVA.”: `CartModal`, `QuoteSummaryProducts`, emails (`EmailShared` + `ConfirmationEmail`).
@@ -64,13 +69,6 @@
 - `POST /api/v1/contacts`: `fireCapi` solo si touchpoint es engage (`intent_selected`, etc.).
 - **Redeploy web** para prod; bot sin cambio de comportamiento (solo comentarios).
 
-### 05-08-2026 (Sesión 45) — Corrección de action_source CAPI
-
-- Causa: al mandar `ctwa_clid` forzábamos `action_source: business_messaging`. Meta **rechaza** Lead/Contact con ese origen (solo acepta Purchase/LeadSubmitted) → CAPI 400 y Contact deja de aparecer en Events Manager.
-- Fix: volver a `action_source: chat` (whatsapp) / website / phone_call. Se mantiene `custom_data.ctwa_clid` cuando exista.
-- Nota: la campaña WA Lookalike sigue ACTIVE y generando conversaciones; el dataset en “0 ad sets” es porque Contact Lookalike está PAUSED y WA optimiza CONVERSATIONS (no el pixel).
-- **Redeploy web** obligatorio para que prod deje de rechazar eventos.
-
 ---
 
-*Ultima actualizacion: 06-08-2026 (Sesión 49)*
+*Ultima actualizacion: 07-08-2026 (Sesión 50)*

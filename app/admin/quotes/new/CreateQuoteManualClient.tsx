@@ -514,7 +514,6 @@ export default function CreateQuoteManualClient({ allProducts, comunas, eventTyp
                                         >
                                             <option value="">Selecciona temática...</option>
                                             {eventTypes.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                                            <option value="Otro">Otro</option>
                                         </select>
                                     </Field>
                                     {eventData.type === 'Otro' && (
