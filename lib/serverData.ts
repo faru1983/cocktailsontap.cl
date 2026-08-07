@@ -135,7 +135,11 @@ export const fetchAllProductData = unstable_cache(
 export const fetchAllClients = unstable_cache(
     async () => {
         const db = createServerClient();
-        const { data, error } = await db.from('clients').select('id, first_name, last_name, email, phone').order('first_name', { ascending: true });
+        const { data, error } = await db
+            .from('clients')
+            .select('id, first_name, last_name, email, phone')
+            .is('merged_into_id', null)
+            .order('first_name', { ascending: true });
         if (error) throw new Error(`clients: ${error.message}`);
         return data ?? [];
     },

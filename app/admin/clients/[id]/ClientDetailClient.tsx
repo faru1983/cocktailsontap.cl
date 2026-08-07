@@ -13,6 +13,7 @@ import {
     updateClientCrmAdmin,
 } from '@/app/actions/admin/adminActions';
 import { useRouter } from 'next/navigation';
+import { formatDateCL, formatDateTimeCL } from '@/lib/utils';
 import {
     Edit2,
     Save,
@@ -285,7 +286,7 @@ export default function ClientDetailClient({
                         type="button"
                         onClick={() => setIsEditing(!isEditing)}
                         disabled={isPending || isDeleting}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold border transition-colors disabled:opacity-50 cursor-pointer ${isEditing ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' : 'bg-[#E2A049]/10 text-[#E2A049] border-[#E2A049]/20'}`}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold border transition-colors disabled:opacity-50 cursor-pointer ${isEditing ? 'bg-white/5 text-slate-300 border-white/10 hover:bg-white/10' : 'bg-[#E2A049]/10 text-[#E2A049] border-[#E2A049]/20'}`}
                     >
                         {isEditing ? (
                             <>
@@ -314,7 +315,7 @@ export default function ClientDetailClient({
                             </div>
                             {merges.slice(0, 3).map((m) => (
                                 <div key={m.id} className="text-xs opacity-80">
-                                    {new Date(m.created_at).toLocaleString('es-CL')} — {m.reason}
+                                    {formatDateTimeCL(m.created_at)} — {m.reason}
                                 </div>
                             ))}
                         </div>
@@ -362,14 +363,14 @@ export default function ClientDetailClient({
                                 {client.last_activity_at && (
                                     <div style={{ color: '#64748b', fontSize: '12px' }}>
                                         Última actividad:{' '}
-                                        {new Date(client.last_activity_at).toLocaleString('es-CL')}
+                                        {formatDateTimeCL(client.last_activity_at)}
                                     </div>
                                 )}
                                 <div style={{ color: '#475569', fontSize: '12px' }}>
                                     Google: {client.google_contact_id ? 'Sincronizado' : 'Sin sync'}
                                 </div>
                                 <div style={{ color: '#334155', fontSize: '11px' }}>
-                                    Registro: {new Date(client.created_at).toLocaleDateString('es-CL')}
+                                    Registro: {formatDateCL(client.created_at)}
                                 </div>
                                 <div style={{ marginTop: '8px', padding: '12px', background: 'rgba(255,255,255,0.02)', borderRadius: '10px' }}>
                                     <div style={{ color: '#34d399', fontSize: '18px', fontWeight: 900 }}>{formatCLP(totalSpent)}</div>
@@ -538,7 +539,7 @@ export default function ClientDetailClient({
                                                     {ev.reason}
                                                 </div>
                                                 <div style={{ color: '#475569', fontSize: 11, marginTop: 2 }}>
-                                                    {new Date(ev.created_at).toLocaleString('es-CL')}
+                                                    {formatDateTimeCL(ev.created_at)}
                                                     {ev.source ? ` · ${ev.source}` : ''}
                                                     {ev.meta_event_sent ? ` · CAPI ${ev.meta_event_sent}` : ''}
                                                 </div>
@@ -607,7 +608,7 @@ export default function ClientDetailClient({
                                                         {formatCLP(Number(q.total_price))}
                                                     </div>
                                                     <div style={{ color: '#94a3b8', fontSize: '12px' }}>
-                                                        {q.event_date ? new Date(q.event_date).toLocaleDateString('es-CL') : '—'}
+                                                        {q.event_date ? formatDateCL(q.event_date + 'T12:00:00') : '—'}
                                                     </div>
                                                 </div>
                                                 <div style={{ textAlign: 'right' }}>
@@ -626,7 +627,7 @@ export default function ClientDetailClient({
                                                         {badge.label}
                                                     </span>
                                                     <div style={{ color: '#64748b', fontSize: '11px' }}>
-                                                        Creada: {new Date(q.created_at).toLocaleDateString('es-CL')}
+                                                        Creada: {formatDateCL(q.created_at)}
                                                     </div>
                                                 </div>
                                             </Link>
@@ -663,10 +664,10 @@ export default function ClientDetailClient({
                                                 return (
                                                     <tr key={q.id} style={{ borderTop: '1px solid rgba(255,255,255,0.04)' }}>
                                                         <td style={{ padding: '14px 20px', color: '#94a3b8', fontSize: '13px', whiteSpace: 'nowrap' }}>
-                                                            {q.event_date ? new Date(q.event_date).toLocaleDateString('es-CL') : '—'}
+                                                            {q.event_date ? formatDateCL(q.event_date + 'T12:00:00') : '—'}
                                                         </td>
                                                         <td style={{ padding: '14px 20px', color: '#64748b', fontSize: '12px', whiteSpace: 'nowrap' }}>
-                                                            {new Date(q.created_at).toLocaleDateString('es-CL')}
+                                                            {formatDateCL(q.created_at)}
                                                         </td>
                                                         <td style={{ padding: '14px 20px', color: '#E2A049', fontWeight: 700, fontSize: '14px', whiteSpace: 'nowrap' }}>
                                                             {formatCLP(Number(q.total_price))}

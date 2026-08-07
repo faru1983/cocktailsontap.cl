@@ -35,10 +35,23 @@
 - Tabla `clients` (UUID = persona / CAPI `external_id`). Matching vía `client_identifiers`.
 - `lifecycle_stage`: `curious` → `engaged` → `quoted` → `customer` (monotónico). `lost` solo manual en admin.
 - `intent`: `event` | `direct` | `unknown`. Historial en `client_stage_events`.
-- Bot (`whatsapp-cot`): welcome → `bot_started` (curious); menú Eventos/Barriles/Humano → `intent_selected` (engaged).
+- Bot (`whatsapp-cot`): welcome → `bot_started` (curious); al elegir Eventos/Barriles parchea `intent` (`event`|`direct`) sin subir de stage; Interesado sigue en transiciones de flujo (`intent_selected`).
 - **CAPI solo desde `advanceClientStage`** (web / whatsapp / admin).
 
 ## Ultimos Cambios
+
+### 07-08-2026 (Sesión 52) — Nombre CRM al cotizar + búsqueda admin
+
+- Caso `ceciliacampospa@gmail.com`: cotización admin “Cecilia Campos” no actualizó el perfil (quedó pushName WA “Chichi Campos”) porque `resolveOrCreateClient` solo reemplazaba nombres placeholder.
+- Fix: enriquecimiento de nombre/apellido en cotización web/admin (o si viene apellido); pushName WA sigue sin pisar un nombre bueno. Perfil Cecilia corregido a Cecilia Campos.
+- Búsqueda de clientes en `/admin/quotes/new`: crasheaba/fallaba con `email` null (`c.email.toLowerCase`); ahora null-safe + busca por teléfono. `fetchAllClients` excluye merged.
+- Hydration en ficha cliente: `toLocaleString('es-CL')` difería server/client (espacio en `a. m.`); fechas vía `formatDateCL` / `formatDateTimeCL` (Santiago, 24h).
+
+### 07-08-2026 (Sesión 51) — Intent CRM en Curioso (Barriles/Eventos)
+
+- Causa: el bot enviaba Curioso (`bot_started`) sin `intent`; Barriles casi nunca llegaba a Interesado con `direct`, así el CRM quedaba “Sin definir”.
+- Fix en `whatsapp-cot`: `syncCrmCurious` manda `intent` si ya hay carril; nuevo `syncCrmIntent` al elegir Barriles/Eventos (o switch de carril); router defiere Curioso hasta después de la elección en el 1er mensaje.
+- Web CRM sin cambios: `POST /api/v1/contacts` ya persistía `intent` en cualquier stage.
 
 ### 07-08-2026 (Sesión 50) — Fix temática “Otro” duplicada en admin
 
@@ -56,19 +69,6 @@
 - Nueva Server Action autenticada `deleteClientPermanent`: elimina primero eventos de etapa y dependencias/cotizaciones; luego identifiers, touchpoints, merges y cliente.
 - Validación: TypeScript sin errores; ESLint del componente OK (el action conserva errores históricos ajenos al cambio).
 
-### 05-08-2026 (Sesión 47) — Interesado solo con datos del flujo + snapshot CRM/CAPI
-
-- Bot: Interesado **no** en menú welcome; solo al salir de intro Eventos/Barriles (`flow_entry_exit`).
-- `POST /contacts` recibe `intent`, snapshot (invitados, comuna, etc.), `crmNote` → touchpoint + `clients.intent` + notas.
-- CAPI Contact: `content_category` por intent, `num_guests`, comuna hasheada (`user_data.ct`).
-
-### 05-08-2026 (Sesión 46) — Sin Lead CAPI en `curious`
-
-- Decisión: Lead de primer mensaje (`curious`) inflaba conversiones de baja calidad en Meta (14 curious vs 5 engaged en CRM).
-- `advanceClientStage`: CAPI lifecycle solo en `engaged` → Contact; `curious` sigue registrando CRM + touchpoint (`ctwa_clid`).
-- `POST /api/v1/contacts`: `fireCapi` solo si touchpoint es engage (`intent_selected`, etc.).
-- **Redeploy web** para prod; bot sin cambio de comportamiento (solo comentarios).
-
 ---
 
-*Ultima actualizacion: 07-08-2026 (Sesión 50)*
+*Ultima actualizacion: 07-08-2026 (Sesión 52)*

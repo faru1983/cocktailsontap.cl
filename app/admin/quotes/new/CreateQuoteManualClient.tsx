@@ -48,11 +48,21 @@ export default function CreateQuoteManualClient({ allProducts, comunas, eventTyp
     const [discountOverride, setDiscountOverride] = useState<number>(0);
 
     const filteredClients = useMemo(() => {
-        if (!clientSearch) return [];
-        return existingClients.filter(c => 
-            `${c.first_name} ${c.last_name}`.toLowerCase().includes(clientSearch.toLowerCase()) ||
-            c.email.toLowerCase().includes(clientSearch.toLowerCase())
-        ).slice(0, 5);
+        if (!clientSearch.trim()) return [];
+        const q = clientSearch.toLowerCase().trim();
+        const qDigits = q.replace(/\D/g, '');
+        return existingClients.filter(c => {
+            const name = `${c.first_name || ''} ${c.last_name || ''}`.toLowerCase();
+            const email = String(c.email || '').toLowerCase();
+            const phone = String(c.phone || '').toLowerCase();
+            const phoneDigits = phone.replace(/\D/g, '');
+            return (
+                name.includes(q) ||
+                email.includes(q) ||
+                phone.includes(q) ||
+                (qDigits.length >= 4 && phoneDigits.includes(qDigits))
+            );
+        }).slice(0, 5);
     }, [clientSearch, existingClients]);
 
     const addressKey = (a: ClientQuoteAddress) =>

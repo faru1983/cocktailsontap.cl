@@ -61,6 +61,39 @@ function defaultClientDisplayName(phone?: string | null): string {
     return e164 ? `Cliente ${e164}` : 'Cliente';
 }
 
+/**
+ * Enriquece nombre/apellido del CRM con datos entrantes.
+ * - Cotización web/admin (o contacto con apellido): completa/corrige el perfil.
+ * - Solo pushName WA: solo reemplaza placeholders; no pisa un nombre ya bueno.
+ */
+function buildNameEnrichmentPatch(
+    row: { first_name?: string | null; last_name?: string | null } | null | undefined,
+    input: { firstName?: string | null; lastName?: string | null },
+    source: ClientTouchSource
+): Record<string, unknown> {
+    const patch: Record<string, unknown> = {};
+    const incomingName = (input.firstName || '').trim();
+    const incomingLast = (input.lastName || '').trim();
+    const incomingOk = Boolean(incomingName && !isPlaceholderClientName(incomingName));
+    const fromQuoteForm = source === 'admin' || source === 'web';
+    // Cotización WA/API suele traer apellido; el contact bot_started casi nunca.
+    const structured = incomingOk && (fromQuoteForm || Boolean(incomingLast));
+
+    if (structured) {
+        patch.first_name = incomingName;
+        if (incomingLast) patch.last_name = incomingLast;
+        return patch;
+    }
+
+    if (incomingOk && isPlaceholderClientName(row?.first_name)) {
+        patch.first_name = incomingName;
+    }
+    if (incomingLast && !row?.last_name?.trim()) {
+        patch.last_name = incomingLast;
+    }
+    return patch;
+}
+
 function namesCompatible(
     a: { first_name?: string | null; last_name?: string | null },
     b: { first_name?: string | null; last_name?: string | null }
@@ -429,6 +462,14 @@ export async function resolveOrCreateClient(input: ResolveClientInput): Promise<
                     clientId = existingId;
                     if (phone) await ensureIdentifier(clientId, 'phone', phone, source, true);
                     if (email) await ensureIdentifier(clientId, 'email', email, source, true);
+                    const raceRow = await getClientRow(clientId);
+                    const namePatch = buildNameEnrichmentPatch(raceRow, input, source);
+                    if (Object.keys(namePatch).length > 0) {
+                        await db
+                            .from('clients')
+                            .update({ ...namePatch, updated_at: new Date().toISOString() })
+                            .eq('id', clientId);
+                    }
                     await syncPrimaryMirror(clientId);
                     return { clientId, created: false, merged, possibleDuplicate };
                 }
@@ -468,13 +509,7 @@ export async function resolveOrCreateClient(input: ResolveClientInput): Promise<
 
         const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
         const row = await getClientRow(clientId);
-        const incomingName = input.firstName?.trim() || '';
-        if (incomingName && !isPlaceholderClientName(incomingName) && isPlaceholderClientName(row?.first_name)) {
-            patch.first_name = incomingName;
-        }
-        if (input.lastName?.trim() && !row?.last_name) {
-            patch.last_name = input.lastName.trim();
-        }
+        Object.assign(patch, buildNameEnrichmentPatch(row, input, source));
         if (Object.keys(patch).length > 1) {
             await db.from('clients').update(patch).eq('id', clientId);
         }
