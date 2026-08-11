@@ -13,7 +13,7 @@ import {
     updateReminderCronSettings,
     runRemindersNow,
 } from '@/app/actions/admin/adminActions';
-import { SITE_URL } from '@/lib/config';
+import { SITE_URL, WHATSAPP_LABEL, WHATSAPP_URL } from '@/lib/config';
 import { toWhatsAppDigits } from '@/lib/phone';
 import PhoneInput from '@/components/ui/PhoneInput';
 import { formatDateCL, formatDateTimeCL, formatCurrency } from '@/lib/utils';
@@ -102,28 +102,45 @@ const emptyTemplate = (): Partial<Template> => ({
     days_before: 7,
 });
 
+const TAB_IDS: Tab[] = ['list', 'templates', 'monitor', 'suppress', 'automation'];
+
+function parseTab(value: string | null | undefined): Tab {
+    return TAB_IDS.includes(value as Tab) ? (value as Tab) : 'list';
+}
+
 export default function RemindersClient({
     initialQuotes,
     initialTemplates,
     initialSuppressions,
     initialLogs,
     initialCron,
+    initialTab = 'list',
 }: {
     initialQuotes: any[];
     initialTemplates: Template[];
     initialSuppressions: Suppression[];
     initialLogs: ReminderLog[];
     initialCron: CronSettings;
+    initialTab?: string;
 }) {
     const [quotes] = useState(initialQuotes);
     const [templates, setTemplates] = useState(initialTemplates);
     const [suppressions, setSuppressions] = useState(initialSuppressions);
     const [logs] = useState(initialLogs);
     const [cron, setCron] = useState(initialCron);
-    const [tab, setTab] = useState<Tab>('list');
+    const [tab, setTabState] = useState<Tab>(() => parseTab(initialTab));
     const [isPending, startTransition] = useTransition();
     const [isTesting, setIsTesting] = useState(false);
     const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
+
+    const setTab = (next: Tab) => {
+        setTabState(next);
+        if (typeof window === 'undefined') return;
+        const url = new URL(window.location.href);
+        if (next === 'list') url.searchParams.delete('tab');
+        else url.searchParams.set('tab', next);
+        window.history.replaceState({}, '', `${url.pathname}${url.search}`);
+    };
 
     const [filterType, setFilterType] = useState('this_month');
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -243,10 +260,19 @@ export default function RemindersClient({
 
         startTransition(async () => {
             const res = await saveReminderTemplate(data);
-            if (res.success) {
+            if (res.success && res.template) {
                 showToast('Plantilla guardada');
                 setEditingTemplate(null);
-                window.location.reload();
+                setTemplates((prev) => {
+                    const idx = prev.findIndex((t) => t.id === res.template.id);
+                    if (idx >= 0) {
+                        const next = [...prev];
+                        next[idx] = res.template;
+                        return next;
+                    }
+                    return [res.template, ...prev];
+                });
+                setTab('templates');
             } else showToast(res.error || 'Error', false);
         });
     };
@@ -342,18 +368,20 @@ export default function RemindersClient({
             .replace(/{nombre}/g, `*${quote.client_name}*`)
             .replace(/{fecha}/g, `*${eventDateStr}*`)
             .replace(/{total}/g, `*${totalStr}*`)
-            .replace(/{link}/g, quote.token ? `${SITE_URL}/cotizar/${quote.token}` : '');
+            .replace(/{link}/g, quote.token ? `${SITE_URL}/cotizar/${quote.token}` : '')
+            .replace(/{whatsapp}/g, `${WHATSAPP_LABEL} (${WHATSAPP_URL})`);
         return `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
     };
 
     const handleAddSuppression = () => {
         startTransition(async () => {
             const res = await addReminderSuppression(suppressEmail, suppressNote);
-            if (res.success) {
+            if (res.success && res.suppression) {
                 showToast('Email agregado a omitidos');
                 setSuppressEmail('');
                 setSuppressNote('');
-                window.location.reload();
+                setSuppressions((prev) => [res.suppression, ...prev]);
+                setTab('suppress');
             } else showToast(res.error || 'Error', false);
         });
     };
@@ -386,7 +414,7 @@ export default function RemindersClient({
                 showToast(
                     `Job: ${res.summary?.sent ?? 0} enviados, ${res.summary?.failed ?? 0} fallidos, ${res.summary?.skipped ?? 0} omitidos`
                 );
-                window.location.reload();
+                window.location.href = '/admin/reminders?tab=automation';
             } else showToast(res.error || 'Error', false);
         });
     };
@@ -723,9 +751,12 @@ export default function RemindersClient({
                                 </code>{' '}
                                 <code className="px-1.5 py-0.5 bg-black/30 rounded text-[#E2A049] text-xs">
                                     {'{link}'}
+                                </code>{' '}
+                                <code className="px-1.5 py-0.5 bg-black/30 rounded text-[#E2A049] text-xs">
+                                    {'{whatsapp}'}
                                 </code>
-                                . Toda plantilla sirve para envío manual; el toggle de automático solo añade el cron
-                                por correo.
+                                {' '}(número oficial, en email como link). Toda plantilla sirve para envío manual; el
+                                toggle de automático solo añade el cron por correo.
                             </p>
                         </div>
                     </div>

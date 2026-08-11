@@ -6,7 +6,10 @@ import {
 } from '@/lib/services/reminderService';
 import RemindersClient from './RemindersClient';
 
-export default async function RemindersPage() {
+type SearchParams = Promise<{ tab?: string }>;
+
+export default async function RemindersPage({ searchParams }: { searchParams: SearchParams }) {
+    const { tab } = await searchParams;
     const db = createServerClient();
 
     const [{ data: quotes }, { data: templates }, suppressions, logs, cronSettings] =
@@ -30,6 +33,7 @@ export default async function RemindersPage() {
             initialSuppressions={suppressions}
             initialLogs={logs}
             initialCron={cronSettings}
+            initialTab={tab}
         />
     );
 }

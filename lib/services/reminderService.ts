@@ -4,7 +4,7 @@
  */
 import { Resend } from 'resend';
 import { createServerClient } from '@/lib/supabaseServer';
-import { FROM_EMAIL, PROJECT_TIMEZONE, SITE_URL } from '@/lib/config';
+import { FROM_EMAIL, PROJECT_TIMEZONE, SITE_URL, WHATSAPP_LABEL, WHATSAPP_URL } from '@/lib/config';
 import { SettingsService } from '@/lib/services/settingsService';
 import { formatCurrency } from '@/lib/utils';
 
@@ -264,7 +264,7 @@ function buildEmailHtml(contentHtml: string): string {
         </div>`;
 }
 
-/** Renderiza variables {nombre} {fecha} {total} {link} → HTML email. */
+/** Renderiza variables {nombre} {fecha} {total} {link} {whatsapp} → HTML email. */
 export function renderReminderEmailHtml(template: { content: string }, vars: {
     nombre: string;
     fecha: string;
@@ -280,6 +280,10 @@ export function renderReminderEmailHtml(template: { content: string }, vars: {
         .replace(
             /{link}/g,
             `<a href="${vars.linkHref}" style="color: #E2A049; font-weight: 700;">${vars.link}</a>`
+        )
+        .replace(
+            /{whatsapp}/g,
+            `<a href="${WHATSAPP_URL}" style="color: #E2A049; font-weight: 700;">${WHATSAPP_LABEL}</a>`
         );
     return buildEmailHtml(content);
 }
@@ -410,7 +414,11 @@ export async function sendTestReminderEmailService(
             .replace(/{nombre}/g, `<strong>${testName}</strong>`)
             .replace(/{fecha}/g, `<strong>${eventDateStr}</strong>`)
             .replace(/{total}/g, `<strong>${totalStr}</strong>`)
-            .replace(/{link}/g, `<a href="${testLink}" style="color: #E2A049; font-weight: 700;">${testLink}</a>`)}</div>
+            .replace(/{link}/g, `<a href="${testLink}" style="color: #E2A049; font-weight: 700;">${testLink}</a>`)
+            .replace(
+                /{whatsapp}/g,
+                `<a href="${WHATSAPP_URL}" style="color: #E2A049; font-weight: 700;">${WHATSAPP_LABEL}</a>`
+            )}</div>
         <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 24px 0;" />
         <p style="font-size: 12px; color: #94a3b8; text-align: center;">Cocktails on Tap — <a href="${SITE_URL}" style="color: #E2A049;">cocktailsontap.cl</a></p>
     </div>`;

@@ -836,7 +836,7 @@ export async function saveReminderTemplate(data: {
     trigger?: string;
     auto_enabled?: boolean;
     days_before?: number;
-}): Promise<{ success: boolean; error?: string }> {
+}): Promise<{ success: boolean; error?: string; template?: any }> {
     await checkAuth();
     const db = createServerClient();
     const trigger = data.trigger || 'draft_event';
@@ -844,8 +844,7 @@ export async function saveReminderTemplate(data: {
     if (!allowed.has(trigger)) return { success: false, error: 'Trigger inválido.' };
 
     const days = Math.min(365, Math.max(0, Math.trunc(Number(data.days_before ?? 7))));
-    const payload = {
-        id: data.id,
+    const payload: Record<string, unknown> = {
         name: data.name.trim(),
         subject: data.subject || '',
         content: data.content,
@@ -855,11 +854,12 @@ export async function saveReminderTemplate(data: {
         days_before: days,
         auto_channel: 'email',
     };
+    if (data.id) payload.id = data.id;
 
-    const { error } = await db.from('reminder_templates').upsert(payload).select();
+    const { data: saved, error } = await db.from('reminder_templates').upsert(payload).select().single();
     if (error) return { success: false, error: error.message };
     revalidatePath('/admin/reminders');
-    return { success: true };
+    return { success: true, template: saved };
 }
 
 export async function deleteReminderTemplate(id: string): Promise<{ success: boolean; error?: string }> {
@@ -932,7 +932,7 @@ export async function logReminderSend(
 export async function addReminderSuppression(
     email: string,
     note?: string
-): Promise<{ success: boolean; error?: string }> {
+): Promise<{ success: boolean; error?: string; suppression?: any }> {
     await checkAuth();
     const { normalizeReminderEmail } = await import('@/lib/services/reminderService');
     const normalized = normalizeReminderEmail(email);
@@ -940,16 +940,20 @@ export async function addReminderSuppression(
         return { success: false, error: 'Email inválido.' };
     }
     const db = createServerClient();
-    const { error } = await db.from('reminder_suppressions').insert({
-        email: normalized,
-        note: note?.trim() || null,
-    });
+    const { data, error } = await db
+        .from('reminder_suppressions')
+        .insert({
+            email: normalized,
+            note: note?.trim() || null,
+        })
+        .select()
+        .single();
     if (error) {
         if (error.code === '23505') return { success: false, error: 'Ese email ya está en omitidos.' };
         return { success: false, error: error.message };
     }
     revalidatePath('/admin/reminders');
-    return { success: true };
+    return { success: true, suppression: data };
 }
 
 export async function deleteReminderSuppression(id: string): Promise<{ success: boolean; error?: string }> {
