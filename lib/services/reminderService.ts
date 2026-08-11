@@ -7,6 +7,7 @@ import { createServerClient } from '@/lib/supabaseServer';
 import { FROM_EMAIL, PROJECT_TIMEZONE, SITE_URL, WHATSAPP_LABEL, WHATSAPP_URL } from '@/lib/config';
 import { SettingsService } from '@/lib/services/settingsService';
 import { formatCurrency } from '@/lib/utils';
+import { applyReminderBoldMarkup } from '@/lib/reminderMarkup';
 
 export type ReminderTrigger = 'draft_event' | 'anniversary_event' | 'anniversary_direct';
 export type ReminderLogStatus = 'sent' | 'failed' | 'skipped';
@@ -179,6 +180,112 @@ function isLeapYear(year: number): boolean {
     return (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
 }
 
+/**
+ * Fecha de aniversario (mismo mes/día) en un año dado, ≥ 1 año después de la reserva.
+ * 29-feb en año no bisiesto → 28-feb.
+ */
+export function anniversaryYmdInYear(lastEventYmd: string, year: number): string | null {
+    const [y0, m0, d0] = lastEventYmd.split('-').map(Number);
+    if (!y0 || !m0 || !d0 || year <= y0) return null;
+    const day = m0 === 2 && d0 === 29 && !isLeapYear(year) ? 28 : d0;
+    return `${year}-${String(m0).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+
+export type AnniversaryPendingRow = {
+    id: string;
+    client_id: string | null;
+    client_name: string;
+    client_lastname: string | null;
+    client_email: string | null;
+    client_phone: string | null;
+    event_date: string;
+    anniversary_date: string;
+    anniversary_kind: 'event' | 'direct';
+    total_price: number;
+    token: string | null;
+    comuna_name: string | null;
+    comuna_other: string | null;
+    status: string;
+    service_type: string | null;
+    dispenser: string | null;
+    reminder_logs: Array<{
+        sent_at: string;
+        template_id: string | null;
+        channel: string;
+        status: string;
+    }> | null;
+};
+
+/**
+ * Última reserva confirmada/completada por cliente cuyo aniversario
+ * cae en el mes actual o el próximo (calendario America/Santiago).
+ * Sirve para el filtro manual en Pendientes (no es el match exacto del cron).
+ */
+export async function listAnniversaryPendings(): Promise<AnniversaryPendingRow[]> {
+    const db = createServerClient();
+    const today = todayYmdInSantiago();
+    const ty = Number(today.slice(0, 4));
+    const tm = Number(today.slice(5, 7));
+    const nextMonth = tm === 12 ? 1 : tm + 1;
+    const nextYear = tm === 12 ? ty + 1 : ty;
+
+    const { data, error } = await db
+        .from('quotes')
+        .select(
+            'id, client_id, client_name, client_lastname, client_email, client_phone, event_date, total_price, token, comuna_name, comuna_other, status, service_type, dispenser, reminder_logs(sent_at, template_id, channel, status)'
+        )
+        .in('status', ['confirmed', 'completed'])
+        .not('event_date', 'is', null)
+        .order('event_date', { ascending: false });
+
+    if (error) {
+        console.error('[reminderService] listAnniversaryPendings:', error.message);
+        return [];
+    }
+
+    type Raw = AnniversaryPendingRow & {
+        service_type: string | null;
+        dispenser: string | null;
+    };
+
+    const latestByKey = new Map<string, Raw>();
+    for (const raw of (data || []) as Raw[]) {
+        const kind: 'event' | 'direct' | null = isEventQuote(raw)
+            ? 'event'
+            : isDirectQuote(raw)
+              ? 'direct'
+              : null;
+        if (!kind) continue;
+        const email = normalizeReminderEmail(raw.client_email);
+        const key = `${kind}:` + (raw.client_id || (email ? `email:${email}` : `quote:${raw.id}`));
+        if (latestByKey.has(key)) continue;
+        latestByKey.set(key, { ...raw, anniversary_date: '', anniversary_kind: kind });
+    }
+
+    const out: AnniversaryPendingRow[] = [];
+    for (const q of latestByKey.values()) {
+        for (const year of [ty, nextYear]) {
+            const ann = anniversaryYmdInYear(q.event_date, year);
+            if (!ann) continue;
+            const am = Number(ann.slice(5, 7));
+            const ay = Number(ann.slice(0, 4));
+            const inThis = ay === ty && am === tm;
+            const inNext = ay === nextYear && am === nextMonth;
+            if (!inThis && !inNext) continue;
+            out.push({
+                ...q,
+                anniversary_date: ann,
+                total_price: Number(q.total_price) || 0,
+                reminder_logs: q.reminder_logs || null,
+            });
+            break;
+        }
+    }
+
+    out.sort((a, b) => a.anniversary_date.localeCompare(b.anniversary_date));
+    return out;
+}
+
 export async function getReminderCronSettings(): Promise<ReminderCronSettings> {
     const rows = await SettingsService.getByCategory('reminders');
     const map = Object.fromEntries(rows.map((r) => [r.key, r.value]));
@@ -276,7 +383,8 @@ export function renderReminderEmailHtml(template: { content: string }, vars: {
     link: string;
     linkHref: string;
 }): string {
-    const content = template.content
+    const withBold = applyReminderBoldMarkup(template.content, 'email');
+    const content = withBold
         .replace(/\\n/g, '\n')
         .replace(/{nombre}/g, `<strong>${vars.nombre}</strong>`)
         .replace(/{fecha}/g, `<strong>${vars.fecha}</strong>`)
@@ -414,9 +522,10 @@ export async function sendTestReminderEmailService(
     const totalStr = formatCurrency(150000);
     const testLink = `${SITE_URL}/cotizar/test-token`;
     const testName = 'Cliente de Prueba';
+    const withBold = applyReminderBoldMarkup(template.content, 'email');
     const html = `<div style="font-family: -apple-system, sans-serif; max-width: 600px; margin: auto; padding: 32px; background: #fff; border-radius: 12px; color: #1e293b;">
         <p style="font-size: 14px; color: #94a3b8; margin-bottom: 20px;"><strong>[EMAIL DE PRUEBA]</strong></p>
-        <div style="font-size: 16px; line-height: 1.6; white-space: pre-wrap;">${template.content
+        <div style="font-size: 16px; line-height: 1.6; white-space: pre-wrap;">${withBold
             .replace(/\\n/g, '\n')
             .replace(/{nombre}/g, `<strong>${testName}</strong>`)
             .replace(/{fecha}/g, `<strong>${eventDateStr}</strong>`)

@@ -40,6 +40,12 @@
 
 ## Ultimos Cambios
 
+### 11-08-2026 (Sesión 58) — Filtro aniversarios en Pendientes + negrita **texto**
+
+- En `/admin/reminders` Pendientes: filtros “Aniversarios este mes / próximo mes” (última reserva confirmada/completada; mes en America/Santiago vía `listAnniversaryPendings`).
+- Muestra fecha de aniversario + última reserva; drafts siguen en los filtros anteriores.
+- Plantillas: `**texto**` → negrita en email y WhatsApp (`lib/reminderMarkup.ts`).
+
 ### 11-08-2026 (Sesión 57) — Monitoreo de recordatorios resiliente
 
 - Causa: al borrar plantilla la FK hace `SET NULL` → Monitoreo perdía el nombre (join vacío). Cron aún no había corrido (`reminders_last_run_*` vacíos).
@@ -56,13 +62,6 @@
 - Si activo: exige dirección/horarios/términos (web); crea draft y llama `confirmQuoteCore` (email confirmación salvo admin `skipEmail`, Calendar, CRM customer).
 - Dominio: `lib/services/confirmQuoteCore.ts`; validación compartida `lib/confirmNowValidation.ts`.
 
-### 10-08-2026 (Sesión 54) — Recordatorios automáticos + monitoreo
-
-- `/admin/reminders`: tabs Pendientes / Plantillas / Monitoreo / Omitidos / Automatización.
-- Plantillas con `trigger` + toggle `auto_enabled` (manual y auto conviven); `days_before` para draft o aniversario de última reserva (eventos/barriles).
-- Cron `GET/POST /api/cron/reminders` (Bearer `CRON_SECRET`) + `vercel.json` diario Hobby; gate por enable + hora Santiago.
-- Servicio `lib/services/reminderService.ts`; logs ampliados; `reminder_suppressions`; seed aniversario 20%.
-
 ---
 
-*Ultima actualizacion: 11-08-2026 (Sesión 57)*
+*Ultima actualizacion: 11-08-2026 (Sesión 58)*

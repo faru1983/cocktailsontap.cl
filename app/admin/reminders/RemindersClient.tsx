@@ -18,6 +18,7 @@ import { SITE_URL, WHATSAPP_LABEL, WHATSAPP_URL } from '@/lib/config';
 import { toWhatsAppDigits } from '@/lib/phone';
 import PhoneInput from '@/components/ui/PhoneInput';
 import { formatDateCL, formatDateTimeCL, formatCurrency } from '@/lib/utils';
+import { applyReminderBoldMarkup } from '@/lib/reminderMarkup';
 import {
     Mail,
     MessageSquare,
@@ -113,6 +114,7 @@ function parseTab(value: string | null | undefined): Tab {
 
 export default function RemindersClient({
     initialQuotes,
+    initialAnniversaryQuotes = [],
     initialTemplates,
     initialSuppressions,
     initialLogs,
@@ -120,6 +122,7 @@ export default function RemindersClient({
     initialTab = 'list',
 }: {
     initialQuotes: any[];
+    initialAnniversaryQuotes?: any[];
     initialTemplates: Template[];
     initialSuppressions: Suppression[];
     initialLogs: ReminderLog[];
@@ -127,6 +130,7 @@ export default function RemindersClient({
     initialTab?: string;
 }) {
     const [quotes] = useState(initialQuotes);
+    const [anniversaryQuotes] = useState(initialAnniversaryQuotes);
     const [templates, setTemplates] = useState(initialTemplates);
     const [suppressions, setSuppressions] = useState(initialSuppressions);
     const [logs, setLogs] = useState(initialLogs);
@@ -176,10 +180,25 @@ export default function RemindersClient({
         setTimeout(() => setToast(null), 3500);
     };
 
+    const isAnniversaryFilter =
+        filterType === 'anniv_this_month' || filterType === 'anniv_next_month';
+
     const filteredQuotes = useMemo(() => {
         const now = new Date();
         const currentMonth = now.getMonth();
         const currentYear = now.getFullYear();
+
+        if (isAnniversaryFilter) {
+            const nextMonth = (currentMonth + 1) % 12;
+            const nextYear = currentMonth === 11 ? currentYear + 1 : currentYear;
+            return anniversaryQuotes.filter((q) => {
+                const ann = new Date((q.anniversary_date || q.event_date) + 'T12:00:00');
+                if (filterType === 'anniv_this_month') {
+                    return ann.getMonth() === currentMonth && ann.getFullYear() === currentYear;
+                }
+                return ann.getMonth() === nextMonth && ann.getFullYear() === nextYear;
+            });
+        }
 
         return quotes.filter((q) => {
             if (filterType === 'all') return true;
@@ -199,7 +218,7 @@ export default function RemindersClient({
             }
             return true;
         });
-    }, [quotes, filterType]);
+    }, [quotes, anniversaryQuotes, filterType, isAnniversaryFilter]);
 
     const emailTemplates = useMemo(
         () => templates.filter((t) => t.type === 'both' || t.type === 'email'),
@@ -392,7 +411,7 @@ export default function RemindersClient({
               })
             : 'por confirmar';
         const totalStr = formatCurrency(quote.total_price);
-        const msg = template.content
+        const msg = applyReminderBoldMarkup(template.content, 'whatsapp')
             .replace(/\\n/g, '\n')
             .replace(/{nombre}/g, `*${quote.client_name}*`)
             .replace(/{fecha}/g, `*${eventDateStr}*`)
@@ -519,16 +538,22 @@ export default function RemindersClient({
                             <select
                                 className="w-full bg-black/20 border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-white outline-none focus:border-[#E2A049] text-sm appearance-none"
                                 value={filterType}
-                                onChange={(e) => setFilterType(e.target.value)}
+                                onChange={(e) => {
+                                    setFilterType(e.target.value);
+                                    setSelectedIds([]);
+                                }}
                             >
-                                <option value="this_month">De este mes</option>
-                                <option value="7">Próximos 7 días</option>
-                                <option value="next_month">Del próximo mes</option>
-                                <option value="all">Ver todas</option>
+                                <option value="this_month">Drafts de este mes</option>
+                                <option value="7">Drafts próximos 7 días</option>
+                                <option value="next_month">Drafts del próximo mes</option>
+                                <option value="all">Todos los drafts</option>
+                                <option value="anniv_this_month">Aniversarios este mes</option>
+                                <option value="anniv_next_month">Aniversarios próximo mes</option>
                             </select>
                         </div>
                         <span className="text-slate-500 text-xs font-bold uppercase tracking-tight">
-                            {filteredQuotes.length} borradores
+                            {filteredQuotes.length}{' '}
+                            {isAnniversaryFilter ? 'aniversarios' : 'borradores'}
                         </span>
                         {selectedIds.length > 0 && (
                             <button
@@ -571,7 +596,7 @@ export default function RemindersClient({
                                         Cliente
                                     </th>
                                     <th className="text-left py-4 px-6 text-slate-500 text-[11px] font-bold uppercase tracking-widest border-b border-white/5">
-                                        Fecha Evento
+                                        {isAnniversaryFilter ? 'Aniversario' : 'Fecha Evento'}
                                     </th>
                                     <th className="text-left py-4 px-6 text-slate-500 text-[11px] font-bold uppercase tracking-widest border-b border-white/5">
                                         Comuna
@@ -589,7 +614,9 @@ export default function RemindersClient({
                                 {filteredQuotes.length === 0 ? (
                                     <tr>
                                         <td colSpan={7} className="py-20 text-center text-slate-500 text-sm italic">
-                                            No hay borradores para este rango.
+                                            {isAnniversaryFilter
+                                                ? 'No hay aniversarios para este rango.'
+                                                : 'No hay borradores para este rango.'}
                                         </td>
                                     </tr>
                                 ) : (
@@ -615,7 +642,25 @@ export default function RemindersClient({
                                                 </Link>
                                             </td>
                                             <td className="py-4 px-6 text-slate-400 text-sm">
-                                                {formatDateCL(q.event_date + 'T12:00:00')}
+                                                {isAnniversaryFilter ? (
+                                                    <div>
+                                                        <div className="text-slate-200 font-bold">
+                                                            {formatDateCL(
+                                                                (q.anniversary_date || q.event_date) +
+                                                                    'T12:00:00'
+                                                            )}
+                                                        </div>
+                                                        <div className="text-[10px] text-slate-500 mt-0.5">
+                                                            Última:{' '}
+                                                            {formatDateCL(q.event_date + 'T12:00:00')}
+                                                            {q.anniversary_kind === 'direct'
+                                                                ? ' · barriles'
+                                                                : ' · evento'}
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    formatDateCL(q.event_date + 'T12:00:00')
+                                                )}
                                             </td>
                                             <td className="py-4 px-6 text-slate-400 text-sm">
                                                 {q.comuna_name === 'Otra' && q.comuna_other
@@ -717,12 +762,21 @@ export default function RemindersClient({
                                 <div className="grid grid-cols-3 gap-4 pt-4 border-t border-white/5">
                                     <div>
                                         <span className="block text-[9px] text-slate-500 font-black uppercase tracking-widest mb-1">
-                                            Evento
+                                            {isAnniversaryFilter ? 'Aniversario' : 'Evento'}
                                         </span>
                                         <span className="text-slate-300 text-xs font-bold flex items-center gap-1.5">
                                             <Calendar size={12} className="text-emerald-500" />
-                                            {formatDateCL(q.event_date + 'T12:00:00')}
+                                            {formatDateCL(
+                                                (isAnniversaryFilter
+                                                    ? q.anniversary_date || q.event_date
+                                                    : q.event_date) + 'T12:00:00'
+                                            )}
                                         </span>
+                                        {isAnniversaryFilter && (
+                                            <span className="block text-[10px] text-slate-500 mt-1">
+                                                Última {formatDateCL(q.event_date + 'T12:00:00')}
+                                            </span>
+                                        )}
                                     </div>
                                     <div className="text-center">
                                         <span className="block text-[9px] text-slate-500 font-black uppercase tracking-widest mb-1">
@@ -784,8 +838,12 @@ export default function RemindersClient({
                                 <code className="px-1.5 py-0.5 bg-black/30 rounded text-[#E2A049] text-xs">
                                     {'{whatsapp}'}
                                 </code>
-                                {' '}(número oficial, en email como link). Toda plantilla sirve para envío manual; el
-                                toggle de automático solo añade el cron por correo.
+                                {' '}y negrita con{' '}
+                                <code className="px-1.5 py-0.5 bg-black/30 rounded text-[#E2A049] text-xs">
+                                    {'**texto**'}
+                                </code>
+                                {' '}(email y WhatsApp). Toda plantilla sirve para envío manual; el toggle de
+                                automático solo añade el cron por correo.
                             </p>
                         </div>
                     </div>
@@ -1260,6 +1318,10 @@ export default function RemindersClient({
                                     rows={10}
                                     className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-4 text-white outline-none focus:border-[#E2A049] text-sm resize-y leading-relaxed"
                                 />
+                                <p className="text-[11px] text-slate-500 mt-2 ml-1">
+                                    Negrita para email y WhatsApp:{' '}
+                                    <code className="text-[#E2A049]">{'**texto**'}</code>
+                                </p>
                             </div>
                         </div>
                         <div className="flex gap-4 mt-8">
