@@ -21,12 +21,12 @@
 
 ## Flujos de Venta
 
-- **Evento**: Draft -> Confirmado (via link unico). Confirmacion siempre la hace el cliente.
+- **Evento**: Draft -> Confirmado (via link único), **o** confirmación inmediata en wizard/admin (`confirmNow`: mismos datos obligatorios que al confirmar draft → `confirmQuoteCore`).
 - **Venta Directa (Desechables)**: Confirmado directo (sin draft).
 - **Integraciones** (`/api/v1`): mismo dominio que la web; auth Bearer `INTEGRATION_API_KEY`.
   - `GET /catalog` — productos/precios/comunas (lectura para WhatsApp).
   - `POST /contacts` — primer contacto / engagement phone-first; avanza `lifecycle_stage` + CAPI opcional.
-  - `POST /quotes` | `POST /direct-sales` — crear venta (también avanza stage).
+  - `POST /quotes` | `POST /direct-sales` — crear venta (también avanza stage). WhatsApp quotes siguen draft (sin `confirmNow`).
   - Campo opcional `source` (`web` | `admin` | `whatsapp`) → columna `quotes.source`.
 - **Admin** = canal real (wizard manual / teléfono): misma creación vía `createQuoteCore` + CAPI.
 
@@ -40,37 +40,28 @@
 
 ## Ultimos Cambios
 
+### 11-08-2026 (Sesión 56) — Contrato legible en checkout confirmNow
+
+- En `EventWizardCheckoutModal`, al marcar “Confirmar reserva ahora”: bloque scrollable “Contrato de servicio” (mismo copy que `EventQuoteView`) + checkbox de aceptación debajo.
+
+### 11-08-2026 (Sesión 55) — Reserva confirmada al crear (wizard + admin)
+
+- Checkbox opcional en checkout wizard eventos y cotización manual admin: `confirmNow`.
+- Si activo: exige dirección/horarios/términos (web); crea draft y llama `confirmQuoteCore` (email confirmación salvo admin `skipEmail`, Calendar, CRM customer).
+- Dominio: `lib/services/confirmQuoteCore.ts`; validación compartida `lib/confirmNowValidation.ts`.
+
 ### 10-08-2026 (Sesión 54) — Recordatorios automáticos + monitoreo
 
 - `/admin/reminders`: tabs Pendientes / Plantillas / Monitoreo / Omitidos / Automatización.
 - Plantillas con `trigger` + toggle `auto_enabled` (manual y auto conviven); `days_before` para draft o aniversario de última reserva (eventos/barriles).
-- Cron `GET/POST /api/cron/reminders` (Bearer `CRON_SECRET`) + `vercel.json` horario; gate por enable + hora Santiago en `site_settings` categoría `reminders`.
-- Servicio `lib/services/reminderService.ts`; logs ampliados; tabla `reminder_suppressions`; seed plantilla “Aniversario evento (ej. 20% off)”.
-- WhatsApp sigue solo manual. Activar cron en UI + definir `CRON_SECRET` en Vercel.
+- Cron `GET/POST /api/cron/reminders` (Bearer `CRON_SECRET`) + `vercel.json` diario Hobby; gate por enable + hora Santiago.
+- Servicio `lib/services/reminderService.ts`; logs ampliados; `reminder_suppressions`; seed aniversario 20%.
 
 ### 10-08-2026 (Sesión 53) — Hydration avatar clientes (emojis WA)
 
-- Error en `/admin/clients`: `first_name[0]` sobre pushNames con emoji/letras fuera del BMP (p. ej. `🌿Isa…`, `💞Patita…`, `𝐘𝐨𝐬𝐢`) deja un surrogate UTF-16 huérfano → HTML server `�` ≠ cliente.
-- Fix: helper `getAvatarInitial` (`\p{L}` + `?` fallback) en listado y ficha; fechas de creación del listado pasan a `formatDateCL`.
-
-### 07-08-2026 (Sesión 52) — Nombre CRM al cotizar + búsqueda admin
-
-- Caso `ceciliacampospa@gmail.com`: cotización admin “Cecilia Campos” no actualizó el perfil (quedó pushName WA “Chichi Campos”) porque `resolveOrCreateClient` solo reemplazaba nombres placeholder.
-- Fix: enriquecimiento de nombre/apellido en cotización web/admin (o si viene apellido); pushName WA sigue sin pisar un nombre bueno. Perfil Cecilia corregido a Cecilia Campos.
-- Búsqueda de clientes en `/admin/quotes/new`: crasheaba/fallaba con `email` null (`c.email.toLowerCase`); ahora null-safe + busca por teléfono. `fetchAllClients` excluye merged.
-- Hydration en ficha cliente: `toLocaleString('es-CL')` difería server/client (espacio en `a. m.`); fechas vía `formatDateCL` / `formatDateTimeCL` (Santiago, 24h).
-
-### 07-08-2026 (Sesión 51) — Intent CRM en Curioso (Barriles/Eventos)
-
-- Causa: el bot enviaba Curioso (`bot_started`) sin `intent`; Barriles casi nunca llegaba a Interesado con `direct`, así el CRM quedaba “Sin definir”.
-- Fix en `whatsapp-cot`: `syncCrmCurious` manda `intent` si ya hay carril; nuevo `syncCrmIntent` al elegir Barriles/Eventos (o switch de carril); router defiere Curioso hasta después de la elección en el 1er mensaje.
-- Web CRM sin cambios: `POST /api/v1/contacts` ya persistía `intent` en cualquier stage.
-
-### 07-08-2026 (Sesión 50) — Fix temática “Otro” duplicada en admin
-
-- Causa: en `/admin/quotes/new` el select de temática mapeaba `eventTypes` (ya incluye `Otro` en DB) y además hardcodeaba `<option value="Otro">`.
-- Fix: se eliminó la opción hardcodeada en `CreateQuoteManualClient.tsx`. Wizard y detalle de cotización ya usaban solo `eventTypes`.
+- Error en `/admin/clients`: `first_name[0]` sobre pushNames con emoji → surrogate UTF-16 → hydration mismatch.
+- Fix: `getAvatarInitial` + `formatDateCL` en listado.
 
 ---
 
-*Ultima actualizacion: 10-08-2026 (Sesión 54)*
+*Ultima actualizacion: 11-08-2026 (Sesión 56)*

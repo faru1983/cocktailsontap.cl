@@ -8,6 +8,7 @@ import { createQuote } from '@/app/actions/createQuote';
 import { getClientAddressesFromQuotes, type ClientQuoteAddress } from '@/app/actions/admin/adminActions';
 import type { Product, Comuna, EventType, WizardState } from '@/lib/types';
 import { calculateSummaryData } from '@/lib/wizardLogic';
+import { validateConfirmNowState } from '@/lib/confirmNowValidation';
 import { SITE_URL, MURO_INSTALLATION_COST } from '@/lib/config';
 import PhoneInput from '@/components/ui/PhoneInput';
 import { isValidPhoneE164, toWhatsAppDigits, normalizePhoneE164 } from '@/lib/phone';
@@ -126,7 +127,12 @@ export default function CreateQuoteManualClient({ allProducts, comunas, eventTyp
     const [selections, setSelections] = useState<{ id: string; size: string; quantity: number; customPrice?: number }[]>([]);
     
     const [searchTerm, setSearchTerm] = useState('');
-    const [successData, setSuccessData] = useState<{ token: string; quoteId: string } | null>(null);
+    const [successData, setSuccessData] = useState<{
+        token: string;
+        quoteId: string;
+        status: string;
+    } | null>(null);
+    const [confirmNow, setConfirmNow] = useState(false);
 
     // ─── 2. Reactive Calculations (Single Source of Truth) ─────────────────────
     
@@ -222,6 +228,10 @@ export default function CreateQuoteManualClient({ allProducts, comunas, eventTyp
         if (selections.length === 0) {
             return setError('Debe seleccionar al menos un producto.');
         }
+        if (serviceType === 'event' && confirmNow) {
+            const confirmErr = validateConfirmNowState(currentWizardState);
+            if (confirmErr) return setError(confirmErr);
+        }
 
         startTransition(async () => {
             const res = await createQuote({
@@ -230,6 +240,7 @@ export default function CreateQuoteManualClient({ allProducts, comunas, eventTyp
                 comunas,
                 skipEmail: true,
                 isAdmin: true,
+                confirmNow: serviceType === 'event' && confirmNow,
                 overrides: {
                     ...(shippingOverride !== undefined && { shippingCost: shippingOverride }),
                     ...(serviceType === 'event' && installationOverride !== undefined && { installationCost: installationOverride }),
@@ -239,7 +250,11 @@ export default function CreateQuoteManualClient({ allProducts, comunas, eventTyp
             });
 
             if (res.success && res.token) {
-                setSuccessData({ token: res.token, quoteId: res.quoteId! });
+                setSuccessData({
+                    token: res.token,
+                    quoteId: res.quoteId!,
+                    status: res.status || (serviceType === 'direct' ? 'confirmed' : 'draft'),
+                });
                 router.refresh();
             } else {
                 setError(res.error || 'Error al crear la cotización.');
@@ -251,7 +266,10 @@ export default function CreateQuoteManualClient({ allProducts, comunas, eventTyp
         if (!successData) return;
         startTransition(async () => {
             const { sendQuoteEmailAdmin } = await import('@/app/actions/admin/adminActions');
-            const type = serviceType === 'event' ? 'draft' : 'confirmation';
+            const type =
+                serviceType === 'direct' || successData.status === 'confirmed'
+                    ? 'confirmation'
+                    : 'draft';
             const res = await sendQuoteEmailAdmin(successData.quoteId, type);
                 
             if (res.success) alert('Email enviado correctamente ✉️');
@@ -272,19 +290,27 @@ export default function CreateQuoteManualClient({ allProducts, comunas, eventTyp
     const getWhatsAppUrl = () => {
         if (!successData) return '';
         const phone = toWhatsAppDigits(contact.phone);
-        const msg = `¡Hola *${contact.firstName}*! Te envío la cotización solicitada para tu evento\n\nPuedes revisarla, completar tus datos faltantes y reservarla directamente en este link:\n${SITE_URL}/cotizar/${successData.token}`;
+        const msg =
+            successData.status === 'confirmed'
+                ? `¡Hola *${contact.firstName}*! Tu reserva ya quedó confirmada.\n\nPuedes verla aquí:\n${SITE_URL}/cotizar/${successData.token}`
+                : `¡Hola *${contact.firstName}*! Te envío la cotización solicitada para tu evento\n\nPuedes revisarla, completar tus datos faltantes y reservarla directamente en este link:\n${SITE_URL}/cotizar/${successData.token}`;
         return phone ? `https://wa.me/${phone}?text=${encodeURIComponent(msg)}` : '';
     };
 
     if (successData) {
+        const isConfirmed = successData.status === 'confirmed' || serviceType === 'direct';
         return (
             <div className="max-w-xl mx-auto py-20 text-center animate-in fade-in duration-700">
                 <div className="w-20 h-20 bg-emerald-500/20 text-emerald-500 rounded-full flex items-center justify-center mx-auto mb-8 shadow-2xl shadow-emerald-500/20">
                     <Check size={40} strokeWidth={3} />
                 </div>
-                <h1 className="text-white text-3xl font-black mb-4 uppercase tracking-tighter">¡Cotización Creada!</h1>
+                <h1 className="text-white text-3xl font-black mb-4 uppercase tracking-tighter">
+                    {isConfirmed ? '¡Reserva Confirmada!' : '¡Cotización Creada!'}
+                </h1>
                 <p className="text-slate-400 mb-10 leading-relaxed text-sm">
-                    El borrador se generó correctamente. Envía el link al cliente para que complete la información y reserve.
+                    {isConfirmed
+                        ? 'La reserva quedó confirmada (Calendar/CRM). Puedes avisar al cliente por WhatsApp o enviar el email de confirmación.'
+                        : 'El borrador se generó correctamente. Envía el link al cliente para que complete la información y reserve.'}
                 </p>
 
                 <div className="grid grid-cols-1 gap-4">
@@ -366,7 +392,7 @@ export default function CreateQuoteManualClient({ allProducts, comunas, eventTyp
                         </button>
                         <button
                             type="button"
-                            onClick={() => setServiceType('direct')}
+                            onClick={() => { setServiceType('direct'); setConfirmNow(false); }}
                             className={`flex-1 py-4 text-xs font-black uppercase tracking-widest rounded-xl transition-all ${serviceType === 'direct' ? 'bg-[#E2A049] text-black shadow-lg shadow-[#E2A049]/20' : 'text-slate-500 hover:text-white'}`}
                         >
                             Venta Desechables
@@ -787,14 +813,35 @@ export default function CreateQuoteManualClient({ allProducts, comunas, eventTyp
                         </div>
 
                         <div className="pt-6 border-t border-white/5 relative">
-                            <div className="flex justify-between items-baseline mb-8">
+                            <div className="flex justify-between items-baseline mb-6">
                                 <div className="text-slate-500 text-[10px] font-black uppercase tracking-[0.2em]">Total Estimado</div>
                                 <div className="text-3xl font-black text-[#E2A049] tracking-tighter">
                                     ${finalTotal.toLocaleString('es-CL')}
                                 </div>
                             </div>
+                            {serviceType === 'event' && (
+                                <label className="flex items-start gap-3 cursor-pointer mb-5 p-3 rounded-xl border border-white/10 bg-black/20">
+                                    <input
+                                        type="checkbox"
+                                        className="mt-0.5 w-4 h-4 accent-[#E2A049] shrink-0"
+                                        checked={confirmNow}
+                                        onChange={(e) => {
+                                            setConfirmNow(e.target.checked);
+                                            if (e.target.checked && !eventData.pickupDate && eventData.date) {
+                                                setEventData((d) => ({ ...d, pickupDate: d.date }));
+                                            }
+                                        }}
+                                    />
+                                    <span className="text-[11px] text-slate-300 leading-snug">
+                                        <strong className="text-white font-black">Crear como reserva confirmada</strong>
+                                        <span className="block text-slate-500 mt-0.5">
+                                            Requiere dirección, hora de inicio y retiro. Sincroniza Calendar/CRM (sin email automático).
+                                        </span>
+                                    </span>
+                                </label>
+                            )}
                             <button type="submit" disabled={isPending} className="w-full bg-[#E2A049] hover:bg-[#f0b05b] text-[#1a1a2e] py-5 rounded-2xl font-black text-[11px] uppercase tracking-widest active:scale-[0.98] transition-all shadow-xl shadow-[#E2A049]/10 flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-wait">
-                                {isPending ? 'Procesando...' : <><Save size={20} /> {serviceType === 'direct' ? 'Generar Pedido' : 'Generar Cotización'}</>}
+                                {isPending ? 'Procesando...' : <><Save size={20} /> {serviceType === 'direct' ? 'Generar Pedido' : confirmNow ? 'Confirmar Reserva' : 'Generar Cotización'}</>}
                             </button>
                         </div>
                     </div>

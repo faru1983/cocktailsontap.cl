@@ -6,6 +6,7 @@ import { useWizard } from '@/hooks/useWizard';
 import { AlertCircle, ArrowLeft } from 'lucide-react';
 import type { CocktailForWizard, EventType, Comuna } from '@/lib/types';
 import { createQuote } from '@/app/actions/createQuote';
+import { validateConfirmNowState } from '@/lib/confirmNowValidation';
 
 import EventWizardConfig from './EventWizardConfig';
 import EventWizardCatalog from './EventWizardCatalog';
@@ -30,6 +31,7 @@ export default function EventWizardShell({ cocktails, eventTypes, comunas, categ
     const [validationError, setValidationError] = useState('');
     const [sendStatus, setSendStatus] = useState<SendStatus>('idle');
     const [quoteToken, setQuoteToken] = useState<string | null>(null);
+    const [quoteStatus, setQuoteStatus] = useState<string | null>(null);
     const [saveError, setSaveError] = useState('');
     const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -75,24 +77,34 @@ export default function EventWizardShell({ cocktails, eventTypes, comunas, categ
         setIsModalOpen(true);
     };
 
-    const handleCotizar = async () => {
-        const resultVal = wizard.validateStep(5); // Valida contacto
+    const handleCotizar = async ({ confirmNow }: { confirmNow: boolean }) => {
+        const resultVal = wizard.validateStep(5);
         if (!resultVal.valid) {
-             setValidationError(resultVal.message ?? '');
-             return;
+            setValidationError(resultVal.message ?? '');
+            return;
+        }
+        if (confirmNow) {
+            const confirmErr = validateConfirmNowState(state);
+            if (confirmErr) {
+                setValidationError(confirmErr);
+                return;
+            }
         }
 
         setSendStatus('saving');
         setSaveError('');
         setQuoteToken(null);
+        setQuoteStatus(null);
 
-        const result = await createQuote({ state, cocktails, comunas });
+        const result = await createQuote({ state, cocktails, comunas, confirmNow });
 
         if (result.success && result.token) {
             setQuoteToken(result.token);
+            setQuoteStatus(result.status || (confirmNow ? 'confirmed' : 'draft'));
             setSendStatus('saved');
             setIsModalOpen(false);
-            router.push(`/cotizar/${result.token}?new=true`);
+            const q = result.status === 'confirmed' ? '?new=true&confirmed=1' : '?new=true';
+            router.push(`/cotizar/${result.token}${q}`);
         } else {
             setSaveError(result.error ?? 'Error guardando la cotización.');
             setSendStatus('error');
@@ -102,6 +114,7 @@ export default function EventWizardShell({ cocktails, eventTypes, comunas, categ
     const handleReset = () => {
         setSendStatus('idle');
         setQuoteToken(null);
+        setQuoteStatus(null);
         setValidationError('');
         setIsModalOpen(false);
         wizard.reset();
@@ -162,10 +175,11 @@ export default function EventWizardShell({ cocktails, eventTypes, comunas, categ
 
                 <div className="animate-fade-in pb-32">
                     {sendStatus === 'saved' && quoteToken ? (
-                        <EventWizardSuccess 
-                            token={quoteToken} 
-                            clientEmail={state.contact.email} 
-                            onReset={handleReset} 
+                        <EventWizardSuccess
+                            token={quoteToken}
+                            clientEmail={state.contact.email}
+                            onReset={handleReset}
+                            confirmed={quoteStatus === 'confirmed'}
                         />
                     ) : (
                         currentStep === 1 ? (

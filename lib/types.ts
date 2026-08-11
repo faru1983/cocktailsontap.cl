@@ -264,40 +264,89 @@ export interface Quote {
 
 // ─── Esquemas de Validación (Zod) ─────────────────────────────────────────────
 
-export const CreateQuoteSchema = z.object({
-    state: z.object({
-        contact: z.object({
-            firstName: z.string().min(2, 'Nombre muy corto'),
-            lastName: z.string().min(2, 'Apellido muy corto'),
-            email: z.string().email('Email inválido'),
-            phone: OptionalPhoneSchema,
-            address: z.string().nullable().optional().or(z.literal('')),
-            comuna: z.string().min(1, 'Selecciona una comuna'),
-            otherComuna: z.string().nullable().optional().or(z.literal('')),
-            comments: z.string().nullable().optional().or(z.literal('')),
-        }),
-        eventData: z.object({
-            type: z.string().nullable().optional().or(z.literal('')),
-            otherType: z.string().nullable().optional().or(z.literal('')),
-            date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Fecha inválida'),
-            startTime: z.string().nullable().optional().or(z.literal('')),
-            pickupDate: z.string().nullable().optional().or(z.literal('')),
-            pickupTime: z.string().nullable().optional().or(z.literal('')),
-        }),
-        consumption: z.object({
-            guests: z.number().nullable().optional().or(z.number().min(0)),
-            drinksPerPerson: z.number().nullable().optional().or(z.number().min(0)),
-        }),
-        selections: z.array(z.object({
-            id: z.string(),
-            size: z.string(),
-            quantity: z.number().min(1),
-        })).min(1, 'Selecciona al menos un producto'),
-        dispenser: z.enum(['portatil', 'muro', 'desechable']),
-    }).passthrough(),
-    cocktails: z.array(z.any()).optional(),
-    comunas: z.array(z.any()).optional(),
-});
+export const CreateQuoteSchema = z
+    .object({
+        state: z
+            .object({
+                contact: z.object({
+                    firstName: z.string().min(2, 'Nombre muy corto'),
+                    lastName: z.string().min(2, 'Apellido muy corto'),
+                    email: z.string().email('Email inválido'),
+                    phone: OptionalPhoneSchema,
+                    address: z.string().nullable().optional().or(z.literal('')),
+                    comuna: z.string().min(1, 'Selecciona una comuna'),
+                    otherComuna: z.string().nullable().optional().or(z.literal('')),
+                    comments: z.string().nullable().optional().or(z.literal('')),
+                }),
+                eventData: z.object({
+                    type: z.string().nullable().optional().or(z.literal('')),
+                    otherType: z.string().nullable().optional().or(z.literal('')),
+                    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Fecha inválida'),
+                    startTime: z.string().nullable().optional().or(z.literal('')),
+                    pickupDate: z.string().nullable().optional().or(z.literal('')),
+                    pickupTime: z.string().nullable().optional().or(z.literal('')),
+                }),
+                consumption: z.object({
+                    guests: z.number().nullable().optional().or(z.number().min(0)),
+                    drinksPerPerson: z.number().nullable().optional().or(z.number().min(0)),
+                }),
+                selections: z
+                    .array(
+                        z.object({
+                            id: z.string(),
+                            size: z.string(),
+                            quantity: z.number().min(1),
+                        })
+                    )
+                    .min(1, 'Selecciona al menos un producto'),
+                dispenser: z.enum(['portatil', 'muro', 'desechable']),
+            })
+            .passthrough(),
+        cocktails: z.array(z.any()).optional(),
+        comunas: z.array(z.any()).optional(),
+        confirmNow: z.boolean().optional(),
+    })
+    .superRefine((data, ctx) => {
+        if (!data.confirmNow || data.state.dispenser === 'desechable') return;
+        const address = (data.state.contact.address || '').trim();
+        if (address.length < 5) {
+            ctx.addIssue({
+                code: 'custom',
+                message: 'Dirección obligatoria (mín. 5 caracteres)',
+                path: ['state', 'contact', 'address'],
+            });
+        }
+        if (!(data.state.eventData.startTime || '').trim()) {
+            ctx.addIssue({
+                code: 'custom',
+                message: 'Hora de inicio obligatoria',
+                path: ['state', 'eventData', 'startTime'],
+            });
+        }
+        const pickupDate = (data.state.eventData.pickupDate || '').trim();
+        if (!pickupDate) {
+            ctx.addIssue({
+                code: 'custom',
+                message: 'Fecha de retiro obligatoria',
+                path: ['state', 'eventData', 'pickupDate'],
+            });
+        }
+        const sameDay = pickupDate === data.state.eventData.date;
+        if (!sameDay && !(data.state.eventData.pickupTime || '').trim()) {
+            ctx.addIssue({
+                code: 'custom',
+                message: 'Hora de retiro obligatoria',
+                path: ['state', 'eventData', 'pickupTime'],
+            });
+        }
+        if (data.state.contact.comuna === 'Otra' && !(data.state.contact.otherComuna || '').trim()) {
+            ctx.addIssue({
+                code: 'custom',
+                message: 'Especifica la comuna',
+                path: ['state', 'contact', 'otherComuna'],
+            });
+        }
+    });
 
 export const ConfirmQuoteSchema = z.object({
     token: z.string(),
