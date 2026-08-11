@@ -610,11 +610,14 @@ export async function runReminderJob(opts: {
         if (!settings.enabled) {
             return { ran: false, reason: 'Cron deshabilitado', sent: 0, failed: 0, skipped: 0, processed: 0, at };
         }
+        // Hobby: Vercel solo admite 1 cron/día (vercel.json ~12:00 UTC).
+        // La hora configurada es un filtro opcional: si no coincide con Santiago, no-op
+        // (en Pro se puede volver a cron horario y esta puerta sigue sirviendo).
         const hour = hourInSantiago(now);
         if (hour !== settings.hour) {
             return {
                 ran: false,
-                reason: `Hora Santiago ${hour} ≠ configurada ${settings.hour}`,
+                reason: `Hora Santiago ${hour} ≠ configurada ${settings.hour}. En Hobby el cron corre ~12:00 UTC; ajusta la hora a la de Chile en ese momento (suele ser 8 o 9).`,
                 sent: 0,
                 failed: 0,
                 skipped: 0,

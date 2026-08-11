@@ -23,7 +23,7 @@ function authorizeCron(request: Request): boolean {
 
 /**
  * GET/POST /api/cron/reminders
- * Vercel Cron (horario) + Authorization: Bearer CRON_SECRET.
+ * Vercel Cron (diario en Hobby: 0 12 * * *) + Authorization: Bearer CRON_SECRET.
  * El job no-op si cron deshabilitado o la hora Santiago ≠ reminders_cron_hour.
  */
 async function handle(request: Request) {

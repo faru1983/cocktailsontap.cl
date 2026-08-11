@@ -982,8 +982,9 @@ export default function RemindersClient({
                             <div>
                                 <h3 className="text-white font-black text-lg">Cron diario por correo</h3>
                                 <p className="text-slate-400 text-sm mt-1 leading-relaxed">
-                                    Vercel llama al job cada hora; solo envía cuando está activado y la hora actual en
-                                    America/Santiago coincide con la configurada. WhatsApp sigue siendo manual.
+                                    En plan Hobby Vercel dispara el job <strong className="text-slate-300">1 vez al día</strong>{' '}
+                                    (~12:00 UTC, ≈08:00–09:00 Chile). Solo envía si está activado y la hora actual en
+                                    America/Santiago coincide con la configurada abajo. WhatsApp sigue siendo manual.
                                     Requiere <code className="text-[#E2A049]">CRON_SECRET</code> en el entorno.
                                 </p>
                             </div>
