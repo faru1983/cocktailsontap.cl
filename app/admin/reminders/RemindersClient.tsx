@@ -871,11 +871,6 @@ export default function RemindersClient({
             {/* ── Monitoreo ── */}
             {tab === 'monitor' && (
                 <div>
-                    <p className="text-slate-400 text-sm mb-4 leading-relaxed max-w-3xl">
-                        Historial de envíos <strong className="text-slate-300">manuales</strong> y del{' '}
-                        <strong className="text-slate-300">cron</strong> (columna Origen). Borrar o editar una
-                        plantilla ya no elimina estos registros: el nombre queda guardado en el log.
-                    </p>
                     <div className="flex flex-wrap gap-3 mb-6 items-center">
                         <select
                             className="bg-black/20 border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-[#E2A049]"
