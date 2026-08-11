@@ -142,13 +142,13 @@ function displayName(q: Pick<QuoteRow, 'client_name' | 'client_lastname'>): stri
     return [q.client_name, q.client_lastname].filter(Boolean).join(' ').trim() || 'Cliente';
 }
 
-function isEventQuote(q: QuoteRow): boolean {
+function isEventQuote(q: Pick<QuoteRow, 'service_type' | 'dispenser'>): boolean {
     if (q.service_type === 'event') return true;
     if (q.service_type === 'direct') return false;
     return q.dispenser === 'portatil' || q.dispenser === 'muro';
 }
 
-function isDirectQuote(q: QuoteRow): boolean {
+function isDirectQuote(q: Pick<QuoteRow, 'service_type' | 'dispenser'>): boolean {
     if (q.service_type === 'direct') return true;
     if (q.service_type === 'event') return false;
     return q.dispenser === 'desechable';
