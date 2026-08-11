@@ -13,7 +13,7 @@ import {
     updateClientCrmAdmin,
 } from '@/app/actions/admin/adminActions';
 import { useRouter } from 'next/navigation';
-import { formatDateCL, formatDateTimeCL } from '@/lib/utils';
+import { formatDateCL, formatDateTimeCL, getAvatarInitial } from '@/lib/utils';
 import {
     Edit2,
     Save,
@@ -328,7 +328,7 @@ export default function ClientDetailClient({
                     {!isEditing ? (
                         <>
                             <div className="cd-profile-top">
-                                <div className="cd-avatar">{client.first_name?.[0]?.toUpperCase()}</div>
+                                <div className="cd-avatar">{getAvatarInitial(client.first_name)}</div>
                                 <div className="cd-name-block">
                                     <h2>
                                         {client.first_name} {client.last_name || ''}

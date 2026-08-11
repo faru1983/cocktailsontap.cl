@@ -49,6 +49,12 @@ export const PROJECT_TIMEZONE = 'America/Santiago';
  */
 export const INTEGRATION_API_KEY_ENV = 'INTEGRATION_API_KEY';
 
+/**
+ * Secret para cron de Vercel (`/api/cron/*`).
+ * Solo server-side — leer process.env.CRON_SECRET en la ruta del cron.
+ */
+export const CRON_SECRET_ENV = 'CRON_SECRET';
+
 /** Meta Pixel ID (público; también en lib/fpixel.ts). */
 export const META_PIXEL_ID = process.env.NEXT_PUBLIC_META_PIXEL_ID ?? '1739547250109039';
 

@@ -104,9 +104,10 @@ Define la arquitectura, reglas irrompibles, convenciones de código, esquema de 
 │       ├── quoteService.ts       # Transacciones de BD para cotizaciones
 │       ├── googleSyncService.ts  # Orquestación de Google Contacts/Calendar
 │       ├── settingsService.ts    # Configuración dinámica desde site_settings
+│       ├── reminderService.ts    # Recordatorios: audiencias, omitidos, Resend, cron job
 │       └── productionService.ts  # Costeo de recetas y escalado de producción
 ├── proxy.ts                  # Protección de rutas /admin (reemplaza middleware.ts)
-├── vercel.json               # Redirects (/agendar, /qr, /google, /calculadora.html) + Security Headers
+├── vercel.json               # Redirects + Security Headers + cron horario /api/cron/reminders
 └── public/assets/            # Imágenes estáticas (logo, barriles, etc.)
 ```
 
@@ -132,7 +133,10 @@ Define la arquitectura, reglas irrompibles, convenciones de código, esquema de 
 | `event_types` | Tipos de evento (Matrimonio, Cumpleaños, etc.) | `name`, `icon`, `display_order` |
 | `expenses` | Registro de gastos del negocio | `amount`, `expense_date`, `category`, `description` |
 | `payment_methods` | Medios de pago configurables | `name`, `is_active` |
-| `site_settings` | Configuración dinámica (plantillas, templates) | `key` (unique), `category`, `value`, `is_active` |
+| `site_settings` | Configuración dinámica (plantillas, templates) | `key` (unique), `category`, `value`, `is_active` — categoría `reminders` = cron enable/hora/último run |
+| `reminder_templates` | Plantillas de recordatorio (manual + auto email) | `trigger` draft_event\|anniversary_event\|anniversary_direct; `auto_enabled`; `days_before` |
+| `reminder_logs` | Historial de envíos (manual/cron) | `status` sent\|failed\|skipped; `source` manual\|cron; `target_date` |
+| `reminder_suppressions` | Emails omitidos (no batch ni cron) | `email` unique (lowercase) |
 | `ingredients` | Insumos de producción (formato + precio de compra) | `name` (unique), `category`, `format_qty`, `format_unit` (`ml`\|`g`), `format_price`, `supplier` (nullable), `is_active` |
 | `recipes` | Recetas BOM vinculadas al catálogo de venta | `product_id` (unique FK → products), `base_liters` (default 5) |
 | `recipe_items` | Líneas de receta (cantidad base por insumo) | `recipe_id` FK, `ingredient_id` FK, unique (`recipe_id`,`ingredient_id`) |

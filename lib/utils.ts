@@ -50,6 +50,19 @@ export function formatDateTimeCL(value: string | Date | null | undefined): strin
     return `${p.day}-${p.month}-${p.year}, ${p.hour}:${p.minute}:${p.second}`;
 }
 
+/**
+ * Inicial de avatar SSR-safe.
+ * `name[0]` rompe emojis / letras fuera del BMP (pares UTF-16): el HTML del
+ * servidor reemplaza el surrogate huérfano por � y el cliente hidrata otro
+ * code point → hydration mismatch. Busca la 1ª letra Unicode; si no hay, "?".
+ */
+export function getAvatarInitial(name: string | null | undefined): string {
+    if (!name) return '?';
+    const letter = name.match(/\p{L}/u)?.[0];
+    if (letter) return letter.toLocaleUpperCase('es');
+    return '?';
+}
+
 /** @deprecated Preferir formatPhoneDisplay / phoneInputToE164 desde `@/lib/phone`. */
 export { formatPhoneDisplay as formatPhoneNumber, phoneInputToE164, toWhatsAppDigits } from '@/lib/phone';
 

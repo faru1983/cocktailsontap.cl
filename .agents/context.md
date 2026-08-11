@@ -40,6 +40,19 @@
 
 ## Ultimos Cambios
 
+### 10-08-2026 (Sesión 54) — Recordatorios automáticos + monitoreo
+
+- `/admin/reminders`: tabs Pendientes / Plantillas / Monitoreo / Omitidos / Automatización.
+- Plantillas con `trigger` + toggle `auto_enabled` (manual y auto conviven); `days_before` para draft o aniversario de última reserva (eventos/barriles).
+- Cron `GET/POST /api/cron/reminders` (Bearer `CRON_SECRET`) + `vercel.json` horario; gate por enable + hora Santiago en `site_settings` categoría `reminders`.
+- Servicio `lib/services/reminderService.ts`; logs ampliados; tabla `reminder_suppressions`; seed plantilla “Aniversario evento (ej. 20% off)”.
+- WhatsApp sigue solo manual. Activar cron en UI + definir `CRON_SECRET` en Vercel.
+
+### 10-08-2026 (Sesión 53) — Hydration avatar clientes (emojis WA)
+
+- Error en `/admin/clients`: `first_name[0]` sobre pushNames con emoji/letras fuera del BMP (p. ej. `🌿Isa…`, `💞Patita…`, `𝐘𝐨𝐬𝐢`) deja un surrogate UTF-16 huérfano → HTML server `�` ≠ cliente.
+- Fix: helper `getAvatarInitial` (`\p{L}` + `?` fallback) en listado y ficha; fechas de creación del listado pasan a `formatDateCL`.
+
 ### 07-08-2026 (Sesión 52) — Nombre CRM al cotizar + búsqueda admin
 
 - Caso `ceciliacampospa@gmail.com`: cotización admin “Cecilia Campos” no actualizó el perfil (quedó pushName WA “Chichi Campos”) porque `resolveOrCreateClient` solo reemplazaba nombres placeholder.
@@ -58,17 +71,6 @@
 - Causa: en `/admin/quotes/new` el select de temática mapeaba `eventTypes` (ya incluye `Otro` en DB) y además hardcodeaba `<option value="Otro">`.
 - Fix: se eliminó la opción hardcodeada en `CreateQuoteManualClient.tsx`. Wizard y detalle de cotización ya usaban solo `eventTypes`.
 
-### 06-08-2026 (Sesión 49) — Nota IVA + auditoría WhatsApp
-
-- Nota “Valores netos. No incluyen IVA.”: `CartModal`, `QuoteSummaryProducts`, emails (`EmailShared` + `ConfirmationEmail`).
-- WhatsApp: contacto de negocio vía `WHATSAPP_NUMBER`/`WHATSAPP_URL` (`NEXT_PUBLIC_WHATSAPP_NUMBER`). `useCart` y `FloatingWhatsapp` alineados a esa fuente. Único hardcode: crédito “FaRu” en Footer (número del desarrollador, no del negocio). Admin usa `wa.me` al teléfono del cliente (correcto).
-
-### 05-08-2026 (Sesión 48) — Eliminación permanente de clientes desde admin
-
-- Perfil `/admin/clients/[id]`: botón **Eliminar** a la izquierda de **Editar Perfil**, con confirmación irreversible y aviso de cuántas cotizaciones se borrarán.
-- Nueva Server Action autenticada `deleteClientPermanent`: elimina primero eventos de etapa y dependencias/cotizaciones; luego identifiers, touchpoints, merges y cliente.
-- Validación: TypeScript sin errores; ESLint del componente OK (el action conserva errores históricos ajenos al cambio).
-
 ---
 
-*Ultima actualizacion: 07-08-2026 (Sesión 52)*
+*Ultima actualizacion: 10-08-2026 (Sesión 54)*

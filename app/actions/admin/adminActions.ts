@@ -827,10 +827,36 @@ export async function syncClientToGoogle(clientId: string): Promise<{ success: b
 }
 
 // ── Reminder Templates CRUD ──────────────────────────────────────────
-export async function saveReminderTemplate(data: { id?: string; name: string; subject?: string; content: string; type: string }): Promise<{ success: boolean; error?: string }> {
+export async function saveReminderTemplate(data: {
+    id?: string;
+    name: string;
+    subject?: string;
+    content: string;
+    type: string;
+    trigger?: string;
+    auto_enabled?: boolean;
+    days_before?: number;
+}): Promise<{ success: boolean; error?: string }> {
     await checkAuth();
     const db = createServerClient();
-    const { error } = await db.from('reminder_templates').upsert(data).select();
+    const trigger = data.trigger || 'draft_event';
+    const allowed = new Set(['draft_event', 'anniversary_event', 'anniversary_direct']);
+    if (!allowed.has(trigger)) return { success: false, error: 'Trigger inválido.' };
+
+    const days = Math.min(365, Math.max(0, Math.trunc(Number(data.days_before ?? 7))));
+    const payload = {
+        id: data.id,
+        name: data.name.trim(),
+        subject: data.subject || '',
+        content: data.content,
+        type: data.type || 'both',
+        trigger,
+        auto_enabled: Boolean(data.auto_enabled),
+        days_before: days,
+        auto_channel: 'email',
+    };
+
+    const { error } = await db.from('reminder_templates').upsert(payload).select();
     if (error) return { success: false, error: error.message };
     revalidatePath('/admin/reminders');
     return { success: true };
@@ -846,121 +872,134 @@ export async function deleteReminderTemplate(id: string): Promise<{ success: boo
 }
 
 // ── Batch Send Email Reminders ──────────────────────────────────────────
-export async function sendBatchReminders(quoteIds: string[], templateId: string): Promise<{ success: boolean; results?: any; error?: string }> {
+export async function sendBatchReminders(
+    quoteIds: string[],
+    templateId: string
+): Promise<{ success: boolean; results?: any; error?: string }> {
     await checkAuth();
-    const db = createServerClient();
-    
-    // 1. Fetch template
-    const { data: template } = await db.from('reminder_templates').select('*').eq('id', templateId).single();
-    if (!template) return { success: false, error: 'Plantilla no encontrada.' };
-
-    // 2. Fetch quotes
-    const { data: quotes } = await db.from('quotes').select('*, quote_items(*)').in('id', quoteIds);
-    if (!quotes || quotes.length === 0) return { success: false, error: 'No se encontraron las cotizaciones.' };
-
-    const resend = new Resend(process.env.RESEND_API_KEY);
-    const results = [];
-
-    for (const quote of quotes) {
-        if (!quote.client_email) {
-            results.push({ quoteId: quote.id, success: false, error: 'Sin email' });
-            continue;
-        }
-
-        // Reemplazar variables básicas
-        const eventDateStr = quote.event_date 
-            ? new Date(quote.event_date + 'T12:00:00').toLocaleDateString('es-CL', { day: '2-digit', month: 'long', year: 'numeric' }) 
-            : 'por confirmar';
-        const totalStr = new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0 }).format(quote.total_price);
-        
-        let content = template.content
-            .replace(/\\n/g, '\n') // Fix literal \n
-            .replace(/{nombre}/g, `<strong>${quote.client_name}</strong>`)
-            .replace(/{fecha}/g, `<strong>${eventDateStr}</strong>`)
-            .replace(/{total}/g, `<strong>${totalStr}</strong>`)
-            .replace(/{link}/g, `<a href="${SITE_URL}/cotizar/${quote.token}" style="color: #E2A049; font-weight: 700;">${SITE_URL}/cotizar/${quote.token}</a>`);
-
-        // Simple HTML layout for reminders
-        const html = `<div style="font-family: -apple-system, sans-serif; max-width: 600px; margin: auto; padding: 32px; background: #fff; border-radius: 12px; color: #1e293b;">
-            <div style="font-size: 16px; line-height: 1.6; white-space: pre-wrap;">${content}</div>
-            <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 24px 0;" />
-            <p style="font-size: 12px; color: #94a3b8; text-align: center;">Cocktails on Tap — <a href="${SITE_URL}" style="color: #E2A049;">cocktailsontap.cl</a></p>
-        </div>`;
-
-        try {
-            const { error } = await resend.emails.send({
-                from: FROM_EMAIL,
-                to: quote.client_email,
-                subject: template.subject.replace(/{fecha}/g, eventDateStr).replace(/{nombre}/g, quote.client_name),
-                html,
-            });
-            
-            if (!error) {
-                // Log the send
-                await db.from('reminder_logs').insert({
-                    quote_id: quote.id,
-                    template_id: template.id,
-                    channel: 'email'
-                });
-            }
-            results.push({ quoteId: quote.id, success: !error, error: error?.message });
-        } catch (e: any) {
-            results.push({ quoteId: quote.id, success: false, error: e.message });
-        }
-    }
-
-    return { success: true, results };
+    const { sendManualBatchReminders } = await import('@/lib/services/reminderService');
+    const res = await sendManualBatchReminders(quoteIds, templateId);
+    revalidatePath('/admin/reminders');
+    return res;
 }
 
 // ── Send Test Reminder Email ──────────────────────────────────────────
-export async function sendTestReminderEmail(toEmail: string, template: { subject: string, content: string }): Promise<{ success: boolean; error?: string }> {
+export async function sendTestReminderEmail(
+    toEmail: string,
+    template: { subject: string; content: string }
+): Promise<{ success: boolean; error?: string }> {
     await checkAuth();
-    if (!toEmail) return { success: false, error: 'Email de prueba es obligatorio.' };
-    
-    const resend = new Resend(process.env.RESEND_API_KEY);
-    
-    // Test data
-    const eventDateStr = new Date().toLocaleDateString('es-CL', { day: '2-digit', month: 'long', year: 'numeric' });
-    const totalStr = new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0 }).format(150000);
-    const testLink = `${SITE_URL}/cotizar/test-token`;
-    const testName = 'Cliente de Prueba';
-
-    let content = template.content
-        .replace(/\\n/g, '\n')
-        .replace(/{nombre}/g, `<strong>${testName}</strong>`)
-        .replace(/{fecha}/g, `<strong>${eventDateStr}</strong>`)
-        .replace(/{total}/g, `<strong>${totalStr}</strong>`)
-        .replace(/{link}/g, `<a href="${testLink}" style="color: #E2A049; font-weight: 700;">${testLink}</a>`);
-
-    const html = `<div style="font-family: -apple-system, sans-serif; max-width: 600px; margin: auto; padding: 32px; background: #fff; border-radius: 12px; color: #1e293b;">
-        <p style="font-size: 14px; color: #94a3b8; margin-bottom: 20px;"><strong>[EMAIL DE PRUEBA]</strong></p>
-        <div style="font-size: 16px; line-height: 1.6; white-space: pre-wrap;">${content}</div>
-        <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 24px 0;" />
-        <p style="font-size: 12px; color: #94a3b8; text-align: center;">Cocktails on Tap — <a href="${SITE_URL}" style="color: #E2A049;">cocktailsontap.cl</a></p>
-    </div>`;
-
-    const { error } = await resend.emails.send({
-        from: FROM_EMAIL,
-        to: toEmail,
-        subject: `[PRUEBA] ${template.subject.replace(/{fecha}/g, eventDateStr).replace(/{nombre}/g, testName)}`,
-        html,
-    });
-
-    if (error) return { success: false, error: error.message };
-    return { success: true };
+    const { sendTestReminderEmailService } = await import('@/lib/services/reminderService');
+    return sendTestReminderEmailService(toEmail, template);
 }
 
 // ── Log Reminder Send ────────────────────────────────────────────────────
-export async function logReminderSend(quoteId: string, templateId: string, channel: 'email' | 'whatsapp') {
+export async function logReminderSend(
+    quoteId: string,
+    templateId: string,
+    channel: 'email' | 'whatsapp'
+) {
     await checkAuth();
     const db = createServerClient();
+    const { data: quote } = await db
+        .from('quotes')
+        .select('client_id, client_email, event_date')
+        .eq('id', quoteId)
+        .maybeSingle();
+    const { data: template } = await db
+        .from('reminder_templates')
+        .select('trigger')
+        .eq('id', templateId)
+        .maybeSingle();
+
     const { error } = await db.from('reminder_logs').insert({
         quote_id: quoteId,
         template_id: templateId,
-        channel
+        channel,
+        client_id: quote?.client_id || null,
+        recipient_email: quote?.client_email || null,
+        status: 'sent',
+        trigger: template?.trigger || null,
+        target_date: quote?.event_date || null,
+        source: 'manual',
     });
     if (error) return { success: false, error: error.message };
+    revalidatePath('/admin/reminders');
     return { success: true };
+}
+
+// ── Reminder suppressions ────────────────────────────────────────────────
+export async function addReminderSuppression(
+    email: string,
+    note?: string
+): Promise<{ success: boolean; error?: string }> {
+    await checkAuth();
+    const { normalizeReminderEmail } = await import('@/lib/services/reminderService');
+    const normalized = normalizeReminderEmail(email);
+    if (!normalized || !normalized.includes('@')) {
+        return { success: false, error: 'Email inválido.' };
+    }
+    const db = createServerClient();
+    const { error } = await db.from('reminder_suppressions').insert({
+        email: normalized,
+        note: note?.trim() || null,
+    });
+    if (error) {
+        if (error.code === '23505') return { success: false, error: 'Ese email ya está en omitidos.' };
+        return { success: false, error: error.message };
+    }
+    revalidatePath('/admin/reminders');
+    return { success: true };
+}
+
+export async function deleteReminderSuppression(id: string): Promise<{ success: boolean; error?: string }> {
+    await checkAuth();
+    const db = createServerClient();
+    const { error } = await db.from('reminder_suppressions').delete().eq('id', id);
+    if (error) return { success: false, error: error.message };
+    revalidatePath('/admin/reminders');
+    return { success: true };
+}
+
+// ── Reminder automation settings + run now ───────────────────────────────
+export async function updateReminderCronSettings(data: {
+    enabled: boolean;
+    hour: number;
+}): Promise<{ success: boolean; error?: string }> {
+    await checkAuth();
+    const hour = Math.min(23, Math.max(0, Math.trunc(Number(data.hour))));
+    const db = createServerClient();
+    const updates = [
+        db
+            .from('site_settings')
+            .update({ value: data.enabled ? 'true' : 'false', updated_at: new Date().toISOString() })
+            .eq('key', 'reminders_cron_enabled'),
+        db
+            .from('site_settings')
+            .update({ value: String(hour), updated_at: new Date().toISOString() })
+            .eq('key', 'reminders_cron_hour'),
+    ];
+    const results = await Promise.all(updates);
+    const err = results.find((r) => r.error)?.error;
+    if (err) return { success: false, error: err.message };
+    revalidatePath('/admin/reminders');
+    return { success: true };
+}
+
+export async function runRemindersNow(): Promise<{
+    success: boolean;
+    summary?: any;
+    error?: string;
+}> {
+    await checkAuth();
+    const { runReminderJob } = await import('@/lib/services/reminderService');
+    try {
+        const summary = await runReminderJob({ respectSchedule: false });
+        revalidatePath('/admin/reminders');
+        return { success: true, summary };
+    } catch (e: any) {
+        return { success: false, error: e?.message || 'Error al ejecutar' };
+    }
 }
 
 // ── Event Types Management ──────────────────────────────────────────────

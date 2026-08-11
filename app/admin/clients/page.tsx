@@ -2,6 +2,7 @@ import { createServerClient } from '@/lib/supabaseServer';
 import Link from 'next/link';
 import SortSelect from '@/components/admin/SortSelect';
 import { formatPhoneDisplay } from '@/lib/phone';
+import { formatDateCL, getAvatarInitial } from '@/lib/utils';
 import { STAGE_LABELS, type ClientLifecycleStage } from '@/lib/services/clientLifecycleService';
 
 const ITEMS_PER_PAGE = 30;
@@ -282,7 +283,7 @@ export default async function ClientsPage({ searchParams }: { searchParams: Sear
                 ) : (
                     clients.map((c: any) => (
                         <Link key={c.id} href={`/admin/clients/${c.id}`} className="cp-card">
-                            <div className="cp-avatar">{c.first_name?.[0]?.toUpperCase()}</div>
+                            <div className="cp-avatar">{getAvatarInitial(c.first_name)}</div>
                             <div className="cp-card-body">
                                 <div className="cp-card-name">
                                     {c.first_name} {c.last_name || ''}
@@ -362,7 +363,7 @@ export default async function ClientsPage({ searchParams }: { searchParams: Sear
                                                 fontSize: '14px',
                                             }}
                                         >
-                                            {c.first_name?.[0]?.toUpperCase()}
+                                            {getAvatarInitial(c.first_name)}
                                         </div>
                                     </td>
                                     <td
@@ -439,7 +440,7 @@ export default async function ClientsPage({ searchParams }: { searchParams: Sear
                                             whiteSpace: 'nowrap',
                                         }}
                                     >
-                                        {new Date(c.created_at).toLocaleDateString('es-CL')}
+                                        {formatDateCL(c.created_at)}
                                     </td>
                                 </tr>
                             ))}
