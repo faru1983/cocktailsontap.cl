@@ -40,6 +40,12 @@
 
 ## Ultimos Cambios
 
+### 11-08-2026 (Sesión 57) — Monitoreo de recordatorios resiliente
+
+- Causa: al borrar plantilla la FK hace `SET NULL` → Monitoreo perdía el nombre (join vacío). Cron aún no había corrido (`reminders_last_run_*` vacíos).
+- Fix: columna `template_name` (snapshot al enviar y al borrar plantilla); destinatario enriquecido desde `quotes`; botón **Limpiar registro** borra todo el historial de monitoreo.
+- Backfill: emails en logs antiguos sin `recipient_email`.
+
 ### 11-08-2026 (Sesión 56) — Contrato legible en checkout confirmNow
 
 - En `EventWizardCheckoutModal`, al marcar “Confirmar reserva ahora”: bloque scrollable “Contrato de servicio” (mismo copy que `EventQuoteView`) + checkbox de aceptación debajo.
@@ -57,11 +63,6 @@
 - Cron `GET/POST /api/cron/reminders` (Bearer `CRON_SECRET`) + `vercel.json` diario Hobby; gate por enable + hora Santiago.
 - Servicio `lib/services/reminderService.ts`; logs ampliados; `reminder_suppressions`; seed aniversario 20%.
 
-### 10-08-2026 (Sesión 53) — Hydration avatar clientes (emojis WA)
-
-- Error en `/admin/clients`: `first_name[0]` sobre pushNames con emoji → surrogate UTF-16 → hydration mismatch.
-- Fix: `getAvatarInitial` + `formatDateCL` en listado.
-
 ---
 
-*Ultima actualizacion: 11-08-2026 (Sesión 56)*
+*Ultima actualizacion: 11-08-2026 (Sesión 57)*

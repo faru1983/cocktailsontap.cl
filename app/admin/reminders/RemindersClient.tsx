@@ -12,6 +12,7 @@ import {
     deleteReminderSuppression,
     updateReminderCronSettings,
     runRemindersNow,
+    clearReminderLogsAction,
 } from '@/app/actions/admin/adminActions';
 import { SITE_URL, WHATSAPP_LABEL, WHATSAPP_URL } from '@/lib/config';
 import { toWhatsAppDigits } from '@/lib/phone';
@@ -65,6 +66,7 @@ interface ReminderLog {
     id: string;
     quote_id: string | null;
     template_id: string | null;
+    template_name?: string | null;
     channel: string;
     sent_at: string;
     client_id: string | null;
@@ -75,6 +77,7 @@ interface ReminderLog {
     target_date: string | null;
     source: string;
     reminder_templates?: { name: string } | null;
+    quotes?: { client_name: string | null; client_email: string | null } | null;
 }
 
 interface CronSettings {
@@ -126,7 +129,7 @@ export default function RemindersClient({
     const [quotes] = useState(initialQuotes);
     const [templates, setTemplates] = useState(initialTemplates);
     const [suppressions, setSuppressions] = useState(initialSuppressions);
-    const [logs] = useState(initialLogs);
+    const [logs, setLogs] = useState(initialLogs);
     const [cron, setCron] = useState(initialCron);
     const [tab, setTabState] = useState<Tab>(() => parseTab(initialTab));
     const [isPending, startTransition] = useTransition();
@@ -278,12 +281,38 @@ export default function RemindersClient({
     };
 
     const handleDeleteTemplate = (id: string) => {
-        if (!confirm('¿Borrar esta plantilla?')) return;
+        if (!confirm('¿Borrar esta plantilla? Los envíos en Monitoreo se conservan con el nombre guardado.'))
+            return;
+        const tplName = templates.find((t) => t.id === id)?.name;
         startTransition(async () => {
             const res = await deleteReminderTemplate(id);
             if (res.success) {
                 showToast('Plantilla eliminada');
                 setTemplates((prev) => prev.filter((t) => t.id !== id));
+                // UI: mantener etiqueta aunque la FK quede en null
+                setLogs((prev) =>
+                    prev.map((l) =>
+                        l.template_id === id
+                            ? {
+                                  ...l,
+                                  template_id: null,
+                                  template_name: l.template_name || tplName || l.reminder_templates?.name || null,
+                                  reminder_templates: null,
+                              }
+                            : l
+                    )
+                );
+            } else showToast(res.error || 'Error', false);
+        });
+    };
+
+    const handleClearLogs = () => {
+        if (!confirm('¿Limpiar todo el registro de monitoreo? Esta acción no se puede deshacer.')) return;
+        startTransition(async () => {
+            const res = await clearReminderLogsAction();
+            if (res.success) {
+                showToast(`Registro limpiado (${res.deleted ?? 0})`);
+                setLogs([]);
             } else showToast(res.error || 'Error', false);
         });
     };
@@ -842,6 +871,11 @@ export default function RemindersClient({
             {/* ── Monitoreo ── */}
             {tab === 'monitor' && (
                 <div>
+                    <p className="text-slate-400 text-sm mb-4 leading-relaxed max-w-3xl">
+                        Historial de envíos <strong className="text-slate-300">manuales</strong> y del{' '}
+                        <strong className="text-slate-300">cron</strong> (columna Origen). Borrar o editar una
+                        plantilla ya no elimina estos registros: el nombre queda guardado en el log.
+                    </p>
                     <div className="flex flex-wrap gap-3 mb-6 items-center">
                         <select
                             className="bg-black/20 border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-[#E2A049]"
@@ -853,18 +887,30 @@ export default function RemindersClient({
                             <option value="failed">Fallidos</option>
                             <option value="skipped">Omitidos / skipped</option>
                         </select>
-                        {lastRunSummary && (
+                        <button
+                            type="button"
+                            disabled={isPending || logs.length === 0}
+                            onClick={handleClearLogs}
+                            className="inline-flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs font-bold border border-rose-500/30 text-rose-300 hover:bg-rose-500/10 disabled:opacity-40"
+                        >
+                            <Trash2 size={14} /> Limpiar registro
+                        </button>
+                        {lastRunSummary ? (
                             <span className="text-xs text-slate-500">
                                 Último cron: {cron.lastRunAt ? formatDateTimeCL(cron.lastRunAt) : '—'} ·{' '}
                                 {lastRunSummary.ran === false
                                     ? lastRunSummary.reason || 'no ejecutó'
                                     : `${lastRunSummary.sent ?? 0} sent / ${lastRunSummary.failed ?? 0} fail / ${lastRunSummary.skipped ?? 0} skip`}
                             </span>
+                        ) : (
+                            <span className="text-xs text-slate-600">
+                                Cron aún sin ejecuciones (activar en Automatización o «Ejecutar ahora»).
+                            </span>
                         )}
                     </div>
 
                     <div className="bg-[#1e2433] rounded-2xl border border-white/5 overflow-x-auto">
-                        <table className="w-full border-collapse min-w-[800px]">
+                        <table className="w-full border-collapse min-w-[880px]">
                             <thead>
                                 <tr className="bg-white/[0.02]">
                                     {[
@@ -894,38 +940,59 @@ export default function RemindersClient({
                                         </td>
                                     </tr>
                                 ) : (
-                                    filteredLogs.map((l) => (
-                                        <tr key={l.id} className="border-t border-white/[0.03]">
-                                            <td className="py-3 px-4 text-slate-400 text-xs whitespace-nowrap">
-                                                {formatDateTimeCL(l.sent_at)}
-                                            </td>
-                                            <td className="py-3 px-4 text-slate-300 text-xs">
-                                                {l.recipient_email || '—'}
-                                            </td>
-                                            <td className="py-3 px-4 text-white text-xs font-bold">
-                                                {l.reminder_templates?.name || '—'}
-                                            </td>
-                                            <td className="py-3 px-4 text-slate-400 text-xs">{l.channel}</td>
-                                            <td className="py-3 px-4 text-slate-500 text-xs">{l.trigger || '—'}</td>
-                                            <td className="py-3 px-4 text-slate-500 text-xs">{l.source}</td>
-                                            <td className="py-3 px-4">
-                                                <span
-                                                    className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${
-                                                        l.status === 'sent'
-                                                            ? 'bg-emerald-500/15 text-emerald-400'
-                                                            : l.status === 'failed'
-                                                              ? 'bg-rose-500/15 text-rose-400'
-                                                              : 'bg-slate-500/15 text-slate-400'
-                                                    }`}
-                                                >
-                                                    {l.status}
-                                                </span>
-                                            </td>
-                                            <td className="py-3 px-4 text-rose-400/80 text-xs max-w-[180px] truncate">
-                                                {l.error || ''}
-                                            </td>
-                                        </tr>
-                                    ))
+                                    filteredLogs.map((l) => {
+                                        const plantilla =
+                                            l.template_name ||
+                                            l.reminder_templates?.name ||
+                                            (l.template_id ? '—' : 'Plantilla eliminada');
+                                        const destinatario =
+                                            l.recipient_email ||
+                                            l.quotes?.client_email ||
+                                            l.quotes?.client_name ||
+                                            '—';
+                                        return (
+                                            <tr key={l.id} className="border-t border-white/[0.03]">
+                                                <td className="py-3 px-4 text-slate-400 text-xs whitespace-nowrap">
+                                                    {formatDateTimeCL(l.sent_at)}
+                                                </td>
+                                                <td className="py-3 px-4 text-slate-300 text-xs">{destinatario}</td>
+                                                <td className="py-3 px-4 text-white text-xs font-bold">
+                                                    {plantilla}
+                                                </td>
+                                                <td className="py-3 px-4 text-slate-400 text-xs">{l.channel}</td>
+                                                <td className="py-3 px-4 text-slate-500 text-xs">
+                                                    {l.trigger || '—'}
+                                                </td>
+                                                <td className="py-3 px-4 text-xs">
+                                                    <span
+                                                        className={
+                                                            l.source === 'cron'
+                                                                ? 'text-[#E2A049] font-bold'
+                                                                : 'text-slate-500'
+                                                        }
+                                                    >
+                                                        {l.source || '—'}
+                                                    </span>
+                                                </td>
+                                                <td className="py-3 px-4">
+                                                    <span
+                                                        className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${
+                                                            l.status === 'sent'
+                                                                ? 'bg-emerald-500/15 text-emerald-400'
+                                                                : l.status === 'failed'
+                                                                  ? 'bg-rose-500/15 text-rose-400'
+                                                                  : 'bg-slate-500/15 text-slate-400'
+                                                        }`}
+                                                    >
+                                                        {l.status}
+                                                    </span>
+                                                </td>
+                                                <td className="py-3 px-4 text-rose-400/80 text-xs max-w-[180px] truncate">
+                                                    {l.error || ''}
+                                                </td>
+                                            </tr>
+                                        );
+                                    })
                                 )}
                             </tbody>
                         </table>

@@ -35,6 +35,8 @@ export interface ReminderLogRow {
     id: string;
     quote_id: string | null;
     template_id: string | null;
+    /** Nombre guardado al enviar; sobrevive si se borra la plantilla. */
+    template_name: string | null;
     channel: string;
     sent_at: string;
     client_id: string | null;
@@ -45,6 +47,7 @@ export interface ReminderLogRow {
     target_date: string | null;
     source: ReminderSource;
     reminder_templates?: { name: string } | null;
+    quotes?: { client_name: string | null; client_email: string | null } | null;
 }
 
 export interface ReminderCronSettings {
@@ -242,6 +245,7 @@ async function alreadySent(opts: {
 async function insertLog(row: {
     quote_id?: string | null;
     template_id: string;
+    template_name?: string | null;
     channel: string;
     client_id?: string | null;
     recipient_email?: string | null;
@@ -338,6 +342,7 @@ export async function sendManualBatchReminders(
             await insertLog({
                 quote_id: quote.id,
                 template_id: template.id,
+                template_name: template.name,
                 channel: 'email',
                 client_id: quote.client_id,
                 status: 'skipped',
@@ -353,6 +358,7 @@ export async function sendManualBatchReminders(
             await insertLog({
                 quote_id: quote.id,
                 template_id: template.id,
+                template_name: template.name,
                 channel: 'email',
                 client_id: quote.client_id,
                 recipient_email: email,
@@ -383,6 +389,7 @@ export async function sendManualBatchReminders(
         await insertLog({
             quote_id: quote.id,
             template_id: template.id,
+            template_name: template.name,
             channel: 'email',
             client_id: quote.client_id,
             recipient_email: email,
@@ -546,6 +553,7 @@ async function processCandidate(
         await insertLog({
             quote_id: c.quoteId,
             template_id: tpl.id,
+            template_name: tpl.name,
             channel: 'email',
             client_id: c.clientId,
             status: 'skipped',
@@ -561,6 +569,7 @@ async function processCandidate(
         await insertLog({
             quote_id: c.quoteId,
             template_id: tpl.id,
+            template_name: tpl.name,
             channel: 'email',
             client_id: c.clientId,
             recipient_email: c.email,
@@ -589,6 +598,7 @@ async function processCandidate(
     await insertLog({
         quote_id: c.quoteId,
         template_id: tpl.id,
+        template_name: tpl.name,
         channel: 'email',
         client_id: c.clientId,
         recipient_email: c.email,
@@ -673,7 +683,7 @@ export async function listRecentReminderLogs(limit = 100): Promise<ReminderLogRo
     const db = createServerClient();
     const { data, error } = await db
         .from('reminder_logs')
-        .select('*, reminder_templates(name)')
+        .select('*, reminder_templates(name), quotes(client_name, client_email)')
         .order('sent_at', { ascending: false })
         .limit(limit);
     if (error) {
@@ -681,4 +691,39 @@ export async function listRecentReminderLogs(limit = 100): Promise<ReminderLogRo
         return [];
     }
     return (data || []) as ReminderLogRow[];
+}
+
+/**
+ * Limpia todo el historial de monitoreo (manual + cron).
+ * Acción explícita desde admin; no se usa en cron.
+ */
+export async function clearReminderLogs(): Promise<{
+    success: boolean;
+    deleted?: number;
+    error?: string;
+}> {
+    const db = createServerClient();
+    // Filtro amplio: PostgREST exige condición en DELETE
+    const { error, count } = await db
+        .from('reminder_logs')
+        .delete({ count: 'exact' })
+        .not('id', 'is', null);
+    if (error) return { success: false, error: error.message };
+    return { success: true, deleted: count ?? 0 };
+}
+
+/**
+ * Antes de borrar una plantilla, congela su nombre en los logs
+ * para que Monitoreo no quede sin etiqueta (FK hace SET NULL).
+ */
+export async function snapshotTemplateNameOnLogs(
+    templateId: string,
+    templateName: string
+): Promise<void> {
+    const db = createServerClient();
+    const { error } = await db
+        .from('reminder_logs')
+        .update({ template_name: templateName })
+        .eq('template_id', templateId);
+    if (error) console.error('[reminderService] snapshotTemplateNameOnLogs:', error.message);
 }

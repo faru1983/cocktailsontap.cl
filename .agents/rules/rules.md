@@ -135,7 +135,7 @@ Define la arquitectura, reglas irrompibles, convenciones de código, esquema de 
 | `payment_methods` | Medios de pago configurables | `name`, `is_active` |
 | `site_settings` | Configuración dinámica (plantillas, templates) | `key` (unique), `category`, `value`, `is_active` — categoría `reminders` = cron enable/hora/último run |
 | `reminder_templates` | Plantillas de recordatorio (manual + auto email) | `trigger` draft_event\|anniversary_event\|anniversary_direct; `auto_enabled`; `days_before` |
-| `reminder_logs` | Historial de envíos (manual/cron) | `status` sent\|failed\|skipped; `source` manual\|cron; `target_date` |
+| `reminder_logs` | Historial de envíos (manual/cron) | `status` sent\|failed\|skipped; `source` manual\|cron; `target_date`; `template_name` (snapshot al enviar / al borrar plantilla) |
 | `reminder_suppressions` | Emails omitidos (no batch ni cron) | `email` unique (lowercase) |
 | `ingredients` | Insumos de producción (formato + precio de compra) | `name` (unique), `category`, `format_qty`, `format_unit` (`ml`\|`g`), `format_price`, `supplier` (nullable), `is_active` |
 | `recipes` | Recetas BOM vinculadas al catálogo de venta | `product_id` (unique FK → products), `base_liters` (default 5) |

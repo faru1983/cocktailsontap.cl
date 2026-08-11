@@ -865,6 +865,12 @@ export async function saveReminderTemplate(data: {
 export async function deleteReminderTemplate(id: string): Promise<{ success: boolean; error?: string }> {
     await checkAuth();
     const db = createServerClient();
+    const { data: tpl } = await db.from('reminder_templates').select('name').eq('id', id).maybeSingle();
+    // Congela el nombre en logs antes del SET NULL de la FK
+    if (tpl?.name) {
+        const { snapshotTemplateNameOnLogs } = await import('@/lib/services/reminderService');
+        await snapshotTemplateNameOnLogs(id, tpl.name);
+    }
     const { error } = await db.from('reminder_templates').delete().eq('id', id);
     if (error) return { success: false, error: error.message };
     revalidatePath('/admin/reminders');
@@ -908,13 +914,14 @@ export async function logReminderSend(
         .maybeSingle();
     const { data: template } = await db
         .from('reminder_templates')
-        .select('trigger')
+        .select('trigger, name')
         .eq('id', templateId)
         .maybeSingle();
 
     const { error } = await db.from('reminder_logs').insert({
         quote_id: quoteId,
         template_id: templateId,
+        template_name: template?.name || null,
         channel,
         client_id: quote?.client_id || null,
         recipient_email: quote?.client_email || null,
@@ -926,6 +933,18 @@ export async function logReminderSend(
     if (error) return { success: false, error: error.message };
     revalidatePath('/admin/reminders');
     return { success: true };
+}
+
+export async function clearReminderLogsAction(): Promise<{
+    success: boolean;
+    deleted?: number;
+    error?: string;
+}> {
+    await checkAuth();
+    const { clearReminderLogs } = await import('@/lib/services/reminderService');
+    const res = await clearReminderLogs();
+    if (res.success) revalidatePath('/admin/reminders');
+    return res;
 }
 
 // ── Reminder suppressions ────────────────────────────────────────────────
