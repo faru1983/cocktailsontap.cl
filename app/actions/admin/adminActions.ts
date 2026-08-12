@@ -987,24 +987,14 @@ export async function deleteReminderSuppression(id: string): Promise<{ success: 
 // ── Reminder automation settings + run now ───────────────────────────────
 export async function updateReminderCronSettings(data: {
     enabled: boolean;
-    hour: number;
 }): Promise<{ success: boolean; error?: string }> {
     await checkAuth();
-    const hour = Math.min(23, Math.max(0, Math.trunc(Number(data.hour))));
     const db = createServerClient();
-    const updates = [
-        db
-            .from('site_settings')
-            .update({ value: data.enabled ? 'true' : 'false', updated_at: new Date().toISOString() })
-            .eq('key', 'reminders_cron_enabled'),
-        db
-            .from('site_settings')
-            .update({ value: String(hour), updated_at: new Date().toISOString() })
-            .eq('key', 'reminders_cron_hour'),
-    ];
-    const results = await Promise.all(updates);
-    const err = results.find((r) => r.error)?.error;
-    if (err) return { success: false, error: err.message };
+    const { error } = await db
+        .from('site_settings')
+        .update({ value: data.enabled ? 'true' : 'false', updated_at: new Date().toISOString() })
+        .eq('key', 'reminders_cron_enabled');
+    if (error) return { success: false, error: error.message };
     revalidatePath('/admin/reminders');
     return { success: true };
 }

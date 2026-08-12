@@ -50,6 +50,22 @@ export function formatDateTimeCL(value: string | Date | null | undefined): strin
     return `${p.day}-${p.month}-${p.year}, ${p.hour}:${p.minute}:${p.second}`;
 }
 
+/** Hora UTC del cron diario de recordatorios (`vercel.json` → 0 12 * * *). */
+export const VERCEL_REMINDERS_CRON_UTC_HOUR = 12;
+
+/**
+ * Hora Chile (HH:mm) del disparo diario de Vercel, según DST de `at`.
+ * Invierno ≈ 08:00, verano ≈ 09:00.
+ */
+export function formatVercelDailyCronTimeCL(at = new Date()): string {
+    const slot = new Date(
+        Date.UTC(at.getUTCFullYear(), at.getUTCMonth(), at.getUTCDate(), VERCEL_REMINDERS_CRON_UTC_HOUR, 0, 0)
+    );
+    const p = chileDateParts(slot, true);
+    if (!p) return '—';
+    return `${p.hour}:${p.minute}`;
+}
+
 /**
  * Inicial de avatar SSR-safe.
  * `name[0]` rompe emojis / letras fuera del BMP (pares UTF-16): el HTML del

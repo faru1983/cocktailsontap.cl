@@ -40,6 +40,17 @@
 
 ## Ultimos Cambios
 
+### 12-08-2026 (Sesión 60) — Automatización: estado real, no hora falsa
+
+- Tab Automatización muestra hora Chile del cron de Vercel (12:00 UTC → 08:00/09:00 según DST), último job (enviados/fallidos/omitidos), plantillas auto y últimos envíos `source=cron`.
+- Se quitó el selector de hora. Solo queda Activar/Pausar + Enviar ahora.
+
+### 12-08-2026 (Sesión 59) — Cron aniversarios: DST + catch-up
+
+- Diagnóstico: Aldo Olivero y Candy Patiño (última reserva 12-09-2025 → aniversario 12-09-2026). Plantilla auto `Aniversario evento (30 dias)` envía el **13-08** (12-09 menos 30 días calendario; agosto tiene 31). El filtro Pendientes lista el mes, no “vence hoy”.
+- Bug sistémico: Vercel Hobby dispara 12:00 UTC (= 08:00 Chile en invierno). `reminders_cron_hour=9` hacía no-op el único job del día. Cero envíos `source=cron` en logs.
+- Fix: el slot 12:00 UTC corre aunque la hora Chile sea 8 u 9; se persiste last_run también en no-op; catch-up de 1 día si se pierde un disparo.
+
 ### 11-08-2026 (Sesión 58) — Filtro aniversarios en Pendientes + negrita **texto**
 
 - En `/admin/reminders` Pendientes: filtros “Aniversarios este mes / próximo mes” (última reserva confirmada/completada; mes en America/Santiago vía `listAnniversaryPendings`).
@@ -56,12 +67,6 @@
 
 - En `EventWizardCheckoutModal`, al marcar “Confirmar reserva ahora”: bloque scrollable “Contrato de servicio” (mismo copy que `EventQuoteView`) + checkbox de aceptación debajo.
 
-### 11-08-2026 (Sesión 55) — Reserva confirmada al crear (wizard + admin)
-
-- Checkbox opcional en checkout wizard eventos y cotización manual admin: `confirmNow`.
-- Si activo: exige dirección/horarios/términos (web); crea draft y llama `confirmQuoteCore` (email confirmación salvo admin `skipEmail`, Calendar, CRM customer).
-- Dominio: `lib/services/confirmQuoteCore.ts`; validación compartida `lib/confirmNowValidation.ts`.
-
 ---
 
-*Ultima actualizacion: 11-08-2026 (Sesión 58)*
+*Ultima actualizacion: 12-08-2026 (Sesión 60)*

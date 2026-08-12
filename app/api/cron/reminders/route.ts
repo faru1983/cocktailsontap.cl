@@ -23,8 +23,8 @@ function authorizeCron(request: Request): boolean {
 
 /**
  * GET/POST /api/cron/reminders
- * Vercel Cron (diario en Hobby: 0 12 * * *) + Authorization: Bearer CRON_SECRET.
- * El job no-op si cron deshabilitado o la hora Santiago ≠ reminders_cron_hour.
+ * Vercel Cron (diario en Hobby: 0 12 * * * = 12:00 UTC) + Authorization: Bearer CRON_SECRET.
+ * No-op si cron deshabilitado. El disparo de las 12:00 UTC no se bloquea por hora Chile (DST 8/9).
  */
 async function handle(request: Request) {
     if (!process.env.CRON_SECRET?.trim()) {

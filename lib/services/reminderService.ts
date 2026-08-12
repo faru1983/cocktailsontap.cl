@@ -121,6 +121,15 @@ export function hourInSantiago(now = new Date()): number {
     return Number(hour ?? 0);
 }
 
+/**
+ * Hobby de Vercel solo permite 1 cron/día (`vercel.json`: 0 12 * * * → 12:00 UTC).
+ * En Chile eso es 08:00 (invierno, UTC-4) o 09:00 (verano, UTC-3). Si exigimos
+ * igualdad exacta con `reminders_cron_hour`, el job diario no-op todo un semestre.
+ */
+export function isVercelDailyCronSlot(now = new Date()): boolean {
+    return now.getUTCHours() === 12;
+}
+
 /** Suma/resta días a una fecha YYYY-MM-DD (calendario, sin TZ). */
 export function shiftYmd(ymd: string, days: number): string {
     const [y, m, d] = ymd.split('-').map(Number);
@@ -154,9 +163,13 @@ function isDirectQuote(q: Pick<QuoteRow, 'service_type' | 'dispenser'>): boolean
     return q.dispenser === 'desechable';
 }
 
+/** Días hacia atrás para recuperar un cron que no-op o falló (Hobby = 1 disparo/día). */
+const CRON_CATCHUP_DAYS = 1;
+
 /**
  * Próximo aniversario (≥ 1 año después de la reserva) cuyo día de envío
- * (aniversario - daysBefore) cae en `todayYmd`. Devuelve la fecha ancla del ciclo.
+ * (aniversario - daysBefore) cae en `todayYmd` o hasta CRON_CATCHUP_DAYS antes.
+ * Devuelve la fecha ancla del ciclo (el aniversario, no el día de envío).
  */
 export function anniversaryTargetIfDue(
     lastEventYmd: string,
@@ -165,13 +178,14 @@ export function anniversaryTargetIfDue(
 ): string | null {
     const [y0, m0, d0] = lastEventYmd.split('-').map(Number);
     const todayYear = Number(todayYmd.slice(0, 4));
+    const earliestSend = shiftYmd(todayYmd, -CRON_CATCHUP_DAYS);
 
     for (let year = Math.max(todayYear - 1, y0 + 1); year <= todayYear + 1; year++) {
         if (year <= y0) continue;
         const day = m0 === 2 && d0 === 29 && !isLeapYear(year) ? 28 : d0;
         const anniversary = `${year}-${String(m0).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
         const sendOn = shiftYmd(anniversary, -daysBefore);
-        if (sendOn === todayYmd) return anniversary;
+        if (sendOn <= todayYmd && sendOn >= earliestSend) return anniversary;
     }
     return null;
 }
@@ -566,13 +580,15 @@ async function resolveDraftCandidates(
     today: string,
     suppressed: Set<string>
 ): Promise<ReminderCandidate[]> {
-    const targetEventDate = shiftYmd(today, template.days_before);
+    const latestEventDate = shiftYmd(today, template.days_before);
+    const earliestEventDate = shiftYmd(today, template.days_before - CRON_CATCHUP_DAYS);
     const db = createServerClient();
     const { data, error } = await db
         .from('quotes')
         .select('id, client_id, client_name, client_lastname, client_email, event_date, total_price, token, status, service_type, dispenser')
         .eq('status', 'draft')
-        .eq('event_date', targetEventDate);
+        .gte('event_date', earliestEventDate)
+        .lte('event_date', latestEventDate);
     if (error) {
         console.error('[reminderService] draft audience:', error.message);
         return [];
@@ -735,22 +751,33 @@ export async function runReminderJob(opts: {
 
     if (respect) {
         if (!settings.enabled) {
-            return { ran: false, reason: 'Cron deshabilitado', sent: 0, failed: 0, skipped: 0, processed: 0, at };
-        }
-        // Hobby: Vercel solo admite 1 cron/día (vercel.json ~12:00 UTC).
-        // La hora configurada es un filtro opcional: si no coincide con Santiago, no-op
-        // (en Pro se puede volver a cron horario y esta puerta sigue sirviendo).
-        const hour = hourInSantiago(now);
-        if (hour !== settings.hour) {
-            return {
+            const summary: ReminderJobSummary = {
                 ran: false,
-                reason: `Hora Santiago ${hour} ≠ configurada ${settings.hour}. En Hobby el cron corre ~12:00 UTC; ajusta la hora a la de Chile en ese momento (suele ser 8 o 9).`,
+                reason: 'Cron deshabilitado',
                 sent: 0,
                 failed: 0,
                 skipped: 0,
                 processed: 0,
                 at,
             };
+            await persistJobSummary(summary);
+            return summary;
+        }
+        // Hobby: un disparo/día a 12:00 UTC. No bloquearlo por DST (8 vs 9 Chile).
+        // Fuera de esa ventana sí se exige la hora configurada (útil si más adelante hay cron horario).
+        const hour = hourInSantiago(now);
+        if (hour !== settings.hour && !isVercelDailyCronSlot(now)) {
+            const summary: ReminderJobSummary = {
+                ran: false,
+                reason: `Hora Santiago ${hour} ≠ configurada ${settings.hour}. El disparo diario de Vercel (~12:00 UTC) sí corre aunque Chile esté en 8 u 9 por DST.`,
+                sent: 0,
+                failed: 0,
+                skipped: 0,
+                processed: 0,
+                at,
+            };
+            await persistJobSummary(summary);
+            return summary;
         }
     }
 
@@ -783,9 +810,14 @@ export async function runReminderJob(opts: {
     }
 
     const summary: ReminderJobSummary = { ran: true, sent, failed, skipped, processed, at };
-    await setReminderSetting('reminders_last_run_at', at);
-    await setReminderSetting('reminders_last_run_summary', JSON.stringify(summary));
+    await persistJobSummary(summary);
     return summary;
+}
+
+/** Guarda último intento (incluido no-op) para que Automatización no quede en “Nunca”. */
+async function persistJobSummary(summary: ReminderJobSummary): Promise<void> {
+    await setReminderSetting('reminders_last_run_at', summary.at);
+    await setReminderSetting('reminders_last_run_summary', JSON.stringify(summary));
 }
 
 export async function listRecentReminderLogs(limit = 100): Promise<ReminderLogRow[]> {

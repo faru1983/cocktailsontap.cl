@@ -41,6 +41,7 @@ import {
     Settings2,
     Play,
     Zap,
+    Clock,
 } from 'lucide-react';
 
 type ReminderTrigger = 'draft_event' | 'anniversary_event' | 'anniversary_direct';
@@ -120,6 +121,7 @@ export default function RemindersClient({
     initialLogs,
     initialCron,
     initialTab = 'list',
+    cronChileTime,
 }: {
     initialQuotes: any[];
     initialAnniversaryQuotes?: any[];
@@ -128,6 +130,7 @@ export default function RemindersClient({
     initialLogs: ReminderLog[];
     initialCron: CronSettings;
     initialTab?: string;
+    cronChileTime: string;
 }) {
     const [quotes] = useState(initialQuotes);
     const [anniversaryQuotes] = useState(initialAnniversaryQuotes);
@@ -173,7 +176,6 @@ export default function RemindersClient({
     const [suppressNote, setSuppressNote] = useState('');
     const [logFilter, setLogFilter] = useState<'all' | 'sent' | 'failed' | 'skipped'>('all');
     const [cronEnabled, setCronEnabled] = useState(initialCron.enabled);
-    const [cronHour, setCronHour] = useState(initialCron.hour);
 
     const showToast = (msg: string, ok = true) => {
         setToast({ msg, ok });
@@ -249,6 +251,16 @@ export default function RemindersClient({
             return null;
         }
     }, [cron.lastRunSummary]);
+
+    const autoTemplates = useMemo(
+        () => templates.filter((t) => t.auto_enabled),
+        [templates]
+    );
+
+    const cronLogs = useMemo(
+        () => logs.filter((l) => l.source === 'cron').slice(0, 8),
+        [logs]
+    );
 
     const toggleSelect = (id: string) => {
         setSelectedIds((prev) => (prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]));
@@ -444,18 +456,19 @@ export default function RemindersClient({
         });
     };
 
-    const handleSaveCron = () => {
+    const handleToggleCron = (enabled: boolean) => {
         startTransition(async () => {
-            const res = await updateReminderCronSettings({ enabled: cronEnabled, hour: cronHour });
+            const res = await updateReminderCronSettings({ enabled });
             if (res.success) {
-                setCron((c) => ({ ...c, enabled: cronEnabled, hour: cronHour }));
-                showToast('Automatización guardada');
+                setCronEnabled(enabled);
+                setCron((c) => ({ ...c, enabled }));
+                showToast(enabled ? 'Envío automático activado' : 'Envío automático pausado');
             } else showToast(res.error || 'Error', false);
         });
     };
 
     const handleRunNow = () => {
-        if (!confirm('¿Ejecutar ahora el job de recordatorios (ignora hora/enable)?')) return;
+        if (!confirm('¿Enviar ahora los correos automáticos que correspondan a hoy?')) return;
         startTransition(async () => {
             const res = await runRemindersNow();
             if (res.success) {
@@ -1124,55 +1137,97 @@ export default function RemindersClient({
 
             {/* ── Automatización ── */}
             {tab === 'automation' && (
-                <div className="max-w-2xl space-y-6">
-                    <div className="bg-[#1e2433] rounded-2xl border border-white/5 p-6 space-y-5">
-                        <div className="flex items-start gap-3">
-                            <div className="p-3 rounded-xl bg-[#E2A049]/10 text-[#E2A049]">
-                                <Zap size={22} />
+                <div className="max-w-3xl space-y-6">
+                    <div className="bg-[#1e2433] rounded-2xl border border-white/5 p-6 space-y-6">
+                        <div className="flex flex-wrap items-start justify-between gap-4">
+                            <div className="flex items-start gap-3">
+                                <div className="p-3 rounded-xl bg-[#E2A049]/10 text-[#E2A049]">
+                                    <Zap size={22} />
+                                </div>
+                                <div>
+                                    <h3 className="text-white font-black text-lg">Correo automático</h3>
+                                    <p className="text-slate-400 text-sm mt-1">
+                                        Vercel lo dispara una vez al día. WhatsApp no entra: sigue siendo manual.
+                                    </p>
+                                </div>
                             </div>
-                            <div>
-                                <h3 className="text-white font-black text-lg">Cron diario por correo</h3>
-                                <p className="text-slate-400 text-sm mt-1 leading-relaxed">
-                                    En plan Hobby Vercel dispara el job <strong className="text-slate-300">1 vez al día</strong>{' '}
-                                    (~12:00 UTC, ≈08:00–09:00 Chile). Solo envía si está activado y la hora actual en
-                                    America/Santiago coincide con la configurada abajo. WhatsApp sigue siendo manual.
-                                    Requiere <code className="text-[#E2A049]">CRON_SECRET</code> en el entorno.
+                            <span
+                                className={`text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full ${
+                                    cronEnabled
+                                        ? 'bg-emerald-500/15 text-emerald-400'
+                                        : 'bg-slate-500/15 text-slate-400'
+                                }`}
+                            >
+                                {cronEnabled ? 'Activo' : 'Pausado'}
+                            </span>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div className="bg-black/30 border border-white/5 rounded-xl px-4 py-4">
+                                <div className="flex items-center gap-2 text-slate-500 text-[10px] font-black uppercase tracking-widest mb-2">
+                                    <Clock size={12} /> Hora Chile
+                                </div>
+                                <div className="text-white font-black text-3xl tracking-tight">{cronChileTime}</div>
+                                <p className="text-slate-500 text-xs mt-1">Todos los días · no se cambia desde acá</p>
+                            </div>
+                            <div className="bg-black/30 border border-white/5 rounded-xl px-4 py-4">
+                                <div className="flex items-center gap-2 text-slate-500 text-[10px] font-black uppercase tracking-widest mb-2">
+                                    <Mail size={12} /> Canal
+                                </div>
+                                <div className="text-white font-black text-lg">Solo correo</div>
+                                <p className="text-slate-500 text-xs mt-1">
+                                    {autoTemplates.length} plantilla{autoTemplates.length === 1 ? '' : 's'} en el cron
                                 </p>
                             </div>
                         </div>
 
-                        <label className="flex items-center gap-3 cursor-pointer">
-                            <input
-                                type="checkbox"
-                                className="w-5 h-5 accent-[#E2A049]"
-                                checked={cronEnabled}
-                                onChange={(e) => setCronEnabled(e.target.checked)}
-                            />
-                            <span className="text-white text-sm font-bold">Activar envío automático</span>
-                        </label>
-
                         <div>
-                            <label className="block text-slate-500 text-[10px] font-black uppercase tracking-widest mb-2">
-                                Hora (America/Santiago, 0–23)
-                            </label>
-                            <input
-                                type="number"
-                                min={0}
-                                max={23}
-                                value={cronHour}
-                                onChange={(e) => setCronHour(Number(e.target.value))}
-                                className="w-32 bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white text-sm outline-none focus:border-[#E2A049]"
-                            />
+                            <div className="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-3">
+                                Última ejecución
+                            </div>
+                            <p className="text-white text-sm font-bold mb-3">
+                                {cron.lastRunAt ? formatDateTimeCL(cron.lastRunAt) : 'Aún no corre'}
+                            </p>
+                            {lastRunSummary?.ran === false ? (
+                                <p className="text-amber-400/90 text-sm">{lastRunSummary.reason}</p>
+                            ) : lastRunSummary ? (
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                                    {(
+                                        [
+                                            ['Enviados', lastRunSummary.sent ?? 0, 'text-emerald-400'],
+                                            ['Fallidos', lastRunSummary.failed ?? 0, 'text-rose-400'],
+                                            ['Omitidos', lastRunSummary.skipped ?? 0, 'text-slate-400'],
+                                            ['Revisados', lastRunSummary.processed ?? 0, 'text-[#E2A049]'],
+                                        ] as const
+                                    ).map(([label, value, color]) => (
+                                        <div
+                                            key={label}
+                                            className="bg-black/30 border border-white/5 rounded-xl px-3 py-3"
+                                        >
+                                            <div className="text-slate-500 text-[10px] font-bold uppercase">
+                                                {label}
+                                            </div>
+                                            <div className={`text-xl font-black ${color}`}>{value}</div>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <p className="text-slate-500 text-sm">Sin resumen todavía.</p>
+                            )}
                         </div>
 
-                        <div className="flex flex-wrap gap-3">
+                        <div className="flex flex-wrap gap-3 pt-2 border-t border-white/5">
                             <button
                                 type="button"
                                 disabled={isPending}
-                                onClick={handleSaveCron}
-                                className="bg-[#E2A049] text-black px-5 py-2.5 rounded-xl font-black text-sm disabled:opacity-40"
+                                onClick={() => handleToggleCron(!cronEnabled)}
+                                className={`px-5 py-2.5 rounded-xl font-black text-sm disabled:opacity-40 ${
+                                    cronEnabled
+                                        ? 'bg-white/5 text-slate-200'
+                                        : 'bg-[#E2A049] text-black'
+                                }`}
                             >
-                                Guardar
+                                {cronEnabled ? 'Pausar' : 'Activar'}
                             </button>
                             <button
                                 type="button"
@@ -1180,21 +1235,76 @@ export default function RemindersClient({
                                 onClick={handleRunNow}
                                 className="bg-white/5 text-slate-200 px-5 py-2.5 rounded-xl font-black text-sm flex items-center gap-2 disabled:opacity-40"
                             >
-                                <Play size={16} /> Ejecutar ahora
+                                <Play size={16} /> Enviar ahora
                             </button>
                         </div>
+                    </div>
 
-                        <div className="pt-4 border-t border-white/5 text-xs text-slate-500 space-y-1">
-                            <p>Última ejecución: {cron.lastRunAt ? formatDateTimeCL(cron.lastRunAt) : 'Nunca'}</p>
-                            {lastRunSummary && (
-                                <p>
-                                    Resumen:{' '}
-                                    {lastRunSummary.ran === false
-                                        ? lastRunSummary.reason
-                                        : `sent ${lastRunSummary.sent} · failed ${lastRunSummary.failed} · skipped ${lastRunSummary.skipped} · processed ${lastRunSummary.processed}`}
-                                </p>
-                            )}
-                        </div>
+                    <div className="bg-[#1e2433] rounded-2xl border border-white/5 p-6">
+                        <h4 className="text-white font-black text-sm mb-4">Qué manda el cron</h4>
+                        {autoTemplates.length === 0 ? (
+                            <p className="text-slate-500 text-sm">
+                                Ninguna plantilla tiene envío automático. Actívalo en Plantillas.
+                            </p>
+                        ) : (
+                            <ul className="space-y-2">
+                                {autoTemplates.map((t) => (
+                                    <li
+                                        key={t.id}
+                                        className="flex items-center justify-between gap-3 bg-black/20 border border-white/5 rounded-xl px-4 py-3"
+                                    >
+                                        <div className="min-w-0">
+                                            <div className="text-white text-sm font-bold truncate">{t.name}</div>
+                                            <div className="text-slate-500 text-xs">
+                                                {TRIGGER_LABELS[t.trigger || 'draft_event']} · {t.days_before ?? 0}{' '}
+                                                días antes
+                                            </div>
+                                        </div>
+                                        <Mail size={14} className="text-[#E2A049] shrink-0" />
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
+                    </div>
+
+                    <div className="bg-[#1e2433] rounded-2xl border border-white/5 p-6">
+                        <h4 className="text-white font-black text-sm mb-4">Últimos envíos del cron</h4>
+                        {cronLogs.length === 0 ? (
+                            <p className="text-slate-500 text-sm">Todavía no hay correos enviados por el cron.</p>
+                        ) : (
+                            <ul className="space-y-2">
+                                {cronLogs.map((l) => (
+                                    <li
+                                        key={l.id}
+                                        className="flex items-center justify-between gap-3 text-sm border-b border-white/5 last:border-0 pb-2 last:pb-0"
+                                    >
+                                        <div className="min-w-0">
+                                            <div className="text-slate-200 truncate">
+                                                {l.recipient_email ||
+                                                    l.quotes?.client_email ||
+                                                    l.quotes?.client_name ||
+                                                    '—'}
+                                            </div>
+                                            <div className="text-slate-500 text-xs">
+                                                {formatDateTimeCL(l.sent_at)} ·{' '}
+                                                {l.template_name || l.reminder_templates?.name || '—'}
+                                            </div>
+                                        </div>
+                                        <span
+                                            className={`text-[10px] font-black uppercase shrink-0 ${
+                                                l.status === 'sent'
+                                                    ? 'text-emerald-400'
+                                                    : l.status === 'failed'
+                                                      ? 'text-rose-400'
+                                                      : 'text-slate-400'
+                                            }`}
+                                        >
+                                            {l.status}
+                                        </span>
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
                     </div>
                 </div>
             )}

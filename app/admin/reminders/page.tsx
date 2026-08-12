@@ -5,6 +5,7 @@ import {
     listRecentReminderLogs,
     listSuppressions,
 } from '@/lib/services/reminderService';
+import { formatVercelDailyCronTimeCL } from '@/lib/utils';
 import RemindersClient from './RemindersClient';
 
 type SearchParams = Promise<{ tab?: string }>;
@@ -43,6 +44,7 @@ export default async function RemindersPage({ searchParams }: { searchParams: Se
             initialLogs={logs}
             initialCron={cronSettings}
             initialTab={tab}
+            cronChileTime={formatVercelDailyCronTimeCL()}
         />
     );
 }
