@@ -1,9 +1,8 @@
 'use client';
 
 import { useState, useTransition, useEffect } from 'react';
-import { saveCategory, toggleCategoryStatus, saveProduct, toggleProductStatus, reorderItems, saveUnit, toggleUnitStatus, uploadImage, deleteImage, updateQuickPrice } from '@/app/actions/admin/productActions';
+import { saveCategory, toggleCategoryStatus, saveProduct, toggleProductStatus, reorderItems, saveUnit, toggleUnitStatus, uploadImage, deleteImage, updateQuickPrice, listProductImages } from '@/app/actions/admin/productActions';
 import Modal from '@/components/admin/Modal';
-import { supabase } from '@/lib/supabase';
 import { 
     GripVertical, 
     Plus, 
@@ -43,6 +42,11 @@ export default function ProductsClient({ products, categories, measurementUnits 
         setIndexedCategories(itemsWithIndex(categories));
         setIndexedUnits(itemsWithIndex(measurementUnits));
     }, [products, categories, measurementUnits]);
+
+    useEffect(() => {
+        if (tab === 'gallery') fetchGallery(false);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [tab]);
 
     const sortedProducts = [...indexedProducts].sort((a, b) => {
         let valA, valB;
@@ -134,25 +138,41 @@ export default function ProductsClient({ products, categories, measurementUnits 
     const [galleryTarget, setGalleryTarget] = useState<{ index: number | 'product' | null }>({ index: null });
 
     // ─── Gallery Data ────────────────────────────────────────────────────────
-    const [galleryImages, setGalleryImages] = useState<any[]>([]);
+    const [galleryImages, setGalleryImages] = useState<{ name: string; id: string; publicUrl: string }[]>([]);
     const [loadingGallery, setLoadingGallery] = useState(false);
+    const [galleryError, setGalleryError] = useState<string | null>(null);
     const [galleryLoadedAt, setGalleryLoadedAt] = useState<number | null>(null);
 
     const fetchGallery = async (force = false) => {
         const now = Date.now();
-        if (!force && galleryImages.length > 0 && galleryLoadedAt && (now - galleryLoadedAt < 300000)) return;
+        if (!force && galleryImages.length > 0 && galleryLoadedAt && now - galleryLoadedAt < 300000) {
+            return;
+        }
 
         setLoadingGallery(true);
-        const { data, error } = await supabase.storage.from('product-images').list('', { 
-            sortBy: { column: 'created_at', order: 'desc' },
-            limit: 100
-        });
-        if (data) {
-            setGalleryImages(data);
-            setGalleryLoadedAt(now);
+        setGalleryError(null);
+        try {
+            const res = await listProductImages();
+            if (!res.success) {
+                setGalleryError(res.error || 'No se pudieron listar las imágenes.');
+                setGalleryImages([]);
+                return;
+            }
+            setGalleryImages(res.images || []);
+            setGalleryLoadedAt(Date.now());
+        } catch (err: any) {
+            setGalleryError(err?.message || 'No se pudieron listar las imágenes.');
+            setGalleryImages([]);
+        } finally {
+            setLoadingGallery(false);
         }
-        setLoadingGallery(false);
-    }
+    };
+
+    const openImageBank = async (onSelect: (url: string) => void, target: number | 'product') => {
+        setGalleryTarget({ index: target });
+        setModalGallery({ isOpen: true, onSelect });
+        await fetchGallery(false);
+    };
 
     const deleteFromGallery = async (name: string) => {
         if (!confirm('¿Eliminar esta imagen permanentemente?')) return;
@@ -235,9 +255,13 @@ export default function ProductsClient({ products, categories, measurementUnits 
 
     const toggleStatus = (id: string, type: 'prod' | 'cat' | 'unit', current: boolean) => {
         startTransition(async () => {
-            if (type === 'cat') await toggleCategoryStatus(id, current);
-            else if (type === 'unit') await toggleUnitStatus(id, current);
-            else await toggleProductStatus(id, current);
+            try {
+                if (type === 'cat') await toggleCategoryStatus(id, current);
+                else if (type === 'unit') await toggleUnitStatus(id, current);
+                else await toggleProductStatus(id, current);
+            } catch (err: any) {
+                alert(err?.message || 'No se pudo cambiar el estado.');
+            }
         });
     }
 
@@ -498,10 +522,9 @@ export default function ProductsClient({ products, categories, measurementUnits 
 
                         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
                             {galleryImages.map(img => {
-                                const { data: { publicUrl } } = supabase.storage.from('product-images').getPublicUrl(img.name);
                                 return (
                                     <div key={img.id} className="bg-[#1e2433] rounded-xl border border-white/5 overflow-hidden shadow-lg group relative">
-                                        <img src={publicUrl} className="w-full h-32 object-contain bg-black/40" alt="" />
+                                        <img src={img.publicUrl} className="w-full h-32 object-contain bg-black/40" alt="" />
                                         <div className="p-3 flex justify-between items-center bg-black/20">
                                             <span className="text-[9px] text-slate-500 font-bold truncate flex-1 pr-2">{img.name}</span>
                                             <button onClick={() => deleteFromGallery(img.name)} className="text-rose-500 p-1 hover:bg-rose-500/10 rounded-lg transition-colors"><Trash2 size={12}/></button>
@@ -566,10 +589,11 @@ export default function ProductsClient({ products, categories, measurementUnits 
                     <div className="p-6 bg-black/30 border border-white/5 rounded-2xl flex items-center gap-6">
                         <img src={modalProduct.data?.image_url || DEFAULT_IMG} className="w-20 h-20 rounded-2xl object-contain bg-black shadow-2xl border-2 border-white/5" alt="" />
                         <div className="flex flex-col gap-2">
-                             <button type="button" onClick={() => { 
-                                fetchGallery(false); 
-                                setGalleryTarget({ index: 'product' });
-                                setModalGallery({ isOpen: true, onSelect: (url) => setModalProduct(prev => ({ ...prev, data: { ...prev.data, image_url: url } })) }); 
+                             <button type="button" onClick={() => {
+                                openImageBank(
+                                    (url) => setModalProduct((prev) => ({ ...prev, data: { ...prev.data, image_url: url } })),
+                                    'product'
+                                );
                              }} className="text-sky-400 text-xs font-black uppercase flex items-center gap-2 hover:text-white transition-colors"><Layers size={14}/> Explorar Galería</button>
                              <div className="flex gap-4">
                                 <label className="text-[#E2A049] text-[10px] font-black uppercase cursor-pointer hover:underline"><PlusCircle size={12} className="inline mr-1"/> Subir
@@ -678,13 +702,11 @@ export default function ProductsClient({ products, categories, measurementUnits 
                                                 <button 
                                                     type="button" 
                                                     onClick={() => {
-                                                        fetchGallery(false);
-                                                        setGalleryTarget({ index: i });
-                                                        setModalGallery({ isOpen: true, onSelect: (url) => {
+                                                        openImageBank((url) => {
                                                             const np = [...modalProduct.prices];
                                                             np[i].image_url = url;
                                                             setModalProduct(prev => ({ ...prev, prices: np }));
-                                                        }});
+                                                        }, i);
                                                     }}
                                                     className="text-sky-400 text-[9px] font-black uppercase hover:text-white transition-colors flex items-center gap-1"
                                                 >
@@ -754,12 +776,20 @@ export default function ProductsClient({ products, categories, measurementUnits 
             </Modal>
 
             <Modal isOpen={modalGallery.isOpen} onClose={() => setModalGallery({ isOpen: false })} title="Banco de Imágenes">
+                {loadingGallery && (
+                    <p className="text-slate-500 text-sm text-center py-8">Cargando imágenes…</p>
+                )}
+                {!loadingGallery && galleryError && (
+                    <p className="text-rose-400 text-sm text-center py-8">{galleryError}</p>
+                )}
+                {!loadingGallery && !galleryError && galleryImages.length === 0 && (
+                    <p className="text-slate-500 text-sm text-center py-8">No hay imágenes en el banco. Súbelas desde Galería o con Subir.</p>
+                )}
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 overflow-y-auto max-h-[400px] p-1 pr-3 scrollbar-thin scrollbar-thumb-white/10">
                     {galleryImages.map(img => {
-                        const { data: { publicUrl } } = supabase.storage.from('product-images').getPublicUrl(img.name);
                         return (
-                            <div key={img.id} className="relative group cursor-pointer" onClick={() => { if (modalGallery.onSelect) modalGallery.onSelect(publicUrl); setModalGallery({ isOpen: false }); }}>
-                                <img src={publicUrl} className="w-full h-24 object-contain bg-black/40 rounded-xl border border-white/5 group-hover:border-sky-500 transition-all" alt="" />
+                            <div key={img.id} className="relative group cursor-pointer" onClick={() => { if (modalGallery.onSelect) modalGallery.onSelect(img.publicUrl); setModalGallery({ isOpen: false }); }}>
+                                <img src={img.publicUrl} className="w-full h-24 object-contain bg-black/40 rounded-xl border border-white/5 group-hover:border-sky-500 transition-all" alt="" />
                                 <div className="absolute inset-0 bg-sky-500/0 group-hover:bg-sky-500/10 flex items-center justify-center transition-all">
                                     <Check className="text-sky-400 opacity-0 group-hover:opacity-100" size={24} />
                                 </div>

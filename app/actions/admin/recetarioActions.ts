@@ -1,7 +1,7 @@
 'use server';
 
 import { createServerClient } from '@/lib/supabaseServer';
-import { revalidatePath } from 'next/cache';
+import { revalidatePath, revalidateTag } from 'next/cache';
 import { validateSession } from '@/lib/adminAuth';
 import { PROJECT_TIMEZONE } from '@/lib/config';
 import {
@@ -21,6 +21,46 @@ async function checkAuth() {
 
 function revalidateRecetario() {
     revalidatePath('/admin/recetario');
+    revalidatePath('/admin/products');
+    revalidateTag('product-data', 'max');
+}
+
+/**
+ * Alta mínima de cóctel para poder guardar la receta.
+ * Queda is_active=false: no aparece en catálogo público ni wizard hasta publicarlo.
+ */
+async function createHiddenCatalogProduct(
+    db: ReturnType<typeof createServerClient>,
+    name: string,
+    categoryId: string
+): Promise<{ id: string } | { error: string }> {
+    const trimmed = name.trim();
+    const { data: dup } = await db.from('products').select('id').ilike('name', trimmed).limit(1);
+    if (dup?.length) {
+        return { error: 'Ya existe un producto con ese nombre. Elígelo en la lista o usa otro nombre.' };
+    }
+
+    const { data: cat } = await db.from('categories').select('id').eq('id', categoryId).maybeSingle();
+    if (!cat) return { error: 'Categoría inválida.' };
+
+    const { data, error } = await db
+        .from('products')
+        .insert({
+            name: trimmed,
+            description: '',
+            image_url: null,
+            category_id: categoryId,
+            is_active: false,
+            display_order: 0,
+        })
+        .select('id')
+        .single();
+
+    if (error || !data) {
+        console.error('createHiddenCatalogProduct:', error);
+        return { error: 'No se pudo crear el producto oculto.' };
+    }
+    return { id: data.id };
 }
 
 export async function saveIngredient(raw: IngredientSaveInput) {
@@ -160,13 +200,24 @@ export async function saveRecipe(raw: RecipeSaveInput) {
         qty_base,
     }));
 
+    let productId = data.product_id || null;
+    if (!productId) {
+        const created = await createHiddenCatalogProduct(
+            db,
+            data.new_product_name || '',
+            data.new_product_category_id || ''
+        );
+        if ('error' in created) return { success: false, error: created.error };
+        productId = created.id;
+    }
+
     let recipeId = data.id || null;
 
     if (recipeId) {
         const { error } = await db
             .from('recipes')
             .update({
-                product_id: data.product_id,
+                product_id: productId,
                 base_liters: data.base_liters,
                 notes: data.notes ?? null,
                 is_active: data.is_active ?? true,
@@ -185,7 +236,7 @@ export async function saveRecipe(raw: RecipeSaveInput) {
         const { data: inserted, error } = await db
             .from('recipes')
             .insert([{
-                product_id: data.product_id,
+                product_id: productId,
                 base_liters: data.base_liters,
                 notes: data.notes ?? null,
                 is_active: data.is_active ?? true,

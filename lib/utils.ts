@@ -50,12 +50,12 @@ export function formatDateTimeCL(value: string | Date | null | undefined): strin
     return `${p.day}-${p.month}-${p.year}, ${p.hour}:${p.minute}:${p.second}`;
 }
 
-/** Hora UTC del cron diario de recordatorios (`vercel.json` → 0 12 * * *). */
-export const VERCEL_REMINDERS_CRON_UTC_HOUR = 12;
+/** Hora UTC del cron diario de recordatorios (`vercel.json` → 0 13 * * *). */
+export const VERCEL_REMINDERS_CRON_UTC_HOUR = 13;
 
 /**
  * Hora Chile (HH:mm) del disparo diario de Vercel, según DST de `at`.
- * Invierno ≈ 08:00, verano ≈ 09:00.
+ * Invierno ≈ 09:00, verano ≈ 10:00.
  */
 export function formatVercelDailyCronTimeCL(at = new Date()): string {
     const slot = new Date(

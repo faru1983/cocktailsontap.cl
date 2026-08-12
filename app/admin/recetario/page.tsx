@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic';
 export default async function RecetarioPage() {
     const db = createServerClient();
 
-    const [ingredientsRes, recipesRes, productsRes] = await Promise.all([
+    const [ingredientsRes, recipesRes, productsRes, categoriesRes] = await Promise.all([
         db.from('ingredients').select('*').order('name', { ascending: true }),
         db.from('recipes').select(`
             *,
@@ -29,6 +29,7 @@ export default async function RecetarioPage() {
             is_active,
             product_prices ( id, size, size_value, price, offer_price, is_active, display_order )
         `).order('display_order', { ascending: true }),
+        db.from('categories').select('id, name, is_active').eq('is_active', true).order('display_order', { ascending: true }),
     ]);
 
     if (ingredientsRes.error) console.error('recetario ingredients:', ingredientsRes.error);
@@ -41,6 +42,7 @@ export default async function RecetarioPage() {
                 ingredients={ingredientsRes.data || []}
                 recipes={recipesRes.data || []}
                 products={productsRes.data || []}
+                categories={categoriesRes.data || []}
             />
         </div>
     );

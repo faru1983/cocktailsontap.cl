@@ -409,14 +409,38 @@ export const RecipeItemSaveSchema = z.object({
     qty_base: z.coerce.number().positive('Cantidad debe ser > 0'),
 });
 
-export const RecipeSaveSchema = z.object({
-    id: z.string().uuid().optional().nullable(),
-    product_id: z.string().uuid(),
-    base_liters: z.coerce.number().positive().default(5),
-    notes: z.string().nullable().optional(),
-    is_active: z.boolean().optional().default(true),
-    items: z.array(RecipeItemSaveSchema).min(1, 'Agrega al menos un insumo'),
-});
+export const RecipeSaveSchema = z
+    .object({
+        id: z.string().uuid().optional().nullable(),
+        product_id: z.string().uuid().optional().nullable(),
+        new_product_name: z.string().trim().min(2).max(80).optional().nullable(),
+        new_product_category_id: z.string().uuid().optional().nullable(),
+        base_liters: z.coerce.number().positive().default(5),
+        notes: z.string().nullable().optional(),
+        is_active: z.boolean().optional().default(true),
+        items: z.array(RecipeItemSaveSchema).min(1, 'Agrega al menos un insumo'),
+    })
+    .superRefine((data, ctx) => {
+        if (data.product_id) return;
+        if (data.id) {
+            ctx.addIssue({ code: 'custom', message: 'Producto requerido', path: ['product_id'] });
+            return;
+        }
+        if (!data.new_product_name?.trim()) {
+            ctx.addIssue({
+                code: 'custom',
+                message: 'Elige un producto o escribe el nombre de uno nuevo.',
+                path: ['new_product_name'],
+            });
+        }
+        if (!data.new_product_category_id) {
+            ctx.addIssue({
+                code: 'custom',
+                message: 'Elige la categoría del cóctel.',
+                path: ['new_product_category_id'],
+            });
+        }
+    });
 
 export type IngredientSaveInput = z.infer<typeof IngredientSaveSchema>;
 export type IngredientPatchInput = z.infer<typeof IngredientPatchSchema>;

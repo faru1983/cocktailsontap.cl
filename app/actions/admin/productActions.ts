@@ -105,7 +105,21 @@ export async function toggleUnitStatus(id: string, current: boolean) {
 export async function toggleProductStatus(id: string, current: boolean) {
     await checkAuth();
     const db = createServerClient();
-    await db.from('products').update({ is_active: !current }).eq('id', id);
+    const nextActive = !current;
+    if (nextActive) {
+        const { count, error } = await db
+            .from('product_prices')
+            .select('id', { count: 'exact', head: true })
+            .eq('product_id', id)
+            .eq('is_active', true);
+        if (error) throw new Error(error.message);
+        if (!count) {
+            throw new Error(
+                'No se puede publicar: agrega al menos un precio/formato en Productos (el recetario no crea precios).'
+            );
+        }
+    }
+    await db.from('products').update({ is_active: nextActive }).eq('id', id);
     revalidatePath('/admin/products');
     revalidateTag('product-data', 'max');
 }
@@ -127,6 +141,31 @@ export async function reorderItems(type: 'products' | 'categories' | 'measuremen
     
     revalidatePath('/admin/products');
     revalidateTag('product-data', 'max');
+}
+
+export async function listProductImages(): Promise<{
+    success: boolean;
+    images?: { name: string; id: string; publicUrl: string }[];
+    error?: string;
+}> {
+    await checkAuth();
+    const db = createServerClient();
+    const { data, error } = await db.storage.from('product-images').list('', {
+        sortBy: { column: 'created_at', order: 'desc' },
+        limit: 200,
+    });
+    if (error) {
+        console.error('listProductImages:', error);
+        return { success: false, error: error.message };
+    }
+    const images = (data || [])
+        .filter((f) => f.id && f.name && !f.name.startsWith('.'))
+        .map((f) => ({
+            name: f.name,
+            id: f.id,
+            publicUrl: db.storage.from('product-images').getPublicUrl(f.name).data.publicUrl,
+        }));
+    return { success: true, images };
 }
 
 export async function uploadImage(formData: FormData) {

@@ -40,6 +40,32 @@
 
 ## Ultimos Cambios
 
+### 12-08-2026 (Sesión 66) — Banco de imágenes: listado server-side
+
+- El modal Galería salía vacío: `storage.list` con anon no tiene política SELECT en `product-images`. Ahora lista con service_role (`listProductImages`). Loading/error visibles.
+
+### 12-08-2026 (Sesión 65) — Producto stub desde receta
+
+- Alta desde receta: nombre + categoría, `is_active=false`, sin precios. Catálogo/wizard no lo ven.
+- No se puede pasar a Publicado sin al menos un precio activo (el recetario no inventa precios).
+
+### 12-08-2026 (Sesión 64) — Guardar receta: error visible
+
+- Guardar no hacía nada: `required` en la línea vacía de insumo bloqueaba el submit y el aviso nativo no se veía. Validación en JS + mensaje en el modal. "Piscola Mistral Nobel 40°" no se creó.
+
+### 12-08-2026 (Sesión 63) — Producto oculto desde Nueva receta
+
+- Nueva receta puede crear el cóctel en `products` con `is_active=false` (no sale en web/wizard). Luego se publica en `/admin/products`.
+- El botón ya no exige un producto publicado previo.
+
+### 12-08-2026 (Sesión 62) — Select de insumo en receta
+
+- Modal receta: cantidad tenía `w-full` (de `inputClass`) y aplastaba el select. Filas en grid `1fr / 6.5rem / 2rem`.
+
+### 12-08-2026 (Sesión 61) — Cron a las 09:00 Chile (invierno)
+
+- `vercel.json` `0 13 * * *` (13:00 UTC). Invierno ≈ 09:00 Chile; verano ≈ 10:00. Constante `VERCEL_REMINDERS_CRON_UTC_HOUR` alineada.
+
 ### 12-08-2026 (Sesión 60) — Automatización: estado real, no hora falsa
 
 - Tab Automatización muestra hora Chile del cron de Vercel (12:00 UTC → 08:00/09:00 según DST), último job (enviados/fallidos/omitidos), plantillas auto y últimos envíos `source=cron`.
@@ -51,22 +77,6 @@
 - Bug sistémico: Vercel Hobby dispara 12:00 UTC (= 08:00 Chile en invierno). `reminders_cron_hour=9` hacía no-op el único job del día. Cero envíos `source=cron` en logs.
 - Fix: el slot 12:00 UTC corre aunque la hora Chile sea 8 u 9; se persiste last_run también en no-op; catch-up de 1 día si se pierde un disparo.
 
-### 11-08-2026 (Sesión 58) — Filtro aniversarios en Pendientes + negrita **texto**
-
-- En `/admin/reminders` Pendientes: filtros “Aniversarios este mes / próximo mes” (última reserva confirmada/completada; mes en America/Santiago vía `listAnniversaryPendings`).
-- Muestra fecha de aniversario + última reserva; drafts siguen en los filtros anteriores.
-- Plantillas: `**texto**` → negrita en email y WhatsApp (`lib/reminderMarkup.ts`).
-
-### 11-08-2026 (Sesión 57) — Monitoreo de recordatorios resiliente
-
-- Causa: al borrar plantilla la FK hace `SET NULL` → Monitoreo perdía el nombre (join vacío). Cron aún no había corrido (`reminders_last_run_*` vacíos).
-- Fix: columna `template_name` (snapshot al enviar y al borrar plantilla); destinatario enriquecido desde `quotes`; botón **Limpiar registro** borra todo el historial de monitoreo.
-- Backfill: emails en logs antiguos sin `recipient_email`.
-
-### 11-08-2026 (Sesión 56) — Contrato legible en checkout confirmNow
-
-- En `EventWizardCheckoutModal`, al marcar “Confirmar reserva ahora”: bloque scrollable “Contrato de servicio” (mismo copy que `EventQuoteView`) + checkbox de aceptación debajo.
-
 ---
 
-*Ultima actualizacion: 12-08-2026 (Sesión 60)*
+*Ultima actualizacion: 12-08-2026 (Sesión 66)*

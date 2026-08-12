@@ -5,8 +5,8 @@
 import { Resend } from 'resend';
 import { createServerClient } from '@/lib/supabaseServer';
 import { FROM_EMAIL, PROJECT_TIMEZONE, SITE_URL, WHATSAPP_LABEL, WHATSAPP_URL } from '@/lib/config';
+import { formatCurrency, VERCEL_REMINDERS_CRON_UTC_HOUR } from '@/lib/utils';
 import { SettingsService } from '@/lib/services/settingsService';
-import { formatCurrency } from '@/lib/utils';
 import { applyReminderBoldMarkup } from '@/lib/reminderMarkup';
 
 export type ReminderTrigger = 'draft_event' | 'anniversary_event' | 'anniversary_direct';
@@ -122,12 +122,11 @@ export function hourInSantiago(now = new Date()): number {
 }
 
 /**
- * Hobby de Vercel solo permite 1 cron/día (`vercel.json`: 0 12 * * * → 12:00 UTC).
- * En Chile eso es 08:00 (invierno, UTC-4) o 09:00 (verano, UTC-3). Si exigimos
- * igualdad exacta con `reminders_cron_hour`, el job diario no-op todo un semestre.
+ * Hobby: 1 cron/día. El UTC vive en VERCEL_REMINDERS_CRON_UTC_HOUR (vercel.json).
+ * No exigir igualdad con reminders_cron_hour: el DST Chile (9 vs 10) no debe no-op el disparo.
  */
 export function isVercelDailyCronSlot(now = new Date()): boolean {
-    return now.getUTCHours() === 12;
+    return now.getUTCHours() === VERCEL_REMINDERS_CRON_UTC_HOUR;
 }
 
 /** Suma/resta días a una fecha YYYY-MM-DD (calendario, sin TZ). */

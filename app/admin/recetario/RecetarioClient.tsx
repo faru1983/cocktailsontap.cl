@@ -94,18 +94,22 @@ type ProductRow = {
     }[];
 };
 
-const inputClass =
-    'w-full bg-[#0d1117] border border-white/10 rounded-xl px-3 py-2.5 text-sm text-slate-200 outline-none focus:border-[#E2A049]/50';
+const NEW_PRODUCT_VALUE = '__new__';
+const fieldClass =
+    'bg-[#0d1117] border border-white/10 rounded-xl px-3 py-2.5 text-sm text-slate-200 outline-none focus:border-[#E2A049]/50';
+const inputClass = `w-full ${fieldClass}`;
 const labelClass = 'block text-[11px] font-bold uppercase tracking-widest text-slate-500 mb-1.5';
 
 export default function RecetarioClient({
     ingredients,
     recipes,
     products,
+    categories = [],
 }: {
     ingredients: Ingredient[];
     recipes: Recipe[];
     products: ProductRow[];
+    categories?: { id: string; name: string; is_active: boolean }[];
 }) {
     const router = useRouter();
     const [isPending, startTransition] = useTransition();
@@ -157,6 +161,8 @@ export default function RecetarioClient({
         data: {
             id?: string;
             product_id: string;
+            new_product_name?: string;
+            new_product_category_id?: string;
             base_liters: number;
             notes: string;
             is_active: boolean;
@@ -164,8 +170,9 @@ export default function RecetarioClient({
         };
     }>({
         open: false,
-        data: { product_id: '', base_liters: 5, notes: '', is_active: true, items: [{ ingredient_id: '', qty_base: 0 }] },
+        data: { product_id: '', new_product_name: '', new_product_category_id: '', base_liters: 5, notes: '', is_active: true, items: [{ ingredient_id: '', qty_base: 0 }] },
     });
+    const [recipeError, setRecipeError] = useState<string | null>(null);
     const [selectedRecipeId, setSelectedRecipeId] = useState<string | null>(null);
     const [mobileShowRecipeDetail, setMobileShowRecipeDetail] = useState(false);
 
@@ -188,7 +195,7 @@ export default function RecetarioClient({
     const recipeProductIds = useMemo(() => new Set(recipes.map((r) => r.product_id)), [recipes]);
 
     const productsWithoutRecipe = useMemo(
-        () => products.filter((p) => !recipeProductIds.has(p.id) && p.is_active),
+        () => products.filter((p) => !recipeProductIds.has(p.id)),
         [products, recipeProductIds]
     );
 
@@ -248,8 +255,12 @@ export default function RecetarioClient({
 
     const filteredRecipes = useMemo(() => {
         const q = search.trim().toLowerCase();
-        if (!q) return recipes;
-        return recipes.filter((r) => (r.products?.name || '').toLowerCase().includes(q));
+        const list = !q
+            ? [...recipes]
+            : recipes.filter((r) => (r.products?.name || '').toLowerCase().includes(q));
+        return list.sort((a, b) =>
+            (a.products?.name || '').localeCompare(b.products?.name || '', 'es', { sensitivity: 'base' })
+        );
     }, [recipes, search]);
 
     const selectedRecipe = useMemo(
@@ -346,12 +357,15 @@ export default function RecetarioClient({
     };
 
     const openRecipeModal = (recipe?: Recipe, productId?: string) => {
+        setRecipeError(null);
         if (recipe) {
             setRecipeModal({
                 open: true,
                 data: {
                     id: recipe.id,
                     product_id: recipe.product_id,
+                    new_product_name: '',
+                    new_product_category_id: '',
                     base_liters: Number(recipe.base_liters) || 5,
                     notes: recipe.notes || '',
                     is_active: recipe.is_active,
@@ -366,7 +380,9 @@ export default function RecetarioClient({
             setRecipeModal({
                 open: true,
                 data: {
-                    product_id: productId || productsWithoutRecipe[0]?.id || '',
+                    product_id: productId || (productsWithoutRecipe[0] ? productsWithoutRecipe[0].id : NEW_PRODUCT_VALUE),
+                    new_product_name: '',
+                    new_product_category_id: categories[0]?.id || '',
                     base_liters: 5,
                     notes: '',
                     is_active: true,
@@ -378,23 +394,44 @@ export default function RecetarioClient({
 
     const submitRecipe = (e: React.FormEvent) => {
         e.preventDefault();
+        setRecipeError(null);
+        const creatingNew = recipeModal.data.product_id === NEW_PRODUCT_VALUE;
+        if (creatingNew && !recipeModal.data.new_product_name?.trim()) {
+            setRecipeError('Escribe el nombre del cóctel.');
+            return;
+        }
+        if (creatingNew && !recipeModal.data.new_product_category_id) {
+            setRecipeError('Elige la categoría del cóctel.');
+            return;
+        }
         const items = recipeModal.data.items.filter((i) => i.ingredient_id && i.qty_base > 0);
         if (items.length === 0) {
-            alert('Agrega al menos un insumo con cantidad.');
+            setRecipeError('Agrega al menos un insumo y su cantidad (ej. Pisco 40° y ml).');
             return;
         }
         startTransition(async () => {
-            const res = await saveRecipe({
-                ...recipeModal.data,
-                notes: recipeModal.data.notes || null,
-                items,
-            });
-            if (!res.success) {
-                alert(res.error);
-                return;
+            try {
+                const res = await saveRecipe({
+                    id: recipeModal.data.id,
+                    product_id: creatingNew ? null : recipeModal.data.product_id || null,
+                    new_product_name: creatingNew ? recipeModal.data.new_product_name?.trim() || null : null,
+                    new_product_category_id: creatingNew
+                        ? recipeModal.data.new_product_category_id || null
+                        : null,
+                    base_liters: recipeModal.data.base_liters,
+                    notes: recipeModal.data.notes || null,
+                    is_active: recipeModal.data.is_active,
+                    items,
+                });
+                if (!res.success) {
+                    setRecipeError(res.error || 'No se pudo guardar la receta.');
+                    return;
+                }
+                setRecipeModal((prev) => ({ ...prev, open: false }));
+                router.refresh();
+            } catch (err) {
+                setRecipeError(err instanceof Error ? err.message : 'Error al guardar.');
             }
-            setRecipeModal((prev) => ({ ...prev, open: false }));
-            router.refresh();
         });
     };
 
@@ -496,8 +533,7 @@ export default function RecetarioClient({
                         <button
                             type="button"
                             onClick={() => openRecipeModal()}
-                            disabled={productsWithoutRecipe.length === 0}
-                            className="bg-[#E2A049] text-black px-5 py-2.5 rounded-xl font-black text-sm flex items-center justify-center gap-2 cursor-pointer border-none disabled:opacity-40"
+                            className="bg-[#E2A049] text-black px-5 py-2.5 rounded-xl font-black text-sm flex items-center justify-center gap-2 cursor-pointer border-none"
                         >
                             <Plus size={18} /> Nueva Receta
                         </button>
@@ -1037,6 +1073,11 @@ export default function RecetarioClient({
                                         <div className="min-w-0">
                                             <div className="text-white font-black text-base tracking-tight">
                                                 {r.products?.name || 'Sin producto'}
+                                                {r.products && !r.products.is_active ? (
+                                                    <span className="ml-2 text-[10px] font-bold uppercase tracking-widest text-slate-500">
+                                                        Oculto
+                                                    </span>
+                                                ) : null}
                                             </div>
                                             <div className="text-[10px] uppercase tracking-widest mt-1.5 text-slate-500 font-bold">
                                                 {r.recipe_items?.length || 0} insumos · Base{' '}
@@ -1072,6 +1113,11 @@ export default function RecetarioClient({
                                 >
                                     <div className="font-bold text-sm">
                                         {r.products?.name || 'Sin producto'}
+                                        {r.products && !r.products.is_active ? (
+                                            <span className="ml-2 text-[10px] font-bold uppercase tracking-widest text-slate-500">
+                                                Oculto
+                                            </span>
+                                        ) : null}
                                     </div>
                                     <div className="text-[10px] uppercase tracking-widest mt-1 text-slate-500">
                                         {r.recipe_items?.length || 0} insumos ·{' '}
@@ -1906,7 +1952,7 @@ export default function RecetarioClient({
                 onClose={() => setRecipeModal((p) => ({ ...p, open: false }))}
                 title={recipeModal.data.id ? 'Editar receta' : 'Nueva receta'}
             >
-                <form onSubmit={submitRecipe} className="space-y-4">
+                <form onSubmit={submitRecipe} noValidate className="space-y-4">
                     <div>
                         <label className={labelClass}>Producto del catálogo</label>
                         <select
@@ -1915,25 +1961,81 @@ export default function RecetarioClient({
                             value={recipeModal.data.product_id}
                             disabled={!!recipeModal.data.id}
                             onChange={(e) =>
-                                setRecipeModal((p) => ({ ...p, data: { ...p.data, product_id: e.target.value } }))
+                                setRecipeModal((p) => ({
+                                    ...p,
+                                    data: {
+                                        ...p.data,
+                                        product_id: e.target.value,
+                                        new_product_name:
+                                            e.target.value === NEW_PRODUCT_VALUE ? p.data.new_product_name : '',
+                                    },
+                                }))
                             }
                         >
-                            <option value="">— Selecciona —</option>
-                            {recipeModal.data.id
-                                ? products
-                                      .filter((p) => p.id === recipeModal.data.product_id)
-                                      .map((p) => (
-                                          <option key={p.id} value={p.id}>
-                                              {p.name}
-                                          </option>
-                                      ))
-                                : productsWithoutRecipe.map((p) => (
-                                      <option key={p.id} value={p.id}>
-                                          {p.name}
-                                      </option>
-                                  ))}
+                            {recipeModal.data.id ? (
+                                products
+                                    .filter((p) => p.id === recipeModal.data.product_id)
+                                    .map((p) => (
+                                        <option key={p.id} value={p.id}>
+                                            {p.name}
+                                            {!p.is_active ? ' (oculto)' : ''}
+                                        </option>
+                                    ))
+                            ) : (
+                                <>
+                                    <option value={NEW_PRODUCT_VALUE}>+ Crear producto (oculto en catálogo)</option>
+                                    {productsWithoutRecipe.map((p) => (
+                                        <option key={p.id} value={p.id}>
+                                            {p.name}
+                                            {!p.is_active ? ' (oculto)' : ''}
+                                        </option>
+                                    ))}
+                                </>
+                            )}
                         </select>
                     </div>
+                    {!recipeModal.data.id && recipeModal.data.product_id === NEW_PRODUCT_VALUE && (
+                        <div className="space-y-4">
+                            <div>
+                                <label className={labelClass}>Nombre del cóctel</label>
+                                <input
+                                    className={inputClass}
+                                    placeholder="Ej. Mojito de maracuyá"
+                                    value={recipeModal.data.new_product_name || ''}
+                                    onChange={(e) =>
+                                        setRecipeModal((p) => ({
+                                            ...p,
+                                            data: { ...p.data, new_product_name: e.target.value },
+                                        }))
+                                    }
+                                />
+                            </div>
+                            <div>
+                                <label className={labelClass}>Categoría</label>
+                                <select
+                                    className={inputClass}
+                                    value={recipeModal.data.new_product_category_id || ''}
+                                    onChange={(e) =>
+                                        setRecipeModal((p) => ({
+                                            ...p,
+                                            data: { ...p.data, new_product_category_id: e.target.value },
+                                        }))
+                                    }
+                                >
+                                    <option value="">— Selecciona —</option>
+                                    {categories.map((c) => (
+                                        <option key={c.id} value={c.id}>
+                                            {c.name}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                            <p className="text-slate-500 text-xs">
+                                Queda Oculto (sin precios ni foto). Para venderlo: Productos → formatos/precios →
+                                Publicado.
+                            </p>
+                        </div>
+                    )}
                     <div>
                         <label className={labelClass}>Base (litros)</label>
                         <input
@@ -1971,12 +2073,14 @@ export default function RecetarioClient({
                                 + Línea
                             </button>
                         </div>
-                        <div className="space-y-2 max-h-64 overflow-y-auto">
+                        <div className="space-y-2 max-h-64 overflow-y-auto overflow-x-hidden">
                             {recipeModal.data.items.map((item, idx) => (
-                                <div key={idx} className="flex gap-2 items-center">
+                                <div
+                                    key={idx}
+                                    className="grid grid-cols-[minmax(0,1fr)_6.5rem_2rem] gap-2 items-center"
+                                >
                                     <select
-                                        required
-                                        className={`${inputClass} flex-1`}
+                                        className={`${fieldClass} w-full min-w-0`}
                                         value={item.ingredient_id}
                                         onChange={(e) => {
                                             const items = [...recipeModal.data.items];
@@ -1995,9 +2099,9 @@ export default function RecetarioClient({
                                         type="number"
                                         min={0.01}
                                         step="any"
-                                        required
+                                        size={8}
                                         placeholder="Cant."
-                                        className={`${inputClass} w-24`}
+                                        className={`${fieldClass} w-full min-w-0 max-w-full`}
                                         value={item.qty_base || ''}
                                         onChange={(e) => {
                                             const items = [...recipeModal.data.items];
@@ -2039,6 +2143,12 @@ export default function RecetarioClient({
                             }
                         />
                     </div>
+
+                    {recipeError && (
+                        <p className="text-rose-400 text-sm font-bold bg-rose-500/10 border border-rose-500/20 rounded-xl px-4 py-3">
+                            {recipeError}
+                        </p>
+                    )}
 
                     <div className="flex gap-3 pt-2">
                         <button
