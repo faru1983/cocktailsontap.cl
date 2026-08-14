@@ -22,6 +22,7 @@ export interface QuoteSummaryData {
     totalDiscount: number;
     shippingCost: number;
     shippingLabel: string;
+    shippingCarrier?: 'own' | 'blue_express';
     installationCost: number;
     dispenserLabel: string;
     manualDiscount: number;
@@ -163,7 +164,7 @@ export default function QuoteSummaryProducts({ data, isEditable = false, onUpdat
                 )}
                 {data.shippingLabel && (
                     <div className="flex justify-between py-1 text-[0.95rem] font-medium text-brand-text-muted">
-                        <span>Transporte</span>
+                        <span>{data.shippingCarrier === 'blue_express' ? 'Transporte Blue Express' : 'Transporte'}</span>
                         <span className={`font-bold ${data.shippingCost === 0 ? 'text-primary' : 'text-brand-text'}`}>{data.shippingLabel}</span>
                     </div>
                 )}

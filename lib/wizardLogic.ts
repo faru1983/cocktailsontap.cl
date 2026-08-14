@@ -1,6 +1,138 @@
 import type { CocktailForWizard, Comuna, WizardState, WizardSelection, Quote, QuoteItem } from './types';
 import { formatCurrency } from './utils';
 import { SITE_URL, WHATSAPP_URL, MURO_INSTALLATION_COST, MURO_COMPATIBLE_SIZES, MURO_MIN_LITERS, PROJECT_TIMEZONE } from './config';
+import {
+    barrelsFromLiters,
+    isBlueExpressZone,
+    quoteBlueExpressHome,
+    type ShippingCarrier,
+} from './blueExpress';
+
+export type ShippingResolution = {
+    shippingCost: number;
+    shippingLabel: string;
+    isPending: boolean;
+    shippingCarrier: ShippingCarrier;
+};
+
+/**
+ * Resuelve tarifa de despacho.
+ * Eventos y barriles con carrier propio: override comuna ?? región; free_from; Otra → pendiente.
+ * Barriles Blue Express: paquetes M/L según litros (5L = 1 barril). Override plano de comuna gana si existe.
+ */
+export function resolveShipping(opts: {
+    serviceType: 'event' | 'direct' | '';
+    regionCode: string;
+    comunaName: string;
+    totalLiters: number;
+    comunas: Comuna[];
+}): ShippingResolution {
+    const { serviceType, regionCode, comunaName, totalLiters, comunas } = opts;
+    const pending = (label: string, carrier: ShippingCarrier = 'own'): ShippingResolution => ({
+        shippingCost: 0,
+        shippingLabel: label,
+        isPending: true,
+        shippingCarrier: carrier,
+    });
+
+    if (!comunaName) {
+        return pending('Por calcular');
+    }
+
+    if (comunaName === 'Otra') {
+        return pending('Pendiente de factibilidad');
+    }
+
+    const selected =
+        comunas.find((c) => c.regionCode === regionCode && c.name === comunaName) ||
+        // Fallback legacy: cotizaciones sin región guardada
+        (!regionCode ? comunas.find((c) => c.name === comunaName) : undefined);
+
+    if (!selected) {
+        return pending('Por confirmar');
+    }
+
+    const carrier: ShippingCarrier =
+        selected.shippingCarrier || selected.regionShippingCarrier || 'own';
+
+    // Barriles + Blue Express: fórmula por paquetes, salvo override numérico en la comuna.
+    if (serviceType === 'direct' && carrier === 'blue_express') {
+        if (selected.directSaleDeliveryCost !== null && selected.directSaleDeliveryCost !== undefined) {
+            return {
+                shippingCost: selected.directSaleDeliveryCost,
+                shippingLabel: formatCurrency(selected.directSaleDeliveryCost),
+                isPending: false,
+                shippingCarrier: 'blue_express',
+            };
+        }
+
+        const zone = selected.blueExpressZone || selected.regionBlueExpressZone;
+        if (!isBlueExpressZone(zone)) {
+            return pending('Por confirmar', 'blue_express');
+        }
+
+        const barrels = barrelsFromLiters(totalLiters);
+        if (barrels < 1) {
+            return pending('Por calcular', 'blue_express');
+        }
+
+        const quoted = quoteBlueExpressHome(barrels, zone, selected.blueExpressRates);
+        return {
+            shippingCost: quoted.cost,
+            shippingLabel: formatCurrency(quoted.cost),
+            isPending: false,
+            shippingCarrier: 'blue_express',
+        };
+    }
+
+    const effectiveCost =
+        serviceType === 'direct'
+            ? (selected.directSaleDeliveryCost ?? selected.regionDirectSaleDeliveryCost)
+            : (selected.cost ?? selected.regionCost);
+
+    const effectiveFreeFrom = selected.freeFrom ?? selected.regionFreeFrom;
+
+    if (effectiveCost === null || effectiveCost === undefined) {
+        return pending('Por confirmar', carrier);
+    }
+
+    if (effectiveFreeFrom !== null && totalLiters >= effectiveFreeFrom) {
+        return { shippingCost: 0, shippingLabel: '¡Gratis!', isPending: false, shippingCarrier: carrier };
+    }
+
+    return {
+        shippingCost: effectiveCost,
+        shippingLabel: formatCurrency(effectiveCost),
+        isPending: false,
+        shippingCarrier: carrier,
+    };
+}
+
+/**
+ * Acepta code (RM), short_name (Metropolitana) o name oficial y devuelve el code.
+ */
+export function resolveRegionCode(
+    regionSnapshot: string | null | undefined,
+    comunas: Comuna[]
+): string {
+    const raw = (regionSnapshot || '').trim();
+    if (!raw) return '';
+    if (comunas.some((c) => c.regionCode === raw)) return raw;
+    const byShort = comunas.find((c) => c.regionShortName === raw);
+    if (byShort) return byShort.regionCode;
+    const byName = comunas.find((c) => c.regionName === raw);
+    return byName?.regionCode || raw;
+}
+
+/** Snapshot legible para quotes.region_name (short_name). */
+export function resolveRegionShortName(
+    regionSnapshot: string | null | undefined,
+    comunas: Comuna[]
+): string | null {
+    const code = resolveRegionCode(regionSnapshot, comunas);
+    if (!code) return null;
+    return comunas.find((c) => c.regionCode === code)?.regionShortName || code;
+}
 
 /**
  * UTILS DE FECHAS
@@ -191,6 +323,7 @@ export interface SummaryData {
     totalLiters: number;
     shippingCost: number;
     shippingLabel: string;
+    shippingCarrier: ShippingCarrier;
     installationCost: number;
     totalPrice: number;
     eventTypeDisplay: string;
@@ -210,7 +343,6 @@ export function calculateSummaryData(
     comunas: Comuna[]
 ): SummaryData {
     const cocktailsById = new Map(cocktails.map((c) => [c.id, c]));
-    const comunasByName = new Map(comunas.map((c) => [c.name, c]));
     let totalNormalPrice = 0;
     let totalOfferPrice = 0;
     let totalLiters = 0;
@@ -260,23 +392,14 @@ export function calculateSummaryData(
         return { ...cocktail, selectedSize: s.size, quantity: s.quantity, totalNormalPrice: itemNormal, totalOfferPrice: itemOffer, priceData };
     });
 
-    // Lógica dinámica de Envío Gratis o Venta Directa
-    const selectedComuna = comunasByName.get(state.contact.comuna);
-    let shippingCost = 0;
-    let shippingLabel = 'Por calcular';
-    if (selectedComuna && state.contact.comuna !== 'Otra') {
-        if (state.serviceType === 'direct') {
-            shippingCost = selectedComuna.directSaleDeliveryCost ?? 5000;
-            shippingLabel = formatCurrency(shippingCost);
-        } else {
-            // Verifica si alcanza el umbral de envío gratis definido en la DB para esa comuna.
-            const isFree = selectedComuna.freeFrom !== null && totalLiters >= selectedComuna.freeFrom;
-            shippingCost = isFree ? 0 : (selectedComuna.cost ?? 0);
-            shippingLabel = shippingCost === 0 ? '¡Gratis!' : formatCurrency(shippingCost);
-        }
-    } else if (state.contact.comuna === 'Otra') {
-        shippingLabel = 'Pendiente de factibilidad';
-    }
+    // Lógica dinámica de Envío (región + override comuna; pendiente si no hay tarifa)
+    const { shippingCost, shippingLabel, shippingCarrier } = resolveShipping({
+        serviceType: state.serviceType,
+        regionCode: state.contact.region || '',
+        comunaName: state.contact.comuna,
+        totalLiters,
+        comunas,
+    });
 
     const eventTypeDisplay = state.eventData.type === 'Otro' ? state.eventData.otherType : state.eventData.type;
     const comunaDisplay = state.contact.comuna === 'Otra' ? state.contact.otherComuna : (state.contact.comuna || 'No especificada');
@@ -305,6 +428,7 @@ export function calculateSummaryData(
         totalLiters, 
         shippingCost, 
         shippingLabel,
+        shippingCarrier,
         installationCost,
         totalPrice: totalOfferPrice + (shippingCost || 0) + installationCost,
         eventTypeDisplay, 

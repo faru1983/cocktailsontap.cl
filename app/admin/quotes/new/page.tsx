@@ -7,13 +7,14 @@ export default async function NewQuotePage({ searchParams }: { searchParams: Sea
     const params = await searchParams;
     const initialServiceType = params.type === 'direct' ? 'direct' : 'event';
 
-    const { products, comunas, eventTypes } = await fetchAllProductData();
+    const { products, comunas, regions, eventTypes } = await fetchAllProductData();
     const clients = await fetchAllClients();
     
     return (
         <CreateQuoteManualClient 
             allProducts={products} 
-            comunas={comunas} 
+            comunas={comunas}
+            regions={regions}
             eventTypes={eventTypes} 
             existingClients={clients}
             initialServiceType={initialServiceType}

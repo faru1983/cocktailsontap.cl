@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useWizard } from '@/hooks/useWizard';
 import { AlertCircle, ArrowLeft, ShoppingCart } from 'lucide-react';
-import type { CocktailForWizard, Comuna } from '@/lib/types';
+import type { CocktailForWizard, Comuna, Region } from '@/lib/types';
 import { createQuote } from '@/app/actions/createQuote';
 import { WHATSAPP_URL } from '@/lib/config';
 import { formatCurrency } from '@/lib/utils';
@@ -16,13 +16,14 @@ import DirectWizardSuccess from './DirectWizardSuccess';
 interface Props {
     cocktails: CocktailForWizard[];
     comunas: Comuna[];
+    regions: Region[];
     categories: string[];
     initialServiceType?: '' | 'event' | 'direct';
 }
 
 type SendStatus = 'idle' | 'saving' | 'saved' | 'error';
 
-export default function DirectWizardShell({ cocktails, comunas, categories, initialServiceType }: Props) {
+export default function DirectWizardShell({ cocktails, comunas, regions, categories, initialServiceType }: Props) {
     const router = useRouter();
     const wizard = useWizard(cocktails, comunas, categories, initialServiceType);
     const { state } = wizard;
@@ -232,7 +233,8 @@ export default function DirectWizardShell({ cocktails, comunas, categories, init
             {isModalOpen && sendStatus !== 'saved' && (
                 <DirectWizardCheckoutModal 
                     wizard={wizard} 
-                    comunas={comunas} 
+                    comunas={comunas}
+                    regions={regions}
                     onClose={() => setIsModalOpen(false)} 
                     onConfirm={handleCotizar}
                     sendStatus={sendStatus}

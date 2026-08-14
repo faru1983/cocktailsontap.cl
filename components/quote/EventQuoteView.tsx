@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { formatCurrency, copyToClipboard } from '@/lib/utils';
 import { isValidPhoneE164, normalizePhoneE164 } from '@/lib/phone';
 import PhoneInput from '@/components/ui/PhoneInput';
-import { formatEventDate, calculateMaxPickupDate, getTodayString } from '@/lib/wizardLogic';
+import { formatEventDate, calculateMaxPickupDate, getTodayString, resolveShipping } from '@/lib/wizardLogic';
 import { confirmQuote } from '@/app/actions/confirmQuote';
 import { MURO_INSTALLATION_COST, PORTATIL_MIN_LITERS, MURO_MIN_LITERS } from '@/lib/config';
 import {
@@ -14,10 +14,12 @@ import {
     Plus, Search, ChevronRight, Tag, Info, Copy, ExternalLink, CreditCard, FileText, ArrowRight
 } from 'lucide-react';
 import * as fp from '@/lib/fpixel';
-import type { Quote, QuoteItem, Comuna, CocktailForWizard, EventType, Product, ICart } from '@/lib/types';
+import type { Quote, QuoteItem, Comuna, Region, CocktailForWizard, EventType, Product, ICart } from '@/lib/types';
+import { DEFAULT_REGION_CODE } from '@/lib/types';
 import ProductCatalog from '@/components/catalog/ProductCatalog';
 import QuoteSummaryProducts, { QuoteSummaryData } from '@/components/quote/QuoteSummaryProducts';
 import QuoteSummaryReservation, { QuoteSummaryReservationData } from '@/components/quote/QuoteSummaryReservation';
+import RegionComunaFields from '@/components/ui/RegionComunaFields';
 import { buildWhatsAppMessageFromQuote, getWhatsAppUrl } from '@/lib/wizardLogic';
 import { WHATSAPP_URL } from '@/lib/config';
 import { WhatsappIcon } from '@/components/shared/icons';
@@ -25,6 +27,7 @@ import { WhatsappIcon } from '@/components/shared/icons';
 interface Props {
     quote: Quote & { quote_items: QuoteItem[] };
     comunas: Comuna[];
+    regions: Region[];
     availableCocktails: CocktailForWizard[];
     categories: string[];
     eventTypes: EventType[];
@@ -38,7 +41,7 @@ const STATUS_CONFIG = {
     completed: { label: 'Completada', color: 'bg-blue-100 text-blue-800 border-blue-200', icon: CheckCircle },
 };
 
-export default function EventQuoteView({ quote, comunas, availableCocktails, categories, eventTypes, isNew }: Props) {
+export default function EventQuoteView({ quote, comunas, regions, availableCocktails, categories, eventTypes, isNew }: Props) {
     const router = useRouter();
     const searchParams = useSearchParams();
     const isConfirmedParam = searchParams.get('confirmed') === 'true';
@@ -48,6 +51,19 @@ export default function EventQuoteView({ quote, comunas, availableCocktails, cat
     const [showCatalog, setShowCatalog] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedCategory, setSelectedCategory] = useState(() => categories.filter(c => c !== 'Otros')[0] || 'Todos');
+
+    const initialRegionCode = (() => {
+        if (quote.region_name) {
+            const byName = regions.find((r) => r.name === quote.region_name || r.shortName === quote.region_name);
+            if (byName) return byName.code;
+            const byComuna = comunas.find((c) => c.name === quote.comuna_name && c.regionName === quote.region_name);
+            if (byComuna) return byComuna.regionCode;
+        }
+        const match = comunas.find((c) => c.name === quote.comuna_name);
+        return match?.regionCode || DEFAULT_REGION_CODE;
+    })();
+
+    const [regionCode, setRegionCode] = useState(initialRegionCode);
     const eventCategories = useMemo(() => categories.filter(c => c !== 'Otros'), [categories]);
 
     // State para datos editables
@@ -160,28 +176,26 @@ export default function EventQuoteView({ quote, comunas, availableCocktails, cat
             }
         });
 
-        // Recalcular envío dinámicamente
+        // Recalcular envío dinámicamente (región + override comuna)
+        const resolved = resolveShipping({
+            serviceType: 'event',
+            regionCode,
+            comunaName: comuna,
+            totalLiters,
+            comunas,
+        });
+
         let shipping = quote.shipping_cost;
-        const selectedComuna = comunas.find(c => c.name === comuna);
-        
-        if (selectedComuna && selectedComuna.name !== 'Otra') {
-            const qualifiesForFree = selectedComuna.freeFrom !== null && totalLiters >= selectedComuna.freeFrom;
-            
-            if (qualifiesForFree) {
-                shipping = 0;
-            } else if (comuna !== quote.comuna_name) {
-                // Si el usuario cambia la comuna, aplicamos el costo estándar de la nueva comuna
-                shipping = selectedComuna.cost || 0;
-            } else {
-                // Es la misma comuna original. 
-                // Si el costo en BD es 0 pero ya no califica para envío gratis, volvemos al costo base.
-                // De lo contrario, respetamos el valor guardado (que puede ser un override manual del admin).
-                if (quote.shipping_cost === 0 && !qualifiesForFree) {
-                    shipping = selectedComuna.cost || 0;
-                } else {
-                    shipping = quote.shipping_cost;
-                }
-            }
+        if (resolved.isPending) {
+            shipping = 0;
+        } else if (comuna !== quote.comuna_name || regionCode !== initialRegionCode) {
+            shipping = resolved.shippingCost;
+        } else if (quote.shipping_cost === 0 && resolved.shippingLabel !== '¡Gratis!') {
+            shipping = resolved.shippingCost;
+        } else if (resolved.shippingLabel === '¡Gratis!') {
+            shipping = 0;
+        } else {
+            shipping = quote.shipping_cost;
         }
 
         const installationCost = dispenser === 'muro' ? MURO_INSTALLATION_COST : 0;
@@ -189,7 +203,7 @@ export default function EventQuoteView({ quote, comunas, availableCocktails, cat
         const totalDiscount = totalNormal - totalOffer;
         const totalCocktails = totalLiters * 5;
 
-        return { totalNormal, totalOffer, totalFinal, totalLiters, totalCocktails, shipping, totalDiscount, installationCost };
+        return { totalNormal, totalOffer, totalFinal, totalLiters, totalCocktails, shipping, totalDiscount, installationCost, shippingCarrier: resolved.shippingCarrier };
     };
 
     // Auto-ajuste de dispensador (Solo en borrador para validación del cliente)
@@ -316,6 +330,7 @@ export default function EventQuoteView({ quote, comunas, availableCocktails, cat
             totalDiscount: totals.totalDiscount,
             shippingCost: totals.shipping,
             shippingLabel: comuna === 'Otra' && totals.shipping === 0 ? 'Pendiente de factibilidad' : (totals.shipping === 0 ? '¡Gratis!' : formatCurrency(totals.shipping)),
+            shippingCarrier: totals.shippingCarrier,
             installationCost: isDraft ? totals.installationCost : quote.installation_cost,
             dispenserLabel: dispenser === 'muro' ? 'Muro de Coctelería' : 'Dispensador Portátil',
             manualDiscount: quote.manual_discount || 0,
@@ -441,6 +456,7 @@ export default function EventQuoteView({ quote, comunas, availableCocktails, cat
             client_lastname: lastName,
             client_address: address,
             comuna_name: comuna,
+            region_name: regions.find(r => r.code === regionCode)?.name || quote.region_name || null,
             comuna_other: comunaOther,
             guests: guests,
             event_type_id: eventType,
@@ -811,49 +827,28 @@ export default function EventQuoteView({ quote, comunas, availableCocktails, cat
                                     />
                                 </div>
     
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                    <div className="flex flex-col gap-1">
-                                        <label className="text-[0.65rem] font-black text-brand-text-muted flex items-center gap-1.5 uppercase">
-                                            <MapPin className="w-3 h-3" /> Comuna <span className="text-red-500">*</span>
-                                        </label>
-                                        <div className="relative">
-                                                <select
-                                                    id="field-comuna"
-                                                    value={comuna}
-                                                    onChange={(e) => {
-                                                        setComuna(e.target.value);
-                                                        setValidationErrors(prev => ({ ...prev, comuna: false }));
-                                                    }}
-                                                    className={`w-full px-3 py-2.5 bg-slate-50 border rounded-xl text-[0.95rem] font-bold focus:outline-none focus:border-primary focus:bg-white transition-all shadow-sm appearance-none pr-10 ${validationErrors.comuna ? 'border-red-500 bg-red-50/30' : 'border-brand-border'}`}
-                                                >
-                                                    <option value="" disabled hidden>Seleccionar...</option>
-                                                    {comunas.map((c) => (
-                                                        <option key={c.name} value={c.name}>{c.name}</option>
-                                                    ))}
-                                                </select>
-                                        <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
-                                            <ChevronRight className="w-3.5 h-3.5 text-brand-text-muted rotate-90" />
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {comuna === 'Otra' && (
-                                    <div className="flex flex-col gap-1">
-                                        <label className="text-[0.65rem] font-black text-brand-text-muted uppercase">Especificar Comuna</label>
-                                        <input
-                                            id="field-comunaOther"
-                                            type="text"
-                                            value={comunaOther}
-                                            onChange={(e) => {
-                                                setComunaOther(e.target.value);
-                                                setValidationErrors(prev => ({ ...prev, comunaOther: false }));
-                                            }}
-                                            placeholder="¿Cuál?"
-                                            className={`w-full px-3 py-2.5 bg-slate-50 border rounded-xl text-[0.95rem] font-bold focus:outline-none focus:border-primary focus:bg-white transition-all shadow-sm ${validationErrors.comunaOther ? 'border-red-500 bg-red-50/30' : 'border-brand-border'}`}
-                                        />
-                                    </div>
-                                )}
-                            </div>
+                                <RegionComunaFields
+                                    regions={regions}
+                                    comunas={comunas}
+                                    serviceType="event"
+                                    regionCode={regionCode}
+                                    comuna={comuna}
+                                    otherComuna={comunaOther}
+                                    onRegionChange={(code) => {
+                                        setRegionCode(code);
+                                        setComuna('');
+                                        setComunaOther('');
+                                        setValidationErrors((prev) => ({ ...prev, comuna: false }));
+                                    }}
+                                    onComunaChange={(name) => {
+                                        setComuna(name);
+                                        setValidationErrors((prev) => ({ ...prev, comuna: false }));
+                                    }}
+                                    onOtherComunaChange={(v) => {
+                                        setComunaOther(v);
+                                        setValidationErrors((prev) => ({ ...prev, comunaOther: false }));
+                                    }}
+                                />
 
                             <div className="flex flex-col gap-1">
                                 <label className="text-[0.65rem] font-black text-brand-text-muted flex items-center gap-1.5 uppercase">

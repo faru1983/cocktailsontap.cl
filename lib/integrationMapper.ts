@@ -1,4 +1,5 @@
 import type { WizardState, CocktailForWizard } from '@/lib/types';
+import { DEFAULT_REGION_CODE } from '@/lib/types';
 import type {
     IntegrationEventQuoteInput,
     IntegrationDirectSaleInput,
@@ -32,6 +33,7 @@ function baseWizardState(): WizardState {
             email: '',
             phone: '',
             address: '',
+            region: DEFAULT_REGION_CODE,
             comuna: '',
             otherComuna: '',
             comments: '',
@@ -74,6 +76,7 @@ export function mapEventQuoteToWizardState(dto: IntegrationEventQuoteInput): Wiz
         email: dto.client.email,
         phone: dto.client.phone || '',
         address: dto.client.address || '',
+        region: DEFAULT_REGION_CODE,
         comuna: dto.client.comuna,
         otherComuna: dto.client.otherComuna || '',
         comments: withSourceComments(dto.client.comments, dto.source),
@@ -109,6 +112,7 @@ export function mapDirectSaleToWizardState(dto: IntegrationDirectSaleInput): Wiz
         email: dto.client.email,
         phone: dto.client.phone || '',
         address: dto.client.address || '',
+        region: DEFAULT_REGION_CODE,
         comuna: dto.client.comuna,
         otherComuna: dto.client.otherComuna || '',
         comments: withSourceComments(mergedComments, dto.source),

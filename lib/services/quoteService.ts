@@ -2,6 +2,7 @@ import { createServerClient } from '@/lib/supabaseServer';
 import type { WizardState, CocktailForWizard, Comuna, Quote, QuoteItem } from '@/lib/types';
 import type { QuoteSource } from '@/lib/quoteSource';
 import { calculateSummaryData } from '@/lib/wizardLogic';
+import { resolveRegionShortName } from '@/lib/wizardLogic';
 import { normalizePhoneE164 } from '@/lib/phone';
 import { resolveOrCreateClient, type ClientTouchSource } from '@/lib/services/clientService';
 
@@ -94,6 +95,7 @@ export const QuoteService = {
                 pickup_date: state.eventData.pickupDate || null,
                 pickup_time: state.eventData.pickupTime || null,
 
+                region_name: resolveRegionShortName(state.contact.region, comunas),
                 comuna_name: state.contact.comuna || null,
                 comuna_other: state.contact.otherComuna || null,
 

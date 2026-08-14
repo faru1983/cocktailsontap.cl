@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 };
 
 export default async function BarrilesPage() {
-    const { cocktails, eventTypes, comunas, categories } = await fetchAllProductData();
+    const { cocktails, eventTypes, comunas, regions, categories } = await fetchAllProductData();
 
     return (
         <main data-page="barriles" className="min-h-screen bg-brand-bg relative flex flex-col pt-8 md:pt-12">
@@ -38,6 +38,7 @@ export default async function BarrilesPage() {
                         cocktails={cocktails}
                         eventTypes={eventTypes}
                         comunas={comunas}
+                        regions={regions}
                         categories={categories}
                         initialServiceType="direct"
                     />

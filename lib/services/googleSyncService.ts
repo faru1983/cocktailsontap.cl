@@ -1,4 +1,11 @@
-import { syncGoogleContact, syncGoogleEvent, CALENDAR_RESERVA_ID, CALENDAR_RETIRO_ID, CALENDAR_DESECHABLE_ID } from '@/lib/googleSync';
+import {
+    syncGoogleContact,
+    syncGoogleEvent,
+    deleteGoogleCalendarEvent,
+    CALENDAR_RESERVA_ID,
+    CALENDAR_RETIRO_ID,
+    CALENDAR_DESECHABLE_ID,
+} from '@/lib/googleSync';
 import { SITE_URL } from '@/lib/config';
 import type { WizardState, Quote } from '@/lib/types';
 import { QuoteService } from './quoteService';
@@ -35,7 +42,8 @@ export const GoogleSyncService = {
              const { data: clientData } = await db.from('clients').select('google_contact_id').eq('id', clientId).single();
 
              const comunaStr = state.contact.comuna === 'Otra' ? state.contact.otherComuna : state.contact.comuna;
-             const fullAddress = [state.contact.address.trim(), comunaStr].filter(Boolean).join(', ');
+             const regionStr = state.contact.region || '';
+             const fullAddress = [state.contact.address.trim(), comunaStr, regionStr].filter(Boolean).join(', ');
              const quoteUrl = `${SITE_URL}/cotizar/${quoteToken}`;
 
              const rawPhone = state.contact.phone.trim();
@@ -77,7 +85,7 @@ export const GoogleSyncService = {
         try {
              const quoteUrl = `${SITE_URL}/cotizar/${quote.token}`;
              const comunaDisplay = quote.comuna_name === 'Otra' ? quote.comuna_other : quote.comuna_name;
-             const fullAddress = [quote.client_address, comunaDisplay].filter(Boolean).join(', ');
+             const fullAddress = [quote.client_address, comunaDisplay, quote.region_name].filter(Boolean).join(', ');
              
              // Buscar ID de Google si existe en la base de datos para este cliente
              const db = createServerClient();
@@ -125,7 +133,9 @@ export const GoogleSyncService = {
         try {
             const fullName = `${quote.client_name} ${quote.client_lastname || ''}`.trim();
             const comunaStr = quote.comuna_name === 'Otra' ? quote.comuna_other : quote.comuna_name;
-            const fullLocation = `${quote.client_address || ''}, ${comunaStr || ''}`.trim();
+            const fullLocation = [quote.client_address || '', comunaStr || '', quote.region_name || '']
+                .filter(Boolean)
+                .join(', ');
             const link = `${SITE_URL}/cotizar/${quote.token}`;
 
             // Formatting currency helper for the description
@@ -293,5 +303,77 @@ export const GoogleSyncService = {
             console.error('GoogleSyncService - Error in scheduleCalendarEvents:', error);
             throw error; // Lanzar para que el Dashboard lo capture
         }
-    }
+    },
+
+    /**
+     * removeCalendarEventsForQuote: Al cancelar, borra reserva/retiro o venta directa
+     * de Google Calendar. No bloquea si Google falla; indica qué IDs se limpiaron.
+     */
+    async removeCalendarEventsForQuote(quote: {
+        id?: string;
+        service_type?: string | null;
+        dispenser?: string | null;
+        google_event_id?: string | null;
+        google_pickup_event_id?: string | null;
+    }): Promise<{ clearedEventId: boolean; clearedPickupEventId: boolean; error?: string }> {
+        const isDirectSale =
+            quote.service_type === 'direct' || quote.dispenser === 'desechable';
+        const mainCalendarId = isDirectSale
+            ? CALENDAR_DESECHABLE_ID || CALENDAR_RESERVA_ID
+            : CALENDAR_RESERVA_ID;
+
+        let clearedEventId = false;
+        let clearedPickupEventId = false;
+        const errors: string[] = [];
+
+        if (quote.google_event_id && mainCalendarId) {
+            try {
+                await deleteGoogleCalendarEvent(mainCalendarId, quote.google_event_id);
+                clearedEventId = true;
+            } catch (err: any) {
+                // Fallback: venta directa pudo haberse creado en reserva si faltaba DESECHABLE_ID
+                if (
+                    isDirectSale &&
+                    CALENDAR_DESECHABLE_ID &&
+                    CALENDAR_RESERVA_ID &&
+                    CALENDAR_DESECHABLE_ID !== CALENDAR_RESERVA_ID
+                ) {
+                    try {
+                        await deleteGoogleCalendarEvent(CALENDAR_RESERVA_ID, quote.google_event_id);
+                        clearedEventId = true;
+                    } catch (fallbackErr: any) {
+                        errors.push(fallbackErr?.message || String(fallbackErr));
+                    }
+                } else {
+                    errors.push(err?.message || String(err));
+                }
+            }
+        } else if (!quote.google_event_id) {
+            clearedEventId = true;
+        }
+
+        if (quote.google_pickup_event_id && CALENDAR_RETIRO_ID) {
+            try {
+                await deleteGoogleCalendarEvent(CALENDAR_RETIRO_ID, quote.google_pickup_event_id);
+                clearedPickupEventId = true;
+            } catch (err: any) {
+                errors.push(err?.message || String(err));
+            }
+        } else if (!quote.google_pickup_event_id) {
+            clearedPickupEventId = true;
+        }
+
+        if (errors.length) {
+            console.error(
+                `GoogleSyncService [${quote.id || '?'}] - Error al borrar Calendar:`,
+                errors.join(' | ')
+            );
+        }
+
+        return {
+            clearedEventId,
+            clearedPickupEventId,
+            error: errors.length ? errors.join(' | ') : undefined,
+        };
+    },
 }

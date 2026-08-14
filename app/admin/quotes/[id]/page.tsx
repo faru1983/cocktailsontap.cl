@@ -18,7 +18,7 @@ export default async function QuoteDetailPage({ params }: { params: Params }) {
 
     const { data: eventTypes } = await db.from('event_types').select('*').order('display_order');
     const { fetchAllProductData } = await import('@/lib/serverData');
-    const { products, comunas } = await fetchAllProductData();
+    const { products, comunas, regions } = await fetchAllProductData();
 
-    return <QuoteDetailClient quote={quote} allProducts={products} eventTypes={eventTypes || []} comunas={comunas} />;
+    return <QuoteDetailClient quote={quote} allProducts={products} eventTypes={eventTypes || []} comunas={comunas} regions={regions} />;
 }

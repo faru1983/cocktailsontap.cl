@@ -13,7 +13,7 @@ export const metadata: Metadata = {
 // Server Component: precarga datos en el servidor con caché de 5 minutos.
 // Supabase no recibe ninguna llamada desde el browser del cliente.
 export default async function CotizarPage() {
-    const { cocktails, eventTypes, comunas, categories } = await fetchAllProductData();
+    const { cocktails, eventTypes, comunas, regions, categories } = await fetchAllProductData();
 
     return (
         <main data-page="cotizar" className="min-h-screen bg-brand-bg relative flex flex-col pt-8 md:pt-12">
@@ -25,6 +25,7 @@ export default async function CotizarPage() {
                         cocktails={cocktails}
                         eventTypes={eventTypes}
                         comunas={comunas}
+                        regions={regions}
                         categories={categories}
                     />
                 </Suspense>

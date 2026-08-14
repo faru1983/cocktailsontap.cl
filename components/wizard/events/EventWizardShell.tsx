@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useWizard } from '@/hooks/useWizard';
 import { AlertCircle, ArrowLeft } from 'lucide-react';
-import type { CocktailForWizard, EventType, Comuna } from '@/lib/types';
+import type { CocktailForWizard, EventType, Comuna, Region } from '@/lib/types';
 import { createQuote } from '@/app/actions/createQuote';
 import { validateConfirmNowState } from '@/lib/confirmNowValidation';
 
@@ -17,13 +17,14 @@ interface Props {
     cocktails: CocktailForWizard[];
     eventTypes: EventType[];
     comunas: Comuna[];
+    regions: Region[];
     categories: string[];
     initialServiceType?: '' | 'event' | 'direct';
 }
 
 type SendStatus = 'idle' | 'saving' | 'saved' | 'error';
 
-export default function EventWizardShell({ cocktails, eventTypes, comunas, categories, initialServiceType }: Props) {
+export default function EventWizardShell({ cocktails, eventTypes, comunas, regions, categories, initialServiceType }: Props) {
     const router = useRouter();
     const wizard = useWizard(cocktails, comunas, categories, initialServiceType);
     const { state } = wizard;
@@ -195,7 +196,8 @@ export default function EventWizardShell({ cocktails, eventTypes, comunas, categ
             {isModalOpen && sendStatus !== 'saved' && (
                 <EventWizardCheckoutModal 
                     wizard={wizard} 
-                    comunas={comunas} 
+                    comunas={comunas}
+                    regions={regions}
                     onClose={() => setIsModalOpen(false)} 
                     onConfirm={handleCotizar}
                     sendStatus={sendStatus}

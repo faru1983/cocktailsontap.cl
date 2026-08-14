@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { GlassWater, Box, Package, ChevronRight } from 'lucide-react';
-import type { CocktailForWizard, EventType, Comuna } from '@/lib/types';
+import type { CocktailForWizard, EventType, Comuna, Region } from '@/lib/types';
 import EventWizardShell from './events/EventWizardShell';
 import DirectWizardShell from './direct/DirectWizardShell';
 
@@ -11,22 +11,23 @@ interface Props {
     cocktails: CocktailForWizard[];
     eventTypes: EventType[];
     comunas: Comuna[];
+    regions: Region[];
     categories: string[];
     initialServiceType?: 'event' | 'direct';
 }
 
-export default function CotizarGateway({ cocktails, eventTypes, comunas, categories, initialServiceType }: Props) {
+export default function CotizarGateway({ cocktails, eventTypes, comunas, regions, categories, initialServiceType }: Props) {
     const [serviceType, setServiceType] = useState<'event' | 'direct' | ''>(initialServiceType || '');
     const router = useRouter();
 
     if (serviceType === 'event') {
         const eventCategories = categories.filter(c => c !== 'Otros');
-        return <EventWizardShell cocktails={cocktails} eventTypes={eventTypes} comunas={comunas} categories={eventCategories} initialServiceType="event" />;
+        return <EventWizardShell cocktails={cocktails} eventTypes={eventTypes} comunas={comunas} regions={regions} categories={eventCategories} initialServiceType="event" />;
     }
 
     if (serviceType === 'direct') {
         const directCategories = categories.filter(c => c === 'Otros' || cocktails.some(cocktail => cocktail.category === c && Object.values(cocktail.prices).some(p => p.isDisposable)));
-        return <DirectWizardShell cocktails={cocktails} comunas={comunas} categories={directCategories} initialServiceType="direct" />;
+        return <DirectWizardShell cocktails={cocktails} comunas={comunas} regions={regions} categories={directCategories} initialServiceType="direct" />;
     }
 
     return (

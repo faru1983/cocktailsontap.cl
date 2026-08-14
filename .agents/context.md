@@ -18,6 +18,7 @@
 ### 3. Sincronizacion
 
 - La base de datos es prioridad. Si Google o Resend fallan, el error se guarda en `comments` de la cotizacion para auditoria, sin bloquear al usuario.
+- **Cancelar** (listado masivo o detalle) o **borrar permanente**: elimina eventos de Google Calendar (reserva + retiro, o calendario desechables). Limpia `google_event_id` / `google_pickup_event_id` si el borrado OK o 404.
 
 ## Flujos de Venta
 
@@ -40,31 +41,26 @@
 
 ## Ultimos Cambios
 
-### 14-08-2026 (Sesión 68) — ViewContent en landings Eventos/Barriles
+### 14-08-2026 (Sesión 75) — Provincias RM y BE misma zona
 
-- Pixel `ViewContent` en `/eventos` y `/barriles` con `service` + `content_category` (mismo criterio que checkout/compra). Una vez por línea y pestaña.
-- Home `/` y `/cotizar` no se etiquetan. PageView sigue genérico. Sin CAPI (visitante anónimo).
-- Archivos: `lib/fpixel.ts`, `components/shared/MetaPixel.tsx`.
+- Comunas: `province_name` + override `shipping_carrier`/`blue_express_zone`. Admin agrupa por provincia; wizard igual (región + comuna).
+- RM Santiago = propio; Cordillera/Chacabuco/Maipo/Melipilla/Talagante = Blue Express **misma zona** ($4.800 M / $5.400 L). Tarifas editables en Cobertura.
+- Provincias CUT en todas las regiones (agrupación solo admin).
 
-### 14-08-2026 (Sesión 67) — Cotización evento: Lead → InitiateCheckout
+### 14-08-2026 (Sesión 74) — Tarifas Blue Express en Admin
 
-- CAPI + Pixel: cotización draft dispara `InitiateCheckout` (`initiateCheckout_{token}`) con `service` + `content_category` (`eventos`/`Eventos` o `barriles`/`Barriles`), `value` CLP, ítems y comuna.
-- El mismo par identifica Contact (si hay intent), InitiateCheckout y Purchase. PageView no se etiqueta. Interesado WA sigue en `Contact`.
-- Archivos: `clientLifecycleService.ts`, `metaCapiService.ts`, `createQuoteCore.ts`, `confirmQuoteCore.ts`, `EventQuoteView.tsx`, `fpixel.ts`.
+- Admin → Cobertura: 4 montos (Centro/Extremo × M/L) en `site_settings.blue_express_home_rates`. Wizard y preview usan esa tabla (fallback en código).
 
-### 12-08-2026 (Sesión 66) — Banco de imágenes: listado server-side
+### 14-08-2026 (Sesión 73) — Blue Express vs traslado propio
 
-- El modal Galería salía vacío: `storage.list` con anon no tiene política SELECT en `product-images`. Ahora lista con service_role (`listProductImages`). Loading/error visibles.
+- `regions.shipping_carrier` (`own` | `blue_express`) + `blue_express_zone` (`centro` | `extremo`). RM propio; resto BE (Valparaíso/centro, extremo norte-sur).
+- Barriles: 5L=1 barril; 1→M, 2–4→L, 5→L+M. Centro $7.300 / $9.200; extremo $14.500 / $17.000. Helper `lib/blueExpress.ts` + `resolveShipping`.
+- Admin Cobertura: selector de transporte, preview 1/4/5 barriles. Catálogo API incluye `regions` (carrier/zona).
 
-### 12-08-2026 (Sesión 65) — Producto stub desde receta
+### 14-08-2026 (Sesión 72) — Cobertura: hereda región sin placeholder ilegible
 
-- Alta desde receta: nombre + categoría, `is_active=false`, sin precios. Catálogo/wizard no lo ven.
-- No se puede pasar a Publicado sin al menos un precio activo (el recetario no inventa precios).
-
-### 12-08-2026 (Sesión 64) — Guardar receta: error visible
-
-- Guardar no hacía nada: `required` en la línea vacía de insumo bloqueaba el submit y el aviso nativo no se veía. Validación en JS + mensaje en el modal. "Piscola Mistral Nobel 40°" no se creó.
+- En comunas, si no hay override se muestra el valor de la región (o "—") como placeholder `slate-400`. El "L" y "$" suben de contraste. Tooltip explica que hereda.
 
 ---
 
-*Ultima actualizacion: 14-08-2026 (Sesión 68)*
+*Ultima actualizacion: 14-08-2026 (Sesión 75)*

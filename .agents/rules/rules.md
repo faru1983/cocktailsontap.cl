@@ -129,7 +129,8 @@ Define la arquitectura, reglas irrompibles, convenciones de código, esquema de 
 | `products` | Catálogo de cócteles | `is_active`, `display_order`, `category_id` FK |
 | `product_prices` | Precios por tamaño (5L, 10L, 20L, 30L) | `product_id` FK, `size`, `price`, `offer_price` |
 | `categories` | Categorías de productos | `is_active`, `display_order` |
-| `comunas` | Comunas con costos de envío dinámicos | `name`, `cost`, `free_from`, `display_order` |
+| `regions` | Regiones de Chile (tarifas + transporte) | `code`, flags eventos/barriles, `cost` / `direct_sale_delivery_cost` / `free_from`, `shipping_carrier` (`own`\|`blue_express`), `blue_express_zone` (`centro`\|`extremo`) |
+| `comunas` | Comunas (override de tarifa; sin borrar físico) | `region_id` FK, `province_name` (admin), `name`, `cost`/`direct_sale_delivery_cost`/`free_from` nullable=hereda, `shipping_carrier`/`blue_express_zone` nullable=hereda región, `is_active` |
 | `event_types` | Tipos de evento (Matrimonio, Cumpleaños, etc.) | `name`, `icon`, `display_order` |
 | `expenses` | Registro de gastos del negocio | `amount`, `expense_date`, `category`, `description` |
 | `payment_methods` | Medios de pago configurables | `name`, `is_active` |
@@ -147,7 +148,8 @@ Define la arquitectura, reglas irrompibles, convenciones de código, esquema de 
 - `status`: Enum `draft | confirmed | completed | cancelled`
 - `dispenser`: Enum `portatil | muro`
 - `total_price`: Recalculado server-side en confirmación
-- `shipping_cost`: Calculado dinámicamente según `comunas.free_from`
+- `region_name`: Snapshot legible de la región (short_name) al crear/confirmar
+- `shipping_cost`: `resolveShipping` — propio: override comuna ?? región; Blue Express barriles: paquetes M/L; pendiente si falta tarifa o comuna `Otra`
 - `installation_cost`: $50.000 solo si `muro` + ≥30L + sin barriles de 5L
 - `google_event_id` / `google_pickup_event_id`: IDs de eventos de Calendar para updates
 - `manual_discount`: Descuento manual aplicado desde el admin
@@ -168,9 +170,11 @@ Define la arquitectura, reglas irrompibles, convenciones de código, esquema de 
 - Si no cumple requisitos, se fuerza automáticamente a "Dispensador Portátil"
 
 ### Envíos Dinámicos
-- Cada comuna tiene un `cost` y un umbral `free_from` (litros)
-- Si `totalLiters >= free_from` → envío gratis
-- Si la comuna es "Otra" → etiqueta "Pendiente de factibilidad" (precio $0 temporal)
+- **Carrier:** región por defecto; **override por comuna** (`shipping_carrier` / `blue_express_zone` null = hereda). RM: provincia Santiago = propio; resto RM = Blue Express `misma_zona`.
+- Blue Express domicilio: tarifas en Admin → Cobertura (`misma_zona` / centro / extremo). 5L = 1 barril; 1→M, 2–4→L, 5→L+M. Wizard no muestra provincias.
+- Comuna `Otra` solo en RM → “Pendiente de factibilidad”.
+- Flags `available_for_events` / `available_for_direct` por región (default: solo RM en eventos).
+- Helper: `resolveShipping()` en `lib/wizardLogic.ts`.
 
 ### Smart Config (Sugerencia de Barriles)
 - Algoritmo en `calculateSmartConfig()` que recomienda tamaño de barril basado en:
@@ -254,10 +258,11 @@ Define la arquitectura, reglas irrompibles, convenciones de código, esquema de 
 - **Direcciones**: Solo sincroniza si la dirección es "completa" (calle + comuna)
 
 ### Google Calendar
-- **Dos calendarios**: `CALENDAR_RESERVA_ID` (montaje) y `CALENDAR_RETIRO_ID` (logística)
+- **Dos calendarios**: `CALENDAR_RESERVA_ID` (montaje) y `CALENDAR_RETIRO_ID` (logística); ventas directas → `CALENDAR_DESECHABLE_ID`
 - **Eventos**: Pueden ser "All day" o con hora. Soporta rangos para retiro (ej: "12:00 a 14:00")
 - **Descripción**: Usa template configurable desde `site_settings` con variables `{{full_name}}`, `{{items_list}}`, etc.
 - **Timezone**: `America/Santiago` siempre
+- **Cancelar / borrar permanente** (admin): `removeCalendarEventsForQuote` borra reserva+retiro o desechable; limpia `google_event_id` / `google_pickup_event_id`; 404 = OK; fallo Google → nota en `comments`, no bloquea DB
 
 ### Resend + React Email
 - **Plantillas JSX**: `components/emails/QuoteEmail.tsx`, `ConfirmationEmail.tsx`

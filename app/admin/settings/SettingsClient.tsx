@@ -7,15 +7,13 @@ import {
     sendTestReviewEmail, 
     saveEventType, 
     deleteEventType, 
-    saveComuna, 
-    deleteComuna,
     updateSiteSetting,
-    updateQuickComunaField
 } from '@/app/actions/admin/adminActions';
 import Modal from '@/components/admin/Modal';
+import CoverageSettings from '@/components/admin/CoverageSettings';
 import { 
-    Plus, Trash2, Edit2, MapPin, Calendar, Layout, Cpu, 
-    Mail, Star, Settings, MessageSquare, Check, X, RefreshCw, ArrowUpDown
+    Plus, Trash2, Edit2, Calendar, Layout, Cpu, 
+    Mail, Star, Check, X, RefreshCw
 } from 'lucide-react';
 import { ICON_CATALOG, renderIconFromKey } from '@/lib/icons';
 
@@ -24,39 +22,21 @@ export default function SettingsClient({
     reviewTemplate, 
     reviewLink, 
     eventTypes: initialEventTypes, 
-    comunas: initialComunas,
+    regions,
+    comunas,
     siteSettings
 }: { 
     reviewMode: string; 
     reviewTemplate: string; 
     reviewLink: string; 
     eventTypes: any[]; 
+    regions: any[];
     comunas: any[]; 
     siteSettings: any[];
 }) {
     const [tab, setTab] = useState<'review' | 'events' | 'comunas' | 'system'>('review');
     const [isPending, startTransition] = useTransition();
     const [saved, setSaved] = useState(false);
-    const [savingId, setSavingId] = useState<string | null>(null);
-    const [sortComunas, setSortComunas] = useState<{ key: string; dir: 'asc' | 'desc' }>({ key: 'display_order', dir: 'asc' });
-
-    const handleQuickSaveComuna = async (id: string, field: 'cost' | 'direct_sale_delivery_cost' | 'free_from', value: string) => {
-        const numValue = value === '' ? (field === 'free_from' ? null : 0) : parseInt(value);
-        
-        // Find current value to avoid redundant saves
-        const current = initialComunas.find(c => c.id === id);
-        if (current && current[field] === numValue) return;
-
-        setSavingId(`${id}-${field}`);
-        try {
-            await updateQuickComunaField(id, { [field]: numValue });
-        } catch (err: any) {
-            console.error(err);
-            alert('Error al guardar: ' + err.message);
-        } finally {
-            setSavingId(null);
-        }
-    };
 
     // ─── Post-Venta State ───────────────────────────────────────────────────
     const [mode, setMode] = useState(reviewMode);
@@ -93,15 +73,14 @@ export default function SettingsClient({
     };
 
     // ─── Event Types / Comunas / Site Settings Logic ──────────────────────────
-    const [modalData, setModalData] = useState<{ isOpen: boolean; type: 'event' | 'comuna' | 'system' | null; data: any }>({ isOpen: false, type: null, data: null });
+    const [modalData, setModalData] = useState<{ isOpen: boolean; type: 'event' | 'system' | null; data: any }>({ isOpen: false, type: null, data: null });
 
-    const openModal = (type: 'event' | 'comuna' | 'system', item: any = null) => {
+    const openModal = (type: 'event' | 'system', item: any = null) => {
         setModalData({
             isOpen: true,
             type,
             data: item || (
                 type === 'event' ? { name: '', icon: 'GlassWater', display_order: 0 } : 
-                type === 'comuna' ? { name: '', cost: 0, free_from: null, display_order: 0, direct_sale_delivery_cost: 0 } :
                 { key: '', value: '', category: 'global', is_active: true, description: '' }
             )
         });
@@ -115,7 +94,6 @@ export default function SettingsClient({
         startTransition(async () => {
             try {
                 if (type === 'event') await saveEventType(data);
-                else if (type === 'comuna') await saveComuna(data);
                 else if (type === 'system') await updateSiteSetting(data.id, { value: data.value, is_active: data.is_active });
                 closeModal();
             } catch (err: any) {
@@ -124,40 +102,15 @@ export default function SettingsClient({
         });
     };
 
-    const toggleSortComuna = (key: string) => {
-        setSortComunas(prev => ({ key, dir: prev.key === key && prev.dir === 'asc' ? 'desc' : 'asc' }));
-    };
-
-    const sortedComunas = [...initialComunas].sort((a, b) => {
-        let valA = a[sortComunas.key];
-        let valB = b[sortComunas.key];
-        
-        if (valA === null || valA === undefined) valA = 0;
-        if (valB === null || valB === undefined) valB = 0;
-        
-        if (typeof valA === 'string') valA = valA.toLowerCase();
-        if (typeof valB === 'string') valB = valB.toLowerCase();
-
-        if (valA < valB) return sortComunas.dir === 'asc' ? -1 : 1;
-        if (valA > valB) return sortComunas.dir === 'asc' ? 1 : -1;
-        return 0;
-    });
-
-    const handleDelete = async (id: string, name: string, type: 'event' | 'comuna') => {
+    const handleDelete = async (id: string, name: string) => {
         if (!confirm(`¿Estás seguro de que quieres eliminar "${name}"?`)) return;
         startTransition(async () => {
             try {
-                if (type === 'event') await deleteEventType(id);
-                else await deleteComuna(id);
+                await deleteEventType(id);
             } catch (err: any) {
                 alert('Error al eliminar: ' + err.message);
             }
         });
-    };
-
-    const formatCLP = (n: number | null) => {
-        if (n === null) return '—';
-        return new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0 }).format(n);
     };
 
     const renderIcon = (iconKey: string, size: number = 24, className?: string) => {
@@ -179,7 +132,7 @@ export default function SettingsClient({
                 {[
                     { id: 'review', label: 'Post-Venta' },
                     { id: 'events', label: 'Eventos' },
-                    { id: 'comunas', label: 'Comunas' },
+                    { id: 'comunas', label: 'Cobertura' },
                     { id: 'system', label: 'Cerebro Central' }
                 ].map((t: any) => (
                     <button
@@ -291,7 +244,7 @@ export default function SettingsClient({
                                             <td className="px-6 py-4 text-right">
                                                 <div className="flex gap-2 justify-end">
                                                     <button onClick={() => openModal('event', item)} className="p-2 text-slate-500 hover:text-[#E2A049] transition-colors"><Edit2 size={16} /></button>
-                                                    <button onClick={() => handleDelete(item.id, item.name, 'event')} className="p-2 text-slate-500 hover:text-rose-400 transition-colors"><Trash2 size={16} /></button>
+                                                    <button onClick={() => handleDelete(item.id, item.name)} className="p-2 text-slate-500 hover:text-rose-400 transition-colors"><Trash2 size={16} /></button>
                                                 </div>
                                             </td>
                                         </tr>
@@ -315,7 +268,7 @@ export default function SettingsClient({
                                     </div>
                                     <div className="flex gap-2 shrink-0">
                                         <button onClick={() => openModal('event', item)} className="p-2.5 bg-white/5 rounded-lg text-slate-400 hover:text-[#E2A049]"><Edit2 size={16} /></button>
-                                        <button onClick={() => handleDelete(item.id, item.name, 'event')} className="p-2.5 bg-rose-500/10 rounded-lg text-rose-400"><Trash2 size={16} /></button>
+                                        <button onClick={() => handleDelete(item.id, item.name)} className="p-2.5 bg-rose-500/10 rounded-lg text-rose-400"><Trash2 size={16} /></button>
                                     </div>
                                 </div>
                             ))}
@@ -325,114 +278,13 @@ export default function SettingsClient({
 
                 {/* ─── TAB: COMUNAS ──────────────────────────────────────────────────── */}
                 {tab === 'comunas' && (
-                    <div className="max-w-4xl">
-                        <div className="flex justify-between items-center mb-6">
-                            <h2 className="text-white text-lg font-black">Cobertura y Despacho</h2>
-                            <button onClick={() => openModal('comuna')} 
-                                className="bg-[#E2A049] text-black px-4 py-2 rounded-xl font-black text-xs sm:text-sm flex items-center gap-2 transition-transform active:scale-95 shadow-lg shadow-[#E2A049]/10"
-                            >
-                                <Plus size={16} /> <span className="hidden sm:inline">Nueva Comuna</span>
-                            </button>
-                        </div>
-
-                        {/* Table View (Desktop) */}
-                        <div className="hidden md:block bg-[#1e2433] rounded-2xl border border-white/5 overflow-hidden shadow-xl">
-                            <table className="w-full border-collapse text-left">
-                                <thead>
-                                    <tr className="bg-white/[0.02]">
-                                        <th className="px-6 py-4 text-slate-500 text-[10px] font-black uppercase tracking-widest border-b border-white/5 cursor-pointer hover:text-white transition-colors" onClick={() => toggleSortComuna('name')}>
-                                            <div className="flex items-center gap-1">Ubicación <ArrowUpDown size={10} className="opacity-50" /></div>
-                                        </th>
-                                        <th className="px-6 py-4 text-slate-500 text-[10px] font-black uppercase tracking-widest border-b border-white/5 cursor-pointer hover:text-white transition-colors" onClick={() => toggleSortComuna('cost')}>
-                                            <div className="flex items-center gap-1">Tarifa Normal <ArrowUpDown size={10} className="opacity-50" /></div>
-                                        </th>
-                                        <th className="px-6 py-4 text-slate-500 text-[10px] font-black uppercase tracking-widest border-b border-white/5 cursor-pointer hover:text-white transition-colors" onClick={() => toggleSortComuna('direct_sale_delivery_cost')}>
-                                            <div className="flex items-center gap-1">Traslado Directo <ArrowUpDown size={10} className="opacity-50" /></div>
-                                        </th>
-                                        <th className="px-6 py-4 text-slate-500 text-[10px] font-black uppercase tracking-widest border-b border-white/5 cursor-pointer hover:text-white transition-colors" onClick={() => toggleSortComuna('free_from')}>
-                                            <div className="flex items-center gap-1">Beneficio Mayorista <ArrowUpDown size={10} className="opacity-50" /></div>
-                                        </th>
-                                        <th className="text-right px-6 py-4 text-slate-500 text-[10px] font-black uppercase tracking-widest border-b border-white/5">Acciones</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {sortedComunas.map(item => (
-                                        <tr key={item.id} className="border-t border-white/[0.03] hover:bg-white/[0.01] transition-colors group">
-                                            <td className="px-6 py-4 text-white font-bold text-sm">{item.name}</td>
-                                            <td className="px-6 py-4">
-                                                <div className="flex items-center gap-1 group/input">
-                                                    <span className="text-slate-600 text-xs font-bold">$</span>
-                                                    <input 
-                                                        type="number"
-                                                        defaultValue={item.cost || 0}
-                                                        className={`bg-transparent border-none p-0 w-20 text-[#E2A049] text-sm font-black focus:ring-0 outline-none hover:bg-white/5 rounded px-1 transition-all ${savingId === `${item.id}-cost` ? 'opacity-30' : ''}`}
-                                                        onBlur={(e) => handleQuickSaveComuna(item.id, 'cost', e.target.value)}
-                                                        onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
-                                                    />
-                                                    {savingId === `${item.id}-cost` && <RefreshCw size={10} className="text-[#E2A049] animate-spin" />}
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                <div className="flex items-center gap-1 group/input">
-                                                    <span className="text-slate-600 text-xs font-bold">$</span>
-                                                    <input 
-                                                        type="number"
-                                                        defaultValue={item.direct_sale_delivery_cost || 0}
-                                                        className={`bg-transparent border-none p-0 w-20 text-sky-400 text-sm font-black focus:ring-0 outline-none hover:bg-white/5 rounded px-1 transition-all ${savingId === `${item.id}-direct_sale_delivery_cost` ? 'opacity-30' : ''}`}
-                                                        onBlur={(e) => handleQuickSaveComuna(item.id, 'direct_sale_delivery_cost', e.target.value)}
-                                                        onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
-                                                    />
-                                                    {savingId === `${item.id}-direct_sale_delivery_cost` && <RefreshCw size={10} className="text-[#E2A049] animate-spin" />}
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                <div className="flex items-center gap-1 group/input">
-                                                    <input 
-                                                        type="number"
-                                                        defaultValue={item.free_from || ''}
-                                                        placeholder="N/A"
-                                                        className={`bg-transparent border-none p-0 w-12 text-emerald-400 text-xs font-bold focus:ring-0 outline-none hover:bg-white/5 rounded px-1 transition-all ${savingId === `${item.id}-free_from` ? 'opacity-30' : ''}`}
-                                                        onBlur={(e) => handleQuickSaveComuna(item.id, 'free_from', e.target.value)}
-                                                        onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
-                                                    />
-                                                    <span className="text-slate-600 text-[10px] font-bold">L</span>
-                                                    {savingId === `${item.id}-free_from` && <RefreshCw size={10} className="text-[#E2A049] animate-spin" />}
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4 text-right">
-                                                <div className="flex gap-2 justify-end">
-                                                    <button onClick={() => openModal('comuna', item)} className="p-2 text-slate-500 hover:text-[#E2A049] transition-colors"><Edit2 size={16} /></button>
-                                                    <button onClick={() => handleDelete(item.id, item.name, 'comuna')} className="p-2 text-slate-500 hover:text-rose-400 transition-colors"><Trash2 size={16} /></button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-
-                        {/* Card View (Mobile) */}
-                        <div className="grid grid-cols-1 gap-3 md:hidden">
-                            {sortedComunas.map(item => (
-                                <div key={item.id} className="bg-[#1e2433] p-4 rounded-xl border border-white/5 shadow-md flex justify-between items-center transition-all active:scale-[0.98]">
-                                    <div>
-                                        <div className="text-white font-black text-base mb-1">{item.name}</div>
-                                        <div className="flex flex-col gap-1">
-                                            <span className="text-[#E2A049] font-black text-sm">{formatCLP(item.cost)} <span className="text-slate-600 font-bold ml-1">/ Evento</span></span>
-                                            <span className="text-sky-400 font-black text-[10px]">{formatCLP(item.direct_sale_delivery_cost)} <span className="text-slate-600 font-bold ml-1">/ Directo</span></span>
-                                            {item.free_from && (
-                                                <span className="text-emerald-400 text-[10px] font-black uppercase tracking-widest drop-shadow-sm">Envio gratis desde {item.free_from}L</span>
-                                            )}
-                                        </div>
-                                    </div>
-                                    <div className="flex gap-2 shrink-0">
-                                        <button onClick={() => openModal('comuna', item)} className="p-2.5 bg-white/5 rounded-lg text-slate-400 hover:text-[#E2A049]"><Edit2 size={16} /></button>
-                                        <button onClick={() => handleDelete(item.id, item.name, 'comuna')} className="p-2.5 bg-rose-500/10 rounded-lg text-rose-400"><Trash2 size={16} /></button>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
+                    <CoverageSettings
+                        regions={regions}
+                        comunas={comunas}
+                        blueExpressRates={
+                            siteSettings.find((s: { key: string }) => s.key === 'blue_express_home_rates')?.value
+                        }
+                    />
                 )}
 
                 {/* ─── TAB: SYSTEM (Cerebro Central) ────────────────────────────────── */}
@@ -500,7 +352,6 @@ export default function SettingsClient({
                     onClose={closeModal}
                     title={
                         modalData.type === 'event' ? (modalData.data?.id ? 'Editar Evento' : 'Nuevo Evento') : 
-                        modalData.type === 'comuna' ? (modalData.data?.id ? 'Editar Comuna' : 'Nueva Comuna') :
                         'Ajuste Sensible'
                     }
                 >
@@ -535,42 +386,6 @@ export default function SettingsClient({
                                 </div>
                                 <div>
                                     <label className="block text-slate-500 text-[10px] font-black uppercase tracking-widest mb-3 text-left">Ordenanza</label>
-                                    <input type="number" required value={modalData.data.display_order} onChange={e => setModalData({ ...modalData, data: { ...modalData.data, display_order: Number(e.target.value) } })} 
-                                        className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-[#E2A049] transition-colors text-sm font-bold" 
-                                    />
-                                </div>
-                            </>
-                        ) : modalData.type === 'comuna' ? (
-                            <>
-                                <div>
-                                    <label className="block text-slate-500 text-[10px] font-black uppercase tracking-widest mb-3 text-left">Topónimo / Comuna</label>
-                                    <input type="text" required value={modalData.data.name} onChange={e => setModalData({ ...modalData, data: { ...modalData.data, name: e.target.value } })} 
-                                        className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-[#E2A049] transition-colors text-sm font-bold" 
-                                    />
-                                </div>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="block text-slate-500 text-[10px] font-black uppercase tracking-widest mb-3 text-left">Tarifa Logística ($)</label>
-                                        <input type="number" required value={modalData.data.cost} onChange={e => setModalData({ ...modalData, data: { ...modalData.data, cost: Number(e.target.value) } })} 
-                                            className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-[#E2A049] outline-none focus:border-[#E2A049] transition-colors text-sm font-black" 
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-slate-500 text-[10px] font-black uppercase tracking-widest mb-3 text-left">Tarifa Directo ($)</label>
-                                        <input type="number" required value={modalData.data.direct_sale_delivery_cost} onChange={e => setModalData({ ...modalData, data: { ...modalData.data, direct_sale_delivery_cost: Number(e.target.value) } })} 
-                                            className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-sky-400 outline-none focus:border-sky-500 transition-colors text-sm font-black" 
-                                        />
-                                    </div>
-                                </div>
-                                <div>
-                                    <label className="block text-slate-500 text-[10px] font-black uppercase tracking-widest mb-3 text-left">Exención Comercial (L)</label>
-                                    <input type="number" value={modalData.data.free_from || ''} onChange={e => setModalData({ ...modalData, data: { ...modalData.data, free_from: e.target.value ? Number(e.target.value) : null } })} 
-                                        className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-emerald-400 outline-none focus:border-emerald-500 transition-colors text-sm font-black" 
-                                        placeholder="Litros para despacho gratis"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-slate-500 text-[10px] font-black uppercase tracking-widest mb-3 text-left">Posición en Formulario</label>
                                     <input type="number" required value={modalData.data.display_order} onChange={e => setModalData({ ...modalData, data: { ...modalData.data, display_order: Number(e.target.value) } })} 
                                         className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-[#E2A049] transition-colors text-sm font-bold" 
                                     />

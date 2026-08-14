@@ -3,6 +3,7 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import type { CocktailForWizard, Comuna, WizardState, WizardSelection } from '@/lib/types';
+import { DEFAULT_REGION_CODE } from '@/lib/types';
 import { calculateSmartConfig, calculateSummaryData, buildWhatsAppMessage, getWhatsAppUrl } from '@/lib/wizardLogic';
 import { getMinDateString } from '@/lib/wizardLogic';
 import { isValidPhoneE164 } from '@/lib/phone';
@@ -32,6 +33,7 @@ const INITIAL_STATE: WizardState = {
         email: '',
         phone: '',
         address: '',
+        region: DEFAULT_REGION_CODE,
         comuna: '',
         otherComuna: '',
         comments: '',

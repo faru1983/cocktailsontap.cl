@@ -6,22 +6,25 @@ import Link from 'next/link';
 import { ArrowLeft, Save, Plus, Trash2, Search, Check, AlertCircle, MessageCircle, RefreshCw, Copy, Calendar, MapPin, Loader2 } from 'lucide-react';
 import { createQuote } from '@/app/actions/createQuote';
 import { getClientAddressesFromQuotes, type ClientQuoteAddress } from '@/app/actions/admin/adminActions';
-import type { Product, Comuna, EventType, WizardState } from '@/lib/types';
+import type { Product, Comuna, Region, EventType, WizardState } from '@/lib/types';
+import { DEFAULT_REGION_CODE } from '@/lib/types';
 import { calculateSummaryData } from '@/lib/wizardLogic';
 import { validateConfirmNowState } from '@/lib/confirmNowValidation';
 import { SITE_URL, MURO_INSTALLATION_COST } from '@/lib/config';
 import PhoneInput from '@/components/ui/PhoneInput';
+import RegionComunaFields from '@/components/ui/RegionComunaFields';
 import { isValidPhoneE164, toWhatsAppDigits, normalizePhoneE164 } from '@/lib/phone';
 
 interface CreateQuoteManualClientProps {
     allProducts: Product[];
     comunas: Comuna[];
+    regions: Region[];
     eventTypes: EventType[];
     existingClients: any[];
     initialServiceType?: 'event' | 'direct';
 }
 
-export default function CreateQuoteManualClient({ allProducts, comunas, eventTypes, existingClients, initialServiceType = 'event' }: CreateQuoteManualClientProps) {
+export default function CreateQuoteManualClient({ allProducts, comunas, regions, eventTypes, existingClients, initialServiceType = 'event' }: CreateQuoteManualClientProps) {
     const router = useRouter();
     const [isPending, startTransition] = useTransition();
     const [error, setError] = useState<string | null>(null);
@@ -33,6 +36,7 @@ export default function CreateQuoteManualClient({ allProducts, comunas, eventTyp
         email: '',
         phone: '',
         address: '',
+        region: DEFAULT_REGION_CODE,
         comuna: '',
         otherComuna: '',
         comments: ''
@@ -70,9 +74,12 @@ export default function CreateQuoteManualClient({ allProducts, comunas, eventTyp
         `${a.address.toLowerCase()}|${a.comuna.toLowerCase()}|${a.otherComuna.toLowerCase()}`;
 
     const applyAddress = (a: ClientQuoteAddress) => {
+        const regionFromComuna =
+            comunas.find((c) => c.name === a.comuna)?.regionCode || DEFAULT_REGION_CODE;
         setContact(prev => ({
             ...prev,
             address: a.address,
+            region: regionFromComuna,
             comuna: a.comuna,
             otherComuna: a.otherComuna,
         }));
@@ -88,6 +95,7 @@ export default function CreateQuoteManualClient({ allProducts, comunas, eventTyp
             email: c.email,
             phone: normalizePhoneE164(c.phone || '') || '',
             address: '',
+            region: DEFAULT_REGION_CODE,
             comuna: '',
             otherComuna: '',
         }));
@@ -506,29 +514,18 @@ export default function CreateQuoteManualClient({ allProducts, comunas, eventTyp
                                         setSelectedAddressKey(null);
                                     }} className="admin-input" placeholder="Av. Siempre Viva 123" />
                                 </Field>
-                                <Field label="Comuna">
-                                    <div className="space-y-3">
-                                        <select value={contact.comuna} onChange={e => {
-                                            setContact(c => ({...c, comuna: e.target.value}));
-                                            setShippingOverride(undefined); // Reset override on change
-                                            setSelectedAddressKey(null);
-                                        }} className="admin-input appearance-none">
-                                            <option value="" disabled hidden>Selecciona comuna...</option>
-                                            {comunas.map(c => <option key={c.name} value={c.name}>{c.name === 'Otra' ? 'Otra / No está en la lista' : c.name}</option>)}
-                                        </select>
-                                        {contact.comuna === 'Otra' && (
-                                            <input 
-                                                value={contact.otherComuna} 
-                                                onChange={e => {
-                                                    setContact(c => ({...c, otherComuna: e.target.value}));
-                                                    setSelectedAddressKey(null);
-                                                }} 
-                                                className="admin-input animate-in slide-in-from-top-2 duration-200" 
-                                                placeholder="¿Cuál comuna?" 
-                                            />
-                                        )}
-                                    </div>
-                                </Field>
+                                <RegionComunaFields
+                                    regions={regions}
+                                    comunas={comunas}
+                                    serviceType={serviceType}
+                                    regionCode={contact.region || DEFAULT_REGION_CODE}
+                                    comunaName={contact.comuna}
+                                    otherComuna={contact.otherComuna}
+                                    onRegionChange={(code) => setContact(c => ({...c, region: code, comuna: '', otherComuna: ''}))}
+                                    onComunaChange={(name) => setContact(c => ({...c, comuna: name}))}
+                                    onOtherComunaChange={(v) => setContact(c => ({...c, otherComuna: v}))}
+                                    variant="admin"
+                                />
                                 <Field label="Fecha de Despacho">
                                     <input type="date" value={eventData.date} onChange={e => setEventData(d => ({...d, date: e.target.value}))} className="admin-input" />
                                 </Field>
@@ -572,29 +569,18 @@ export default function CreateQuoteManualClient({ allProducts, comunas, eventTyp
                                             setSelectedAddressKey(null);
                                         }} className="admin-input" placeholder="Av. Siempre Viva 123" />
                                     </Field>
-                                    <Field label="Comuna">
-                                        <div className="space-y-3">
-                                            <select value={contact.comuna} onChange={e => {
-                                                setContact(c => ({...c, comuna: e.target.value}));
-                                                setShippingOverride(undefined); // Reset override on change
-                                                setSelectedAddressKey(null);
-                                            }} className="admin-input appearance-none">
-                                                <option value="" disabled hidden>Selecciona comuna...</option>
-                                                {comunas.map(c => <option key={c.name} value={c.name}>{c.name === 'Otra' ? 'Otra / No está en la lista' : c.name}</option>)}
-                                            </select>
-                                            {contact.comuna === 'Otra' && (
-                                                <input 
-                                                    value={contact.otherComuna} 
-                                                    onChange={e => {
-                                                        setContact(c => ({...c, otherComuna: e.target.value}));
-                                                        setSelectedAddressKey(null);
-                                                    }} 
-                                                    className="admin-input animate-in slide-in-from-top-2 duration-200" 
-                                                    placeholder="¿Cuál comuna?" 
-                                                />
-                                            )}
-                                        </div>
-                                    </Field>
+                                    <RegionComunaFields
+                                    regions={regions}
+                                    comunas={comunas}
+                                    serviceType={serviceType}
+                                    regionCode={contact.region || DEFAULT_REGION_CODE}
+                                    comunaName={contact.comuna}
+                                    otherComuna={contact.otherComuna}
+                                    onRegionChange={(code) => setContact(c => ({...c, region: code, comuna: '', otherComuna: ''}))}
+                                    onComunaChange={(name) => setContact(c => ({...c, comuna: name}))}
+                                    onOtherComunaChange={(v) => setContact(c => ({...c, otherComuna: v}))}
+                                    variant="admin"
+                                />
                                 </div>
                             </SectionBox>
 

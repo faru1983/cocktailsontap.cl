@@ -2,9 +2,10 @@
 
 import React, { useMemo, useState } from 'react';
 import type { useWizard } from '@/hooks/useWizard';
-import type { Comuna } from '@/lib/types';
+import type { Comuna, Region } from '@/lib/types';
 import { formatCurrency } from '@/lib/utils';
 import PhoneInput from '@/components/ui/PhoneInput';
+import RegionComunaFields from '@/components/ui/RegionComunaFields';
 import { X, Loader2, Calendar, Users, CheckCircle, FileText } from 'lucide-react';
 import QuoteSummaryProducts from '@/components/quote/QuoteSummaryProducts';
 import { PORTATIL_MIN_LITERS, MURO_MIN_LITERS } from '@/lib/config';
@@ -13,6 +14,7 @@ import { validateConfirmNowState } from '@/lib/confirmNowValidation';
 interface Props {
     wizard: ReturnType<typeof useWizard>;
     comunas: Comuna[];
+    regions: Region[];
     onClose: () => void;
     onConfirm: (opts: { confirmNow: boolean }) => void;
     sendStatus: 'idle' | 'saving' | 'saved' | 'error';
@@ -21,6 +23,7 @@ interface Props {
 export default function EventWizardCheckoutModal({
     wizard,
     comunas,
+    regions,
     onClose,
     onConfirm,
     sendStatus,
@@ -59,11 +62,11 @@ export default function EventWizardCheckoutModal({
 
     return (
         <div
-            className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/60 backdrop-blur-sm animate-fade-in overflow-y-auto"
+            className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 xl:p-8 bg-black/60 backdrop-blur-sm animate-fade-in overflow-y-auto"
             onClick={onClose}
         >
             <div
-                className="bg-slate-50 rounded-2xl sm:rounded-3xl w-full max-w-4xl shadow-2xl overflow-y-auto max-h-[98vh] sm:max-h-[95vh] p-4 sm:p-6 relative"
+                className="bg-slate-50 rounded-2xl sm:rounded-3xl w-full max-w-4xl xl:max-w-6xl shadow-2xl overflow-y-auto max-h-[98vh] sm:max-h-[95vh] p-4 sm:p-6 xl:p-8 relative"
                 onClick={(e) => e.stopPropagation()}
             >
                 <div className="flex justify-between items-start mb-3.5 pr-8">
@@ -110,8 +113,8 @@ export default function EventWizardCheckoutModal({
                     </div>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
-                    <div className="w-full lg:col-span-7 flex flex-col">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 xl:gap-8 items-start">
+                    <div className="w-full lg:col-span-7 xl:col-span-6 flex flex-col">
                         <QuoteSummaryProducts
                             data={{
                                 ...summaryData,
@@ -125,7 +128,7 @@ export default function EventWizardCheckoutModal({
                         />
                     </div>
 
-                    <div className="w-full lg:col-span-5 flex flex-col">
+                    <div className="w-full lg:col-span-5 xl:col-span-6 flex flex-col">
                         <div className="bg-white rounded-2xl p-4 sm:p-5 shadow-[0_4px_20px_rgba(0,0,0,0.05)] border border-brand-border flex flex-col">
                             <h3 className="font-extrabold text-brand-text text-base sm:text-lg mb-3">
                                 Tus Datos
@@ -186,44 +189,17 @@ export default function EventWizardCheckoutModal({
                                     />
                                 </div>
 
-                                <div className="flex flex-col gap-3">
-                                    <div>
-                                        <label className="block font-bold mb-1 text-brand-text text-[0.8rem]">
-                                            Comuna <span className="text-primary">*</span>
-                                        </label>
-                                        <select
-                                            required
-                                            className="w-full p-2.5 border border-slate-200 rounded-xl focus:border-primary focus:ring-2 focus:ring-primary/10 outline-none text-sm bg-white appearance-none bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20width%3D%2220%22%20height%3D%2220%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cpath%20d%3D%22M5%207l5%205%205-5%22%20stroke%3D%22%2364748b%22%20stroke-width%3D%222%22%20fill%3D%22none%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%2F%3E%3C%2Fsvg%3E')] bg-no-repeat bg-[position:right_1rem_center]"
-                                            value={state.contact.comuna}
-                                            onChange={(e) => updateContact('comuna', e.target.value)}
-                                        >
-                                            <option value="">Selecciona comuna...</option>
-                                            {comunas.map((c) => (
-                                                <option key={c.name} value={c.name}>
-                                                    {c.name === 'Otra'
-                                                        ? 'Otra / No está en la lista'
-                                                        : c.name}
-                                                </option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                    {state.contact.comuna === 'Otra' && (
-                                        <div className="animate-fade-in">
-                                            <label className="block font-bold mb-1 text-brand-text text-[0.8rem]">
-                                                Especificar Comuna
-                                            </label>
-                                            <input
-                                                type="text"
-                                                placeholder="Ej: Curacaví"
-                                                className="w-full p-2.5 border border-slate-200 rounded-xl focus:border-primary focus:ring-2 focus:ring-primary/10 outline-none text-sm"
-                                                value={state.contact.otherComuna}
-                                                onChange={(e) =>
-                                                    updateContact('otherComuna', e.target.value)
-                                                }
-                                            />
-                                        </div>
-                                    )}
-                                </div>
+                                <RegionComunaFields
+                                    regions={regions}
+                                    comunas={comunas}
+                                    serviceType="event"
+                                    regionCode={state.contact.region || 'RM'}
+                                    comuna={state.contact.comuna}
+                                    otherComuna={state.contact.otherComuna}
+                                    onRegionChange={(code) => updateContact('region', code)}
+                                    onComunaChange={(name) => updateContact('comuna', name)}
+                                    onOtherComunaChange={(v) => updateContact('otherComuna', v)}
+                                />
 
                                 <label className="flex items-start gap-3 cursor-pointer rounded-xl border border-primary/20 bg-primary/5 p-3 mt-1">
                                     <input

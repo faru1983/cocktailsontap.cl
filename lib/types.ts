@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { normalizePhoneE164, isValidPhoneE164 } from '@/lib/phone';
+import type { BlueExpressHomeRates } from './blueExpress';
 
 /** Celular opcional: vacío OK; si hay valor debe ser E.164 válido (CL/CO/PE/VE). */
 const OptionalPhoneSchema = z.preprocess(
@@ -98,12 +99,55 @@ export interface EventType {
     icon: string;
 }
 
+/** Región administrativa (cobertura y tarifas base). */
+export interface Region {
+    id: string;
+    name: string;
+    shortName: string;
+    code: string;
+    displayOrder: number;
+    isActive: boolean;
+    availableForEvents: boolean;
+    availableForDirect: boolean;
+    /** Traslado propio (RM) o Blue Express (otras regiones, barriles). */
+    shippingCarrier: 'own' | 'blue_express';
+    /** Zona Blue Express; null si el carrier es propio. */
+    blueExpressZone: 'misma_zona' | 'centro' | 'extremo' | null;
+    /** Tarifa eventos; null = no configurada. */
+    cost: number | null;
+    /** Tarifa barriles (solo carrier propio); null = no configurada. */
+    directSaleDeliveryCost: number | null;
+    /** Umbral litros envío gratis (solo carrier propio); null = hereda/no aplica. */
+    freeFrom: number | null;
+}
+
+/** Comuna con override opcional; null en tarifas = hereda de la región. */
 export interface Comuna {
     name: string;
+    /** Override tarifa eventos; null = hereda región. */
     cost: number | null;
     freeFrom: number | null;
     directSaleDeliveryCost: number | null;
+    regionId: string;
+    regionCode: string;
+    regionName: string;
+    regionShortName: string;
+    isActive: boolean;
+    /** Tarifa eventos de la región (para herencia). */
+    regionCost: number | null;
+    regionDirectSaleDeliveryCost: number | null;
+    regionFreeFrom: number | null;
+    regionShippingCarrier: 'own' | 'blue_express';
+    regionBlueExpressZone: 'misma_zona' | 'centro' | 'extremo' | null;
+    /** Override comuna; null = hereda región. */
+    shippingCarrier: 'own' | 'blue_express' | null;
+    blueExpressZone: 'misma_zona' | 'centro' | 'extremo' | null;
+    /** Tarifas BE vigentes (misma tabla para todas las comunas; viene de site_settings). */
+    blueExpressRates: BlueExpressHomeRates;
 }
+
+/** Código por defecto del select de región (Metropolitana). */
+export const DEFAULT_REGION_CODE = 'RM';
 
 export interface WizardSelection {
     id: string;
@@ -133,6 +177,8 @@ export interface WizardState {
         email: string;
         phone: string;
         address: string;
+        /** Código de región (ej. RM, V). */
+        region: string;
         comuna: string;
         otherComuna: string;
         comments: string;
@@ -233,6 +279,7 @@ export interface Quote {
     pickup_time: string | null;
 
     // Ubicación
+    region_name: string | null;
     comuna_name: string | null;
     comuna_other: string | null;
 
@@ -274,6 +321,7 @@ export const CreateQuoteSchema = z
                     email: z.string().email('Email inválido'),
                     phone: OptionalPhoneSchema,
                     address: z.string().nullable().optional().or(z.literal('')),
+                    region: z.string().min(1, 'Selecciona una región'),
                     comuna: z.string().min(1, 'Selecciona una comuna'),
                     otherComuna: z.string().nullable().optional().or(z.literal('')),
                     comments: z.string().nullable().optional().or(z.literal('')),
@@ -353,6 +401,7 @@ export const ConfirmQuoteSchema = z.object({
     client_phone: RequiredPhoneSchema,
     client_lastname: z.string().min(2, 'Apellido es obligatorio'),
     client_address: z.string().min(5, 'Dirección inválida'),
+    region_name: z.string().nullable().optional(),
     comuna_name: z.string().min(1, 'Comuna es obligatoria'),
     comuna_other: z.string().nullable(),
     guests: z.coerce.number().min(0),

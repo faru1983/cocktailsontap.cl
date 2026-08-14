@@ -17,7 +17,8 @@ import {
     Link as LinkIcon, Trash2, ArrowRight, MessageCircle, Star, ArrowLeft, X,
     Calendar
 } from 'lucide-react';
-import type { Comuna } from '@/lib/types';
+import type { Comuna, Region } from '@/lib/types';
+import { DEFAULT_REGION_CODE } from '@/lib/types';
 import { sourceBadge, normalizeQuoteSource } from '@/lib/quoteSource';
 
 const statusFlow = ['draft', 'confirmed', 'completed', 'cancelled'];
@@ -37,7 +38,7 @@ const formatDateWithDashes = (dateString: string) => {
     return `${day}-${month}-${year}`;
 };
 
-export default function QuoteDetailClient({ quote: initial, allProducts, eventTypes, comunas }: { quote: any, allProducts: Product[], eventTypes: any[], comunas: Comuna[] }) {
+export default function QuoteDetailClient({ quote: initial, allProducts, eventTypes, comunas, regions }: { quote: any, allProducts: Product[], eventTypes: any[], comunas: Comuna[], regions: Region[] }) {
     const router = useRouter();
     const [quote, setQuote] = useState(initial);
     const [isPending, startTransition] = useTransition();
@@ -598,6 +599,7 @@ export default function QuoteDetailClient({ quote: initial, allProducts, eventTy
                                 title: 'Detalles del Evento',
                                 fields: [
                                     { label: 'Dirección', key: 'client_address' },
+                                    { label: 'Región', key: 'region_name', special: 'region' },
                                     { label: 'Comuna', key: 'comuna_name', special: 'comuna' },
                                     { label: 'Temática', key: 'event_type_id', special: 'theme' },
                                     { label: 'N° Invitados', key: 'guests', type: 'number' },
@@ -644,6 +646,27 @@ export default function QuoteDetailClient({ quote: initial, allProducts, eventTy
                                                             />
                                                         )}
                                                     </div>
+                                                ) : field.special === 'region' ? (
+                                                    <select
+                                                        value={(() => {
+                                                            const byName = regions.find(r => r.name === editInfo.region_name || r.shortName === editInfo.region_name);
+                                                            return byName?.code || DEFAULT_REGION_CODE;
+                                                        })()}
+                                                        onChange={(e) => {
+                                                            const r = regions.find(x => x.code === e.target.value);
+                                                            setEditInfo((prev: any) => ({
+                                                                ...prev,
+                                                                region_name: r?.name || e.target.value,
+                                                                comuna_name: '',
+                                                                comuna_other: null,
+                                                            }));
+                                                        }}
+                                                        className="q-input"
+                                                    >
+                                                        {regions.filter(r => r.isActive).sort((a,b)=>a.displayOrder-b.displayOrder).map(r => (
+                                                            <option key={r.code} value={r.code}>{r.shortName}</option>
+                                                        ))}
+                                                    </select>
                                                 ) : field.special === 'comuna' ? (
                                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                                                         <select 
@@ -652,9 +675,16 @@ export default function QuoteDetailClient({ quote: initial, allProducts, eventTy
                                                             className="q-input"
                                                         >
                                                             <option value="">Selecciona comuna...</option>
-                                                            {comunas.map((c: any) => (
-                                                                <option key={c.name} value={c.name}>{c.name}</option>
-                                                            ))}
+                                                            {(() => {
+                                                                const byName = regions.find(r => r.name === editInfo.region_name || r.shortName === editInfo.region_name);
+                                                                const code = byName?.code || DEFAULT_REGION_CODE;
+                                                                return comunas
+                                                                    .filter(c => c.regionCode === code)
+                                                                    .sort((a,b) => a.name === 'Otra' ? 1 : b.name === 'Otra' ? -1 : a.name.localeCompare(b.name,'es'))
+                                                                    .map(c => (
+                                                                        <option key={c.name} value={c.name}>{c.name === 'Otra' ? 'Otra / No está en la lista' : c.name}</option>
+                                                                    ));
+                                                            })()}
                                                         </select>
                                                         {editInfo.comuna_name === 'Otra' && (
                                                             <input 

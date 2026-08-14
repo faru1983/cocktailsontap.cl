@@ -15,6 +15,7 @@ import { SettingsService } from '@/lib/services/settingsService';
 import { resolveQuoteSource, type QuoteSource } from '@/lib/quoteSource';
 import { confirmQuoteCore } from '@/lib/services/confirmQuoteCore';
 import { validateConfirmNowState } from '@/lib/confirmNowValidation';
+import { resolveRegionShortName } from '@/lib/wizardLogic';
 
 export interface CreateQuoteInput {
     state: WizardState;
@@ -40,12 +41,13 @@ export interface CreateQuoteResult {
 
 export { validateConfirmNowState } from '@/lib/confirmNowValidation';
 
-function buildConfirmPayload(state: WizardState, token: string, items: QuoteItem[]) {
+function buildConfirmPayload(state: WizardState, token: string, items: QuoteItem[], comunas: Comuna[]) {
     return {
         token,
         client_phone: state.contact.phone,
         client_lastname: state.contact.lastName.trim(),
         client_address: state.contact.address.trim(),
+        region_name: resolveRegionShortName(state.contact.region, comunas),
         comuna_name: state.contact.comuna,
         comuna_other: state.contact.comuna === 'Otra' ? state.contact.otherComuna || null : null,
         guests: state.consumption.guests || 0,
@@ -176,7 +178,7 @@ export async function createQuoteCore(input: CreateQuoteInput): Promise<CreateQu
                 return { success: false, error: 'No se pudieron guardar los productos de la cotización.' };
             }
             const confirmRes = await confirmQuoteCore(
-                buildConfirmPayload(state, createResult.token, items),
+                buildConfirmPayload(state, createResult.token, items, comunas),
                 { skipEmail: Boolean(skipEmail) }
             );
             if (!confirmRes.success) {

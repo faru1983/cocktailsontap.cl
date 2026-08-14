@@ -20,6 +20,12 @@ async function checkAuth() {
 export async function updateQuoteStatus(quoteId: string, status: string): Promise<{ success: boolean; error?: string }> {
     await checkAuth();
     const db = createServerClient();
+
+    // Al cancelar: borrar eventos de Google Calendar antes/después del update (no bloquea)
+    if (status === 'cancelled') {
+        await removeGoogleCalendarForCancelledQuotes([quoteId], db);
+    }
+
     const { error } = await db.from('quotes').update({ status, updated_at: new Date().toISOString() }).eq('id', quoteId);
     if (error) return { success: false, error: error.message };
 
@@ -38,8 +44,27 @@ export async function deleteQuotePermanent(quoteId: string): Promise<{ success: 
     await checkAuth();
     const db = createServerClient();
 
-    // 0. Obtener el client_id antes de borrar para revalidar su perfil
-    const { data: quote } = await db.from('quotes').select('client_id').eq('id', quoteId).single();
+    // 0. Obtener datos antes de borrar (perfil + Calendar)
+    const { data: quote } = await db
+        .from('quotes')
+        .select('client_id, service_type, dispenser, google_event_id, google_pickup_event_id')
+        .eq('id', quoteId)
+        .single();
+
+    // 0b. Quitar eventos de Calendar si existen (mismo criterio que cancelar)
+    if (quote && (quote.google_event_id || quote.google_pickup_event_id)) {
+        try {
+            const result = await GoogleSyncService.removeCalendarEventsForQuote({
+                id: quoteId,
+                ...quote,
+            });
+            if (result.error) {
+                console.error(`[deleteQuotePermanent] Calendar cleanup parcial quote ${quoteId}:`, result.error);
+            }
+        } catch (err) {
+            console.error(`[deleteQuotePermanent] Calendar cleanup falló quote ${quoteId}:`, err);
+        }
+    }
 
     // 1. Limpieza manual de tablas relacionadas (cascada manual)
     await db.from('quote_items').delete().eq('quote_id', quoteId);
@@ -1036,34 +1061,93 @@ export async function deleteEventType(id: string) {
     return { success: true };
 }
 
-// ── Comunas Management ──────────────────────────────────────────────────
-export async function saveComuna(data: any) {
-    await checkAuth();
-    const db = createServerClient();
-    const { error } = await db.from('comunas').upsert(data);
-    if (error) throw new Error(error.message);
+// ── Cobertura (regiones / comunas) ───────────────────────────────────────
+function revalidateCoveragePaths() {
     revalidatePath('/admin/settings');
     revalidatePath('/cotizar');
+    revalidatePath('/eventos');
+    revalidatePath('/barriles');
+    revalidateTag('product-data', 'max');
+}
+
+export async function updateQuickRegionField(
+    id: string,
+    updates: {
+        cost?: number | null;
+        direct_sale_delivery_cost?: number | null;
+        free_from?: number | null;
+        is_active?: boolean;
+        available_for_events?: boolean;
+        available_for_direct?: boolean;
+        shipping_carrier?: 'own' | 'blue_express';
+        blue_express_zone?: 'misma_zona' | 'centro' | 'extremo' | null;
+    }
+) {
+    await checkAuth();
+    const db = createServerClient();
+    const { error } = await db.from('regions').update(updates).eq('id', id);
+    if (error) throw new Error(error.message);
+    revalidateCoveragePaths();
     return { success: true };
 }
 
-export async function deleteComuna(id: string) {
-    await checkAuth();
-    const db = createServerClient();
-    const { error } = await db.from('comunas').delete().eq('id', id);
-    if (error) throw new Error(error.message);
-    revalidatePath('/admin/settings');
-    revalidatePath('/cotizar');
-    return { success: true };
-}
-
-export async function updateQuickComunaField(id: string, updates: { cost?: number; direct_sale_delivery_cost?: number; free_from?: number | null }) {
+export async function updateQuickComunaField(
+    id: string,
+    updates: {
+        cost?: number | null;
+        direct_sale_delivery_cost?: number | null;
+        free_from?: number | null;
+        is_active?: boolean;
+        shipping_carrier?: 'own' | 'blue_express' | null;
+        blue_express_zone?: 'misma_zona' | 'centro' | 'extremo' | null;
+    }
+) {
     await checkAuth();
     const db = createServerClient();
     const { error } = await db.from('comunas').update(updates).eq('id', id);
     if (error) throw new Error(error.message);
-    revalidatePath('/admin/settings');
-    revalidatePath('/cotizar');
+    revalidateCoveragePaths();
+    return { success: true };
+}
+
+export async function updateComunasCarrier(
+    ids: string[],
+    shipping_carrier: 'own' | 'blue_express' | null,
+    blue_express_zone: 'misma_zona' | 'centro' | 'extremo' | null
+) {
+    await checkAuth();
+    if (!ids.length) return { success: true };
+    const db = createServerClient();
+    const { error } = await db
+        .from('comunas')
+        .update({ shipping_carrier, blue_express_zone })
+        .in('id', ids);
+    if (error) throw new Error(error.message);
+    revalidateCoveragePaths();
+    return { success: true };
+}
+
+export async function saveBlueExpressRates(rates: {
+    misma_zona: { M: number; L: number };
+    centro: { M: number; L: number };
+    extremo: { M: number; L: number };
+}) {
+    await checkAuth();
+    const { parseBlueExpressRates, BLUE_EXPRESS_RATES_SETTING_KEY } = await import('@/lib/blueExpress');
+    const parsed = parseBlueExpressRates(rates);
+    const db = createServerClient();
+    const { error } = await db.from('site_settings').upsert(
+        {
+            key: BLUE_EXPRESS_RATES_SETTING_KEY,
+            category: 'shipping',
+            value: JSON.stringify(parsed),
+            is_active: true,
+            description: 'Tarifas Blue Express domicilio: M/L por zona misma_zona, centro y extremo (CLP).',
+        },
+        { onConflict: 'key' }
+    );
+    if (error) throw new Error(error.message);
+    revalidateCoveragePaths();
     return { success: true };
 }
 
@@ -1073,6 +1157,12 @@ export async function bulkUpdateQuoteStatus(ids: string[], status: string) {
     if (!ids.length) return { success: false, error: 'No hay IDs seleccionados' };
     
     const db = createServerClient();
+
+    // Cancelar masivo: borrar reserva/retiro o venta directa de Google Calendar
+    if (status === 'cancelled') {
+        await removeGoogleCalendarForCancelledQuotes(ids, db);
+    }
+
     const { error } = await db.from('quotes')
         .update({ status, updated_at: new Date().toISOString() })
         .in('id', ids);
@@ -1086,6 +1176,67 @@ export async function bulkUpdateQuoteStatus(ids: string[], status: string) {
 
     revalidatePath('/admin/quotes');
     return { success: true };
+}
+
+/**
+ * removeGoogleCalendarForCancelledQuotes: Borra eventos de Calendar al cancelar
+ * (listado masivo o detalle). Limpia google_event_id / google_pickup_event_id
+ * solo cuando el borrado en Google tuvo éxito (o el evento ya no existía).
+ * Fallos de Google no bloquean el cambio de estado en DB.
+ */
+async function removeGoogleCalendarForCancelledQuotes(
+    ids: string[],
+    db: ReturnType<typeof createServerClient>
+): Promise<void> {
+    const { data: quotes, error } = await db
+        .from('quotes')
+        .select('id, service_type, dispenser, google_event_id, google_pickup_event_id, comments')
+        .in('id', ids);
+
+    if (error) {
+        console.error('[removeGoogleCalendarForCancelledQuotes] fetch:', error.message);
+        return;
+    }
+    if (!quotes?.length) return;
+
+    await Promise.allSettled(
+        quotes.map(async (quote) => {
+            if (!quote.google_event_id && !quote.google_pickup_event_id) return;
+
+            try {
+                const result = await GoogleSyncService.removeCalendarEventsForQuote(quote);
+                const patch: Record<string, unknown> = {
+                    updated_at: new Date().toISOString(),
+                };
+                if (result.clearedEventId) patch.google_event_id = null;
+                if (result.clearedPickupEventId) patch.google_pickup_event_id = null;
+
+                if (result.error) {
+                    const stamp = new Date().toISOString().slice(0, 19).replace('T', ' ');
+                    const note = `[${stamp}] Calendar al cancelar: ${result.error}`;
+                    patch.comments = quote.comments ? `${quote.comments}\n${note}` : note;
+                }
+
+                if (Object.keys(patch).length > 1) {
+                    await db.from('quotes').update(patch).eq('id', quote.id);
+                }
+            } catch (err: any) {
+                console.error(
+                    `[removeGoogleCalendarForCancelledQuotes] quote ${quote.id}:`,
+                    err
+                );
+                const stamp = new Date().toISOString().slice(0, 19).replace('T', ' ');
+                const note = `[${stamp}] Calendar al cancelar falló: ${err?.message || err}`;
+                await db
+                    .from('quotes')
+                    .update({
+                        comments: quote.comments ? `${quote.comments}\n${note}` : note,
+                        updated_at: new Date().toISOString(),
+                    })
+                    .eq('id', quote.id);
+            }
+        })
+    );
 }
 
 

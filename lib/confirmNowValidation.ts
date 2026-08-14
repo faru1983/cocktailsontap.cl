@@ -13,6 +13,9 @@ export function validateConfirmNowState(state: WizardState): string | null {
     if ((state.contact.address || '').trim().length < 5) {
         return 'Dirección obligatoria (mín. 5 caracteres).';
     }
+    if (!(state.contact.region || '').trim()) {
+        return 'Selecciona una región.';
+    }
     if (!(state.contact.comuna || '').trim()) {
         return 'Selecciona una comuna.';
     }

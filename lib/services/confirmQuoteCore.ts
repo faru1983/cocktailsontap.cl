@@ -11,7 +11,7 @@ import { GoogleSyncService } from '@/lib/services/googleSyncService';
 import { SettingsService } from '@/lib/services/settingsService';
 import { createServerClient } from '@/lib/supabaseServer';
 import { fetchAllProductData } from '@/lib/serverData';
-import { calculateSummaryData, formatEventDate } from '@/lib/wizardLogic';
+import { calculateSummaryData, formatEventDate, resolveRegionCode, resolveRegionShortName } from '@/lib/wizardLogic';
 import { ADMIN_EMAIL, FROM_EMAIL, PORTATIL_MIN_LITERS, MURO_MIN_LITERS } from '@/lib/config';
 import { normalizePhoneE164 } from '@/lib/phone';
 
@@ -71,6 +71,10 @@ export async function confirmQuoteCore(
                     lastName: data.client_lastname,
                     phone: data.client_phone,
                     address: data.client_address,
+                    region: resolveRegionCode(
+                        data.region_name || quote.region_name || '',
+                        catalogRes.comunas
+                    ),
                     comuna: data.comuna_name,
                 },
                 dispenser: data.dispenser,
@@ -137,6 +141,11 @@ export async function confirmQuoteCore(
                 client_address: data.client_address,
                 comuna_name: data.comuna_name,
                 comuna_other: data.comuna_other,
+                region_name:
+                    resolveRegionShortName(
+                        data.region_name || quote.region_name,
+                        catalogRes.comunas
+                    ) ?? quote.region_name ?? null,
                 guests: data.guests,
                 event_type_id: data.event_type_id,
                 event_type_other: data.event_type_other,

@@ -34,7 +34,7 @@ export default async function QuoteTokenPage({ params, searchParams }: Props) {
 
     const [
         { data, error },
-        { cocktails, comunas, categories, eventTypes }
+        { cocktails, comunas, regions, categories, eventTypes }
     ] = await Promise.all([
         db.from('quotes').select('*, quote_items(*)').eq('token', token).single(),
         fetchAllProductData()
@@ -54,6 +54,7 @@ export default async function QuoteTokenPage({ params, searchParams }: Props) {
                     <DirectQuoteView
                         quote={quote}
                         comunas={comunas}
+                        regions={regions}
                         availableCocktails={cocktails}
                         categories={categories}
                         eventTypes={eventTypes}
@@ -63,6 +64,7 @@ export default async function QuoteTokenPage({ params, searchParams }: Props) {
                     <EventQuoteView
                         quote={quote}
                         comunas={comunas}
+                        regions={regions}
                         availableCocktails={cocktails}
                         categories={categories}
                         eventTypes={eventTypes}

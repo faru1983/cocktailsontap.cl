@@ -291,6 +291,35 @@ export async function syncGoogleContact(data: {
 }
 
 /**
+ * deleteGoogleCalendarEvent: Borra un evento de un calendario.
+ * 404 / 410 = ya no existe → se trata como éxito (idempotente al cancelar).
+ */
+export async function deleteGoogleCalendarEvent(
+    calendarId: string,
+    eventId: string
+): Promise<{ deleted: boolean; alreadyGone?: boolean }> {
+    if (!calendarId || !eventId) {
+        return { deleted: false };
+    }
+
+    try {
+        await googleFetch(
+            `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`,
+            { method: 'DELETE' }
+        );
+        return { deleted: true };
+    } catch (err: any) {
+        const msg = String(err?.message || '');
+        if (msg.includes('[404]') || msg.includes('[410]')) {
+            console.warn(`Evento ${eventId} ya no existe en ${calendarId} (404/410).`);
+            return { deleted: true, alreadyGone: true };
+        }
+        console.error(`Error borrando evento ${eventId} de ${calendarId}:`, err);
+        throw err;
+    }
+}
+
+/**
  * Crea o actualiza un evento en un calendario específico.
  */
 export async function syncGoogleEvent(calendarId: string, event: {

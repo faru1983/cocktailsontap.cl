@@ -16,7 +16,7 @@ export async function GET(request: Request) {
             return jsonError(auth.status, auth.error);
         }
 
-        const { cocktails, comunas, eventTypes } = await fetchAllProductData();
+        const { cocktails, comunas, eventTypes, regions, blueExpressRates } = await fetchAllProductData();
 
         // Payload liviano: lo que el bot necesita para armar items (productId + size exacto).
         const products = cocktails.map((c) => ({
@@ -36,12 +36,27 @@ export async function GET(request: Request) {
         return NextResponse.json({
             success: true,
             products,
-            comunas: comunas.map((c) => ({
-                name: c.name,
-                cost: c.cost,
-                freeFrom: c.freeFrom,
-                directSaleDeliveryCost: c.directSaleDeliveryCost,
+            // Bot WhatsApp: solo comunas de regiones habilitadas para eventos (hoy = RM)
+            comunas: comunas
+                .filter((c) => {
+                    const region = regions.find((r) => r.id === c.regionId);
+                    return region?.availableForEvents && region.isActive && c.isActive;
+                })
+                .map((c) => ({
+                    name: c.name,
+                    cost: c.cost ?? c.regionCost,
+                    freeFrom: c.freeFrom ?? c.regionFreeFrom,
+                    directSaleDeliveryCost: c.directSaleDeliveryCost ?? c.regionDirectSaleDeliveryCost,
+                })),
+            regions: regions.map((r) => ({
+                code: r.code,
+                shortName: r.shortName,
+                availableForEvents: r.availableForEvents,
+                availableForDirect: r.availableForDirect,
+                shippingCarrier: r.shippingCarrier,
+                blueExpressZone: r.blueExpressZone,
             })),
+            blueExpressRates,
             eventTypes: eventTypes.map((e) => ({
                 id: e.id,
                 name: e.name,
