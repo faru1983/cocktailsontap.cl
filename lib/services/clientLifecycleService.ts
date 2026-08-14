@@ -197,10 +197,11 @@ export async function advanceClientStage(
 
                 const customData: Record<string, unknown> = {
                     content_name: contentName,
-                    content_category: 'CRM Lifecycle',
                     lifecycle_stage: toStage,
-                    ...lineParams,
+                    content_category: 'CRM Lifecycle',
                 };
+                // lineParams aporta service + content_category (Eventos/Barriles) si hay intent
+                Object.assign(customData, lineParams);
                 if (opts.engagedGuests != null && opts.engagedGuests > 0) {
                     customData.num_guests = opts.engagedGuests;
                 }
