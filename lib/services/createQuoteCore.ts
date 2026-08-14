@@ -136,15 +136,20 @@ export async function createQuoteCore(input: CreateQuoteInput): Promise<CreateQu
                 const { advanceClientStage } = await import('@/lib/services/clientLifecycleService');
                 const contentName = isDirect
                     ? source === 'whatsapp'
-                        ? 'Venta WhatsApp'
+                        ? 'Venta Barriles WhatsApp'
                         : source === 'admin'
-                          ? 'Venta Admin'
-                          : 'Pedido de Barril Desechable'
+                          ? 'Venta Barriles Admin'
+                          : 'Pedido Barriles'
                     : source === 'whatsapp'
-                      ? 'Cotización WhatsApp'
+                      ? 'Cotización Eventos WhatsApp'
                       : source === 'admin'
-                        ? 'Cotización Admin'
-                        : 'Cotización de Evento (Borrador)';
+                        ? 'Cotización Eventos Admin'
+                        : 'Cotización Eventos';
+
+                const quoteCity =
+                    state.contact.comuna && state.contact.comuna !== 'Otra'
+                        ? state.contact.comuna
+                        : state.contact.otherComuna || null;
 
                 await advanceClientStage(clientId, isDirect ? 'customer' : 'quoted', {
                     reason: isDirect
@@ -156,6 +161,8 @@ export async function createQuoteCore(input: CreateQuoteInput): Promise<CreateQu
                     value: createResult.quote.total_price,
                     contentName,
                     intent: isDirect ? 'direct' : 'event',
+                    contents: createResult.quoteItems || [],
+                    city: quoteCity,
                 });
             } catch (stageErr) {
                 console.error('CRM stage advance on quote create failed:', stageErr);

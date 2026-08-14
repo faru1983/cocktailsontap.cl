@@ -8,11 +8,12 @@ import {
   isMetaPixelHostAllowed,
   pageview,
   shouldTrackMetaPath,
+  trackLandingViewContent,
 } from '@/lib/fpixel';
 
 /**
  * Pixel solo en producción (cocktailsontap.cl) y rutas públicas (no /admin).
- * PageView en cada navegación client-side trackeable.
+ * PageView en cada navegación; ViewContent solo en /eventos y /barriles.
  */
 export default function MetaPixel() {
   const pathname = usePathname() ?? '';
@@ -32,6 +33,7 @@ export default function MetaPixel() {
       initDoneRef.current = true;
     }
     pageview();
+    trackLandingViewContent(pathname);
   }, [pathname, pathOk, hostOk]);
 
   if (!hostOk || !pathOk) return null;
@@ -46,6 +48,7 @@ export default function MetaPixel() {
           window.fbq('init', FB_PIXEL_ID);
           initDoneRef.current = true;
           pageview();
+          trackLandingViewContent(pathname);
         }
       }}
       dangerouslySetInnerHTML={{

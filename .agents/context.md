@@ -36,9 +36,21 @@
 - `lifecycle_stage`: `curious` → `engaged` → `quoted` → `customer` (monotónico). `lost` solo manual en admin.
 - `intent`: `event` | `direct` | `unknown`. Historial en `client_stage_events`.
 - Bot (`whatsapp-cot`): welcome → `bot_started` (curious); al elegir Eventos/Barriles parchea `intent` (`event`|`direct`) sin subir de stage; Interesado sigue en transiciones de flujo (`intent_selected`).
-- **CAPI solo desde `advanceClientStage`** (web / whatsapp / admin).
+- **CAPI solo desde `advanceClientStage`** (web / whatsapp / admin): Contact (engaged), InitiateCheckout (quoted), Purchase (customer).
 
 ## Ultimos Cambios
+
+### 14-08-2026 (Sesión 68) — ViewContent en landings Eventos/Barriles
+
+- Pixel `ViewContent` en `/eventos` y `/barriles` con `service` + `content_category` (mismo criterio que checkout/compra). Una vez por línea y pestaña.
+- Home `/` y `/cotizar` no se etiquetan. PageView sigue genérico. Sin CAPI (visitante anónimo).
+- Archivos: `lib/fpixel.ts`, `components/shared/MetaPixel.tsx`.
+
+### 14-08-2026 (Sesión 67) — Cotización evento: Lead → InitiateCheckout
+
+- CAPI + Pixel: cotización draft dispara `InitiateCheckout` (`initiateCheckout_{token}`) con `service` + `content_category` (`eventos`/`Eventos` o `barriles`/`Barriles`), `value` CLP, ítems y comuna.
+- El mismo par identifica Contact (si hay intent), InitiateCheckout y Purchase. PageView no se etiqueta. Interesado WA sigue en `Contact`.
+- Archivos: `clientLifecycleService.ts`, `metaCapiService.ts`, `createQuoteCore.ts`, `confirmQuoteCore.ts`, `EventQuoteView.tsx`, `fpixel.ts`.
 
 ### 12-08-2026 (Sesión 66) — Banco de imágenes: listado server-side
 
@@ -53,30 +65,6 @@
 
 - Guardar no hacía nada: `required` en la línea vacía de insumo bloqueaba el submit y el aviso nativo no se veía. Validación en JS + mensaje en el modal. "Piscola Mistral Nobel 40°" no se creó.
 
-### 12-08-2026 (Sesión 63) — Producto oculto desde Nueva receta
-
-- Nueva receta puede crear el cóctel en `products` con `is_active=false` (no sale en web/wizard). Luego se publica en `/admin/products`.
-- El botón ya no exige un producto publicado previo.
-
-### 12-08-2026 (Sesión 62) — Select de insumo en receta
-
-- Modal receta: cantidad tenía `w-full` (de `inputClass`) y aplastaba el select. Filas en grid `1fr / 6.5rem / 2rem`.
-
-### 12-08-2026 (Sesión 61) — Cron a las 09:00 Chile (invierno)
-
-- `vercel.json` `0 13 * * *` (13:00 UTC). Invierno ≈ 09:00 Chile; verano ≈ 10:00. Constante `VERCEL_REMINDERS_CRON_UTC_HOUR` alineada.
-
-### 12-08-2026 (Sesión 60) — Automatización: estado real, no hora falsa
-
-- Tab Automatización muestra hora Chile del cron de Vercel (12:00 UTC → 08:00/09:00 según DST), último job (enviados/fallidos/omitidos), plantillas auto y últimos envíos `source=cron`.
-- Se quitó el selector de hora. Solo queda Activar/Pausar + Enviar ahora.
-
-### 12-08-2026 (Sesión 59) — Cron aniversarios: DST + catch-up
-
-- Diagnóstico: Aldo Olivero y Candy Patiño (última reserva 12-09-2025 → aniversario 12-09-2026). Plantilla auto `Aniversario evento (30 dias)` envía el **13-08** (12-09 menos 30 días calendario; agosto tiene 31). El filtro Pendientes lista el mes, no “vence hoy”.
-- Bug sistémico: Vercel Hobby dispara 12:00 UTC (= 08:00 Chile en invierno). `reminders_cron_hour=9` hacía no-op el único job del día. Cero envíos `source=cron` en logs.
-- Fix: el slot 12:00 UTC corre aunque la hora Chile sea 8 u 9; se persiste last_run también en no-op; catch-up de 1 día si se pierde un disparo.
-
 ---
 
-*Ultima actualizacion: 12-08-2026 (Sesión 66)*
+*Ultima actualizacion: 14-08-2026 (Sesión 68)*

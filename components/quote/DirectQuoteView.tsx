@@ -95,8 +95,8 @@ export default function DirectQuoteView({ quote, comunas, availableCocktails, ca
         if (isNew) {
             const totals = calculateTotals();
             fp.trackOnce(`purchase_${quote.token}`, 'Purchase', {
-                content_name: 'Pedido de Barril Desechable',
-                content_category: 'Venta Directa',
+                content_name: 'Pedido Barriles',
+                ...fp.metaLineParams('direct', fp.META_SERVICE_BARRILES),
                 value: totals.totalFinal,
                 currency: 'CLP',
                 contents: items.map(item => ({
@@ -381,8 +381,8 @@ export default function DirectQuoteView({ quote, comunas, availableCocktails, ca
 
             // Misma onceKey que al crear: no duplica si ya se disparó en ?new=true
             fp.trackOnce(`purchase_${quote.token}`, 'Purchase', {
-                content_name: 'Pedido de Barril Desechable (Confirmado)',
-                content_category: 'Venta Directa',
+                content_name: 'Pedido Barriles (Confirmado)',
+                ...fp.metaLineParams('direct', fp.META_SERVICE_BARRILES),
                 value: totals.totalFinal,
                 currency: 'CLP',
                 contents: items.map(item => ({

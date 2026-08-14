@@ -2,6 +2,51 @@
 // para que el script del browser y las llamadas server-side a CAPI usen el mismo Pixel ID).
 export const FB_PIXEL_ID = process.env.NEXT_PUBLIC_META_PIXEL_ID ?? '1739547250109039';
 
+/**
+ * Línea de negocio en custom_data (`service` + `content_category`).
+ * Todos los eventos estándar de Meta (ViewContent, Contact, InitiateCheckout, Purchase)
+ * usan estas mismas claves para filtrar Eventos vs Barriles en Ads.
+ * PageView no se etiqueta: cubre toda la web. Landings `/eventos` y `/barriles`
+ * disparan ViewContent (Pixel) con `service`.
+ */
+export type MetaServiceLine = 'eventos' | 'barriles';
+export const META_SERVICE_EVENTOS: MetaServiceLine = 'eventos';
+export const META_SERVICE_BARRILES: MetaServiceLine = 'barriles';
+
+/**
+ * metaServiceLineFromIntent: CRM `event` → eventos, `direct` → barriles.
+ * Si el intent no está claro, no adivina (null) — Contact sin carril no se etiqueta.
+ */
+export function metaServiceLineFromIntent(intent?: string | null): MetaServiceLine | null {
+  if (intent === 'direct') return 'barriles';
+  if (intent === 'event') return 'eventos';
+  return null;
+}
+
+/**
+ * metaLineParams: `service` + `content_category` cortos para Ads.
+ * `fallback` solo en cotización/venta, donde el carril siempre se conoce.
+ */
+export function metaLineParams(
+  intent: string | null | undefined,
+  fallback: MetaServiceLine
+): { service: MetaServiceLine; content_category: string };
+export function metaLineParams(
+  intent?: string | null,
+  fallback?: MetaServiceLine
+): { service: MetaServiceLine; content_category: string } | Record<string, never>;
+export function metaLineParams(
+  intent?: string | null,
+  fallback?: MetaServiceLine
+): { service: MetaServiceLine; content_category: string } | Record<string, never> {
+  const line = metaServiceLineFromIntent(intent) ?? fallback ?? null;
+  if (!line) return {};
+  return {
+    service: line,
+    content_category: line === 'barriles' ? 'Barriles' : 'Eventos',
+  };
+}
+
 declare global {
   interface Window {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -64,6 +109,32 @@ export const pageview = () => {
   window.fbq('track', 'PageView');
 };
 
+/**
+ * metaServiceLineFromPath: Solo landings con carril claro.
+ * Home `/` y `/cotizar` (selector) no cuentan; `/cotizar/[token]` ya es checkout.
+ */
+export function metaServiceLineFromPath(pathname: string): MetaServiceLine | null {
+  const path = pathname.replace(/\/+$/, '') || '/';
+  if (path === '/eventos') return 'eventos';
+  if (path === '/barriles') return 'barriles';
+  return null;
+}
+
+/**
+ * trackLandingViewContent: ViewContent en `/eventos` y `/barriles`.
+ * Una vez por línea y pestaña (anti doble disparo init + F5). Sin CAPI: visitante anónimo.
+ */
+export function trackLandingViewContent(pathname?: string) {
+  const path = pathname ?? (typeof window !== 'undefined' ? window.location.pathname : '');
+  const line = metaServiceLineFromPath(path);
+  if (!line) return;
+  trackOnce(`viewContent_${line}`, 'ViewContent', {
+    content_name: line === 'barriles' ? 'Landing Barriles' : 'Landing Eventos',
+    content_type: 'product',
+    ...metaLineParams(line === 'barriles' ? 'direct' : 'event', line),
+  });
+}
+
 type TrackOptions = Record<string, unknown>;
 
 // https://developers.facebook.com/docs/facebook-pixel/reference
@@ -90,7 +161,7 @@ export const event = (
 
 /**
  * Dispara un evento una sola vez por pestaña (anti-refresh / F5).
- * `onceKey` estable, ej: `lead_TOKEN` o `purchase_TOKEN`.
+ * `onceKey` estable, ej: `initiateCheckout_TOKEN` o `purchase_TOKEN`.
  */
 export const trackOnce = (
   onceKey: string,

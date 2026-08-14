@@ -40,7 +40,7 @@ Define la arquitectura, reglas irrompibles, convenciones de código, esquema de 
 - **Integraciones**: Google APIs SDK — People API (Contacts), Calendar API
 - **Type Safety**: TypeScript + Zod (schemas en `lib/types.ts`)
 - **Icons**: lucide-react (exclusivamente)
-- **Analytics**: Google Analytics + Meta Pixel (`lib/fpixel.ts`) + Meta CAPI server (`lib/services/metaCapiService.ts`). Pixel browser solo en `cocktailsontap.cl` (no `/admin`, no `*.vercel.app`, no localhost). Conversiones con `trackOnce` + `eventID` estable; CAPI con el mismo `event_id` cuando aplica.
+- **Analytics**: Google Analytics + Meta Pixel (`lib/fpixel.ts`) + Meta CAPI server (`lib/services/metaCapiService.ts`). Pixel browser solo en `cocktailsontap.cl` (no `/admin`, no `*.vercel.app`, no localhost). Conversiones con `trackOnce` + `eventID` estable; CAPI con el mismo `event_id` cuando aplica. Landings `/eventos` y `/barriles` = Pixel `ViewContent` (`service`); cotización = `InitiateCheckout`; venta/confirmación = `Purchase`; Interesado WA = `Contact`. PageView no se etiqueta.
 - **Hosting**: Vercel (free tier optimizado)
 
 ### Estructura de Directorios
@@ -99,8 +99,8 @@ Define la arquitectura, reglas irrompibles, convenciones de código, esquema de 
 │   └── services/
 │       ├── createQuoteCore.ts    # Dominio crear cotización (web + API)
 │       ├── clientService.ts      # Resolve/create/merge persona + identifiers + touchpoints
-│       ├── clientLifecycleService.ts # advanceClientStage + stage events + CAPI único (Lead/Contact/Purchase)
-│       ├── metaCapiService.ts    # Meta Conversions API (Lead/Contact/Purchase) server-side
+│       ├── clientLifecycleService.ts # advanceClientStage + stage events + CAPI único (Contact/InitiateCheckout/Purchase)
+│       ├── metaCapiService.ts    # Meta Conversions API (Contact/InitiateCheckout/Purchase) server-side
 │       ├── quoteService.ts       # Transacciones de BD para cotizaciones
 │       ├── googleSyncService.ts  # Orquestación de Google Contacts/Calendar
 │       ├── settingsService.ts    # Configuración dinámica desde site_settings
@@ -189,8 +189,8 @@ Define la arquitectura, reglas irrompibles, convenciones de código, esquema de 
 3. Calcular precios con calculateSummaryData() (Zero Trust; catálogo server-side en API)
 4. Insert quote + quote_items (congelar precios)
 5. advanceClientStage (única puerta CAPI):
-   - evento draft → quoted + Lead `lead_{token}` (+ value)
-   - venta directa → customer + Purchase `purchase_{token}` (+ value)
+   - evento draft → quoted + InitiateCheckout `initiateCheckout_{token}` (+ value + ítems)
+   - venta directa → customer + Purchase `purchase_{token}` (+ value + ítems)
    - Canales: web | whatsapp | admin (admin = canal manual/teléfono, action_source phone_call)
 6. Google Sync → Contacto (+ Calendar si direct)
 7. Resend → Emails (cliente + admin)
@@ -208,7 +208,7 @@ Define la arquitectura, reglas irrompibles, convenciones de código, esquema de 
 - Avance: `advanceClientStage` en `lib/services/clientLifecycleService.ts` → historial en `client_stage_events` + **única salida CAPI**.
   - `POST /api/v1/contacts` `bot_started` → curious (CRM/touchpoint; sin CAPI Lead)
   - `intent_selected` / `human_reply` → Interesado + CAPI Contact (con snapshot WA en touchpoint/notes)
-  - createQuote evento → quoted + Lead `lead_{token}` (+ value); direct sale → customer + Purchase `purchase_{token}` (+ value)
+  - createQuote evento → quoted + InitiateCheckout `initiateCheckout_{token}` (+ value + ítems); direct sale → customer + Purchase `purchase_{token}` (+ value + ítems)
   - confirmQuote → customer + Purchase `purchase_{token}` (+ value)
   - Admin cotización/venta manual = mismo flujo CAPI que web/WhatsApp (`action_source: phone_call`)
 - Bot WhatsApp (`whatsapp-cot`): `createContactViaApi` en welcome (curious) y al elegir menú (engaged). No habla con Meta; solo API CRM.
@@ -237,7 +237,8 @@ Define la arquitectura, reglas irrompibles, convenciones de código, esquema de 
 - `user_data.external_id` = hash SHA256 de `clients.id`; `em`/`ph` hasheados de **todos** los identifiers; `ctwa_clid`/`fbc`/`fbp` desde touchpoint o cookies `_fbc`/`_fbp` (web).
 - **Disparo solo desde `advanceClientStage`** (no desde createQuoteCore / confirmQuote / bot):
   - Ciclo CRM: Contact `contact_client_{id}` (una vez por persona, solo engaged); curious sin CAPI
-  - Cotización: Lead `lead_{token}` o Purchase `purchase_{token}` (+ `value` CLP; mismo event_id que Pixel)
+  - Contact / InitiateCheckout / Purchase: mismo par `service=eventos|barriles` + `content_category=Eventos|Barriles` cuando el carril se conoce. Contact sin intent no etiqueta. PageView no etiqueta.
+  - Pixel ViewContent (sin CAPI) en `/eventos` y `/barriles` con el mismo par `service` / `content_category`.
   - Canales: web (`website`), whatsapp (`chat`), admin (`phone_call`)
 - `meta_event_sent` guarda el `event_id` completo (no solo el nombre del evento).
 - Activar campañas PAUSED solo tras validar en Events Manager.

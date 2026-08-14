@@ -28,7 +28,47 @@ function hashPhoneE164(e164: string): string {
     return createHash('sha256').update(digits).digest('hex');
 }
 
-export type MetaCapiEventName = 'Lead' | 'Contact' | 'Purchase' | 'CompleteRegistration';
+export type MetaCapiEventName =
+    | 'InitiateCheckout'
+    | 'Contact'
+    | 'Purchase'
+    | 'CompleteRegistration';
+
+/** Línea de cotización/venta para custom_data de Meta (InitiateCheckout / Purchase). */
+export interface MetaQuoteLineItem {
+    product_id?: string | null;
+    product_name?: string | null;
+    size?: string | null;
+    quantity?: number | null;
+    offer_price_at_time?: number | null;
+    price_at_time?: number | null;
+}
+
+/**
+ * buildMetaCommerceCustomData: Arma contents / content_ids / num_items para CAPI.
+ * El value (monto) lo manda el caller; aquí solo el carrito.
+ */
+export function buildMetaCommerceCustomData(
+    items: MetaQuoteLineItem[] | null | undefined
+): { contents?: Array<{ id: string; quantity: number; item_price: number }>; content_ids?: string[]; num_items?: number } {
+    const contents: Array<{ id: string; quantity: number; item_price: number }> = [];
+    for (const item of items || []) {
+        const quantity = Number(item.quantity) || 0;
+        if (quantity <= 0) continue;
+        const id =
+            item.product_id ||
+            [item.product_name, item.size].filter(Boolean).join('::') ||
+            'unknown';
+        const item_price = Number(item.offer_price_at_time ?? item.price_at_time) || 0;
+        contents.push({ id, quantity, item_price });
+    }
+    if (!contents.length) return {};
+    return {
+        contents,
+        content_ids: contents.map((c) => c.id),
+        num_items: contents.reduce((sum, c) => sum + c.quantity, 0),
+    };
+}
 
 export interface SendMetaCapiInput {
     eventName: MetaCapiEventName;
@@ -128,7 +168,7 @@ export async function sendMetaCapiEvent(
     if (fbp) userData.fbp = fbp;
 
     // ctwa_clid mejora atribución CTWA. NO usar action_source business_messaging
-    // con Lead/Contact: Meta lo rechaza (solo acepta Purchase/LeadSubmitted ahí).
+    // con Contact/InitiateCheckout: Meta lo rechaza (solo acepta Purchase/LeadSubmitted ahí).
     const customData: Record<string, unknown> = { ...(input.customData || {}) };
     if (ctwaClid) customData.ctwa_clid = ctwaClid;
 

@@ -178,6 +178,10 @@ export async function confirmQuoteCore(
                 const { advanceClientStage } = await import('@/lib/services/clientLifecycleService');
                 const quoteSource =
                     quote.source === 'admin' || quote.source === 'whatsapp' ? quote.source : 'web';
+                const quoteCity =
+                    data.comuna_name && data.comuna_name !== 'Otra'
+                        ? data.comuna_name
+                        : data.comuna_other || null;
                 await advanceClientStage(quote.client_id, 'customer', {
                     reason: isDirectSale ? 'Direct sale confirmed' : 'Event quote confirmed',
                     source: quoteSource,
@@ -185,9 +189,11 @@ export async function confirmQuoteCore(
                     quoteToken: data.token,
                     value: total,
                     contentName: isDirectSale
-                        ? 'Pedido de Barril Desechable'
-                        : 'Reserva de Evento Confirmada',
+                        ? 'Pedido Barriles'
+                        : 'Reserva Eventos Confirmada',
                     intent: isDirectSale ? 'direct' : 'event',
+                    contents: data.items || [],
+                    city: quoteCity,
                 });
             } catch (stageErr) {
                 console.error('[ConfirmQuote] CRM stage advance error:', stageErr);

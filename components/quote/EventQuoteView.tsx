@@ -199,21 +199,25 @@ export default function EventQuoteView({ quote, comunas, availableCocktails, cat
         }
     }, [canHaveMuro, dispenser, isDraft]);
 
-    // ─── Meta Pixel: Registro de Lead (Interés Inicial) ───────────────────────
+    // ─── Meta Pixel: InitiateCheckout al crear cotización (dedupe con CAPI) ──
     useEffect(() => {
         if (isNew) {
             const totals = calculateTotals();
-            fp.trackOnce(`lead_${quote.token}`, 'Lead', {
-                content_name: 'Cotización de Evento (Borrador)',
-                content_category: 'Servicio de Eventos',
+            const contents = items.map(item => ({
+                id: item.product_id || `${item.product_name}::${item.size}`,
+                item_price: item.offer_price_at_time,
+                quantity: item.quantity
+            }));
+            fp.trackOnce(`initiateCheckout_${quote.token}`, 'InitiateCheckout', {
+                content_name: 'Cotización Eventos',
+                ...fp.metaLineParams('event', fp.META_SERVICE_EVENTOS),
                 value: totals.totalFinal,
                 currency: 'CLP',
-                contents: items.map(item => ({
-                    id: item.product_id,
-                    item_price: item.offer_price_at_time,
-                    quantity: item.quantity
-                })),
-                content_type: 'product'
+                contents,
+                content_ids: contents.map(c => c.id),
+                num_items: contents.reduce((sum, c) => sum + c.quantity, 0),
+                content_type: 'product',
+                order_id: quote.token
             }, {
                 em: quote.client_email || undefined,
                 ph: phone || undefined,
@@ -464,8 +468,8 @@ export default function EventQuoteView({ quote, comunas, availableCocktails, cat
 
             // ─── Meta Pixel: Registro de Conversión (Reserva Confirmada) ──────
             fp.trackOnce(`purchase_${quote.token}`, 'Purchase', {
-                content_name: 'Reserva de Evento Confirmada',
-                content_category: 'Servicio de Eventos',
+                content_name: 'Reserva Eventos Confirmada',
+                ...fp.metaLineParams('event', fp.META_SERVICE_EVENTOS),
                 value: totals.totalFinal,
                 currency: 'CLP',
                 contents: items.map(item => ({

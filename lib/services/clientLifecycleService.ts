@@ -2,9 +2,15 @@ import { createServerClient } from '@/lib/supabaseServer';
 import {
     sendMetaCapiEvent,
     readMetaBrowserCookies,
+    buildMetaCommerceCustomData,
     type MetaCapiEventName,
+    type MetaQuoteLineItem,
 } from '@/lib/services/metaCapiService';
 import { SITE_URL } from '@/lib/config';
+import {
+    metaLineParams,
+    META_SERVICE_EVENTOS,
+} from '@/lib/fpixel';
 
 export type ClientLifecycleStage = 'curious' | 'engaged' | 'quoted' | 'customer' | 'lost';
 export type ClientIntent = 'event' | 'direct' | 'unknown';
@@ -44,16 +50,20 @@ export interface AdvanceStageOpts {
     force?: boolean;
     /**
      * CRM lifecycle CAPI (engaged→Contact): only when `true`.
-     * `curious` solo CRM/touchpoint — no Lead CAPI (señal de baja calidad en Meta).
-     * Quote commerce CAPI (quoted→Lead / customer→Purchase with token): default on
+     * `curious` solo CRM/touchpoint — no CAPI (señal de baja calidad en Meta).
+     * Quote commerce CAPI (quoted→InitiateCheckout / customer→Purchase with token): default on
      * when `quoteToken` is set; pass `false` to skip.
      */
     fireCapi?: boolean;
-    /** Quote token → event_id `lead_{token}` / `purchase_{token}` (dedupe con Pixel). */
+    /** Quote token → event_id `initiateCheckout_{token}` / `purchase_{token}` (dedupe con Pixel). */
     quoteToken?: string | null;
-    /** Monto CLP para Lead/Purchase de cotización. */
+    /** Monto CLP de la cotización/venta (value de InitiateCheckout / Purchase). */
     value?: number | null;
     contentName?: string | null;
+    /** Ítems del carrito → custom_data.contents / content_ids / num_items. */
+    contents?: MetaQuoteLineItem[] | null;
+    /** Comuna para EMQ (user_data.ct). */
+    city?: string | null;
     ctwaClid?: string | null;
     fbc?: string | null;
     fbp?: string | null;
@@ -91,8 +101,8 @@ function resolveActionSource(
  * **Única puerta de salida CAPI** del CRM:
  * - curious → solo etapa CRM (sin CAPI)
  * - engaged + fireCapi → Contact `contact_client_{id}` (una vez)
- * - quoted + quoteToken → Lead `lead_{token}` (+ value)
- * - customer + quoteToken → Purchase `purchase_{token}` (+ value)
+ * - quoted + quoteToken → InitiateCheckout `initiateCheckout_{token}` (+ value + ítems)
+ * - customer + quoteToken → Purchase `purchase_{token}` (+ value + ítems)
  * Incluye web, whatsapp y admin (admin = canal manual real / teléfono).
  */
 export async function advanceClientStage(
@@ -162,7 +172,7 @@ export async function advanceClientStage(
     const actionSource = resolveActionSource(opts.source);
 
     // ─── CAPI A: ciclo CRM (engaged) — una vez por persona ───────────────────
-    // curious: solo CRM + touchpoint (ctwa_clid guardado); sin Lead CAPI en Meta.
+    // curious: solo CRM + touchpoint (ctwa_clid guardado); sin CAPI en Meta.
     if (opts.fireCapi === true && toStage === 'engaged') {
         const eventName: MetaCapiEventName = 'Contact';
         const stableId = `contact_client_${row.id}`;
@@ -177,23 +187,19 @@ export async function advanceClientStage(
         if (!priorCapi) {
             try {
                 const intent = opts.intent;
+                const lineParams = metaLineParams(intent);
                 const contentName =
                     intent === 'direct'
                         ? 'CRM Barriles Contact'
                         : intent === 'event'
                           ? 'CRM Eventos Contact'
                           : 'CRM Interesado Contact';
-                const contentCategory =
-                    intent === 'direct'
-                        ? 'Venta Directa'
-                        : intent === 'event'
-                          ? 'Servicio de Eventos'
-                          : 'CRM Lifecycle';
 
                 const customData: Record<string, unknown> = {
                     content_name: contentName,
-                    content_category: contentCategory,
+                    content_category: 'CRM Lifecycle',
                     lifecycle_stage: toStage,
+                    ...lineParams,
                 };
                 if (opts.engagedGuests != null && opts.engagedGuests > 0) {
                     customData.num_guests = opts.engagedGuests;
@@ -208,7 +214,7 @@ export async function advanceClientStage(
                     ctwaClid: opts.ctwaClid,
                     fbc: opts.fbc,
                     fbp: opts.fbp,
-                    city: opts.engagedComuna,
+                    city: opts.city ?? opts.engagedComuna,
                     customData,
                 });
                 if (capi.success) metaEventSent = stableId;
@@ -227,11 +233,14 @@ export async function advanceClientStage(
         opts.fireCapi !== false;
 
     if (fireQuoteCapi && opts.quoteToken) {
-        const eventName: MetaCapiEventName = toStage === 'quoted' ? 'Lead' : 'Purchase';
+        const eventName: MetaCapiEventName =
+            toStage === 'quoted' ? 'InitiateCheckout' : 'Purchase';
         const eventId =
-            toStage === 'quoted' ? `lead_${opts.quoteToken}` : `purchase_${opts.quoteToken}`;
+            toStage === 'quoted'
+                ? `initiateCheckout_${opts.quoteToken}`
+                : `purchase_${opts.quoteToken}`;
 
-        // Dedupe por event_id (token único) — no reenviar el mismo Lead/Purchase
+        // Dedupe por event_id (token único) — no reenviar el mismo InitiateCheckout/Purchase
         const { count: priorQuoteCapi } = await db
             .from('client_stage_events')
             .select('id', { count: 'exact', head: true })
@@ -244,11 +253,15 @@ export async function advanceClientStage(
                 const cookies =
                     opts.source === 'web' ? await readMetaBrowserCookies() : {};
                 const isPurchase = eventName === 'Purchase';
+                const lineParams = metaLineParams(opts.intent, META_SERVICE_EVENTOS);
                 const defaultName = isPurchase
-                    ? opts.intent === 'direct'
-                        ? 'Pedido de Barril Desechable'
-                        : 'Reserva de Evento Confirmada'
-                    : 'Cotización de Evento (Borrador)';
+                    ? lineParams.service === 'barriles'
+                        ? 'Pedido Barriles'
+                        : 'Reserva Eventos Confirmada'
+                    : lineParams.service === 'barriles'
+                      ? 'Cotización Barriles'
+                      : 'Cotización Eventos';
+                const commerce = buildMetaCommerceCustomData(opts.contents);
 
                 const capi = await sendMetaCapiEvent({
                     eventName,
@@ -260,16 +273,17 @@ export async function advanceClientStage(
                     ctwaClid: opts.ctwaClid,
                     fbc: opts.fbc ?? cookies.fbc,
                     fbp: opts.fbp ?? cookies.fbp,
+                    city: opts.city ?? opts.engagedComuna,
                     customData: {
                         content_name: opts.contentName || defaultName,
-                        content_category:
-                            opts.intent === 'direct' ? 'Venta Directa' : 'Servicio de Eventos',
+                        ...lineParams,
                         currency: 'CLP',
                         value: opts.value ?? undefined,
                         order_id: opts.quoteToken,
                         content_type: 'product',
                         lifecycle_stage: toStage,
                         quote_source: opts.source || null,
+                        ...commerce,
                     },
                 });
                 if (capi.success) metaEventSent = eventId;
