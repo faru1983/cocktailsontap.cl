@@ -41,6 +41,15 @@
 
 ## Ultimos Cambios
 
+### 14-08-2026 (Sesión 79) — Eventos: retiro mismo día o siguiente + nota
+
+- Checkout eventos: retiro solo mismo día (sin hora) o día siguiente (con hora). Validación en `confirmNowValidation`, schema y `EventQuoteView`.
+- Comentarios como desechables: “Añadir nota” en el form principal (no solo al confirmar reserva).
+
+### 14-08-2026 (Sesión 78) — Checkout: accordion, totales y un scroll
+- Modales Barriles y Eventos: un solo scroller; en móvil carrito colapsable, totales+flete en el footer con CTA y monto; sin comuna muestra “Elige comuna para calcular”. Desktop sin cambios de columnas. Autofill y comentarios detrás de “Añadir nota”.
+- Extraído QuoteSummaryTotals; CheckoutCartSection.
+
 ### 14-08-2026 (Sesión 77) — Checkout móvil: datos primero
 
 - Modales de carrito (eventos y desechables): en móvil el formulario va arriba, productos al medio y el botón de pedido/cotización al final. En desktop se mantiene productos a la izquierda.
@@ -56,16 +65,6 @@
 - RM Santiago = propio; Cordillera/Chacabuco/Maipo/Melipilla/Talagante = Blue Express **misma zona** ($4.800 M / $5.400 L). Tarifas editables en Cobertura.
 - Provincias CUT en todas las regiones (agrupación solo admin).
 
-### 14-08-2026 (Sesión 74) — Tarifas Blue Express en Admin
-
-- Admin → Cobertura: 4 montos (Centro/Extremo × M/L) en `site_settings.blue_express_home_rates`. Wizard y preview usan esa tabla (fallback en código).
-
-### 14-08-2026 (Sesión 73) — Blue Express vs traslado propio
-
-- `regions.shipping_carrier` (`own` | `blue_express`) + `blue_express_zone` (`centro` | `extremo`). RM propio; resto BE (Valparaíso/centro, extremo norte-sur).
-- Barriles: 5L=1 barril; 1→M, 2–4→L, 5→L+M. Centro $7.300 / $9.200; extremo $14.500 / $17.000. Helper `lib/blueExpress.ts` + `resolveShipping`.
-- Admin Cobertura: selector de transporte, preview 1/4/5 barriles. Catálogo API incluye `regions` (carrier/zona).
-
 ---
 
-*Ultima actualizacion: 14-08-2026 (Sesión 77)*
+*Ultima actualizacion: 14-08-2026 (Sesión 79)*

@@ -201,6 +201,15 @@ export function calculateMaxPickupDate(dateStr: string): string {
     return d.toISOString().split('T')[0];
 }
 
+/** Retiro de evento: mismo día o día siguiente. */
+export function isAllowedEventPickupDate(eventDate: string, pickupDate: string): boolean {
+    if (!eventDate || !pickupDate) return false;
+    return pickupDate === eventDate || pickupDate === calculateMaxPickupDate(eventDate);
+}
+
+/** Rangos de retiro al día siguiente (wizard y link de cotización). */
+export const EVENT_NEXT_DAY_PICKUP_SLOTS = ['12:00 a 14:00', '14:00 a 16:00', '16:00 a 18:00'] as const;
+
 /**
  * Formatea una fecha ISO a formato humano chileno (ej: "Lunes, 14 de Marzo de 2026").
  */

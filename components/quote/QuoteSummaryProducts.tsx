@@ -3,6 +3,7 @@
 import { ShoppingCart, Plus } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import QuantitySelector from '@/components/ui/QuantitySelector';
+import QuoteSummaryTotals from '@/components/quote/QuoteSummaryTotals';
 
 export interface QuoteSummaryItem {
     id: string; // For Wizard this is productId, for QuoteView this is QuoteItem.id
@@ -38,11 +39,11 @@ interface Props {
     onAddProductsClick?: () => void;
     onChangeDispenser?: () => void;
     compact?: boolean;
+    hideTotals?: boolean;
+    hasComuna?: boolean;
 }
 
-export default function QuoteSummaryProducts({ data, isEditable = false, onUpdateQuantity, onAddProductsClick, onChangeDispenser, compact = false }: Props) {
-    const isDesechable = data.dispenserLabel.toLowerCase().includes('desechable');
-    const isMuro = data.dispenserLabel.toLowerCase().includes('muro');
+export default function QuoteSummaryProducts({ data, isEditable = false, onUpdateQuantity, onAddProductsClick, onChangeDispenser, compact = false, hideTotals = false, hasComuna = true }: Props) {
 
     return (
         <div className={`bg-white rounded-[20px] border border-brand-border shadow-[0_4px_20px_rgba(0,0,0,0.05)] ${compact ? 'p-4 sm:p-5 mb-4' : 'p-4 sm:p-8 mb-6'}`}>
@@ -144,57 +145,15 @@ export default function QuoteSummaryProducts({ data, isEditable = false, onUpdat
                 </div>
             )}
 
-            {/* Totals */}
-            <div className="flex flex-col">
-                <div className="flex justify-between py-1 text-[0.95rem] font-medium text-brand-text-muted">
-                    <span>Subtotal</span>
-                    <span className="font-bold text-brand-text">{formatCurrency(data.totalNormalPrice)}</span>
-                </div>
-                {data.totalDiscount > 0 && (
-                    <div className="flex justify-between py-1 text-[0.95rem] font-bold text-[#16a34a]">
-                        <span>Descuento</span>
-                        <span>-{formatCurrency(data.totalDiscount)}</span>
-                    </div>
-                )}
-                {data.manualDiscount > 0 && (
-                    <div className="flex justify-between py-1 text-[0.95rem] font-bold text-[#f87171]">
-                        <span>Descuento Extra</span>
-                        <span>-{formatCurrency(data.manualDiscount)}</span>
-                    </div>
-                )}
-                {data.shippingLabel && (
-                    <div className="flex justify-between py-1 text-[0.95rem] font-medium text-brand-text-muted">
-                        <span>{data.shippingCarrier === 'blue_express' ? 'Transporte Blue Express' : 'Transporte'}</span>
-                        <span className={`font-bold ${data.shippingCost === 0 ? 'text-primary' : 'text-brand-text'}`}>{data.shippingLabel}</span>
-                    </div>
-                )}
-                {!isDesechable && (
-                    <div className="flex justify-between py-2 text-[0.95rem] font-medium text-brand-text-muted items-center">
-                        <div className="flex items-center gap-2">
-                            <span>{data.dispenserLabel}</span>
-                            {isEditable && data.canHaveMuro && onChangeDispenser && (
-                                <button
-                                    type="button"
-                                    onClick={onChangeDispenser}
-                                    className="text-xs font-black text-primary hover:underline border-none bg-transparent p-0 cursor-pointer"
-                                >
-                                    ({data.dispenserLabel.includes('Muro') ? 'Cambiar a Dispensador' : 'Cambiar a Muro'})
-                                </button>
-                            )}
-                        </div>
-                        <span className={`font-bold ${data.installationCost === 0 ? 'text-primary' : 'text-brand-text'}`}>
-                            {data.installationCost === 0 ? '¡Gratis!' : formatCurrency(data.installationCost)}
-                        </span>
-                    </div>
-                )}
-                <div className={`flex justify-between items-center ${compact ? 'pt-3 mt-2 border-t border-primary/20' : 'pt-4 mt-2 border-t-2 border-primary'}`}>
-                    <span className={`font-black text-brand-text ${compact ? 'text-[0.9rem]' : 'text-[1rem]'}`}>TOTAL</span>
-                    <span className={`font-black text-primary ${compact ? 'text-xl sm:text-2xl' : 'text-2xl'}`}>{formatCurrency(data.totalPrice)}</span>
-                </div>
-                <p className={`text-brand-text-muted font-medium m-0 ${compact ? 'text-[0.7rem] pt-1' : 'text-[0.75rem] pt-1.5'}`}>
-                    Valores netos. No incluyen IVA.
-                </p>
-            </div>
+            {!hideTotals && (
+                <QuoteSummaryTotals
+                    data={data}
+                    isEditable={isEditable}
+                    onChangeDispenser={onChangeDispenser}
+                    compact={compact}
+                    hasComuna={hasComuna}
+                />
+            )}
         </div>
     );
 }

@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { formatCurrency, copyToClipboard } from '@/lib/utils';
 import { isValidPhoneE164, normalizePhoneE164 } from '@/lib/phone';
 import PhoneInput from '@/components/ui/PhoneInput';
-import { formatEventDate, calculateMaxPickupDate, getTodayString, resolveShipping } from '@/lib/wizardLogic';
+import { formatEventDate, calculateMaxPickupDate, isAllowedEventPickupDate, EVENT_NEXT_DAY_PICKUP_SLOTS, getTodayString, resolveShipping } from '@/lib/wizardLogic';
 import { confirmQuote } from '@/app/actions/confirmQuote';
 import { MURO_INSTALLATION_COST, PORTATIL_MIN_LITERS, MURO_MIN_LITERS } from '@/lib/config';
 import {
@@ -259,6 +259,9 @@ export default function EventQuoteView({ quote, comunas, regions, availableCockt
         if (!eventDate) errors.eventDate = true;
         if (!startTime) errors.startTime = true;
         if (!pickupDate) errors.pickupDate = true;
+        if (pickupDate && eventDate && !isAllowedEventPickupDate(eventDate, pickupDate)) {
+            errors.pickupDate = true;
+        }
         if (!isSameDayPickup && !pickupTime) errors.pickupTime = true;
         if (guests <= 0) errors.guests = true;
         if (!eventType) errors.eventType = true;
@@ -1005,9 +1008,11 @@ export default function EventQuoteView({ quote, comunas, regions, availableCockt
                                             className={`w-full px-3 py-2.5 bg-slate-50 border rounded-xl text-[0.95rem] font-bold focus:outline-none focus:border-primary focus:bg-white transition-all shadow-sm appearance-none pr-10 ${validationErrors.pickupTime ? 'border-red-500 bg-red-50/30' : 'border-brand-border'}`}
                                         >
                                             <option value="">Seleccionar...</option>
-                                            <option value="12:00 a 14:00">12:00 a 14:00</option>
-                                            <option value="14:00 a 16:00">14:00 a 16:00</option>
-                                            <option value="16:00 a 18:00">16:00 a 18:00</option>
+                                            {EVENT_NEXT_DAY_PICKUP_SLOTS.map((slot) => (
+                                                <option key={slot} value={slot}>
+                                                    {slot}
+                                                </option>
+                                            ))}
                                         </select>
                                         <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
                                             <ChevronRight className="w-3.5 h-3.5 text-brand-text-muted rotate-90" />

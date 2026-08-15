@@ -1,5 +1,6 @@
 import type { WizardState } from '@/lib/types';
 import { isValidPhoneE164 } from '@/lib/phone';
+import { isAllowedEventPickupDate } from '@/lib/wizardLogic';
 
 /** Campos obligatorios al confirmar reserva de evento (wizard/admin). */
 export function validateConfirmNowState(state: WizardState): string | null {
@@ -27,6 +28,9 @@ export function validateConfirmNowState(state: WizardState): string | null {
     }
     if (!(state.eventData.pickupDate || '').trim()) {
         return 'Fecha de retiro obligatoria.';
+    }
+    if (!isAllowedEventPickupDate(state.eventData.date, state.eventData.pickupDate)) {
+        return 'El retiro solo puede ser el mismo día (sin hora) o el día siguiente.';
     }
     const sameDay = state.eventData.pickupDate === state.eventData.date;
     if (!sameDay && !(state.eventData.pickupTime || '').trim()) {

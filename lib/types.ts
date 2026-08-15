@@ -378,6 +378,22 @@ export const CreateQuoteSchema = z
                 message: 'Fecha de retiro obligatoria',
                 path: ['state', 'eventData', 'pickupDate'],
             });
+        } else {
+            const eventDate = data.state.eventData.date || '';
+            const next = eventDate
+                ? (() => {
+                      const d = new Date(eventDate + 'T12:00:00');
+                      d.setDate(d.getDate() + 1);
+                      return d.toISOString().split('T')[0];
+                  })()
+                : '';
+            if (pickupDate !== eventDate && pickupDate !== next) {
+                ctx.addIssue({
+                    code: 'custom',
+                    message: 'El retiro solo puede ser el mismo día (sin hora) o el día siguiente',
+                    path: ['state', 'eventData', 'pickupDate'],
+                });
+            }
         }
         const sameDay = pickupDate === data.state.eventData.date;
         if (!sameDay && !(data.state.eventData.pickupTime || '').trim()) {
