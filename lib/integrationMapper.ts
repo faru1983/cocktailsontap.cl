@@ -1,5 +1,6 @@
-import type { WizardState, CocktailForWizard } from '@/lib/types';
+import type { WizardState, CocktailForWizard, Comuna } from '@/lib/types';
 import { DEFAULT_REGION_CODE } from '@/lib/types';
+import { resolveRegionCode } from '@/lib/wizardLogic';
 import type {
     IntegrationEventQuoteInput,
     IntegrationDirectSaleInput,
@@ -76,7 +77,7 @@ export function mapEventQuoteToWizardState(dto: IntegrationEventQuoteInput): Wiz
         email: dto.client.email,
         phone: dto.client.phone || '',
         address: dto.client.address || '',
-        region: DEFAULT_REGION_CODE,
+        region: (dto.client.region || '').trim() || DEFAULT_REGION_CODE,
         comuna: dto.client.comuna,
         otherComuna: dto.client.otherComuna || '',
         comments: withSourceComments(dto.client.comments, dto.source),
@@ -112,7 +113,7 @@ export function mapDirectSaleToWizardState(dto: IntegrationDirectSaleInput): Wiz
         email: dto.client.email,
         phone: dto.client.phone || '',
         address: dto.client.address || '',
-        region: DEFAULT_REGION_CODE,
+        region: (dto.client.region || '').trim() || DEFAULT_REGION_CODE,
         comuna: dto.client.comuna,
         otherComuna: dto.client.otherComuna || '',
         comments: withSourceComments(mergedComments, dto.source),
@@ -132,4 +133,31 @@ export function mapDirectSaleToWizardState(dto: IntegrationDirectSaleInput): Wiz
         quantity: i.quantity,
     }));
     return state;
+}
+
+/**
+ * Ajusta `contact.region` al código real de la comuna (nombres únicos a nivel país).
+ * Si la comuna es "Otra" o no está en catálogo, usa la región enviada o RM.
+ */
+export function applyContactRegionFromCatalog(state: WizardState, comunas: Comuna[]): void {
+    const comunaName = (state.contact.comuna || '').trim();
+    const requested = (state.contact.region || '').trim();
+    const requestedCode = requested ? resolveRegionCode(requested, comunas) : '';
+
+    if (comunaName && comunaName !== 'Otra') {
+        if (requestedCode) {
+            const inRegion = comunas.find((c) => c.regionCode === requestedCode && c.name === comunaName);
+            if (inRegion) {
+                state.contact.region = requestedCode;
+                return;
+            }
+        }
+        const byName = comunas.find((c) => c.name === comunaName);
+        if (byName) {
+            state.contact.region = byName.regionCode;
+            return;
+        }
+    }
+
+    state.contact.region = requestedCode || DEFAULT_REGION_CODE;
 }

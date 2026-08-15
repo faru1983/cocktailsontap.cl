@@ -33,21 +33,29 @@ export async function GET(request: Request) {
             })),
         }));
 
+        const regionsById = new Map(regions.map((r) => [r.id, r]));
+
         return NextResponse.json({
             success: true,
             products,
-            // Bot WhatsApp: solo comunas de regiones habilitadas para eventos (hoy = RM)
+            // Todas las comunas activas (eventos + barriles). El bot filtra por carril.
             comunas: comunas
-                .filter((c) => {
-                    const region = regions.find((r) => r.id === c.regionId);
-                    return region?.availableForEvents && region.isActive && c.isActive;
-                })
-                .map((c) => ({
-                    name: c.name,
-                    cost: c.cost ?? c.regionCost,
-                    freeFrom: c.freeFrom ?? c.regionFreeFrom,
-                    directSaleDeliveryCost: c.directSaleDeliveryCost ?? c.regionDirectSaleDeliveryCost,
-                })),
+                .filter((c) => c.isActive)
+                .map((c) => {
+                    const region = regionsById.get(c.regionId);
+                    return {
+                        name: c.name,
+                        regionCode: c.regionCode,
+                        regionShortName: c.regionShortName,
+                        availableForEvents: Boolean(region?.availableForEvents),
+                        availableForDirect: region?.availableForDirect !== false,
+                        cost: c.cost ?? c.regionCost,
+                        freeFrom: c.freeFrom ?? c.regionFreeFrom,
+                        directSaleDeliveryCost: c.directSaleDeliveryCost ?? c.regionDirectSaleDeliveryCost,
+                        shippingCarrier: c.shippingCarrier || c.regionShippingCarrier || 'own',
+                        blueExpressZone: c.blueExpressZone || c.regionBlueExpressZone,
+                    };
+                }),
             regions: regions.map((r) => ({
                 code: r.code,
                 shortName: r.shortName,

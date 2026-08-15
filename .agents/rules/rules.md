@@ -52,7 +52,7 @@ Define la arquitectura, reglas irrompibles, convenciones de código, esquema de 
 │   │   ├── createQuote.ts    # Wrapper → createQuoteCore
 │   │   └── confirmQuote.ts   # Confirmar cotización
 │   ├── api/v1/               # Integraciones HTTP (Bearer INTEGRATION_API_KEY)
-│   │   ├── catalog/          # GET catálogo activo (productos, precios, comunas)
+│   │   ├── catalog/          # GET catálogo activo (productos, precios, comunas nacionales, regiones, BE)
 │   │   ├── contacts/         # POST primer contacto WhatsApp (phone-only OK + touchpoint + CAPI)
 │   │   ├── quotes/           # POST cotización evento (draft)
 │   │   └── direct-sales/     # POST venta desechable (confirmed)
@@ -202,6 +202,7 @@ Define la arquitectura, reglas irrompibles, convenciones de código, esquema de 
 ```
 - Web/admin: `app/actions/createQuote.ts` → core
 - Integraciones: `GET /api/v1/catalog` | `POST /api/v1/contacts` | `POST /api/v1/quotes` | `POST /api/v1/direct-sales`
+- `GET /catalog` incluye **todas** las comunas activas (no solo RM) con `regionCode`, carrier y tarifas efectivas. El mapper infiere región por nombre de comuna.
 - Confirmación de evento: solo cliente en `/cotizar/[token]` (sin endpoint v1); CAPI Purchase vía `advanceClientStage` en `confirmQuote`
 
 ### Identidad CRM (`clientService` + `clientLifecycleService`)
@@ -310,4 +311,4 @@ Para mantener la eficiencia en sesiones con agentes de IA:
    - Issues conocidos pendientes
 3. Mantener la sección "Últimos Cambios" limitada a las **últimas 5 sesiones**.
 
-*Última actualización: 03-08-2026 (Sesión 36)*
+*Última actualización: 14-08-2026 (Sesión 80)*

@@ -5,7 +5,7 @@ import { fetchAllProductData } from '@/lib/serverData';
 import { createQuoteCore } from '@/lib/services/createQuoteCore';
 import type { WizardState } from '@/lib/types';
 import type { QuoteSource } from '@/lib/quoteSource';
-import { validateItemsAgainstCatalog } from '@/lib/integrationMapper';
+import { applyContactRegionFromCatalog, validateItemsAgainstCatalog } from '@/lib/integrationMapper';
 
 export function jsonError(status: number, error: string) {
     return NextResponse.json({ success: false, error }, { status });
@@ -39,6 +39,8 @@ export async function handleIntegrationCreate(opts: {
     if (catalogError) {
         return jsonError(400, catalogError);
     }
+
+    applyContactRegionFromCatalog(parsed.state, comunas);
 
     const result = await createQuoteCore({
         state: parsed.state,

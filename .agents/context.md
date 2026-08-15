@@ -25,7 +25,7 @@
 - **Evento**: Draft -> Confirmado (via link único), **o** confirmación inmediata en wizard/admin (`confirmNow`: mismos datos obligatorios que al confirmar draft → `confirmQuoteCore`).
 - **Venta Directa (Desechables)**: Confirmado directo (sin draft).
 - **Integraciones** (`/api/v1`): mismo dominio que la web; auth Bearer `INTEGRATION_API_KEY`.
-  - `GET /catalog` — productos/precios/comunas (lectura para WhatsApp).
+  - `GET /catalog` — productos/precios/**todas** las comunas activas + regiones + Blue Express (lectura para WhatsApp).
   - `POST /contacts` — primer contacto / engagement phone-first; avanza `lifecycle_stage` + CAPI opcional.
   - `POST /quotes` | `POST /direct-sales` — crear venta (también avanza stage). WhatsApp quotes siguen draft (sin `confirmNow`).
   - Campo opcional `source` (`web` | `admin` | `whatsapp`) → columna `quotes.source`.
@@ -40,6 +40,13 @@
 - **CAPI solo desde `advanceClientStage`** (web / whatsapp / admin): Contact (engaged), InitiateCheckout (quoted), Purchase (customer).
 
 ## Ultimos Cambios
+
+### 14-08-2026 (Sesión 80) — API/bot: comunas nacionales y despacho correcto
+
+- `GET /api/v1/catalog` entrega todas las comunas activas (no solo RM eventos) con región, carrier y tarifas.
+- Quotes/direct-sales aceptan `client.region`; si falta, se infiere por el nombre de comuna.
+- Bot WhatsApp matchea comunas de todo Chile y cotiza despacho con la misma lógica de la web (propio / Blue Express misma zona-centro-extremo).
+- Pedido barriles: al elegir comuna muestra el flete (catálogo o Blue Express por zona: Iquique extremo $14.500 / 1 barril). El resumen reitera el monto.
 
 ### 14-08-2026 (Sesión 79) — Eventos: retiro mismo día o siguiente + nota
 
@@ -59,12 +66,6 @@
 - Admin: pestaña Cobertura al final. Tabla: Comuna → Transporte → Desechable → Evento → Evento Gratis. `free_from` solo eventos; eventos siempre traslado propio.
 - Eventos siempre `shippingCarrier: own` (nunca Blue Express). Desechables no usan Evento Gratis.
 
-### 14-08-2026 (Sesión 75) — Provincias RM y BE misma zona
-
-- Comunas: `province_name` + override `shipping_carrier`/`blue_express_zone`. Admin agrupa por provincia; wizard igual (región + comuna).
-- RM Santiago = propio; Cordillera/Chacabuco/Maipo/Melipilla/Talagante = Blue Express **misma zona** ($4.800 M / $5.400 L). Tarifas editables en Cobertura.
-- Provincias CUT en todas las regiones (agrupación solo admin).
-
 ---
 
-*Ultima actualizacion: 14-08-2026 (Sesión 79)*
+*Ultima actualizacion: 14-08-2026 (Sesión 80)*
