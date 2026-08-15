@@ -41,6 +41,10 @@
 
 ## Ultimos Cambios
 
+### 14-08-2026 (Sesión 77) — Checkout móvil: datos primero
+
+- Modales de carrito (eventos y desechables): en móvil el formulario va arriba, productos al medio y el botón de pedido/cotización al final. En desktop se mantiene productos a la izquierda.
+
 ### 14-08-2026 (Sesión 76) — Labels Cobertura + Evento Gratis
 
 - Admin: pestaña Cobertura al final. Tabla: Comuna → Transporte → Desechable → Evento → Evento Gratis. `free_from` solo eventos; eventos siempre traslado propio.
@@ -62,10 +66,6 @@
 - Barriles: 5L=1 barril; 1→M, 2–4→L, 5→L+M. Centro $7.300 / $9.200; extremo $14.500 / $17.000. Helper `lib/blueExpress.ts` + `resolveShipping`.
 - Admin Cobertura: selector de transporte, preview 1/4/5 barriles. Catálogo API incluye `regions` (carrier/zona).
 
-### 14-08-2026 (Sesión 72) — Cobertura: hereda región sin placeholder ilegible
-
-- En comunas, si no hay override se muestra el valor de la región (o "—") como placeholder `slate-400`. El "L" y "$" suben de contraste. Tooltip explica que hereda.
-
 ---
 
-*Ultima actualizacion: 14-08-2026 (Sesión 76)*
+*Ultima actualizacion: 14-08-2026 (Sesión 77)*

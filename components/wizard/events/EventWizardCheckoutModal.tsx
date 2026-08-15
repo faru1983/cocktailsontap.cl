@@ -60,6 +60,56 @@ export default function EventWizardCheckoutModal({
         onConfirm({ confirmNow });
     };
 
+    const formId = 'event-checkout-form';
+
+    const submitFooter = (opts: { formAttr?: string; withCard?: boolean }) => (
+        <div
+            className={
+                opts.withCard
+                    ? 'bg-white rounded-2xl p-4 sm:p-5 shadow-[0_4px_20px_rgba(0,0,0,0.05)] border border-brand-border'
+                    : 'mt-2 pt-4 border-t border-brand-border'
+            }
+        >
+            {!minLitersMet && (
+                <div className="mb-3 bg-red-50 border border-red-200 text-red-600 px-3 py-2 rounded-xl text-[0.8rem] font-bold text-center animate-fade-in">
+                    Debes seleccionar al menos {minRequiredLiters} Litros para usar el{' '}
+                    {state.dispenser === 'muro' ? 'Muro de Coctelería' : 'Dispensador Portátil'}.
+                </div>
+            )}
+            {localError && (
+                <div className="mb-3 bg-red-50 border border-red-200 text-red-600 px-3 py-2 rounded-xl text-[0.8rem] font-bold text-center">
+                    {localError}
+                </div>
+            )}
+            <button
+                type="submit"
+                form={opts.formAttr}
+                disabled={sendStatus === 'saving' || !minLitersMet}
+                className="w-full inline-flex items-center justify-center gap-2 p-3.5 rounded-xl bg-primary text-white font-black text-base transition-all hover:bg-primary-dark active:scale-[0.98] shadow-[0_4px_15px_rgba(226,160,73,0.3)] disabled:opacity-70 disabled:cursor-not-allowed cursor-pointer"
+            >
+                {sendStatus === 'saving' ? (
+                    <>
+                        <Loader2 className="w-5 h-5 animate-spin" />{' '}
+                        <span>{confirmNow ? 'Confirmando reserva...' : 'Generando Cotización...'}</span>
+                    </>
+                ) : (
+                    <span>{confirmNow ? 'Confirmar reserva' : 'Generar Cotización'}</span>
+                )}
+            </button>
+            <p className="text-center text-brand-text-muted text-[0.7rem] mt-2.5 leading-tight">
+                {confirmNow
+                    ? 'Tu reserva quedará confirmada y te enviaremos el correo de confirmación.'
+                    : 'Tu cotización será enviada a tu correo. Al finalizar podrás enviarla también por WhatsApp si lo deseas.'}
+            </p>
+            <p className="text-center text-brand-text-muted text-[0.65rem] mt-1">
+                Total estimado:{' '}
+                {formatCurrency(
+                    summaryData.totalOfferPrice + summaryData.shippingCost + summaryData.installationCost
+                )}
+            </p>
+        </div>
+    );
+
     return (
         <div
             className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 xl:p-8 bg-black/60 backdrop-blur-sm animate-fade-in overflow-y-auto"
@@ -114,7 +164,7 @@ export default function EventWizardCheckoutModal({
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 xl:gap-8 items-start">
-                    <div className="w-full lg:col-span-7 xl:col-span-6 flex flex-col">
+                    <div className="w-full lg:col-span-7 xl:col-span-6 flex flex-col order-2 lg:order-1">
                         <QuoteSummaryProducts
                             data={{
                                 ...summaryData,
@@ -128,13 +178,13 @@ export default function EventWizardCheckoutModal({
                         />
                     </div>
 
-                    <div className="w-full lg:col-span-5 xl:col-span-6 flex flex-col">
+                    <div className="w-full lg:col-span-5 xl:col-span-6 flex flex-col order-1 lg:order-2">
                         <div className="bg-white rounded-2xl p-4 sm:p-5 shadow-[0_4px_20px_rgba(0,0,0,0.05)] border border-brand-border flex flex-col">
                             <h3 className="font-extrabold text-brand-text text-base sm:text-lg mb-3">
                                 Tus Datos
                             </h3>
 
-                            <form className="flex flex-col gap-3.5" onSubmit={handleSubmit}>
+                            <form id={formId} className="flex flex-col gap-3.5" onSubmit={handleSubmit}>
                                 <div className="grid grid-cols-2 gap-3">
                                     <div>
                                         <label className="block font-bold mb-1 text-brand-text text-[0.8rem]">
@@ -368,55 +418,12 @@ export default function EventWizardCheckoutModal({
                                         </div>
                                     </div>
                                 )}
-                                <div className="mt-2 pt-4 border-t border-brand-border">
-                                    {!minLitersMet && (
-                                        <div className="mb-3 bg-red-50 border border-red-200 text-red-600 px-3 py-2 rounded-xl text-[0.8rem] font-bold text-center animate-fade-in">
-                                            Debes seleccionar al menos {minRequiredLiters} Litros para usar el{' '}
-                                            {state.dispenser === 'muro'
-                                                ? 'Muro de Coctelería'
-                                                : 'Dispensador Portátil'}
-                                            .
-                                        </div>
-                                    )}
-                                    {localError && (
-                                        <div className="mb-3 bg-red-50 border border-red-200 text-red-600 px-3 py-2 rounded-xl text-[0.8rem] font-bold text-center">
-                                            {localError}
-                                        </div>
-                                    )}
-                                    <button
-                                        type="submit"
-                                        disabled={sendStatus === 'saving' || !minLitersMet}
-                                        className="w-full inline-flex items-center justify-center gap-2 p-3.5 rounded-xl bg-primary text-white font-black text-base transition-all hover:bg-primary-dark active:scale-[0.98] shadow-[0_4px_15px_rgba(226,160,73,0.3)] disabled:opacity-70 disabled:cursor-not-allowed cursor-pointer"
-                                    >
-                                        {sendStatus === 'saving' ? (
-                                            <>
-                                                <Loader2 className="w-5 h-5 animate-spin" />{' '}
-                                                <span>
-                                                    {confirmNow
-                                                        ? 'Confirmando reserva...'
-                                                        : 'Generando Cotización...'}
-                                                </span>
-                                            </>
-                                        ) : (
-                                            <span>
-                                                {confirmNow
-                                                    ? 'Confirmar reserva'
-                                                    : 'Generar Cotización'}
-                                            </span>
-                                        )}
-                                    </button>
-                                    <p className="text-center text-brand-text-muted text-[0.7rem] mt-2.5 leading-tight">
-                                        {confirmNow
-                                            ? 'Tu reserva quedará confirmada y te enviaremos el correo de confirmación.'
-                                            : 'Tu cotización será enviada a tu correo. Al finalizar podrás enviarla también por WhatsApp si lo deseas.'}
-                                    </p>
-                                    <p className="text-center text-brand-text-muted text-[0.65rem] mt-1">
-                                        Total estimado: {formatCurrency(summaryData.totalOfferPrice + summaryData.shippingCost + summaryData.installationCost)}
-                                    </p>
-                                </div>
+                                <div className="hidden lg:block">{submitFooter({})}</div>
                             </form>
                         </div>
                     </div>
+
+                    <div className="w-full order-3 lg:hidden">{submitFooter({ formAttr: formId, withCard: true })}</div>
                 </div>
             </div>
         </div>

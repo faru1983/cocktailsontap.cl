@@ -34,6 +34,43 @@ export default function DirectWizardCheckoutModal({ wizard, comunas, regions, on
 
     const minLitersMet = summaryData.totalLiters >= 5;
     const canSubmit = minLitersMet && hasMainProduct;
+    const formId = 'direct-checkout-form';
+
+    const submitFooter = (opts: { formAttr?: string; withCard?: boolean }) => (
+        <div
+            className={
+                opts.withCard
+                    ? 'bg-white rounded-2xl p-4 sm:p-5 shadow-[0_4px_20px_rgba(0,0,0,0.05)] border border-brand-border'
+                    : 'mt-2 pt-4 border-t border-brand-border'
+            }
+        >
+            {!minLitersMet && (
+                <div className="mb-3 bg-red-50 border border-red-200 text-red-600 px-3 py-2 rounded-xl text-[0.8rem] font-bold text-center animate-fade-in">
+                    Debes seleccionar al menos 1 barril de 5L para continuar.
+                </div>
+            )}
+            {minLitersMet && !hasMainProduct && (
+                <div className="mb-3 bg-red-50 border border-red-200 text-red-600 px-3 py-2 rounded-xl text-[0.8rem] font-bold text-center animate-fade-in">
+                    Debes seleccionar al menos un producto principal (el hielo y decoraciones son productos complementarios).
+                </div>
+            )}
+            <button
+                type="submit"
+                form={opts.formAttr}
+                disabled={sendStatus === 'saving' || !canSubmit}
+                className="w-full inline-flex items-center justify-center gap-2 p-3.5 rounded-xl bg-primary text-white font-black text-base transition-all hover:bg-primary-dark active:scale-[0.98] shadow-[0_4px_15px_rgba(226,160,73,0.3)] disabled:opacity-70 disabled:cursor-not-allowed cursor-pointer"
+            >
+                {sendStatus === 'saving' ? (
+                    <><Loader2 className="w-5 h-5 animate-spin" /> <span>Guardando Pedido...</span></>
+                ) : (
+                    <span>Hacer Pedido</span>
+                )}
+            </button>
+            <p className="text-center text-brand-text-muted text-[0.7rem] mt-2.5 leading-tight">
+                Tu pedido será procesado y te enviaremos el comprobante a tu email. Al finalizar podrás enviarlo por WhatsApp si lo deseas.
+            </p>
+        </div>
+    );
 
     return (
         <div 
@@ -59,8 +96,8 @@ export default function DirectWizardCheckoutModal({ wizard, comunas, regions, on
 
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 xl:gap-8 items-start">
                     
-                    {/* Columna Izquierda: Productos (más espacio en xl) */}
-                    <div className="w-full lg:col-span-7 xl:col-span-6 flex flex-col">
+                    {/* Productos: en móvil van debajo del formulario */}
+                    <div className="w-full lg:col-span-7 xl:col-span-6 flex flex-col order-2 lg:order-1">
                         <QuoteSummaryProducts 
                             data={{ ...summaryData, guests: 0, canHaveMuro: false }}
                             isEditable={true}
@@ -70,12 +107,12 @@ export default function DirectWizardCheckoutModal({ wizard, comunas, regions, on
                         />
                     </div>
 
-                    {/* Columna Derecha: Formulario (más ancho en xl para inputs) */}
-                    <div className="w-full lg:col-span-5 xl:col-span-6 flex flex-col">
+                    {/* Formulario: en móvil primero, para llenar datos sin bajar tanto */}
+                    <div className="w-full lg:col-span-5 xl:col-span-6 flex flex-col order-1 lg:order-2">
                         <div className="bg-white rounded-2xl p-4 sm:p-5 shadow-[0_4px_20px_rgba(0,0,0,0.05)] border border-brand-border flex flex-col">
                             <h3 className="font-extrabold text-brand-text text-base sm:text-lg mb-3">Datos de Despacho</h3>
 
-                            <form className="flex flex-col gap-3.5" onSubmit={(e) => { e.preventDefault(); onConfirm(); }}>
+                            <form id={formId} className="flex flex-col gap-3.5" onSubmit={(e) => { e.preventDefault(); onConfirm(); }}>
                                 <div className="grid grid-cols-2 gap-3">
                                     <div>
                                         <label className="block font-bold mb-1 text-brand-text text-[0.8rem]">Nombre <span className="text-primary">*</span></label>
@@ -166,35 +203,12 @@ export default function DirectWizardCheckoutModal({ wizard, comunas, regions, on
                                     />
                                 </div>
 
-                                <div className="mt-2 pt-4 border-t border-brand-border">
-                                    {!minLitersMet && (
-                                        <div className="mb-3 bg-red-50 border border-red-200 text-red-600 px-3 py-2 rounded-xl text-[0.8rem] font-bold text-center animate-fade-in">
-                                            Debes seleccionar al menos 1 barril de 5L para continuar.
-                                        </div>
-                                    )}
-                                    {minLitersMet && !hasMainProduct && (
-                                        <div className="mb-3 bg-red-50 border border-red-200 text-red-600 px-3 py-2 rounded-xl text-[0.8rem] font-bold text-center animate-fade-in">
-                                            Debes seleccionar al menos un producto principal (el hielo y decoraciones son productos complementarios).
-                                        </div>
-                                    )}
-                                    <button
-                                        type="submit"
-                                        disabled={sendStatus === 'saving' || !canSubmit}
-                                        className="w-full inline-flex items-center justify-center gap-2 p-3.5 rounded-xl bg-primary text-white font-black text-base transition-all hover:bg-primary-dark active:scale-[0.98] shadow-[0_4px_15px_rgba(226,160,73,0.3)] disabled:opacity-70 disabled:cursor-not-allowed cursor-pointer"
-                                    >
-                                        {sendStatus === 'saving' ? (
-                                            <><Loader2 className="w-5 h-5 animate-spin" /> <span>Guardando Pedido...</span></>
-                                        ) : (
-                                            <><span>Hacer Pedido</span></>
-                                        )}
-                                    </button>
-                                    <p className="text-center text-brand-text-muted text-[0.7rem] mt-2.5 leading-tight">
-                                        Tu pedido será procesado y te enviaremos el comprobante a tu email. Al finalizar podrás enviarlo por WhatsApp si lo deseas.
-                                    </p>
-                                </div>
+                                <div className="hidden lg:block">{submitFooter({})}</div>
                             </form>
                         </div>
                     </div>
+
+                    <div className="w-full order-3 lg:hidden">{submitFooter({ formAttr: formId, withCard: true })}</div>
                 </div>
             </div>
         </div>
