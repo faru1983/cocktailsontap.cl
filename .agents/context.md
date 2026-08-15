@@ -41,6 +41,11 @@
 
 ## Ultimos Cambios
 
+### 14-08-2026 (Sesión 76) — Labels Cobertura + Evento Gratis
+
+- Admin: pestaña Cobertura al final. Tabla: Comuna → Transporte → Desechable → Evento → Evento Gratis. `free_from` solo eventos; eventos siempre traslado propio.
+- Eventos siempre `shippingCarrier: own` (nunca Blue Express). Desechables no usan Evento Gratis.
+
 ### 14-08-2026 (Sesión 75) — Provincias RM y BE misma zona
 
 - Comunas: `province_name` + override `shipping_carrier`/`blue_express_zone`. Admin agrupa por provincia; wizard igual (región + comuna).
@@ -63,4 +68,4 @@
 
 ---
 
-*Ultima actualizacion: 14-08-2026 (Sesión 75)*
+*Ultima actualizacion: 14-08-2026 (Sesión 76)*

@@ -17,7 +17,8 @@ export type ShippingResolution = {
 
 /**
  * Resuelve tarifa de despacho.
- * Eventos y barriles con carrier propio: override comuna ?? región; free_from; Otra → pendiente.
+ * Eventos: siempre traslado propio (cost + Evento Gratis / free_from). Nunca Blue Express.
+ * Barriles + carrier propio: tarifa desechable; sin umbral de litros gratis.
  * Barriles Blue Express: paquetes M/L según litros (5L = 1 barril). Override plano de comuna gana si existe.
  */
 export function resolveShipping(opts: {
@@ -55,6 +56,32 @@ export function resolveShipping(opts: {
     const carrier: ShippingCarrier =
         selected.shippingCarrier || selected.regionShippingCarrier || 'own';
 
+    // Eventos: siempre traslado propio. Blue Express solo aplica a desechables.
+    if (serviceType !== 'direct') {
+        const eventCost = selected.cost ?? selected.regionCost;
+        const eventFreeFrom = selected.freeFrom ?? selected.regionFreeFrom;
+
+        if (eventCost === null || eventCost === undefined) {
+            return pending('Por confirmar', 'own');
+        }
+
+        if (eventFreeFrom !== null && totalLiters >= eventFreeFrom) {
+            return {
+                shippingCost: 0,
+                shippingLabel: '¡Gratis!',
+                isPending: false,
+                shippingCarrier: 'own',
+            };
+        }
+
+        return {
+            shippingCost: eventCost,
+            shippingLabel: formatCurrency(eventCost),
+            isPending: false,
+            shippingCarrier: 'own',
+        };
+    }
+
     // Barriles + Blue Express: fórmula por paquetes, salvo override numérico en la comuna.
     if (serviceType === 'direct' && carrier === 'blue_express') {
         if (selected.directSaleDeliveryCost !== null && selected.directSaleDeliveryCost !== undefined) {
@@ -85,19 +112,10 @@ export function resolveShipping(opts: {
         };
     }
 
-    const effectiveCost =
-        serviceType === 'direct'
-            ? (selected.directSaleDeliveryCost ?? selected.regionDirectSaleDeliveryCost)
-            : (selected.cost ?? selected.regionCost);
-
-    const effectiveFreeFrom = selected.freeFrom ?? selected.regionFreeFrom;
+    const effectiveCost = selected.directSaleDeliveryCost ?? selected.regionDirectSaleDeliveryCost;
 
     if (effectiveCost === null || effectiveCost === undefined) {
         return pending('Por confirmar', carrier);
-    }
-
-    if (effectiveFreeFrom !== null && totalLiters >= effectiveFreeFrom) {
-        return { shippingCost: 0, shippingLabel: '¡Gratis!', isPending: false, shippingCarrier: carrier };
     }
 
     return {

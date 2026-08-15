@@ -117,7 +117,7 @@ export interface Region {
     cost: number | null;
     /** Tarifa barriles (solo carrier propio); null = no configurada. */
     directSaleDeliveryCost: number | null;
-    /** Umbral litros envío gratis (solo carrier propio); null = hereda/no aplica. */
+    /** Umbral litros de Evento Gratis (solo eventos / traslado propio); null = hereda/no aplica. */
     freeFrom: number | null;
 }
 

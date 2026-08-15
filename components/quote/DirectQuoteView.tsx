@@ -156,7 +156,7 @@ export default function DirectQuoteView({ quote, comunas, regions, availableCock
             }
         });
 
-        // Recalcular envío (región + override; free_from también aplica en barriles)
+        // Recalcular envío desechable (región + override; Blue Express por paquetes si aplica)
         const resolved = resolveShipping({
             serviceType: 'direct',
             regionCode,

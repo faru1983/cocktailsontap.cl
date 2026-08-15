@@ -427,6 +427,7 @@ export default function CoverageSettings({
         colorClass,
         saving,
         onBlur,
+        unit = 'clp',
     }: {
         label: string;
         value: number | null;
@@ -434,13 +435,14 @@ export default function CoverageSettings({
         colorClass: string;
         saving: boolean;
         onBlur: (raw: string) => void;
+        unit?: 'clp' | 'liters';
     }) => (
         <div>
             <label className="block text-slate-500 text-[10px] font-black uppercase tracking-widest mb-2">
                 {label}
             </label>
             <div className="flex items-center gap-1 bg-black/30 border border-white/10 rounded-xl px-3 py-2.5">
-                {label !== 'Beneficio Mayorista (L)' && (
+                {unit === 'clp' && (
                     <span className="text-slate-500 text-xs font-bold">$</span>
                 )}
                 <input
@@ -452,7 +454,7 @@ export default function CoverageSettings({
                     onBlur={(e) => onBlur(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
                 />
-                {label === 'Beneficio Mayorista (L)' && (
+                {unit === 'liters' && (
                     <span className="text-slate-400 text-[10px] font-bold shrink-0">L</span>
                 )}
                 {saving && <RefreshCw size={12} className="text-[#E2A049] animate-spin shrink-0" />}
@@ -543,15 +545,15 @@ export default function CoverageSettings({
                 </div>
             </div>
 
-            <div className="flex flex-col lg:flex-row gap-5 min-h-[520px]">
+            <div className="flex flex-col lg:flex-row lg:items-start gap-5 min-h-[520px]">
                 {/* Region list */}
-                <div className="lg:w-56 shrink-0 bg-[#1e2433] rounded-2xl border border-white/5 overflow-hidden shadow-xl">
+                <div className="lg:w-56 w-full shrink-0 bg-[#1e2433] rounded-2xl border border-white/5 overflow-hidden shadow-xl">
                     <div className="px-4 py-3 border-b border-white/5">
                         <span className="text-slate-500 text-[10px] font-black uppercase tracking-widest">
                             Regiones
                         </span>
                     </div>
-                    <div className="max-h-[480px] overflow-y-auto scrollbar-thin scrollbar-thumb-white/10">
+                    <div>
                         {sortedRegions.map((region) => {
                             const isSelected = region.id === selectedRegionId;
                             return (
@@ -613,7 +615,7 @@ export default function CoverageSettings({
                 </div>
 
                 {/* Region detail */}
-                <div className="flex-1 bg-[#1e2433] rounded-2xl border border-white/5 overflow-hidden shadow-xl">
+                <div className="flex-1 min-w-0 bg-[#1e2433] rounded-2xl border border-white/5 overflow-hidden shadow-xl">
                     {!selectedRegion ? (
                         <div className="flex items-center justify-center h-full text-slate-500 text-sm p-8">
                             Selecciona una región
@@ -657,7 +659,7 @@ export default function CoverageSettings({
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                     <div>
                                         <label className="block text-slate-500 text-[10px] font-black uppercase tracking-widest mb-2">
-                                            Transporte barriles
+                                            Transporte desechable
                                         </label>
                                         <div className="flex items-center gap-2 bg-black/30 border border-white/10 rounded-xl px-3 py-2.5">
                                             <Truck size={14} className="text-slate-500 shrink-0" />
@@ -710,16 +712,9 @@ export default function CoverageSettings({
                                 </div>
 
                                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                                    <RateInput
-                                        label="Tarifa Normal"
-                                        value={selectedRegion.cost}
-                                        colorClass="text-[#E2A049]"
-                                        saving={savingId === `${selectedRegion.id}-cost`}
-                                        onBlur={(raw) => handleRegionRateBlur('cost', raw)}
-                                    />
                                     {selectedRegion.shipping_carrier === 'blue_express' &&
                                     isBlueExpressZone(selectedRegion.blue_express_zone) ? (
-                                        <div className="sm:col-span-2 grid grid-cols-3 gap-2">
+                                        <div className="grid grid-cols-3 gap-2">
                                             {([1, 4, 5] as const).map((n) => {
                                                 const quoted = quoteBlueExpressHome(
                                                     n,
@@ -745,25 +740,31 @@ export default function CoverageSettings({
                                             })}
                                         </div>
                                     ) : (
-                                        <>
-                                            <RateInput
-                                                label="Traslado Directo"
-                                                value={selectedRegion.direct_sale_delivery_cost}
-                                                colorClass="text-sky-400"
-                                                saving={savingId === `${selectedRegion.id}-direct_sale_delivery_cost`}
-                                                onBlur={(raw) =>
-                                                    handleRegionRateBlur('direct_sale_delivery_cost', raw)
-                                                }
-                                            />
-                                            <RateInput
-                                                label="Beneficio Mayorista (L)"
-                                                value={selectedRegion.free_from}
-                                                colorClass="text-emerald-400"
-                                                saving={savingId === `${selectedRegion.id}-free_from`}
-                                                onBlur={(raw) => handleRegionRateBlur('free_from', raw)}
-                                            />
-                                        </>
+                                        <RateInput
+                                            label="Desechable"
+                                            value={selectedRegion.direct_sale_delivery_cost}
+                                            colorClass="text-sky-400"
+                                            saving={savingId === `${selectedRegion.id}-direct_sale_delivery_cost`}
+                                            onBlur={(raw) =>
+                                                handleRegionRateBlur('direct_sale_delivery_cost', raw)
+                                            }
+                                        />
                                     )}
+                                    <RateInput
+                                        label="Evento"
+                                        value={selectedRegion.cost}
+                                        colorClass="text-[#E2A049]"
+                                        saving={savingId === `${selectedRegion.id}-cost`}
+                                        onBlur={(raw) => handleRegionRateBlur('cost', raw)}
+                                    />
+                                    <RateInput
+                                        label="Evento Gratis (L)"
+                                        value={selectedRegion.free_from}
+                                        colorClass="text-emerald-400"
+                                        saving={savingId === `${selectedRegion.id}-free_from`}
+                                        onBlur={(raw) => handleRegionRateBlur('free_from', raw)}
+                                        unit="liters"
+                                    />
                                 </div>
                             </div>
 
@@ -778,13 +779,13 @@ export default function CoverageSettings({
                                                 Transporte
                                             </th>
                                             <th className="px-4 py-3 text-slate-500 text-[10px] font-black uppercase tracking-widest border-b border-white/5">
-                                                Tarifa Normal
+                                                Desechable
                                             </th>
                                             <th className="px-4 py-3 text-slate-500 text-[10px] font-black uppercase tracking-widest border-b border-white/5">
-                                                Traslado Directo
+                                                Evento
                                             </th>
                                             <th className="px-4 py-3 text-slate-500 text-[10px] font-black uppercase tracking-widest border-b border-white/5">
-                                                Beneficio Mayorista
+                                                Evento Gratis
                                             </th>
                                             <th className="px-4 py-3 text-slate-500 text-[10px] font-black uppercase tracking-widest border-b border-white/5 text-center">
                                                 Activa
@@ -829,7 +830,7 @@ export default function CoverageSettings({
                                                                                     )
                                                                                 }
                                                                             >
-                                                                                Heredar región
+                                                                                Igual que la región
                                                                             </button>
                                                                         </span>
                                                                     )}
@@ -868,7 +869,7 @@ export default function CoverageSettings({
                                                             className="w-full max-w-[11rem] bg-black/30 border border-white/10 rounded-lg px-2 py-1.5 text-[11px] font-bold text-white outline-none"
                                                         >
                                                             <option value="inherit" className="bg-[#1e2433]">
-                                                                Hereda región
+                                                                Como la región
                                                             </option>
                                                             <option value="own" className="bg-[#1e2433]">
                                                                 Traslado propio
@@ -883,20 +884,6 @@ export default function CoverageSettings({
                                                                 </option>
                                                             ))}
                                                         </select>
-                                                    </td>
-                                                    <td className="px-4 py-3">
-                                                        <ComunaRateCell
-                                                            comunaId={comuna.id}
-                                                            field="cost"
-                                                            value={comuna.cost}
-                                                            inherited={selectedRegion.cost}
-                                                            prefix="$"
-                                                            colorClass="text-[#E2A049]"
-                                                            saving={savingId === `${comuna.id}-cost`}
-                                                            onBlur={(raw) =>
-                                                                handleComunaRateBlur(comuna, 'cost', raw)
-                                                            }
-                                                        />
                                                     </td>
                                                     <td className="px-4 py-3">
                                                         {usesBlueExpress &&
@@ -934,22 +921,32 @@ export default function CoverageSettings({
                                                         )}
                                                     </td>
                                                     <td className="px-4 py-3">
-                                                        {usesBlueExpress ? (
-                                                            <span className="text-slate-500 text-xs font-bold">—</span>
-                                                        ) : (
-                                                            <ComunaRateCell
-                                                                comunaId={comuna.id}
-                                                                field="free_from"
-                                                                value={comuna.free_from}
-                                                                inherited={selectedRegion.free_from}
-                                                                suffix="L"
-                                                                colorClass="text-emerald-400"
-                                                                saving={savingId === `${comuna.id}-free_from`}
-                                                                onBlur={(raw) =>
-                                                                    handleComunaRateBlur(comuna, 'free_from', raw)
-                                                                }
-                                                            />
-                                                        )}
+                                                        <ComunaRateCell
+                                                            comunaId={comuna.id}
+                                                            field="cost"
+                                                            value={comuna.cost}
+                                                            inherited={selectedRegion.cost}
+                                                            prefix="$"
+                                                            colorClass="text-[#E2A049]"
+                                                            saving={savingId === `${comuna.id}-cost`}
+                                                            onBlur={(raw) =>
+                                                                handleComunaRateBlur(comuna, 'cost', raw)
+                                                            }
+                                                        />
+                                                    </td>
+                                                    <td className="px-4 py-3">
+                                                        <ComunaRateCell
+                                                            comunaId={comuna.id}
+                                                            field="free_from"
+                                                            value={comuna.free_from}
+                                                            inherited={selectedRegion.free_from}
+                                                            suffix="L"
+                                                            colorClass="text-emerald-400"
+                                                            saving={savingId === `${comuna.id}-free_from`}
+                                                            onBlur={(raw) =>
+                                                                handleComunaRateBlur(comuna, 'free_from', raw)
+                                                            }
+                                                        />
                                                     </td>
                                                     <td className="px-4 py-3 text-center">
                                                         <button

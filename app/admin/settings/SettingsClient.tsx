@@ -132,8 +132,8 @@ export default function SettingsClient({
                 {[
                     { id: 'review', label: 'Post-Venta' },
                     { id: 'events', label: 'Eventos' },
+                    { id: 'system', label: 'Cerebro Central' },
                     { id: 'comunas', label: 'Cobertura' },
-                    { id: 'system', label: 'Cerebro Central' }
                 ].map((t: any) => (
                     <button
                         key={t.id}

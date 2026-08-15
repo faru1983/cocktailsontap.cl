@@ -149,7 +149,7 @@ Define la arquitectura, reglas irrompibles, convenciones de código, esquema de 
 - `dispenser`: Enum `portatil | muro`
 - `total_price`: Recalculado server-side en confirmación
 - `region_name`: Snapshot legible de la región (short_name) al crear/confirmar
-- `shipping_cost`: `resolveShipping` — propio: override comuna ?? región; Blue Express barriles: paquetes M/L; pendiente si falta tarifa o comuna `Otra`
+- `shipping_cost`: `resolveShipping` — eventos: siempre traslado propio (`cost` + `free_from`); desechables: tarifa propia o Blue Express (paquetes M/L); pendiente si falta tarifa o comuna `Otra`
 - `installation_cost`: $50.000 solo si `muro` + ≥30L + sin barriles de 5L
 - `google_event_id` / `google_pickup_event_id`: IDs de eventos de Calendar para updates
 - `manual_discount`: Descuento manual aplicado desde el admin
