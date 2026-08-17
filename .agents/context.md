@@ -41,6 +41,20 @@
 
 ## Ultimos Cambios
 
+### 17-08-2026 (Sesión 83) — Recetario: resumen de producción con desglose de barriles
+
+- En `/admin/recetario` → Producción → cotizaciones, el resumen muestra `20L Mojito (4x5L)` en lugar de `Mojito: 20 L`.
+- Desglose por formato solo si hay más de un barril; mezcla de tamaños como `1x10L + 2x5L`. WhatsApp alineado.
+
+### 14-08-2026 (Sesión 82) — Eventos: pitch de litros con guía de reparto
+
+- Tras p/p, la recomendación ya no es solo “X litros a completar”. Explica *cómo armarlo*: 2–3 sabores, más litros al favorito, desglose en barriles del formato (5/10L o 10/20/30L) y rendimiento.
+
+### 14-08-2026 (Sesión 81) — Eventos: p/p + rendimiento antes de precios
+
+- Tras invitados no se envía el catálogo. Se muestra la *buena referencia* (2 / 3+ p/p), el rendimiento de barriles y se pregunta cuántos cócteles por persona.
+- Con la respuesta, se recomienda el volumen y el menú pasa a *Ver Precios y Cotizar* / duda. La imagen de precios sale al elegir 1.
+
 ### 14-08-2026 (Sesión 80) — API/bot: comunas nacionales y despacho correcto
 
 - `GET /api/v1/catalog` entrega todas las comunas activas (no solo RM eventos) con región, carrier y tarifas.
@@ -57,15 +71,6 @@
 - Modales Barriles y Eventos: un solo scroller; en móvil carrito colapsable, totales+flete en el footer con CTA y monto; sin comuna muestra “Elige comuna para calcular”. Desktop sin cambios de columnas. Autofill y comentarios detrás de “Añadir nota”.
 - Extraído QuoteSummaryTotals; CheckoutCartSection.
 
-### 14-08-2026 (Sesión 77) — Checkout móvil: datos primero
-
-- Modales de carrito (eventos y desechables): en móvil el formulario va arriba, productos al medio y el botón de pedido/cotización al final. En desktop se mantiene productos a la izquierda.
-
-### 14-08-2026 (Sesión 76) — Labels Cobertura + Evento Gratis
-
-- Admin: pestaña Cobertura al final. Tabla: Comuna → Transporte → Desechable → Evento → Evento Gratis. `free_from` solo eventos; eventos siempre traslado propio.
-- Eventos siempre `shippingCarrier: own` (nunca Blue Express). Desechables no usan Evento Gratis.
-
 ---
 
-*Ultima actualizacion: 14-08-2026 (Sesión 80)*
+*Ultima actualizacion: 17-08-2026 (Sesión 83)*

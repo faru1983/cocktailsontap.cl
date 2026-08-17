@@ -68,8 +68,16 @@ export interface ScaledRecipe {
     byCategory: { category: string; items: ScaledRecipeLine[] }[];
 }
 
+export interface ProductionProductSummary {
+    productId: string;
+    name: string;
+    liters: number;
+    /** Litros por barril → cantidad de barriles (solo desde cotizaciones). */
+    sizeBreakdown?: Record<number, number>;
+}
+
 export interface ProductionResult {
-    litersByProduct: Record<string, { productId: string; name: string; liters: number }>;
+    litersByProduct: Record<string, ProductionProductSummary>;
     technical: ProductionLine[];
     byCategory: { category: string; items: ProductionLine[] }[];
     scaledRecipes: ScaledRecipe[];
@@ -196,8 +204,13 @@ export function rangeFor(range: QuoteRange, timeZone: string, now = new Date()):
 export function aggregateFromQuotes(
     items: QuoteItemForProduction[],
     recipeProductIds: Set<string>
-): { litersByProductId: Record<string, number>; skipped: string[] } {
+): {
+    litersByProductId: Record<string, number>;
+    sizeBreakdownByProductId: Record<string, Record<number, number>>;
+    skipped: string[];
+} {
     const litersByProductId: Record<string, number> = {};
+    const sizeBreakdownByProductId: Record<string, Record<number, number>> = {};
     const skipped: string[] = [];
     const skippedSet = new Set<string>();
 
@@ -221,14 +234,37 @@ export function aggregateFromQuotes(
             continue;
         }
         litersByProductId[item.product_id] = (litersByProductId[item.product_id] || 0) + sizeVal * qty;
+        const breakdown = sizeBreakdownByProductId[item.product_id] || {};
+        breakdown[sizeVal] = (breakdown[sizeVal] || 0) + qty;
+        sizeBreakdownByProductId[item.product_id] = breakdown;
     }
 
-    return { litersByProductId, skipped };
+    return { litersByProductId, sizeBreakdownByProductId, skipped };
+}
+
+/** Desglose de barriles para resumen (ej. "4x5L" o "1x10L + 2x5L"). */
+export function formatSizeBreakdown(sizeBreakdown?: Record<number, number>): string | null {
+    if (!sizeBreakdown) return null;
+    const entries = Object.entries(sizeBreakdown)
+        .map(([size, count]) => ({ size: Number(size), count: Number(count) }))
+        .filter((e) => e.size > 0 && e.count > 0);
+    const totalBarrels = entries.reduce((sum, e) => sum + e.count, 0);
+    if (totalBarrels <= 1) return null;
+    entries.sort((a, b) => b.size - a.size);
+    return entries.map((e) => `${e.count}x${e.size}L`).join(' + ');
+}
+
+/** Línea de resumen de producción: "20L Mojito Tradicional (4x5L)". */
+export function formatProductionProductLine(row: Pick<ProductionProductSummary, 'name' | 'liters' | 'sizeBreakdown'>): string {
+    const breakdown = formatSizeBreakdown(row.sizeBreakdown);
+    const main = `${roundQty(row.liters)}L ${row.name}`;
+    return breakdown ? `${main} (${breakdown})` : main;
 }
 
 export function scaleProduction(
     litersByProductId: Record<string, number>,
-    recipes: RecipeLike[]
+    recipes: RecipeLike[],
+    sizeBreakdownByProductId?: Record<string, Record<number, number>>
 ): ProductionResult {
     const recipeByProduct = new Map(recipes.map((r) => [r.product_id, r]));
     const ingredientTotals = new Map<string, ProductionLine>();
@@ -245,7 +281,13 @@ export function scaleProduction(
         }
         const name = recipe.products?.name || productId;
         const roundedLiters = roundQty(liters);
-        litersByProduct[productId] = { productId, name, liters: roundedLiters };
+        const sizeBreakdown = sizeBreakdownByProductId?.[productId];
+        litersByProduct[productId] = {
+            productId,
+            name,
+            liters: roundedLiters,
+            ...(sizeBreakdown && Object.keys(sizeBreakdown).length > 0 ? { sizeBreakdown } : {}),
+        };
 
         const base = Number(recipe.base_liters) || 5;
         const factor = liters / base;
@@ -332,7 +374,7 @@ export function buildProductionWhatsAppMessage(result: ProductionResult): string
         message += 'No se ingresó producción.\n';
     } else {
         for (const row of liters.sort((a, b) => a.name.localeCompare(b.name, 'es'))) {
-            message += `- ${row.name}: ${roundQty(row.liters)} Lts\n`;
+            message += `- ${formatProductionProductLine(row)}\n`;
         }
     }
 

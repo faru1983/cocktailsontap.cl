@@ -23,6 +23,7 @@ import {
     scaleProduction,
     aggregateFromQuotes,
     buildProductionWhatsAppMessage,
+    formatProductionProductLine,
     roundQty,
     isBottleCategory,
     formatBottleCount,
@@ -460,14 +461,14 @@ export default function RecetarioClient({
         }
         const allItems = selected.flatMap((q) => q.quote_items || []);
         const recipeIds = new Set(recipes.filter((r) => r.is_active).map((r) => r.product_id));
-        const { litersByProductId, skipped } = aggregateFromQuotes(allItems, recipeIds);
+        const { litersByProductId, sizeBreakdownByProductId, skipped } = aggregateFromQuotes(allItems, recipeIds);
         if (Object.keys(litersByProductId).length === 0) {
             setResult(null);
             setSkippedNotice(skipped);
             alert('No hay cócteles con receta en las cotizaciones seleccionadas.');
             return;
         }
-        const scaled = scaleProduction(litersByProductId, recipes);
+        const scaled = scaleProduction(litersByProductId, recipes, sizeBreakdownByProductId);
         setResult(scaled);
         setSkippedNotice(skipped);
     };
@@ -1665,9 +1666,11 @@ export default function RecetarioClient({
                                     {Object.values(result.litersByProduct)
                                         .sort((a, b) => a.name.localeCompare(b.name, 'es'))
                                         .map((row) => (
-                                            <li key={row.productId} className="text-sm text-slate-300 print:text-slate-800">
-                                                <span className="font-bold text-white print:text-black">{row.name}</span>
-                                                : {roundQty(row.liters)} L
+                                            <li
+                                                key={row.productId}
+                                                className="text-sm text-slate-300 print:text-slate-800 font-medium"
+                                            >
+                                                {formatProductionProductLine(row)}
                                             </li>
                                         ))}
                                 </ul>
