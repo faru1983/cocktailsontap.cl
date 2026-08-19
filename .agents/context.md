@@ -41,6 +41,12 @@
 
 ## Ultimos Cambios
 
+### 19-08-2026 (Sesión 85) — Fix enum `in_delivery` + botón único En reparto
+
+- Causa del error: el enum `quote_status` en Supabase no incluía `in_delivery` (migración local no aplicada; SQL usaba CHECK en vez de `ALTER TYPE`).
+- Migración aplicada en prod: valor enum + columnas `dispatch_*`.
+- Admin detalle: un solo botón **En reparto** (modal reparto propio / Blue Express / carrier + email); ya no aparece el cambio de estado genérico duplicado.
+
 ### 18-08-2026 (Sesión 84) — Venta directa: pago, calendario y despacho
 
 - Calendar desechables solo tras registrar pago (no al crear pedido web/WhatsApp).
@@ -62,22 +68,6 @@
 - Tras invitados no se envía el catálogo. Se muestra la *buena referencia* (2 / 3+ p/p), el rendimiento de barriles y se pregunta cuántos cócteles por persona.
 - Con la respuesta, se recomienda el volumen y el menú pasa a *Ver Precios y Cotizar* / duda. La imagen de precios sale al elegir 1.
 
-### 14-08-2026 (Sesión 80) — API/bot: comunas nacionales y despacho correcto
-
-- `GET /api/v1/catalog` entrega todas las comunas activas (no solo RM eventos) con región, carrier y tarifas.
-- Quotes/direct-sales aceptan `client.region`; si falta, se infiere por el nombre de comuna.
-- Bot WhatsApp matchea comunas de todo Chile y cotiza despacho con la misma lógica de la web (propio / Blue Express misma zona-centro-extremo).
-- Pedido barriles: al elegir comuna muestra el flete (catálogo o Blue Express por zona: Iquique extremo $14.500 / 1 barril). El resumen reitera el monto.
-
-### 14-08-2026 (Sesión 79) — Eventos: retiro mismo día o siguiente + nota
-
-- Checkout eventos: retiro solo mismo día (sin hora) o día siguiente (con hora). Validación en `confirmNowValidation`, schema y `EventQuoteView`.
-- Comentarios como desechables: “Añadir nota” en el form principal (no solo al confirmar reserva).
-
-### 14-08-2026 (Sesión 78) — Checkout: accordion, totales y un scroll
-- Modales Barriles y Eventos: un solo scroller; en móvil carrito colapsable, totales+flete en el footer con CTA y monto; sin comuna muestra “Elige comuna para calcular”. Desktop sin cambios de columnas. Autofill y comentarios detrás de “Añadir nota”.
-- Extraído QuoteSummaryTotals; CheckoutCartSection.
-
 ---
 
-*Ultima actualizacion: 18-08-2026 (Sesión 84)*
+*Ultima actualizacion: 19-08-2026 (Sesión 85)*

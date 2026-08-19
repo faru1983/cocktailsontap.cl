@@ -526,7 +526,7 @@ export default function QuoteDetailClient({ quote: initial, allProducts, eventTy
             <div style={{ background: '#1e2433', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.06)', padding: '20px 24px', marginBottom: '24px' }}>
                 <h3 style={{ color: '#f1f5f9', fontSize: '13px', fontWeight: 700, margin: '0 0 14px', textTransform: 'uppercase', letterSpacing: '1px' }}>Cambiar Estado</h3>
                 <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                    {statusFlow.filter(s => s !== quote.status).map(s => (
+                    {statusFlow.filter(s => s !== quote.status && s !== 'in_delivery').map(s => (
                         <button key={s} onClick={() => handleStatusChange(s)} disabled={isPending} style={{
                             padding: '8px 16px', borderRadius: '10px', fontSize: '12px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
                             background: statusBadge[s]?.bg, border: `1px solid ${statusBadge[s]?.color}40`,
@@ -543,11 +543,11 @@ export default function QuoteDetailClient({ quote: initial, allProducts, eventTy
                             style={{
                                 padding: '8px 16px', borderRadius: '10px', fontSize: '12px', fontWeight: 700,
                                 cursor: 'pointer', fontFamily: 'inherit',
-                                background: 'rgba(56,189,248,0.15)', border: '1px solid #38bdf840',
-                                color: '#38bdf8', opacity: isPending ? 0.5 : 1,
+                                background: statusBadge.in_delivery.bg, border: `1px solid ${statusBadge.in_delivery.color}40`,
+                                color: statusBadge.in_delivery.color, opacity: isPending ? 0.5 : 1,
                             }}
                         >
-                            → Marcar en reparto
+                            → En reparto
                         </button>
                     )}
 
@@ -1195,7 +1195,7 @@ export default function QuoteDetailClient({ quote: initial, allProducts, eventTy
             {showDispatchModal && (
                 <div className="q-modal-overlay">
                     <div className="q-modal">
-                        <h2 style={{ color: '#f1f5f9', fontSize: '18px', margin: '0 0 20px' }}>Marcar en reparto</h2>
+                        <h2 style={{ color: '#f1f5f9', fontSize: '18px', margin: '0 0 20px' }}>En reparto</h2>
 
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '20px' }}>
                             <label style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#f1f5f9', fontSize: '13px', cursor: 'pointer' }}>

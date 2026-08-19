@@ -1,10 +1,7 @@
 -- Venta directa: estado en reparto + datos de despacho
--- Ampliar status si hay constraint (PostgreSQL enum o check)
+-- La columna status usa el enum quote_status (no CHECK constraint)
 
-ALTER TABLE quotes DROP CONSTRAINT IF EXISTS quotes_status_check;
-
-ALTER TABLE quotes ADD CONSTRAINT quotes_status_check
-  CHECK (status IN ('draft', 'confirmed', 'in_delivery', 'cancelled', 'completed'));
+ALTER TYPE quote_status ADD VALUE IF NOT EXISTS 'in_delivery' AFTER 'confirmed';
 
 ALTER TABLE quotes
   ADD COLUMN IF NOT EXISTS dispatch_mode text,
