@@ -36,6 +36,7 @@ interface Props {
 const STATUS_CONFIG = {
     draft: { label: 'Borrador', color: 'bg-amber-100 text-amber-800 border-amber-200', icon: Clock },
     confirmed: { label: 'Confirmada', color: 'bg-green-100 text-green-800 border-green-200', icon: CheckCircle },
+    in_delivery: { label: 'En reparto', color: 'bg-sky-100 text-sky-800 border-sky-200', icon: ShoppingCart },
     cancelled: { label: 'Cancelada', color: 'bg-red-100 text-red-800 border-red-200', icon: XCircle },
     completed: { label: 'Completada', color: 'bg-blue-100 text-blue-800 border-blue-200', icon: CheckCircle },
 };
@@ -644,6 +645,40 @@ export default function DirectQuoteView({ quote, comunas, regions, availableCock
                             >
                                 <Copy className="w-4 h-4" /> Copiar Datos para Transferir
                             </button>
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {quote.status === 'in_delivery' && (
+                <div className="bg-sky-50 rounded-[1.5rem] border border-sky-200 p-5 sm:p-6 shadow-sm">
+                    <h2 className="text-[0.65rem] font-black text-sky-800 uppercase tracking-[0.2em] mb-3 flex items-center gap-2">
+                        <ShoppingCart className="w-3.5 h-3.5" /> Estado del envío
+                    </h2>
+                    {quote.dispatch_mode === 'own' ? (
+                        <p className="text-[0.9rem] text-sky-900 font-medium leading-relaxed">
+                            Tu pedido está en reparto y será entregado durante el día.
+                        </p>
+                    ) : (
+                        <div className="space-y-2 text-[0.9rem] text-sky-900">
+                            <p className="font-medium">
+                                Despachado vía <strong>{quote.dispatch_carrier_name || 'transportista'}</strong>
+                            </p>
+                            {quote.dispatch_tracking_number && (
+                                <p>
+                                    Número de seguimiento: <strong className="font-black">{quote.dispatch_tracking_number}</strong>
+                                </p>
+                            )}
+                            {quote.dispatch_tracking_url && (
+                                <a
+                                    href={quote.dispatch_tracking_url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-2 text-sky-700 font-black text-[0.85rem] hover:underline"
+                                >
+                                    <ExternalLink className="w-4 h-4" /> Rastrear envío
+                                </a>
+                            )}
                         </div>
                     )}
                 </div>

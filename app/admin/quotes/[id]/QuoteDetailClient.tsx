@@ -6,12 +6,22 @@ import { useRouter } from 'next/navigation';
 import { 
     updateQuoteStatus, sendDirectEmail, sendReviewEmail, updateQuoteAdmin,
     addQuotePayment, deleteQuotePayment, updateQuoteItemsAdmin,
-    sendQuoteEmailAdmin, syncQuoteToCalendarAdmin, deleteQuotePermanent
+    sendQuoteEmailAdmin, syncQuoteToCalendarAdmin, deleteQuotePermanent,
+    markDirectSaleInDelivery,
 } from '@/app/actions/admin/adminActions';
 import { SITE_URL } from '@/lib/config';
 import type { QuoteItem, Product } from '@/lib/types';
 import { formatPhoneDisplay, toWhatsAppDigits, normalizePhoneE164 } from '@/lib/phone';
 import PhoneInput from '@/components/ui/PhoneInput';
+import {
+    getQuoteBalance,
+    isDirectSaleQuote,
+    isDirectSalePaymentPending,
+    DIRECT_SALE_PAYMENT_PENDING_BADGE,
+    PAYMENT_NOTE_FULL,
+    PAYMENT_NOTE_PARTIAL,
+    BLUE_EXPRESS_CARRIER,
+} from '@/lib/directSaleFulfillment';
 import { 
     FileText, ShoppingBag, CreditCard, Mail, Edit2, Save, Send,
     Link as LinkIcon, Trash2, ArrowRight, MessageCircle, Star, ArrowLeft, X,
@@ -21,12 +31,13 @@ import type { Comuna, Region } from '@/lib/types';
 import { DEFAULT_REGION_CODE } from '@/lib/types';
 import { sourceBadge, normalizeQuoteSource } from '@/lib/quoteSource';
 
-const statusFlow = ['draft', 'confirmed', 'completed', 'cancelled'];
+const statusFlow = ['draft', 'confirmed', 'in_delivery', 'completed', 'cancelled'];
 const statusBadge: Record<string, { label: string; color: string; bg: string }> = {
-    draft:     { label: 'Borrador',   color: '#94a3b8', bg: 'rgba(148,163,184,0.15)' },
-    confirmed: { label: 'Confirmada', color: '#34d399', bg: 'rgba(52,211,153,0.15)' },
-    completed: { label: 'Completada', color: '#a78bfa', bg: 'rgba(167,139,250,0.15)' },
-    cancelled: { label: 'Cancelada',  color: '#f87171', bg: 'rgba(248,113,113,0.15)' },
+    draft:       { label: 'Borrador',   color: '#94a3b8', bg: 'rgba(148,163,184,0.15)' },
+    confirmed:   { label: 'Confirmada', color: '#34d399', bg: 'rgba(52,211,153,0.15)' },
+    in_delivery: { label: 'En reparto', color: '#38bdf8', bg: 'rgba(56,189,248,0.15)' },
+    completed:   { label: 'Completada', color: '#a78bfa', bg: 'rgba(167,139,250,0.15)' },
+    cancelled:   { label: 'Cancelada',  color: '#f87171', bg: 'rgba(248,113,113,0.15)' },
 };
 const formatCLP = (n: number) => new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0 }).format(n);
 
@@ -64,6 +75,21 @@ export default function QuoteDetailClient({ quote: initial, allProducts, eventTy
 
     // Payment Modal State
     const [showPayModal, setShowPayModal] = useState(false);
+    const [payNoteType, setPayNoteType] = useState<'full' | 'partial' | 'custom'>('partial');
+    const [payCustomNote, setPayCustomNote] = useState('');
+
+    // Dispatch modal (venta directa)
+    const [showDispatchModal, setShowDispatchModal] = useState(false);
+    const [dispatchKind, setDispatchKind] = useState<'own' | 'carrier'>('own');
+    const [carrierPreset, setCarrierPreset] = useState<'blue_express' | 'custom'>('blue_express');
+    const [trackingNumber, setTrackingNumber] = useState('');
+    const [customCarrierName, setCustomCarrierName] = useState('');
+    const [customTrackingUrl, setCustomTrackingUrl] = useState('');
+
+    const isDirectSale = isDirectSaleQuote(quote);
+    const balance = getQuoteBalance(quote);
+    const totalPaid = (Number(quote.total_price) || 0) - balance;
+    const canMarkInDelivery = isDirectSale && quote.status === 'confirmed' && balance <= 0;
 
     const showToast = (msg: string, ok = true) => {
         setToast({ msg, ok });
@@ -142,10 +168,16 @@ export default function QuoteDetailClient({ quote: initial, allProducts, eventTy
     const handleAddPayment = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         const fd = new FormData(e.currentTarget);
+        const note =
+            payNoteType === 'full'
+                ? PAYMENT_NOTE_FULL
+                : payNoteType === 'partial'
+                  ? PAYMENT_NOTE_PARTIAL
+                  : payCustomNote.trim() || PAYMENT_NOTE_PARTIAL;
         const p = {
             date: fd.get('date') as string,
             amount: Number(fd.get('amount')),
-            note: fd.get('note') as string,
+            note,
         };
         if (!p.amount || !p.date) return;
 
@@ -155,7 +187,91 @@ export default function QuoteDetailClient({ quote: initial, allProducts, eventTy
                 const updatedPayments = [...(quote.payments || []), p];
                 setQuote((q: any) => ({ ...q, payments: updatedPayments }));
                 setShowPayModal(false);
-                showToast('Pago registrado y sincronizado');
+                setPayNoteType('partial');
+                setPayCustomNote('');
+                if (res.emailWarning) {
+                    showToast(`Pago registrado (email: ${res.emailWarning})`, false);
+                } else {
+                    showToast('Pago registrado y email enviado');
+                }
+            } else showToast(res.error || 'Error', false);
+        });
+    };
+
+    const handleQuickFullPayment = () => {
+        if (balance <= 0) return;
+        if (!confirm(`¿Registrar transferencia total por ${formatCLP(balance)} y enviar email al cliente?`)) return;
+
+        const p = {
+            date: new Date().toISOString().split('T')[0],
+            amount: balance,
+            note: PAYMENT_NOTE_FULL,
+        };
+
+        startTransition(async () => {
+            const res = await addQuotePayment(quote.id, p);
+            if (res.success) {
+                const updatedPayments = [...(quote.payments || []), p];
+                setQuote((q: any) => ({ ...q, payments: updatedPayments }));
+                if (res.emailWarning) {
+                    showToast(`Pago registrado (email: ${res.emailWarning})`, false);
+                } else {
+                    showToast('Transferencia total registrada y email enviado');
+                }
+            } else showToast(res.error || 'Error', false);
+        });
+    };
+
+    const handleMarkInDelivery = () => {
+        startTransition(async () => {
+            let input: Parameters<typeof markDirectSaleInDelivery>[1];
+            if (dispatchKind === 'own') {
+                input = { mode: 'own' };
+            } else if (carrierPreset === 'blue_express') {
+                input = {
+                    mode: 'carrier',
+                    carrierPreset: 'blue_express',
+                    trackingNumber,
+                };
+            } else {
+                input = {
+                    mode: 'carrier',
+                    carrierPreset: 'custom',
+                    carrierName: customCarrierName,
+                    trackingUrl: customTrackingUrl,
+                    trackingNumber,
+                };
+            }
+
+            const res = await markDirectSaleInDelivery(quote.id, input);
+            if (res.success) {
+                setQuote((q: any) => ({
+                    ...q,
+                    status: 'in_delivery',
+                    dispatch_mode: dispatchKind === 'own' ? 'own' : 'carrier',
+                    dispatch_carrier_name:
+                        dispatchKind === 'own'
+                            ? null
+                            : carrierPreset === 'blue_express'
+                              ? BLUE_EXPRESS_CARRIER.name
+                              : customCarrierName,
+                    dispatch_tracking_url:
+                        dispatchKind === 'own'
+                            ? null
+                            : carrierPreset === 'blue_express'
+                              ? BLUE_EXPRESS_CARRIER.trackingUrl
+                              : customTrackingUrl,
+                    dispatch_tracking_number: dispatchKind === 'own' ? null : trackingNumber,
+                }));
+                setShowDispatchModal(false);
+                setTrackingNumber('');
+                setCustomCarrierName('');
+                setCustomTrackingUrl('');
+                if (res.emailWarning) {
+                    showToast(`En reparto (email: ${res.emailWarning})`, false);
+                } else {
+                    showToast('Marcado en reparto y email enviado');
+                }
             } else showToast(res.error || 'Error', false);
         });
     };
@@ -268,10 +384,9 @@ export default function QuoteDetailClient({ quote: initial, allProducts, eventTy
         });
     };
 
-    const totalPaid = (quote.payments || []).reduce((sum: number, p: any) => sum + (Number(p.amount) || 0), 0);
-    const balance = Number(quote.total_price) - totalPaid;
-
-    const badge = statusBadge[quote.status] || statusBadge.draft;
+    const badge = isDirectSalePaymentPending(quote)
+        ? DIRECT_SALE_PAYMENT_PENDING_BADGE
+        : statusBadge[quote.status] || statusBadge.draft;
     const srcBadge = sourceBadge[normalizeQuoteSource(quote.source)];
 
     if (isDeleting) {
@@ -420,6 +535,21 @@ export default function QuoteDetailClient({ quote: initial, allProducts, eventTy
                             → {statusBadge[s]?.label}
                         </button>
                     ))}
+
+                    {canMarkInDelivery && (
+                        <button
+                            onClick={() => setShowDispatchModal(true)}
+                            disabled={isPending}
+                            style={{
+                                padding: '8px 16px', borderRadius: '10px', fontSize: '12px', fontWeight: 700,
+                                cursor: 'pointer', fontFamily: 'inherit',
+                                background: 'rgba(56,189,248,0.15)', border: '1px solid #38bdf840',
+                                color: '#38bdf8', opacity: isPending ? 0.5 : 1,
+                            }}
+                        >
+                            → Marcar en reparto
+                        </button>
+                    )}
 
                     <button onClick={handleDeleteQuote} disabled={isPending} style={{
                         marginLeft: 'auto', padding: '8px 16px', borderRadius: '10px', fontSize: '12px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
@@ -957,9 +1087,24 @@ export default function QuoteDetailClient({ quote: initial, allProducts, eventTy
                             </div>
                         </div>
 
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
                             <h3 style={{ color: '#f1f5f9', fontSize: '14px', margin: 0 }}>Historial de Pagos</h3>
-                            <button onClick={() => setShowPayModal(true)} style={{ padding: '8px 16px', background: '#34d399', color: '#1a1a2e', borderRadius: '8px', border: 'none', fontWeight: 700, fontSize: '12px', cursor: 'pointer' }}>+ Registrar Pago</button>
+                            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                                {isDirectSale && balance > 0 && (
+                                    <button
+                                        onClick={handleQuickFullPayment}
+                                        disabled={isPending}
+                                        style={{
+                                            padding: '8px 16px', background: '#E2A049', color: '#1a1a2e',
+                                            borderRadius: '8px', border: 'none', fontWeight: 800, fontSize: '12px',
+                                            cursor: 'pointer', opacity: isPending ? 0.6 : 1,
+                                        }}
+                                    >
+                                        Registrar transferencia total ({formatCLP(balance)})
+                                    </button>
+                                )}
+                                <button onClick={() => setShowPayModal(true)} style={{ padding: '8px 16px', background: '#34d399', color: '#1a1a2e', borderRadius: '8px', border: 'none', fontWeight: 700, fontSize: '12px', cursor: 'pointer' }}>+ Registrar Pago</button>
+                            </div>
                         </div>
 
                         <div style={{ display: 'grid', gap: '8px' }}>
@@ -1016,13 +1161,93 @@ export default function QuoteDetailClient({ quote: initial, allProducts, eventTy
                         </div>
                         <div className="q-form-group">
                             <label className="q-label">Glosa / Tipo</label>
-                            <input name="note" className="q-input" placeholder="Abono inicial, Saldo, etc." />
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#f1f5f9', fontSize: '13px', cursor: 'pointer' }}>
+                                    <input type="radio" name="payNoteType" checked={payNoteType === 'full'} onChange={() => setPayNoteType('full')} />
+                                    Transferencia total
+                                </label>
+                                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#f1f5f9', fontSize: '13px', cursor: 'pointer' }}>
+                                    <input type="radio" name="payNoteType" checked={payNoteType === 'partial'} onChange={() => setPayNoteType('partial')} />
+                                    Abono transferencia
+                                </label>
+                                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#f1f5f9', fontSize: '13px', cursor: 'pointer' }}>
+                                    <input type="radio" name="payNoteType" checked={payNoteType === 'custom'} onChange={() => setPayNoteType('custom')} />
+                                    Otro
+                                </label>
+                                {payNoteType === 'custom' && (
+                                    <input
+                                        className="q-input"
+                                        value={payCustomNote}
+                                        onChange={(e) => setPayCustomNote(e.target.value)}
+                                        placeholder="Texto libre"
+                                    />
+                                )}
+                            </div>
                         </div>
                         <div style={{ display: 'flex', gap: '10px', marginTop: '24px' }}>
                             <button type="button" className="q-action-btn q-action-btn-secondary" style={{ flex: 1 }} onClick={() => setShowPayModal(false)}>Cancelar</button>
                             <button type="submit" disabled={isPending} className="q-action-btn q-action-btn-primary" style={{ flex: 1 }}>{isPending ? '...' : 'Guardar Pago'}</button>
                         </div>
                     </form>
+                </div>
+            )}
+
+            {showDispatchModal && (
+                <div className="q-modal-overlay">
+                    <div className="q-modal">
+                        <h2 style={{ color: '#f1f5f9', fontSize: '18px', margin: '0 0 20px' }}>Marcar en reparto</h2>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '20px' }}>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#f1f5f9', fontSize: '13px', cursor: 'pointer' }}>
+                                <input type="radio" checked={dispatchKind === 'own'} onChange={() => setDispatchKind('own')} />
+                                Reparto propio (entrega durante el día)
+                            </label>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#f1f5f9', fontSize: '13px', cursor: 'pointer' }}>
+                                <input type="radio" checked={dispatchKind === 'carrier'} onChange={() => setDispatchKind('carrier')} />
+                                Despacho por tercero
+                            </label>
+                        </div>
+
+                        {dispatchKind === 'carrier' && (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginBottom: '20px' }}>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#f1f5f9', fontSize: '13px', cursor: 'pointer' }}>
+                                        <input type="radio" checked={carrierPreset === 'blue_express'} onChange={() => setCarrierPreset('blue_express')} />
+                                        Blue Express
+                                    </label>
+                                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#f1f5f9', fontSize: '13px', cursor: 'pointer' }}>
+                                        <input type="radio" checked={carrierPreset === 'custom'} onChange={() => setCarrierPreset('custom')} />
+                                        Otra empresa
+                                    </label>
+                                </div>
+                                {carrierPreset === 'blue_express' && (
+                                    <p style={{ color: '#64748b', fontSize: '12px', margin: 0 }}>
+                                        Seguimiento: {BLUE_EXPRESS_CARRIER.trackingUrl}
+                                    </p>
+                                )}
+                                {carrierPreset === 'custom' && (
+                                    <>
+                                        <input className="q-input" placeholder="Nombre empresa" value={customCarrierName} onChange={(e) => setCustomCarrierName(e.target.value)} />
+                                        <input className="q-input" placeholder="URL de seguimiento" value={customTrackingUrl} onChange={(e) => setCustomTrackingUrl(e.target.value)} />
+                                    </>
+                                )}
+                                <input
+                                    className="q-input"
+                                    placeholder="Número de seguimiento *"
+                                    value={trackingNumber}
+                                    onChange={(e) => setTrackingNumber(e.target.value)}
+                                    required
+                                />
+                            </div>
+                        )}
+
+                        <div style={{ display: 'flex', gap: '10px', marginTop: '24px' }}>
+                            <button type="button" className="q-action-btn q-action-btn-secondary" style={{ flex: 1 }} onClick={() => setShowDispatchModal(false)}>Cancelar</button>
+                            <button type="button" disabled={isPending} className="q-action-btn q-action-btn-primary" style={{ flex: 1 }} onClick={handleMarkInDelivery}>
+                                {isPending ? '...' : 'Confirmar y enviar email'}
+                            </button>
+                        </div>
+                    </div>
                 </div>
             )}
         </div>

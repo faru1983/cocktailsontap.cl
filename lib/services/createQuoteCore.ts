@@ -219,39 +219,7 @@ export async function createQuoteCore(input: CreateQuoteInput): Promise<CreateQu
                       )
             );
 
-            if (isDirect) {
-                tasks.push(
-                    (async () => {
-                        try {
-                            const calResult = await GoogleSyncService.scheduleCalendarEvents(
-                                fullQuote as any,
-                                { isDirectSaleOverride: isDirect }
-                            );
-                            if (calResult?.eventId || calResult?.pickupEventId) {
-                                const { createServerClient } = await import('@/lib/supabaseServer');
-                                const dbServer = createServerClient();
-                                await dbServer
-                                    .from('quotes')
-                                    .update({
-                                        google_event_id: calResult.eventId,
-                                        google_pickup_event_id: calResult.pickupEventId,
-                                    })
-                                    .eq('id', fullQuote.id);
-                            }
-                        } catch (calErr: any) {
-                            console.error('Error auto-syncing calendar:', calErr);
-                            const { createServerClient } = await import('@/lib/supabaseServer');
-                            const dbServer = createServerClient();
-                            await dbServer.from('sync_logs').insert({
-                                quote_id: fullQuote.id,
-                                type: 'google_calendar',
-                                status: 'error',
-                                error_msg: `Auto-sync failed: ${calErr.message || 'Unknown error'}`,
-                            });
-                        }
-                    })()
-                );
-            }
+            // Venta directa: Calendar solo tras registrar pago en admin (no al crear pedido).
 
             if (!skipEmail && resend && state.contact.email && createResult.quoteItems) {
                 tasks.push(

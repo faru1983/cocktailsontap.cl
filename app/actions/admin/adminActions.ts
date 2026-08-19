@@ -194,10 +194,17 @@ export async function updateQuoteItemsAdmin(
 }
 
 // ── Manage Payments ────────────────────────────────────────────────────────
-export async function addQuotePayment(quoteId: string, payment: { date: string; amount: number; note: string }): Promise<{ success: boolean; error?: string }> {
+export async function addQuotePayment(
+    quoteId: string,
+    payment: { date: string; amount: number; note: string }
+): Promise<{ success: boolean; error?: string; emailWarning?: string }> {
     await checkAuth();
     const db = createServerClient();
-    const { data: quote, error: fetchErr } = await db.from('quotes').select('payments, google_event_id, google_pickup_event_id').eq('id', quoteId).single();
+    const { data: quote, error: fetchErr } = await db
+        .from('quotes')
+        .select('payments, google_event_id, google_pickup_event_id, service_type, dispenser, total_price, token, client_email, client_name, client_lastname, event_date, status')
+        .eq('id', quoteId)
+        .single();
     if (fetchErr || !quote) return { success: false, error: 'Cotización no encontrada.' };
 
     const currentPayments = Array.isArray(quote.payments) ? quote.payments : [];
@@ -206,8 +213,35 @@ export async function addQuotePayment(quoteId: string, payment: { date: string; 
     const { error } = await db.from('quotes').update({ payments: newPayments }).eq('id', quoteId);
     if (error) return { success: false, error: error.message };
 
-    // Sync Calendar if event IDs exist
-    if (quote.google_event_id || quote.google_pickup_event_id) {
+    const isDirect = quote.service_type === 'direct' || quote.dispenser === 'desechable';
+    let emailWarning: string | undefined;
+
+    if (isDirect) {
+        const { syncDirectSaleCalendarAfterPayment, sendDirectSalePaymentRegisteredEmail } = await import(
+            '@/lib/services/directSaleEmailService'
+        );
+        const { getQuoteBalance } = await import('@/lib/directSaleFulfillment');
+
+        await syncDirectSaleCalendarAfterPayment(quoteId, db);
+
+        const balanceAfter = getQuoteBalance({
+            payments: newPayments,
+            total_price: quote.total_price,
+        });
+
+        const { data: fullForEmail } = await db.from('quotes').select('*').eq('id', quoteId).single();
+        if (fullForEmail?.client_email) {
+            const emailRes = await sendDirectSalePaymentRegisteredEmail(
+                fullForEmail as Quote,
+                payment.amount,
+                balanceAfter
+            );
+            if (!emailRes.ok) {
+                emailWarning = emailRes.error || 'No se pudo enviar el email de pago';
+                console.error('Payment registered email failed:', emailWarning);
+            }
+        }
+    } else if (quote.google_event_id || quote.google_pickup_event_id) {
         try {
             const { data: fullQuote } = await db.from('quotes').select('*, quote_items(*)').eq('id', quoteId).single();
             if (fullQuote) {
@@ -216,11 +250,117 @@ export async function addQuotePayment(quoteId: string, payment: { date: string; 
                     updatePickupEventId: quote.google_pickup_event_id,
                 });
             }
-        } catch (e) { console.error('Error syncing calendar after payment', e); }
+        } catch (e) {
+            console.error('Error syncing calendar after payment', e);
+        }
     }
 
     revalidatePath(`/admin/quotes/${quoteId}`);
-    return { success: true };
+    return { success: true, emailWarning };
+}
+
+export type MarkInDeliveryInput =
+    | { mode: 'own' }
+    | { mode: 'carrier'; carrierPreset: 'blue_express'; trackingNumber: string }
+    | {
+          mode: 'carrier';
+          carrierPreset: 'custom';
+          carrierName: string;
+          trackingUrl: string;
+          trackingNumber: string;
+      };
+
+/**
+ * markDirectSaleInDelivery: Marca venta directa en reparto y envía email al cliente.
+ */
+export async function markDirectSaleInDelivery(
+    quoteId: string,
+    input: MarkInDeliveryInput
+): Promise<{ success: boolean; error?: string; emailWarning?: string }> {
+    await checkAuth();
+    const db = createServerClient();
+
+    const { data: quote, error: fetchErr } = await db
+        .from('quotes')
+        .select('*')
+        .eq('id', quoteId)
+        .single();
+
+    if (fetchErr || !quote) return { success: false, error: 'Cotización no encontrada.' };
+
+    const isDirect = quote.service_type === 'direct' || quote.dispenser === 'desechable';
+    if (!isDirect) return { success: false, error: 'Solo aplica a venta directa.' };
+
+    if (quote.status !== 'confirmed') {
+        return { success: false, error: 'Solo puedes marcar en reparto desde estado Confirmada.' };
+    }
+
+    const { getQuoteBalance } = await import('@/lib/directSaleFulfillment');
+    const balance = getQuoteBalance(quote as Quote);
+    if (balance > 0) {
+        return { success: false, error: 'El pedido tiene saldo pendiente. Registra el pago antes del despacho.' };
+    }
+
+    const { BLUE_EXPRESS_CARRIER } = await import('@/lib/directSaleFulfillment');
+
+    let dispatch_mode: 'own' | 'carrier';
+    let dispatch_carrier_name: string | null = null;
+    let dispatch_tracking_url: string | null = null;
+    let dispatch_tracking_number: string | null = null;
+
+    if (input.mode === 'own') {
+        dispatch_mode = 'own';
+    } else {
+        dispatch_mode = 'carrier';
+        const trackingNumber = String(input.trackingNumber || '').trim();
+        if (!trackingNumber) {
+            return { success: false, error: 'Ingresa el número de seguimiento.' };
+        }
+        dispatch_tracking_number = trackingNumber;
+
+        if (input.carrierPreset === 'blue_express') {
+            dispatch_carrier_name = BLUE_EXPRESS_CARRIER.name;
+            dispatch_tracking_url = BLUE_EXPRESS_CARRIER.trackingUrl;
+        } else {
+            const name = String(input.carrierName || '').trim();
+            const url = String(input.trackingUrl || '').trim();
+            if (!name || !url) {
+                return { success: false, error: 'Nombre de empresa y URL de seguimiento son obligatorios.' };
+            }
+            dispatch_carrier_name = name;
+            dispatch_tracking_url = url;
+        }
+    }
+
+    const { error: updateErr } = await db
+        .from('quotes')
+        .update({
+            status: 'in_delivery',
+            dispatch_mode,
+            dispatch_carrier_name,
+            dispatch_tracking_url,
+            dispatch_tracking_number,
+            dispatched_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+        })
+        .eq('id', quoteId);
+
+    if (updateErr) return { success: false, error: updateErr.message };
+
+    let emailWarning: string | undefined;
+    const { data: updated } = await db.from('quotes').select('*').eq('id', quoteId).single();
+    if (updated?.client_email) {
+        const { sendDirectSaleDispatchEmail } = await import('@/lib/services/directSaleEmailService');
+        const emailRes = await sendDirectSaleDispatchEmail(updated as Quote);
+        if (!emailRes.ok) {
+            emailWarning = emailRes.error || 'No se pudo enviar el email de despacho';
+            console.error('Dispatch email failed:', emailWarning);
+        }
+    }
+
+    revalidatePath('/admin/quotes');
+    revalidatePath(`/admin/quotes/${quoteId}`);
+    return { success: true, emailWarning };
 }
 
 export async function deleteQuotePayment(quoteId: string, index: number): Promise<{ success: boolean; error?: string }> {
@@ -336,8 +476,20 @@ export async function updateQuoteAdmin(quoteId: string, data: Record<string, any
         }
     }
 
-    // Sync Google Calendar if quote is confirmed OR if it already has event IDs
-    if (quote.status === 'confirmed' || quote.google_event_id || quote.google_pickup_event_id) {
+    // Sync Google Calendar: eventos confirmados; venta directa solo si ya hay evento (tras pago).
+    const { data: fullQuotePreview } = await db
+        .from('quotes')
+        .select('service_type, dispenser')
+        .eq('id', quoteId)
+        .single();
+    const isDirectPreview =
+        fullQuotePreview?.service_type === 'direct' || fullQuotePreview?.dispenser === 'desechable';
+    const shouldSyncCalendar =
+        quote.google_event_id ||
+        quote.google_pickup_event_id ||
+        (!isDirectPreview && quote.status === 'confirmed');
+
+    if (shouldSyncCalendar) {
         try {
             const { data: fullQuote } = await db.from('quotes').select('*, quote_items(*)').eq('id', quoteId).single();
             if (fullQuote) {

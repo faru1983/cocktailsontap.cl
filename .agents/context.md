@@ -23,7 +23,7 @@
 ## Flujos de Venta
 
 - **Evento**: Draft -> Confirmado (via link único), **o** confirmación inmediata en wizard/admin (`confirmNow`: mismos datos obligatorios que al confirmar draft → `confirmQuoteCore`).
-- **Venta Directa (Desechables)**: Confirmado directo (sin draft).
+- **Venta Directa (Desechables)**: Confirmado directo (sin draft). **Calendar desechables** solo al registrar el primer pago en admin (no al crear pedido). Estados: `confirmed` → `in_delivery` (reparto propio o carrier Blue/custom) → `completed`. Email Resend al registrar pago y al marcar en reparto.
 - **Integraciones** (`/api/v1`): mismo dominio que la web; auth Bearer `INTEGRATION_API_KEY`.
   - `GET /catalog` — productos/precios/**todas** las comunas activas + regiones + Blue Express (lectura para WhatsApp).
   - `POST /contacts` — primer contacto / engagement phone-first; avanza `lifecycle_stage` + CAPI opcional.
@@ -40,6 +40,13 @@
 - **CAPI solo desde `advanceClientStage`** (web / whatsapp / admin): Contact (engaged), InitiateCheckout (quoted), Purchase (customer).
 
 ## Ultimos Cambios
+
+### 18-08-2026 (Sesión 84) — Venta directa: pago, calendario y despacho
+
+- Calendar desechables solo tras registrar pago (no al crear pedido web/WhatsApp).
+- Admin: transferencia total en 1 clic, glosas predefinidas, email Resend al registrar pago.
+- Estado `in_delivery` (En reparto): propio, Blue Express o carrier custom + tracking; email al cliente.
+- Migración: `dispatch_*` en `quotes`. Ver `supabase/migrations/20260818120000_direct_sale_fulfillment.sql`.
 
 ### 17-08-2026 (Sesión 83) — Recetario: resumen de producción con desglose de barriles
 
@@ -73,4 +80,4 @@
 
 ---
 
-*Ultima actualizacion: 17-08-2026 (Sesión 83)*
+*Ultima actualizacion: 18-08-2026 (Sesión 84)*

@@ -111,6 +111,7 @@ const formatCLP = (n: number) => new Intl.NumberFormat('es-CL', { style: 'curren
 const statusBadge: Record<string, { label: string; color: string; bg: string }> = {
     draft: { label: 'Borrador', color: 'text-slate-400', bg: 'bg-slate-500/10' },
     confirmed: { label: 'Confirmada', color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
+    in_delivery: { label: 'En reparto', color: 'text-sky-400', bg: 'bg-sky-500/10' },
     completed: { label: 'Completada', color: 'text-purple-400', bg: 'bg-purple-500/10' },
     cancelled: { label: 'Cancelada', color: 'text-rose-400', bg: 'bg-rose-500/10' },
 };

@@ -87,6 +87,7 @@ interface StageEvent {
 const statusBadge: Record<string, { label: string; color: string; bg: string }> = {
     draft: { label: 'Borrador', color: '#94a3b8', bg: 'rgba(148,163,184,0.1)' },
     confirmed: { label: 'Confirmada', color: '#34d399', bg: 'rgba(52,211,153,0.1)' },
+    in_delivery: { label: 'En reparto', color: '#38bdf8', bg: 'rgba(56,189,248,0.1)' },
     completed: { label: 'Completada', color: '#a78bfa', bg: 'rgba(167,139,250,0.1)' },
     cancelled: { label: 'Cancelada', color: '#f87171', bg: 'rgba(248,113,113,0.1)' },
 };

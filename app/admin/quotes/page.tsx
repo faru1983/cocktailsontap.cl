@@ -28,7 +28,7 @@ async function getQuotes(
     const to = from + ITEMS_PER_PAGE - 1;
 
     let query = db.from('quotes')
-        .select('id, token, status, client_name, client_lastname, client_email, event_date, total_price, created_at, comuna_name, comuna_other, dispenser, service_type, review_email_sent, source', { count: 'exact' });
+        .select('id, token, status, client_name, client_lastname, client_email, event_date, total_price, payments, created_at, comuna_name, comuna_other, dispenser, service_type, review_email_sent, source', { count: 'exact' });
     
     if (status && status !== 'all') query = query.eq('status', status);
 

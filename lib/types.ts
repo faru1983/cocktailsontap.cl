@@ -210,7 +210,10 @@ export interface ICart {
 
 // ─── Sistema de Cotizaciones Persistente ──────────────────────────────────────
 
-export type QuoteStatus = 'draft' | 'confirmed' | 'cancelled' | 'completed';
+export type QuoteStatus = 'draft' | 'confirmed' | 'in_delivery' | 'cancelled' | 'completed';
+
+/** Despacho venta directa: propio o carrier (Blue Express / otra). */
+export type QuoteDispatchMode = 'own' | 'carrier';
 
 /** Re-export: fuente de verdad en `lib/quoteSource.ts`. */
 import type { QuoteSource } from '@/lib/quoteSource';
@@ -307,6 +310,13 @@ export interface Quote {
     client_id?: string | null;
     quote_items?: QuoteItem[];
     payments?: { date: string; amount: number; note: string }[];
+
+    /** Solo venta directa — en reparto */
+    dispatch_mode?: QuoteDispatchMode | null;
+    dispatch_carrier_name?: string | null;
+    dispatch_tracking_url?: string | null;
+    dispatch_tracking_number?: string | null;
+    dispatched_at?: string | null;
 }
 
 // ─── Esquemas de Validación (Zod) ─────────────────────────────────────────────

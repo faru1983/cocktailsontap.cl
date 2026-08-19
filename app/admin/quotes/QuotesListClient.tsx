@@ -7,13 +7,28 @@ import SortSelect from '@/components/admin/SortSelect';
 import { bulkUpdateQuoteStatus } from '@/app/actions/admin/adminActions';
 import { Plus, Star, ChevronDown, Calendar, Package } from 'lucide-react';
 import { sourceBadge, normalizeQuoteSource } from '@/lib/quoteSource';
+import { isDirectSalePaymentPending, DIRECT_SALE_PAYMENT_PENDING_BADGE } from '@/lib/directSaleFulfillment';
 
 const statusBadge: Record<string, { label: string; color: string; bg: string }> = {
     draft:        { label: 'Borrador',       color: '#94a3b8', bg: 'rgba(148,163,184,0.12)' },
     confirmed:    { label: 'Confirmada',     color: '#34d399', bg: 'rgba(52,211,153,0.12)' },
+    in_delivery:  { label: 'En reparto',     color: '#38bdf8', bg: 'rgba(56,189,248,0.12)' },
     completed:    { label: 'Completada',     color: '#a78bfa', bg: 'rgba(167,139,250,0.12)' },
     cancelled:    { label: 'Cancelada',      color: '#f87171', bg: 'rgba(248,113,113,0.12)' },
 };
+
+/** Venta directa confirmada sin pago registrado → chip rojo en pestaña Confirmadas. */
+function getQuoteListBadge(q: {
+    status?: string;
+    service_type?: string | null;
+    payments?: { amount: number }[] | null;
+    total_price?: number | null;
+}) {
+    if (isDirectSalePaymentPending(q as Parameters<typeof isDirectSalePaymentPending>[0])) {
+        return DIRECT_SALE_PAYMENT_PENDING_BADGE;
+    }
+    return statusBadge[q.status || 'draft'] || statusBadge.draft;
+}
 
 const formatCLP = (n: number) => new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0 }).format(n);
 
@@ -122,6 +137,7 @@ export default function QuotesListClient({
         { value: 'all', label: 'Todas' },
         { value: 'draft', label: 'Borradores' },
         { value: 'confirmed', label: 'Confirmadas' },
+        { value: 'in_delivery', label: 'En reparto' },
         { value: 'completed', label: 'Completadas' },
         { value: 'cancelled', label: 'Canceladas' },
     ];
@@ -324,7 +340,7 @@ export default function QuotesListClient({
                 {initialQuotes.length === 0 ? (
                     <div style={{ textAlign: 'center', padding: '40px', color: '#475569' }}>No se encontraron cotizaciones.</div>
                 ) : initialQuotes.map((q: any) => {
-                    const badge = statusBadge[q.status] || statusBadge.draft;
+                    const badge = getQuoteListBadge(q);
                     const srcBadge = sourceBadge[normalizeQuoteSource(q.source)];
                     const isSelected = selectedIds.includes(q.id);
                     return (
@@ -390,7 +406,7 @@ export default function QuotesListClient({
                         {initialQuotes.length === 0 ? (
                             <tr><td colSpan={10} style={{ padding: '48px 20px', textAlign: 'center', color: '#475569' }}>No se encontraron cotizaciones.</td></tr>
                         ) : initialQuotes.map((q: any) => {
-                            const badge = statusBadge[q.status] || statusBadge.draft;
+                            const badge = getQuoteListBadge(q);
                             const srcBadge = sourceBadge[normalizeQuoteSource(q.source)];
                             const isSelected = selectedIds.includes(q.id);
                             return (
