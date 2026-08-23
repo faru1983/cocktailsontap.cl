@@ -10,7 +10,7 @@ import type { Product, Comuna, Region, EventType, WizardState } from '@/lib/type
 import { DEFAULT_REGION_CODE } from '@/lib/types';
 import { calculateSummaryData } from '@/lib/wizardLogic';
 import { validateConfirmNowState } from '@/lib/confirmNowValidation';
-import { SITE_URL, MURO_INSTALLATION_COST } from '@/lib/config';
+import { SITE_URL, MURO_INSTALLATION_COST, PORTATIL_MIN_LITERS } from '@/lib/config';
 import PhoneInput from '@/components/ui/PhoneInput';
 import RegionComunaFields from '@/components/ui/RegionComunaFields';
 import { isValidPhoneE164, toWhatsAppDigits, normalizePhoneE164 } from '@/lib/phone';
@@ -191,6 +191,8 @@ export default function CreateQuoteManualClient({ allProducts, comunas, regions,
     const finalShipping = shippingOverride !== undefined ? shippingOverride : summary.shippingCost;
     const finalInstallation = installationOverride !== undefined ? installationOverride : suggestedInstallation;
     const finalTotal = summary.totalOfferPrice + finalShipping + finalInstallation - discountOverride;
+    const belowEventMinLiters =
+        serviceType === 'event' && selections.length > 0 && summary.totalLiters < PORTATIL_MIN_LITERS;
 
     // ─── 3. Handlers ──────────────────────────────────────────────────────────
 
@@ -680,6 +682,16 @@ export default function CreateQuoteManualClient({ allProducts, comunas, regions,
                                 </div>
                             )}
                         </div>
+
+                        {belowEventMinLiters && (
+                            <div className="mb-6 p-4 rounded-2xl border border-amber-500/20 bg-amber-500/10 flex items-start gap-3 text-amber-200 text-xs leading-relaxed">
+                                <AlertCircle size={16} className="shrink-0 mt-0.5 text-amber-400" />
+                                <span>
+                                    Volumen actual: <strong className="text-amber-100">{summary.totalLiters}L</strong> (mínimo web: {PORTATIL_MIN_LITERS}L).
+                                    Desde admin puedes generar la cotización igual; el cliente no podrá confirmarla por debajo del mínimo salvo que la confirmes aquí.
+                                </span>
+                            </div>
+                        )}
 
                         <div className="space-y-4 mb-10 pr-1">
                             {selections.length === 0 ? (

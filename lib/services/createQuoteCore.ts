@@ -179,7 +179,10 @@ export async function createQuoteCore(input: CreateQuoteInput): Promise<CreateQu
             }
             const confirmRes = await confirmQuoteCore(
                 buildConfirmPayload(state, createResult.token, items, comunas),
-                { skipEmail: Boolean(skipEmail) }
+                {
+                    skipEmail: Boolean(skipEmail),
+                    allowAdminMinLitersOverride: Boolean(isAdmin),
+                }
             );
             if (!confirmRes.success) {
                 return {

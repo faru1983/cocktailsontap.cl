@@ -24,6 +24,11 @@ export interface ConfirmQuoteResult {
 export interface ConfirmQuoteCoreOptions {
     /** Si true, no envía emails (admin skipEmail); sí sincroniza Google + CRM. */
     skipEmail?: boolean;
+    /**
+     * Solo cotización manual admin: permite confirmar eventos por debajo del mínimo
+     * de litros (10L portátil / reglas de muro). No usar en web ni API pública.
+     */
+    allowAdminMinLitersOverride?: boolean;
 }
 
 export async function confirmQuoteCore(
@@ -89,7 +94,7 @@ export async function confirmQuoteCore(
             catalogRes.comunas
         );
 
-        if (!isDirectSale) {
+        if (!isDirectSale && !options.allowAdminMinLitersOverride) {
             const minRequiredLiters = data.dispenser === 'muro' ? MURO_MIN_LITERS : PORTATIL_MIN_LITERS;
             if (summary.totalLiters < minRequiredLiters) {
                 return {

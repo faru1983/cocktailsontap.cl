@@ -41,6 +41,18 @@
 
 ## Ultimos Cambios
 
+### 23-08-2026 (Sesión 87) — WhatsApp flotante: menos intrusivo y arrastrable
+
+- `FloatingWhatsapp`: posición por defecto abajo-izquierda (alineado con menú hamburguesa), más pequeño, sin botón X.
+- Arrastrable con puntero; la posición se guarda en `localStorage` y se respeta en `/eventos` y `/barriles`.
+- z-index 90 para no competir con la barra del carrito (z-40) ni modales.
+
+### 23-08-2026 (Sesión 86) — Admin: excepción al mínimo de 10L en eventos
+
+- Cotización manual en `/admin/quotes/new`: el admin puede crear/confirmar eventos por debajo de 10L (y sin cumplir reglas de muro).
+- `confirmQuoteCore` acepta `allowAdminMinLitersOverride` solo cuando `createQuoteCore` se invoca con `isAdmin: true` (confirmación inmediata).
+- Web, link público `/cotizar/[token]` y API siguen exigiendo el mínimo de 10L al confirmar.
+
 ### 19-08-2026 (Sesión 85) — Fix enum `in_delivery` + botón único En reparto
 
 - Causa del error: el enum `quote_status` en Supabase no incluía `in_delivery` (migración local no aplicada; SQL usaba CHECK en vez de `ALTER TYPE`).
@@ -70,4 +82,4 @@
 
 ---
 
-*Ultima actualizacion: 19-08-2026 (Sesión 85)*
+*Ultima actualizacion: 23-08-2026 (Sesión 87)*
