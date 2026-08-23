@@ -609,6 +609,89 @@ export async function setPrimaryIdentifier(
     return { success: true };
 }
 
+/** Admin / perfil: registra el valor y lo deja como primario de su tipo. */
+export async function upsertAndSetPrimaryIdentifier(
+    clientId: string,
+    type: IdentifierType,
+    value: string,
+    source: ClientTouchSource = 'admin'
+): Promise<{ success: boolean; error?: string }> {
+    const existing = await findIdentifier(type, value);
+    if (existing && existing.client_id !== clientId) {
+        return { success: false, error: 'Este contacto ya pertenece a otro cliente.' };
+    }
+
+    if (!existing) {
+        const added = await ensureIdentifier(clientId, type, value, source, false);
+        if (added === 'exists_other') {
+            return { success: false, error: 'Este contacto ya pertenece a otro cliente.' };
+        }
+    }
+
+    const ident = await findIdentifier(type, value);
+    if (!ident || ident.client_id !== clientId) {
+        return { success: false, error: 'No se pudo registrar el identificador.' };
+    }
+
+    return setPrimaryIdentifier(clientId, ident.id);
+}
+
+/** Agrega email o teléfono adicional (nunca como primario). */
+export async function addClientIdentifier(
+    clientId: string,
+    type: IdentifierType,
+    value: string,
+    source: ClientTouchSource = 'admin'
+): Promise<{ success: boolean; error?: string }> {
+    const existing = await findIdentifier(type, value);
+    if (existing) {
+        if (existing.client_id === clientId) {
+            return { success: false, error: 'Este identificador ya está en el cliente.' };
+        }
+        return { success: false, error: 'Este contacto ya pertenece a otro cliente.' };
+    }
+
+    const result = await ensureIdentifier(clientId, type, value, source, false);
+    if (result === 'exists_other') {
+        return { success: false, error: 'Este contacto ya pertenece a otro cliente.' };
+    }
+    if (result === 'exists_same') {
+        return { success: false, error: 'Este identificador ya está en el cliente.' };
+    }
+
+    await syncPrimaryMirror(clientId);
+    return { success: true };
+}
+
+/** Elimina un identificador secundario. El primario debe cambiarse antes de borrarlo. */
+export async function removeClientIdentifier(
+    clientId: string,
+    identifierId: string
+): Promise<{ success: boolean; error?: string }> {
+    const db = createServerClient();
+    const { data: ident } = await db
+        .from('client_identifiers')
+        .select('*')
+        .eq('id', identifierId)
+        .eq('client_id', clientId)
+        .maybeSingle();
+
+    if (!ident) return { success: false, error: 'Identificador no encontrado.' };
+
+    if (ident.is_primary) {
+        return {
+            success: false,
+            error: 'Marca otro identificador como primario antes de eliminar este.',
+        };
+    }
+
+    const { error } = await db.from('client_identifiers').delete().eq('id', identifierId);
+    if (error) return { success: false, error: error.message };
+
+    await syncPrimaryMirror(clientId);
+    return { success: true };
+}
+
 export async function listRecentMerges(limit = 20) {
     const db = createServerClient();
     const { data } = await db
@@ -634,7 +717,8 @@ export async function getClientIdentifiersForCapi(clientId: string): Promise<{
 export async function syncClientFromContact(
     clientId: string,
     contact: { firstName?: string; lastName?: string | null; email?: string | null; phone?: string | null },
-    source: ClientTouchSource = 'web'
+    source: ClientTouchSource = 'web',
+    options?: { promoteAsPrimary?: boolean }
 ): Promise<void> {
     const db = createServerClient();
     const email = normalizeEmail(contact.email);
@@ -645,7 +729,22 @@ export async function syncClientFromContact(
     if (contact.lastName !== undefined) patch.last_name = contact.lastName?.trim() || null;
     await db.from('clients').update(patch).eq('id', clientId);
 
-    if (phone) await ensureIdentifier(clientId, 'phone', phone, source, true);
-    if (email) await ensureIdentifier(clientId, 'email', email, source, true);
+    const promote = options?.promoteAsPrimary === true;
+    if (phone) {
+        if (promote) {
+            const res = await upsertAndSetPrimaryIdentifier(clientId, 'phone', phone, source);
+            if (!res.success) throw new Error(res.error);
+        } else {
+            await ensureIdentifier(clientId, 'phone', phone, source, true);
+        }
+    }
+    if (email) {
+        if (promote) {
+            const res = await upsertAndSetPrimaryIdentifier(clientId, 'email', email, source);
+            if (!res.success) throw new Error(res.error);
+        } else {
+            await ensureIdentifier(clientId, 'email', email, source, true);
+        }
+    }
     await syncPrimaryMirror(clientId);
 }

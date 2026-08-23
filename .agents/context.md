@@ -41,9 +41,27 @@
 
 ## Ultimos Cambios
 
+### 23-08-2026 (Sesión 94) — Admin cliente: gestión de identifiers
+
+- Detalle `/admin/clients/[id]`: agregar email/celular adicional, eliminar secundarios, marcar primario (ya existía).
+- `Editar Perfil` ahora promueve email/celular editados como primarios (`promoteAsPrimary` en `syncClientFromContact`).
+- Backend: `addClientIdentifier`, `removeClientIdentifier`, `upsertAndSetPrimaryIdentifier`.
+
+### 23-08-2026 (Sesión 93) — Fix conflicto Carol / Francesca (datos únicos)
+
+- **Francesca**: `pollitoclau1@gmail.com` + `+56965745413`; cotización `f8ef6392` (draft).
+- **Carol**: `carito1873@gmail.com` + `+56945051777`; cotizaciones propias (draft + confirmada).
+- Emails movidos al cliente correcto; sin identifiers cruzados.
+
+### 23-08-2026 (Sesión 92) — Limpieza CRM: curiosos + engaged WhatsApp phone-only
+
+- Eliminados **131** clientes `curious` + **32** `engaged` creados por bot WhatsApp: solo teléfono, sin email, sin cotizaciones.
+- También se borraron identifiers, touchpoints y stage events asociados (163 clientes en total).
+- **No tocados**: 34 curiosos web (tienen email + cotización draft).
+
 ### 23-08-2026 (Sesión 91) — Catálogo: precio aprox. por trago
 
-- `ProductCard`: bajo el precio, línea `25 cócteles ($1.600 aprox.)` según formato seleccionado.
+- `ProductCard`: bajo el precio, una línea compacta `25 tragos $1.600 c/u` (texto 0.65rem, sin wrap).
 - Constante `COCKTAILS_PER_LITER = 5` en `lib/config.ts`; helper `getDrinkYieldInfo` en `wizardLogic.ts`.
 - `CoctelesSection` YIELDS derivado de la misma constante.
 
@@ -52,6 +70,7 @@
 - Vista lectura en `/admin/quotes/[id]`: tarjeta **Resumen operativo** (fecha, dirección + Maps/copiar, productos, pago, contacto WA, despacho si aplica; evento vs venta directa).
 - Pestaña Datos en lectura: solo aviso + botón Editar; formulario completo sin cambios al editar.
 - Disparadores manuales colapsables (abiertos por defecto si `source=admin`).
+- Cambiar estado: chips en una línea con scroll horizontal en móvil; eliminar como icono en esquina del encabezado.
 
 ### 23-08-2026 (Sesión 89) — Bulk cotizaciones: sin Confirmar
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState, useTransition, type CSSProperties } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { 
@@ -33,12 +33,12 @@ import { sourceBadge, normalizeQuoteSource } from '@/lib/quoteSource';
 import QuoteOperationalSummary from './QuoteOperationalSummary';
 
 const statusFlow = ['draft', 'confirmed', 'in_delivery', 'completed', 'cancelled'];
-const statusBadge: Record<string, { label: string; color: string; bg: string }> = {
-    draft:       { label: 'Borrador',   color: '#94a3b8', bg: 'rgba(148,163,184,0.15)' },
-    confirmed:   { label: 'Confirmada', color: '#34d399', bg: 'rgba(52,211,153,0.15)' },
-    in_delivery: { label: 'En reparto', color: '#38bdf8', bg: 'rgba(56,189,248,0.15)' },
-    completed:   { label: 'Completada', color: '#a78bfa', bg: 'rgba(167,139,250,0.15)' },
-    cancelled:   { label: 'Cancelada',  color: '#f87171', bg: 'rgba(248,113,113,0.15)' },
+const statusBadge: Record<string, { label: string; shortLabel: string; color: string; bg: string }> = {
+    draft:       { label: 'Borrador',   shortLabel: 'Borrador',  color: '#94a3b8', bg: 'rgba(148,163,184,0.15)' },
+    confirmed:   { label: 'Confirmada', shortLabel: 'Confirm.',  color: '#34d399', bg: 'rgba(52,211,153,0.15)' },
+    in_delivery: { label: 'En reparto', shortLabel: 'Reparto',   color: '#38bdf8', bg: 'rgba(56,189,248,0.15)' },
+    completed:   { label: 'Completada', shortLabel: 'Completa',  color: '#a78bfa', bg: 'rgba(167,139,250,0.15)' },
+    cancelled:   { label: 'Cancelada',  shortLabel: 'Cancelar',  color: '#f87171', bg: 'rgba(248,113,113,0.15)' },
 };
 const formatCLP = (n: number) => new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0 }).format(n);
 
@@ -95,6 +95,11 @@ export default function QuoteDetailClient({ quote: initial, allProducts, eventTy
     const balance = getQuoteBalance(quote);
     const totalPaid = (Number(quote.total_price) || 0) - balance;
     const canMarkInDelivery = isDirectSale && quote.status === 'confirmed' && balance <= 0;
+
+    const statusActions = [
+        ...statusFlow.filter(s => s !== quote.status && s !== 'in_delivery'),
+        ...(canMarkInDelivery ? (['in_delivery'] as const) : []),
+    ];
 
     const showToast = (msg: string, ok = true) => {
         setToast({ msg, ok });
@@ -440,6 +445,52 @@ export default function QuoteDetailClient({ quote: initial, allProducts, eventTy
                     .q-tab { padding: 12px; flex: initial; width: 48px; }
                 }
 
+                .q-status-card { background: #1e2433; border-radius: 16px; border: 1px solid rgba(255,255,255,0.06); padding: 16px 18px; margin-bottom: 24px; }
+                @media(max-width: 767px) { .q-status-card { padding: 14px 12px; } }
+                @media(min-width: 768px) { .q-status-card { padding: 20px 24px; } }
+                .q-status-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+                .q-status-title { color: #f1f5f9; font-size: 13px; font-weight: 700; margin: 0; text-transform: uppercase; letter-spacing: 1px; }
+                .q-status-scroll {
+                    display: flex; gap: 8px; flex-wrap: wrap; align-items: stretch; width: 100%;
+                }
+                .q-status-chip {
+                    padding: 8px 14px; border-radius: 10px; font-size: 12px; font-weight: 700;
+                    cursor: pointer; font-family: inherit; transition: all 0.15s; border: none;
+                    white-space: nowrap;
+                }
+                .q-status-chip-label-short { display: none; }
+                .q-status-chip:disabled { opacity: 0.5; cursor: not-allowed; }
+                .q-status-delete {
+                    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+                    padding: 8px 12px; border-radius: 10px; font-size: 12px; font-weight: 700;
+                    cursor: pointer; font-family: inherit; flex-shrink: 0;
+                    background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2);
+                    color: #ef4444; transition: all 0.15s;
+                }
+                .q-status-delete:disabled { opacity: 0.5; cursor: not-allowed; }
+                @media(max-width: 767px) {
+                    .q-status-scroll {
+                        display: grid;
+                        grid-template-columns: repeat(var(--status-cols, 4), minmax(0, 1fr));
+                        gap: 6px;
+                        overflow: visible;
+                    }
+                    .q-status-chip {
+                        width: 100%;
+                        min-width: 0;
+                        padding: 8px 3px;
+                        font-size: clamp(9px, 2.35vw, 11px);
+                        line-height: 1.2;
+                        white-space: normal;
+                        text-align: center;
+                        word-break: break-word;
+                    }
+                    .q-status-chip-label { display: none; }
+                    .q-status-chip-label-short { display: inline; }
+                    .q-status-delete { padding: 8px; min-width: 36px; min-height: 36px; }
+                    .q-status-delete-label { display: none; }
+                }
+
                 .q-modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 1000; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(4px); padding: 20px; }
                 .q-modal { background: #1e2433; border: 1px solid rgba(255,255,255,0.1); border-radius: 20px; width: 100%; max-width: 450px; padding: 28px; box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
                 .q-form-group { margin-bottom: 16px; }
@@ -528,42 +579,47 @@ export default function QuoteDetailClient({ quote: initial, allProducts, eventTy
             </div>
 
             {/* Status Actions */}
-            <div style={{ background: '#1e2433', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.06)', padding: '20px 24px', marginBottom: '24px' }}>
-                <h3 style={{ color: '#f1f5f9', fontSize: '13px', fontWeight: 700, margin: '0 0 14px', textTransform: 'uppercase', letterSpacing: '1px' }}>Cambiar Estado</h3>
-                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                    {statusFlow.filter(s => s !== quote.status && s !== 'in_delivery').map(s => (
-                        <button key={s} onClick={() => handleStatusChange(s)} disabled={isPending} style={{
-                            padding: '8px 16px', borderRadius: '10px', fontSize: '12px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
-                            background: statusBadge[s]?.bg, border: `1px solid ${statusBadge[s]?.color}40`,
-                            color: statusBadge[s]?.color, transition: 'all 0.15s', opacity: isPending ? 0.5 : 1,
-                        }}>
-                            → {statusBadge[s]?.label}
-                        </button>
-                    ))}
-
-                    {canMarkInDelivery && (
-                        <button
-                            onClick={() => setShowDispatchModal(true)}
-                            disabled={isPending}
-                            style={{
-                                padding: '8px 16px', borderRadius: '10px', fontSize: '12px', fontWeight: 700,
-                                cursor: 'pointer', fontFamily: 'inherit',
-                                background: statusBadge.in_delivery.bg, border: `1px solid ${statusBadge.in_delivery.color}40`,
-                                color: statusBadge.in_delivery.color, opacity: isPending ? 0.5 : 1,
-                            }}
-                        >
-                            → En reparto
-                        </button>
-                    )}
-
-                    <button onClick={handleDeleteQuote} disabled={isPending} style={{
-                        marginLeft: 'auto', padding: '8px 16px', borderRadius: '10px', fontSize: '12px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
-                        background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)',
-                        color: '#ef4444', transition: 'all 0.15s', opacity: isPending ? 0.5 : 1,
-                        display: 'flex', alignItems: 'center', gap: '6px'
-                    }}>
-                        <Trash2 size={14}/> Eliminar Cotización
+            <div className="q-status-card">
+                <div className="q-status-header">
+                    <h3 className="q-status-title">Cambiar Estado</h3>
+                    <button
+                        type="button"
+                        onClick={handleDeleteQuote}
+                        disabled={isPending}
+                        className="q-status-delete"
+                        title="Eliminar cotización"
+                        aria-label="Eliminar cotización"
+                    >
+                        <Trash2 size={16} />
+                        <span className="q-status-delete-label">Eliminar</span>
                     </button>
+                </div>
+                <div
+                    className="q-status-scroll"
+                    style={{ '--status-cols': statusActions.length } as CSSProperties}
+                >
+                    {statusActions.map((s) => {
+                        const badge = statusBadge[s];
+                        const isDispatch = s === 'in_delivery';
+                        return (
+                            <button
+                                key={s}
+                                type="button"
+                                onClick={() => (isDispatch ? setShowDispatchModal(true) : handleStatusChange(s))}
+                                disabled={isPending}
+                                className="q-status-chip"
+                                style={{
+                                    background: badge.bg,
+                                    border: `1px solid ${badge.color}40`,
+                                    color: badge.color,
+                                    opacity: isPending ? 0.5 : 1,
+                                }}
+                            >
+                                <span className="q-status-chip-label">{badge.label}</span>
+                                <span className="q-status-chip-label-short">{badge.shortLabel}</span>
+                            </button>
+                        );
+                    })}
                 </div>
 
                 {quote.status === 'completed' && (

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState, useTransition, useEffect } from 'react';
 import Link from 'next/link';
 import { formatPhoneDisplay, normalizePhoneE164, toWhatsAppDigits } from '@/lib/phone';
 import PhoneInput from '@/components/ui/PhoneInput';
@@ -10,6 +10,8 @@ import {
     updateClientAdmin,
     syncClientWithGoogle,
     setClientPrimaryIdentifierAdmin,
+    addClientIdentifierAdmin,
+    deleteClientIdentifierAdmin,
     updateClientCrmAdmin,
 } from '@/app/actions/admin/adminActions';
 import { useRouter } from 'next/navigation';
@@ -28,6 +30,7 @@ import {
     Star,
     Activity,
     Trash2,
+    Plus,
 } from 'lucide-react';
 
 interface Client {
@@ -133,9 +136,29 @@ export default function ClientDetailClient({
     });
     const [isPending, startTransition] = useTransition();
     const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [showAddIdentifierModal, setShowAddIdentifierModal] = useState(false);
+    const [identifierToDelete, setIdentifierToDelete] = useState<Identifier | null>(null);
+    const [addIdentifierForm, setAddIdentifierForm] = useState<{ type: 'email' | 'phone'; value: string }>({
+        type: 'email',
+        value: '',
+    });
     const [isDeleting, setIsDeleting] = useState(false);
     const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
     const router = useRouter();
+
+    useEffect(() => {
+        setClient(initialClient);
+        setEditForm({
+            first_name: initialClient.first_name,
+            last_name: initialClient.last_name || '',
+            email: initialClient.email || '',
+            phone: normalizePhoneE164(initialClient.phone || '') || '',
+        });
+    }, [initialClient]);
+
+    useEffect(() => {
+        setIdentifiers(initialIdentifiers);
+    }, [initialIdentifiers]);
 
     const totalSpent = initialQuotes
         .filter((q: Quote) => ['confirmed', 'completed'].includes(q.status))
@@ -223,18 +246,61 @@ export default function ClientDetailClient({
         startTransition(async () => {
             const res = await setClientPrimaryIdentifierAdmin(client.id, identifierId);
             if (res.success) {
+                const target = identifiers.find((x) => x.id === identifierId);
                 setIdentifiers((prev) =>
                     prev.map((i) => {
-                        const target = prev.find((x) => x.id === identifierId);
                         if (!target) return i;
                         if (i.type !== target.type) return i;
                         return { ...i, is_primary: i.id === identifierId };
                     })
                 );
+                if (target) {
+                    setClient((prev) => ({
+                        ...prev,
+                        ...(target.type === 'email' ? { email: target.value } : { phone: target.value }),
+                    }));
+                    if (isEditing) {
+                        setEditForm((f) => ({
+                            ...f,
+                            ...(target.type === 'email'
+                                ? { email: target.value }
+                                : { phone: normalizePhoneE164(target.value) || target.value }),
+                        }));
+                    }
+                }
                 showToast('Identificador primario actualizado');
                 router.refresh();
             } else {
                 showToast(res.error || 'No se pudo actualizar', false);
+            }
+        });
+    };
+
+    const handleAddIdentifier = () => {
+        startTransition(async () => {
+            const res = await addClientIdentifierAdmin(client.id, addIdentifierForm.type, addIdentifierForm.value);
+            if (res.success) {
+                setShowAddIdentifierModal(false);
+                setAddIdentifierForm({ type: 'email', value: '' });
+                showToast('Identificador agregado');
+                router.refresh();
+            } else {
+                showToast(res.error || 'No se pudo agregar', false);
+            }
+        });
+    };
+
+    const handleDeleteIdentifier = () => {
+        if (!identifierToDelete) return;
+        startTransition(async () => {
+            const res = await deleteClientIdentifierAdmin(client.id, identifierToDelete.id);
+            if (res.success) {
+                setIdentifiers((prev) => prev.filter((i) => i.id !== identifierToDelete.id));
+                setIdentifierToDelete(null);
+                showToast('Identificador eliminado');
+                router.refresh();
+            } else {
+                showToast(res.error || 'No se pudo eliminar', false);
             }
         });
     };
@@ -553,8 +619,19 @@ export default function ClientDetailClient({
                     </div>
 
                     <div className="cd-quotes">
-                        <div style={{ padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                        <div style={{ padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
                             <h3 style={{ color: '#f1f5f9', fontSize: '15px', fontWeight: 700, margin: 0 }}>Identificadores ({identifiers.length})</h3>
+                            <button
+                                type="button"
+                                disabled={isPending}
+                                onClick={() => {
+                                    setAddIdentifierForm({ type: 'email', value: '' });
+                                    setShowAddIdentifierModal(true);
+                                }}
+                                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold border border-white/10 text-slate-300 bg-white/5 hover:bg-white/10 cursor-pointer disabled:opacity-50"
+                            >
+                                <Plus size={12} /> Agregar
+                            </button>
                         </div>
                         <div style={{ padding: '12px 20px' }}>
                             {identifiers.length === 0 ? (
@@ -564,7 +641,7 @@ export default function ClientDetailClient({
                                     <div key={ident.id} className="id-row">
                                         <div>
                                             <div style={{ color: '#94a3b8', fontSize: '11px', textTransform: 'uppercase', fontWeight: 700 }}>
-                                                {ident.type}
+                                                {ident.type === 'email' ? 'Email' : 'Celular'}
                                                 {ident.is_primary ? ' · primario' : ''}
                                             </div>
                                             <div style={{ color: '#f1f5f9', fontSize: '13px' }}>
@@ -572,19 +649,34 @@ export default function ClientDetailClient({
                                             </div>
                                             {ident.source && <div style={{ color: '#475569', fontSize: '11px' }}>origen: {ident.source}</div>}
                                         </div>
-                                        {!ident.is_primary && (
-                                            <button
-                                                type="button"
-                                                disabled={isPending}
-                                                onClick={() => handleSetPrimary(ident.id)}
-                                                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold border border-[#E2A049]/30 text-[#E2A049] bg-[#E2A049]/10 hover:bg-[#E2A049]/20 cursor-pointer"
-                                            >
-                                                <Star size={12} /> Primario
-                                            </button>
-                                        )}
+                                        <div className="flex items-center gap-2 shrink-0">
+                                            {!ident.is_primary && (
+                                                <>
+                                                    <button
+                                                        type="button"
+                                                        disabled={isPending}
+                                                        onClick={() => handleSetPrimary(ident.id)}
+                                                        className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold border border-[#E2A049]/30 text-[#E2A049] bg-[#E2A049]/10 hover:bg-[#E2A049]/20 cursor-pointer disabled:opacity-50"
+                                                    >
+                                                        <Star size={12} /> Primario
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        disabled={isPending}
+                                                        onClick={() => setIdentifierToDelete(ident)}
+                                                        className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold border border-rose-500/30 text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 cursor-pointer disabled:opacity-50"
+                                                    >
+                                                        <Trash2 size={12} />
+                                                    </button>
+                                                </>
+                                            )}
+                                        </div>
                                     </div>
                                 ))
                             )}
+                            <p style={{ color: '#475569', fontSize: '11px', margin: '12px 0 0', lineHeight: 1.5 }}>
+                                El primario se muestra en el perfil y en Editar Perfil. Para quitar el principal, marca otro como primario primero.
+                            </p>
                         </div>
                     </div>
 
@@ -759,6 +851,114 @@ export default function ClientDetailClient({
                         </button>
                     </div>
                 </div>
+            </Modal>
+
+            <Modal
+                isOpen={showAddIdentifierModal}
+                onClose={() => {
+                    if (!isPending) setShowAddIdentifierModal(false);
+                }}
+                title="Agregar identificador"
+            >
+                <div className="flex flex-col gap-4">
+                    <p className="text-sm text-slate-400 m-0">
+                        Se agregará como contacto adicional. Para cambiar el principal, usa Editar Perfil o marca Primario después.
+                    </p>
+                    <div className="flex gap-2">
+                        {(['email', 'phone'] as const).map((t) => (
+                            <button
+                                key={t}
+                                type="button"
+                                onClick={() => setAddIdentifierForm((f) => ({ ...f, type: t, value: '' }))}
+                                className={`flex-1 py-2.5 rounded-xl text-xs font-bold border cursor-pointer transition-colors ${
+                                    addIdentifierForm.type === t
+                                        ? 'bg-[#E2A049]/15 text-[#E2A049] border-[#E2A049]/30'
+                                        : 'bg-white/5 text-slate-400 border-white/10 hover:bg-white/10'
+                                }`}
+                            >
+                                {t === 'email' ? 'Email' : 'Celular'}
+                            </button>
+                        ))}
+                    </div>
+                    {addIdentifierForm.type === 'email' ? (
+                        <div>
+                            <label className="q-label">Email</label>
+                            <input
+                                className="q-input"
+                                type="email"
+                                value={addIdentifierForm.value}
+                                onChange={(e) => setAddIdentifierForm((f) => ({ ...f, value: e.target.value }))}
+                                placeholder="correo@ejemplo.cl"
+                            />
+                        </div>
+                    ) : (
+                        <div>
+                            <label className="q-label">Celular</label>
+                            <PhoneInput
+                                className="q-input"
+                                value={addIdentifierForm.value}
+                                onChange={(e164) => setAddIdentifierForm((f) => ({ ...f, value: e164 }))}
+                            />
+                        </div>
+                    )}
+                    <div className="flex justify-end gap-3 pt-2">
+                        <button
+                            type="button"
+                            onClick={() => setShowAddIdentifierModal(false)}
+                            disabled={isPending}
+                            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border border-white/10 text-slate-300 hover:bg-white/5 transition-colors disabled:opacity-50 cursor-pointer"
+                        >
+                            <X size={16} /> Cancelar
+                        </button>
+                        <button
+                            type="button"
+                            onClick={handleAddIdentifier}
+                            disabled={isPending || !addIdentifierForm.value.trim()}
+                            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold bg-[#E2A049] text-black hover:bg-[#f0ad5c] transition-colors disabled:opacity-50 cursor-pointer"
+                        >
+                            <Plus size={16} /> {isPending ? 'Guardando...' : 'Agregar'}
+                        </button>
+                    </div>
+                </div>
+            </Modal>
+
+            <Modal
+                isOpen={Boolean(identifierToDelete)}
+                onClose={() => {
+                    if (!isPending) setIdentifierToDelete(null);
+                }}
+                title="Eliminar identificador"
+            >
+                {identifierToDelete && (
+                    <div className="flex flex-col gap-4">
+                        <p className="text-sm text-slate-300 m-0">
+                            ¿Eliminar este contacto adicional del cliente?
+                        </p>
+                        <div className="px-4 py-3 rounded-xl border border-white/10 bg-white/5 text-sm text-slate-100 font-semibold break-all">
+                            {identifierToDelete.type === 'phone'
+                                ? formatPhoneDisplay(identifierToDelete.value)
+                                : identifierToDelete.value}
+                        </div>
+                        <div className="flex justify-end gap-3 pt-2">
+                            <button
+                                type="button"
+                                onClick={() => setIdentifierToDelete(null)}
+                                disabled={isPending}
+                                className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border border-white/10 text-slate-300 hover:bg-white/5 transition-colors disabled:opacity-50 cursor-pointer"
+                            >
+                                <X size={16} /> Cancelar
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleDeleteIdentifier}
+                                disabled={isPending}
+                                className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold bg-rose-500 text-white hover:bg-rose-400 transition-colors disabled:opacity-50 cursor-pointer"
+                            >
+                                <Trash2 size={16} /> {isPending ? 'Eliminando...' : 'Eliminar'}
+                            </button>
+                        </div>
+                    </div>
+                )}
             </Modal>
 
             {toast && (

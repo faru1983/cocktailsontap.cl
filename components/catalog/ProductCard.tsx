@@ -156,8 +156,8 @@ export default function ProductCard({ product, cart }: ProductCardProps) {
                 </div>
 
                 {drinkYield && (
-                    <p className="text-center text-[0.75rem] text-brand-text-muted mb-4 leading-snug">
-                        {drinkYield.cocktailCount} cócteles ({formatCurrency(drinkYield.pricePerDrink)} aprox.)
+                    <p className="text-center text-[0.65rem] text-brand-text-muted mb-3 leading-none whitespace-nowrap">
+                        {drinkYield.cocktailCount} tragos {formatCurrency(drinkYield.pricePerDrink)} c/u
                     </p>
                 )}
 

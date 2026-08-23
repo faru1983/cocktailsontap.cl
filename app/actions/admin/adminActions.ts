@@ -593,7 +593,8 @@ export async function updateClientAdmin(clientId: string, data: { first_name: st
                 email: data.email,
                 phone: normalizedPhone || null,
             },
-            'admin'
+            'admin',
+            { promoteAsPrimary: true }
         );
     } catch (e: any) {
         return { success: false, error: e?.message || 'No se pudo actualizar el cliente.' };
@@ -724,6 +725,54 @@ export async function setClientPrimaryIdentifierAdmin(
     const { setPrimaryIdentifier } = await import('@/lib/services/clientService');
     const res = await setPrimaryIdentifier(clientId, identifierId);
     if (!res.success) return res;
+    revalidatePath(`/admin/clients/${clientId}`);
+    revalidatePath('/admin/clients');
+    return { success: true };
+}
+
+export async function addClientIdentifierAdmin(
+    clientId: string,
+    type: 'email' | 'phone',
+    value: string
+): Promise<{ success: boolean; error?: string }> {
+    await checkAuth();
+    const { addClientIdentifier } = await import('@/lib/services/clientService');
+    const { normalizePhoneE164, isValidPhoneE164 } = await import('@/lib/phone');
+
+    const trimmed = value.trim();
+    if (!trimmed) return { success: false, error: 'Ingresa un valor.' };
+
+    let normalized = trimmed;
+    if (type === 'email') {
+        normalized = trimmed.toLowerCase();
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) {
+            return { success: false, error: 'Email inválido.' };
+        }
+    } else {
+        const e164 = normalizePhoneE164(trimmed);
+        if (!e164 || !isValidPhoneE164(e164)) {
+            return { success: false, error: 'Celular inválido.' };
+        }
+        normalized = e164;
+    }
+
+    const res = await addClientIdentifier(clientId, type, normalized, 'admin');
+    if (!res.success) return res;
+
+    revalidatePath(`/admin/clients/${clientId}`);
+    revalidatePath('/admin/clients');
+    return { success: true };
+}
+
+export async function deleteClientIdentifierAdmin(
+    clientId: string,
+    identifierId: string
+): Promise<{ success: boolean; error?: string }> {
+    await checkAuth();
+    const { removeClientIdentifier } = await import('@/lib/services/clientService');
+    const res = await removeClientIdentifier(clientId, identifierId);
+    if (!res.success) return res;
+
     revalidatePath(`/admin/clients/${clientId}`);
     revalidatePath('/admin/clients');
     return { success: true };
