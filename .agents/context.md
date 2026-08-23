@@ -41,17 +41,21 @@
 
 ## Ultimos Cambios
 
+### 23-08-2026 (Sesión 88) — Revert días hábiles Blue Express
+
+- Eliminada configuración de días de entrega en Blue Express (admin, API catalog, `site_settings`, tipo `Comuna`).
+- Calendario venta directa unificado (`input type="date"` nativo, mínimo 2 días). Copy del campo según carrier: reparto propio vs “Fecha de entrega en Blue Express” (`getDirectSaleDateFieldCopy`). Resumen de totales: línea `Blue Express (X días hábiles)` según zona; extremo **3 a 7 días hábiles**.
+
 ### 23-08-2026 (Sesión 87) — WhatsApp flotante: menos intrusivo y arrastrable
 
 - `FloatingWhatsapp`: posición por defecto abajo-izquierda (alineado con menú hamburguesa), más pequeño, sin botón X.
 - Arrastrable con puntero; la posición se guarda en `localStorage` y se respeta en `/eventos` y `/barriles`.
 - z-index 90 para no competir con la barra del carrito (z-40) ni modales.
 
-### 23-08-2026 (Sesión 86) — Admin: excepción al mínimo de 10L en eventos
+### 23-08-2026 (Sesión 86) — Admin cotización manual + éxito sin botones manuales
 
-- Cotización manual en `/admin/quotes/new`: el admin puede crear/confirmar eventos por debajo de 10L (y sin cumplir reglas de muro).
-- `confirmQuoteCore` acepta `allowAdminMinLitersOverride` solo cuando `createQuoteCore` se invoca con `isAdmin: true` (confirmación inmediata).
-- Web, link público `/cotizar/[token]` y API siguen exigiendo el mínimo de 10L al confirmar.
+- Excepción mínimo 10L en eventos: solo admin (`allowAdminMinLitersOverride` en `confirmQuoteCore` vía `isAdmin`).
+- Página de éxito `/admin/quotes/new`: sin botones manuales de Calendar ni email; correos automáticos como web/API.
 
 ### 19-08-2026 (Sesión 85) — Fix enum `in_delivery` + botón único En reparto
 

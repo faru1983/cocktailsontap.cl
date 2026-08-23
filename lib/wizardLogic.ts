@@ -5,6 +5,7 @@ import {
     barrelsFromLiters,
     isBlueExpressZone,
     quoteBlueExpressHome,
+    type BlueExpressZone,
     type ShippingCarrier,
 } from './blueExpress';
 
@@ -13,6 +14,7 @@ export type ShippingResolution = {
     shippingLabel: string;
     isPending: boolean;
     shippingCarrier: ShippingCarrier;
+    blueExpressZone?: BlueExpressZone | null;
 };
 
 /**
@@ -29,11 +31,12 @@ export function resolveShipping(opts: {
     comunas: Comuna[];
 }): ShippingResolution {
     const { serviceType, regionCode, comunaName, totalLiters, comunas } = opts;
-    const pending = (label: string, carrier: ShippingCarrier = 'own'): ShippingResolution => ({
+    const pending = (label: string, carrier: ShippingCarrier = 'own', zone?: BlueExpressZone | null): ShippingResolution => ({
         shippingCost: 0,
         shippingLabel: label,
         isPending: true,
         shippingCarrier: carrier,
+        blueExpressZone: zone ?? null,
     });
 
     if (!comunaName) {
@@ -84,31 +87,35 @@ export function resolveShipping(opts: {
 
     // Barriles + Blue Express: fórmula por paquetes, salvo override numérico en la comuna.
     if (serviceType === 'direct' && carrier === 'blue_express') {
+        const zone = selected.blueExpressZone || selected.regionBlueExpressZone;
+        const beZone = isBlueExpressZone(zone) ? zone : null;
+
         if (selected.directSaleDeliveryCost !== null && selected.directSaleDeliveryCost !== undefined) {
             return {
                 shippingCost: selected.directSaleDeliveryCost,
                 shippingLabel: formatCurrency(selected.directSaleDeliveryCost),
                 isPending: false,
                 shippingCarrier: 'blue_express',
+                blueExpressZone: beZone,
             };
         }
 
-        const zone = selected.blueExpressZone || selected.regionBlueExpressZone;
-        if (!isBlueExpressZone(zone)) {
-            return pending('Por confirmar', 'blue_express');
+        if (!beZone) {
+            return pending('Por confirmar', 'blue_express', null);
         }
 
         const barrels = barrelsFromLiters(totalLiters);
         if (barrels < 1) {
-            return pending('Por calcular', 'blue_express');
+            return pending('Por calcular', 'blue_express', beZone);
         }
 
-        const quoted = quoteBlueExpressHome(barrels, zone, selected.blueExpressRates);
+        const quoted = quoteBlueExpressHome(barrels, beZone, selected.blueExpressRates);
         return {
             shippingCost: quoted.cost,
             shippingLabel: formatCurrency(quoted.cost),
             isPending: false,
             shippingCarrier: 'blue_express',
+            blueExpressZone: beZone,
         };
     }
 
@@ -124,6 +131,24 @@ export function resolveShipping(opts: {
         isPending: false,
         shippingCarrier: carrier,
     };
+}
+
+/**
+ * Carrier efectivo para venta directa según comuna/región.
+ */
+export function resolveDirectSaleCarrier(
+    comunaName: string,
+    regionCode: string,
+    comunas: Comuna[]
+): ShippingCarrier {
+    if (!comunaName) return 'own';
+    return resolveShipping({
+        serviceType: 'direct',
+        regionCode,
+        comunaName,
+        totalLiters: 5,
+        comunas,
+    }).shippingCarrier;
 }
 
 /**
@@ -172,6 +197,19 @@ export function getMinDateString(offsetDays: number = 0): string {
     const chileTime = new Date(now.toLocaleString('en-US', { timeZone: PROJECT_TIMEZONE }));
     chileTime.setDate(chileTime.getDate() + offsetDays);
     return chileTime.toISOString().split('T')[0];
+}
+
+/** Mínimo de días de anticipación para fecha de entrega en venta directa. */
+export const DIRECT_SALE_MIN_DISPATCH_OFFSET_DAYS = 2;
+
+export function validateDirectSaleDate(date: string): string | null {
+    if (!date?.trim()) {
+        return 'Indica la fecha de entrega.';
+    }
+    if (date < getMinDateString(DIRECT_SALE_MIN_DISPATCH_OFFSET_DAYS)) {
+        return `La fecha debe ser al menos ${DIRECT_SALE_MIN_DISPATCH_OFFSET_DAYS} días desde hoy.`;
+    }
+    return null;
 }
 
 /**
@@ -351,6 +389,7 @@ export interface SummaryData {
     shippingCost: number;
     shippingLabel: string;
     shippingCarrier: ShippingCarrier;
+    blueExpressZone?: BlueExpressZone | null;
     installationCost: number;
     totalPrice: number;
     eventTypeDisplay: string;
@@ -420,7 +459,7 @@ export function calculateSummaryData(
     });
 
     // Lógica dinámica de Envío (región + override comuna; pendiente si no hay tarifa)
-    const { shippingCost, shippingLabel, shippingCarrier } = resolveShipping({
+    const { shippingCost, shippingLabel, shippingCarrier, blueExpressZone } = resolveShipping({
         serviceType: state.serviceType,
         regionCode: state.contact.region || '',
         comunaName: state.contact.comuna,
@@ -456,6 +495,7 @@ export function calculateSummaryData(
         shippingCost, 
         shippingLabel,
         shippingCarrier,
+        blueExpressZone: blueExpressZone ?? null,
         installationCost,
         totalPrice: totalOfferPrice + (shippingCost || 0) + installationCost,
         eventTypeDisplay, 

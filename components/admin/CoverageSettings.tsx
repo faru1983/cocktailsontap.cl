@@ -320,7 +320,7 @@ export default function CoverageSettings({
             await saveBlueExpressRates(parseBlueExpressRates(beRates));
         } catch (err: unknown) {
             const message = err instanceof Error ? err.message : 'Error desconocido';
-            alert('Error al guardar tarifas Blue Express: ' + message);
+            alert('Error al guardar configuración Blue Express: ' + message);
         } finally {
             setSavingRates(false);
         }
@@ -504,7 +504,7 @@ export default function CoverageSettings({
                         className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-[#E2A049]/15 border border-[#E2A049]/30 text-[#E2A049] text-xs font-black uppercase tracking-wider hover:bg-[#E2A049]/25 disabled:opacity-50"
                     >
                         {savingRates ? <RefreshCw size={14} className="animate-spin" /> : null}
-                        Guardar tarifas
+                        Guardar configuración
                     </button>
                 </div>
                 <div className="grid grid-cols-2 lg:grid-cols-6 gap-3">

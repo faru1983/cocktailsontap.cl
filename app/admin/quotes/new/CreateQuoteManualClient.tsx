@@ -3,12 +3,13 @@
 import { useState, useTransition, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Save, Plus, Trash2, Search, Check, AlertCircle, MessageCircle, RefreshCw, Copy, Calendar, MapPin, Loader2 } from 'lucide-react';
+import { ArrowLeft, Save, Plus, Trash2, Search, Check, AlertCircle, MessageCircle, RefreshCw, Copy, MapPin, Loader2 } from 'lucide-react';
 import { createQuote } from '@/app/actions/createQuote';
 import { getClientAddressesFromQuotes, type ClientQuoteAddress } from '@/app/actions/admin/adminActions';
 import type { Product, Comuna, Region, EventType, WizardState } from '@/lib/types';
 import { DEFAULT_REGION_CODE } from '@/lib/types';
-import { calculateSummaryData } from '@/lib/wizardLogic';
+import { calculateSummaryData, getMinDateString, DIRECT_SALE_MIN_DISPATCH_OFFSET_DAYS, validateDirectSaleDate } from '@/lib/wizardLogic';
+import { getDirectSaleDateFieldCopy } from '@/lib/blueExpress';
 import { validateConfirmNowState } from '@/lib/confirmNowValidation';
 import { SITE_URL, MURO_INSTALLATION_COST, PORTATIL_MIN_LITERS } from '@/lib/config';
 import PhoneInput from '@/components/ui/PhoneInput';
@@ -193,6 +194,8 @@ export default function CreateQuoteManualClient({ allProducts, comunas, regions,
     const finalTotal = summary.totalOfferPrice + finalShipping + finalInstallation - discountOverride;
     const belowEventMinLiters =
         serviceType === 'event' && selections.length > 0 && summary.totalLiters < PORTATIL_MIN_LITERS;
+    const directDateCopy =
+        serviceType === 'direct' ? getDirectSaleDateFieldCopy(summary.shippingCarrier) : null;
 
     // ─── 3. Handlers ──────────────────────────────────────────────────────────
 
@@ -242,13 +245,16 @@ export default function CreateQuoteManualClient({ allProducts, comunas, regions,
             const confirmErr = validateConfirmNowState(currentWizardState);
             if (confirmErr) return setError(confirmErr);
         }
+        if (serviceType === 'direct') {
+            const dateErr = validateDirectSaleDate(eventData.date);
+            if (dateErr) return setError(dateErr);
+        }
 
         startTransition(async () => {
             const res = await createQuote({
                 state: currentWizardState,
                 cocktails: cocktailsForWizard,
                 comunas,
-                skipEmail: true,
                 isAdmin: true,
                 confirmNow: serviceType === 'event' && confirmNow,
                 overrides: {
@@ -269,31 +275,6 @@ export default function CreateQuoteManualClient({ allProducts, comunas, regions,
             } else {
                 setError(res.error || 'Error al crear la cotización.');
             }
-        });
-    };
-
-    const handleSendEmail = async () => {
-        if (!successData) return;
-        startTransition(async () => {
-            const { sendQuoteEmailAdmin } = await import('@/app/actions/admin/adminActions');
-            const type =
-                serviceType === 'direct' || successData.status === 'confirmed'
-                    ? 'confirmation'
-                    : 'draft';
-            const res = await sendQuoteEmailAdmin(successData.quoteId, type);
-                
-            if (res.success) alert('Email enviado correctamente ✉️');
-            else alert('Error: ' + res.error);
-        });
-    };
-
-    const handleAddToCalendar = async () => {
-        if (!successData) return;
-        startTransition(async () => {
-            const { syncQuoteToCalendarAdmin } = await import('@/app/actions/admin/adminActions');
-            const res = await syncQuoteToCalendarAdmin(successData.quoteId);
-            if (res.success) alert('Eventos sincronizados con Google Calendar 📅');
-            else alert('Error: ' + res.error);
         });
     };
 
@@ -319,20 +300,14 @@ export default function CreateQuoteManualClient({ allProducts, comunas, regions,
                 </h1>
                 <p className="text-slate-400 mb-10 leading-relaxed text-sm">
                     {isConfirmed
-                        ? 'La reserva quedó confirmada (Calendar/CRM). Puedes avisar al cliente por WhatsApp o enviar el email de confirmación.'
-                        : 'El borrador se generó correctamente. Envía el link al cliente para que complete la información y reserve.'}
+                        ? 'La reserva quedó confirmada y se envió el email al cliente. Puedes avisar también por WhatsApp si lo deseas.'
+                        : 'La cotización se generó y se envió por email al cliente. Comparte el link si necesitas contactarlo por otro canal.'}
                 </p>
 
                 <div className="grid grid-cols-1 gap-4">
                     <a href={getWhatsAppUrl()} target="_blank" rel="noopener noreferrer" className="w-full bg-emerald-500 hover:bg-emerald-400 text-emerald-950 py-4 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-3 transition-all active:scale-95 shadow-xl shadow-emerald-500/20">
                         <MessageCircle size={18} /> Compartir por WhatsApp
                     </a>
-                    <button onClick={handleSendEmail} disabled={isPending} className="w-full bg-sky-500 hover:bg-sky-400 text-sky-950 py-4 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-3 transition-all active:scale-95 shadow-xl shadow-sky-500/20 disabled:opacity-50">
-                        <Save size={18} /> Enviar Email Confirmación
-                    </button>
-                    <button onClick={handleAddToCalendar} disabled={isPending} className="w-full bg-white hover:bg-slate-100 text-slate-950 py-4 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-3 transition-all active:scale-95 shadow-xl shadow-white/10 disabled:opacity-50">
-                        <Calendar size={18} /> Agregar a Google Calendar
-                    </button>
 
                     <div className="mt-4 p-4 bg-black/40 border border-white/5 rounded-2xl">
                         <div className="text-slate-500 text-[9px] font-black uppercase tracking-widest mb-3 text-left ml-1">Link Público de Cotización</div>
@@ -510,12 +485,6 @@ export default function CreateQuoteManualClient({ allProducts, comunas, regions,
                     {serviceType === 'direct' ? (
                         <SectionBox title="Información de Despacho" icon={<span className="w-1.5 h-6 bg-[#E2A049] rounded-full" />}>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <Field label="Dirección (Calle y Número)" className="md:col-span-2">
-                                    <input value={contact.address} onChange={e => {
-                                        setContact(c => ({...c, address: e.target.value}));
-                                        setSelectedAddressKey(null);
-                                    }} className="admin-input" placeholder="Av. Siempre Viva 123" />
-                                </Field>
                                 <RegionComunaFields
                                     regions={regions}
                                     comunas={comunas}
@@ -528,8 +497,23 @@ export default function CreateQuoteManualClient({ allProducts, comunas, regions,
                                     onOtherComunaChange={(v) => setContact(c => ({...c, otherComuna: v}))}
                                     variant="admin"
                                 />
-                                <Field label="Fecha de Despacho">
-                                    <input type="date" value={eventData.date} onChange={e => setEventData(d => ({...d, date: e.target.value}))} className="admin-input" />
+                                <Field label="Dirección (Calle y Número)" className="md:col-span-2">
+                                    <input value={contact.address} onChange={e => {
+                                        setContact(c => ({...c, address: e.target.value}));
+                                        setSelectedAddressKey(null);
+                                    }} className="admin-input" placeholder="Av. Siempre Viva 123" />
+                                </Field>
+                                <Field label={directDateCopy?.label ?? 'Fecha de entrega'} className="md:col-span-2">
+                                    <input
+                                        type="date"
+                                        value={eventData.date}
+                                        min={getMinDateString(DIRECT_SALE_MIN_DISPATCH_OFFSET_DAYS)}
+                                        onChange={e => setEventData(d => ({...d, date: e.target.value}))}
+                                        className="admin-input"
+                                    />
+                                    {directDateCopy && (
+                                        <p className="text-slate-500 text-[10px] mt-2 leading-relaxed">{directDateCopy.hint}</p>
+                                    )}
                                 </Field>
                             </div>
                         </SectionBox>

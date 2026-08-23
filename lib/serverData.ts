@@ -219,7 +219,7 @@ export const fetchAllProductData = unstable_cache(
             blueExpressRates,
         };
     },
-    ['product-data-v5-comuna-carrier'],
+    ['product-data-v5-be-rates'],
     { revalidate: 300, tags: ['product-data'] }
 );
 

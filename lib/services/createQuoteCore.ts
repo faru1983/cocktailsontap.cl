@@ -15,7 +15,7 @@ import { SettingsService } from '@/lib/services/settingsService';
 import { resolveQuoteSource, type QuoteSource } from '@/lib/quoteSource';
 import { confirmQuoteCore } from '@/lib/services/confirmQuoteCore';
 import { validateConfirmNowState } from '@/lib/confirmNowValidation';
-import { resolveRegionShortName } from '@/lib/wizardLogic';
+import { resolveRegionShortName, validateDirectSaleDate } from '@/lib/wizardLogic';
 
 export interface CreateQuoteInput {
     state: WizardState;
@@ -117,6 +117,11 @@ export async function createQuoteCore(input: CreateQuoteInput): Promise<CreateQu
             }
         }
 
+        if (state.serviceType === 'direct') {
+            const dateErr = validateDirectSaleDate(state.eventData.date);
+            if (dateErr) return { success: false, error: dateErr };
+        }
+
         const clientId = await QuoteService.upsertClient(state, source);
         const createResult = await QuoteService.createDraftQuote(
             state,
@@ -208,91 +213,89 @@ export async function createQuoteCore(input: CreateQuoteInput): Promise<CreateQu
             quote_items: createResult.quoteItems ?? [],
         };
 
-        if (!isAdmin || isDirect) {
-            const resend = resendKey ? new Resend(resendKey) : null;
-            const tasks: Promise<unknown>[] = [];
+        const resend = resendKey ? new Resend(resendKey) : null;
+        const tasks: Promise<unknown>[] = [];
 
+        tasks.push(
+            isDirect
+                ? GoogleSyncService.updateContactConfirmedStatus(fullQuote as any)
+                : GoogleSyncService.syncContactForQuote(
+                      state,
+                      createResult.token,
+                      clientId ?? undefined
+                  )
+        );
+
+        // Venta directa: Calendar solo tras registrar pago en admin (no al crear pedido).
+
+        if (!skipEmail && resend && state.contact.email && createResult.quoteItems) {
             tasks.push(
-                isDirect
-                    ? GoogleSyncService.updateContactConfirmedStatus(fullQuote as any)
-                    : GoogleSyncService.syncContactForQuote(
-                          state,
-                          createResult.token,
-                          clientId ?? undefined
-                      )
+                (async () => {
+                    const EmailComponent = isDirect
+                        ? (await import('@/components/emails/ConfirmationEmail')).default
+                        : (await import('@/components/emails/QuoteEmail')).default;
+
+                    const eventDate = fullQuote.event_date
+                        ? new Date(fullQuote.event_date + 'T12:00:00').toLocaleDateString('es-CL', {
+                              day: '2-digit',
+                              month: 'long',
+                              year: 'numeric',
+                          })
+                        : '';
+                    const fullNameClient =
+                        `${fullQuote.client_name} ${fullQuote.client_lastname || ''}`.trim();
+                    const emailVars = { full_name: fullNameClient, event_date: eventDate };
+
+                    const [clientHtml, adminHtml, clientSubject, adminSubject] = await Promise.all([
+                        render(
+                            React.createElement(EmailComponent, {
+                                quote: fullQuote as any,
+                                isAdmin: false,
+                            })
+                        ),
+                        render(
+                            React.createElement(EmailComponent, {
+                                quote: fullQuote as any,
+                                isAdmin: true,
+                            })
+                        ),
+                        SettingsService.getResolvedValue(
+                            isDirect ? 'email_direct_sale_subject' : 'email_quote_draft_subject',
+                            emailVars,
+                            isDirect
+                                ? `✅ Tu pedido ha sido confirmado – ${eventDate}`
+                                : `🍸 Tu cotización – ${eventDate}`
+                        ),
+                        SettingsService.getResolvedValue(
+                            isDirect
+                                ? 'email_direct_sale_admin_subject'
+                                : 'email_quote_draft_admin_subject',
+                            emailVars,
+                            isDirect
+                                ? `[Pedido Confirmado] ${fullNameClient} – ${eventDate}`
+                                : `[Nueva Cotización] ${fullNameClient} – ${eventDate}`
+                        ),
+                    ]);
+
+                    return Promise.allSettled([
+                        resend.emails.send({
+                            from: FROM_EMAIL,
+                            to: state.contact.email,
+                            subject: clientSubject,
+                            html: clientHtml,
+                        }),
+                        resend.emails.send({
+                            from: FROM_EMAIL,
+                            to: ADMIN_EMAIL,
+                            subject: adminSubject,
+                            html: adminHtml,
+                        }),
+                    ]);
+                })()
             );
-
-            // Venta directa: Calendar solo tras registrar pago en admin (no al crear pedido).
-
-            if (!skipEmail && resend && state.contact.email && createResult.quoteItems) {
-                tasks.push(
-                    (async () => {
-                        const EmailComponent = isDirect
-                            ? (await import('@/components/emails/ConfirmationEmail')).default
-                            : (await import('@/components/emails/QuoteEmail')).default;
-
-                        const eventDate = fullQuote.event_date
-                            ? new Date(fullQuote.event_date + 'T12:00:00').toLocaleDateString('es-CL', {
-                                  day: '2-digit',
-                                  month: 'long',
-                                  year: 'numeric',
-                              })
-                            : '';
-                        const fullNameClient =
-                            `${fullQuote.client_name} ${fullQuote.client_lastname || ''}`.trim();
-                        const emailVars = { full_name: fullNameClient, event_date: eventDate };
-
-                        const [clientHtml, adminHtml, clientSubject, adminSubject] = await Promise.all([
-                            render(
-                                React.createElement(EmailComponent, {
-                                    quote: fullQuote as any,
-                                    isAdmin: false,
-                                })
-                            ),
-                            render(
-                                React.createElement(EmailComponent, {
-                                    quote: fullQuote as any,
-                                    isAdmin: true,
-                                })
-                            ),
-                            SettingsService.getResolvedValue(
-                                isDirect ? 'email_direct_sale_subject' : 'email_quote_draft_subject',
-                                emailVars,
-                                isDirect
-                                    ? `✅ Tu pedido ha sido confirmado – ${eventDate}`
-                                    : `🍸 Tu cotización – ${eventDate}`
-                            ),
-                            SettingsService.getResolvedValue(
-                                isDirect
-                                    ? 'email_direct_sale_admin_subject'
-                                    : 'email_quote_draft_admin_subject',
-                                emailVars,
-                                isDirect
-                                    ? `[Pedido Confirmado] ${fullNameClient} – ${eventDate}`
-                                    : `[Nueva Cotización] ${fullNameClient} – ${eventDate}`
-                            ),
-                        ]);
-
-                        return Promise.allSettled([
-                            resend.emails.send({
-                                from: FROM_EMAIL,
-                                to: state.contact.email,
-                                subject: clientSubject,
-                                html: clientHtml,
-                            }),
-                            resend.emails.send({
-                                from: FROM_EMAIL,
-                                to: ADMIN_EMAIL,
-                                subject: adminSubject,
-                                html: adminHtml,
-                            }),
-                        ]);
-                    })()
-                );
-            }
-
-            await Promise.allSettled(tasks);
         }
+
+        await Promise.allSettled(tasks);
 
         return {
             success: true,

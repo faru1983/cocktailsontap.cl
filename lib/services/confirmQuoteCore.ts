@@ -11,7 +11,7 @@ import { GoogleSyncService } from '@/lib/services/googleSyncService';
 import { SettingsService } from '@/lib/services/settingsService';
 import { createServerClient } from '@/lib/supabaseServer';
 import { fetchAllProductData } from '@/lib/serverData';
-import { calculateSummaryData, formatEventDate, resolveRegionCode, resolveRegionShortName } from '@/lib/wizardLogic';
+import { calculateSummaryData, formatEventDate, resolveRegionCode, resolveRegionShortName, validateDirectSaleDate } from '@/lib/wizardLogic';
 import { ADMIN_EMAIL, FROM_EMAIL, PORTATIL_MIN_LITERS, MURO_MIN_LITERS } from '@/lib/config';
 import { normalizePhoneE164 } from '@/lib/phone';
 
@@ -108,6 +108,11 @@ export async function confirmQuoteCore(
                     error: 'El Muro de Coctelería requiere al menos 30L y solo barriles de 10L, 20L o 30L.',
                 };
             }
+        }
+
+        if (isDirectSale) {
+            const dateErr = validateDirectSaleDate(data.event_date);
+            if (dateErr) return { success: false, error: dateErr };
         }
 
         const total =

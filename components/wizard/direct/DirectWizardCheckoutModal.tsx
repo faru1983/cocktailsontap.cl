@@ -9,7 +9,8 @@ import RegionComunaFields from '@/components/ui/RegionComunaFields';
 import { X, Loader2 } from 'lucide-react';
 import CheckoutCartSection from '@/components/quote/CheckoutCartSection';
 import QuoteSummaryTotals from '@/components/quote/QuoteSummaryTotals';
-import { getMinDateString } from '@/lib/wizardLogic';
+import { getMinDateString, DIRECT_SALE_MIN_DISPATCH_OFFSET_DAYS, validateDirectSaleDate } from '@/lib/wizardLogic';
+import { getDirectSaleDateFieldCopy } from '@/lib/blueExpress';
 
 interface Props {
     wizard: ReturnType<typeof useWizard>;
@@ -23,12 +24,14 @@ interface Props {
 export default function DirectWizardCheckoutModal({ wizard, comunas, regions, onClose, onConfirm, sendStatus }: Props) {
     const { state, updateContact, updateEventData } = wizard;
     const [showComments, setShowComments] = useState(Boolean(state.contact.comments));
+    const [dateError, setDateError] = useState<string | null>(null);
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
     const summaryData = useMemo(() => wizard.calculateSummaryData(), [state.selections, state.contact.comuna, state.contact.region]);
 
-    const minDate = getMinDateString(2);
     const hasComuna = Boolean(state.contact.comuna);
+    const minDate = getMinDateString(DIRECT_SALE_MIN_DISPATCH_OFFSET_DAYS);
+    const dateCopy = getDirectSaleDateFieldCopy(summaryData.shippingCarrier);
 
     const hasMainProduct = useMemo(() => {
         return summaryData.items.some(item => item.category !== 'Otros');
@@ -38,6 +41,17 @@ export default function DirectWizardCheckoutModal({ wizard, comunas, regions, on
     const canSubmit = minLitersMet && hasMainProduct;
     const formId = 'direct-checkout-form';
     const summaryForView = { ...summaryData, guests: 0, canHaveMuro: false };
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        const err = validateDirectSaleDate(state.eventData.date);
+        if (err) {
+            setDateError(err);
+            return;
+        }
+        setDateError(null);
+        onConfirm();
+    };
 
     const submitFooter = (opts: { formAttr?: string; withCard?: boolean; showTotals?: boolean }) => (
         <div
@@ -119,7 +133,7 @@ export default function DirectWizardCheckoutModal({ wizard, comunas, regions, on
                             <div className="bg-white rounded-2xl p-4 sm:p-5 shadow-[0_4px_20px_rgba(0,0,0,0.05)] border border-brand-border flex flex-col">
                                 <h3 className="font-extrabold text-brand-text text-base sm:text-lg mb-3">Datos de Despacho</h3>
 
-                                <form id={formId} className="flex flex-col gap-3.5" onSubmit={(e) => { e.preventDefault(); onConfirm(); }}>
+                                <form id={formId} className="flex flex-col gap-3.5" onSubmit={handleSubmit}>
                                     <div className="grid grid-cols-2 gap-3">
                                         <div>
                                             <label className="block font-bold mb-1 text-brand-text text-[0.8rem]">Nombre <span className="text-primary">*</span></label>
@@ -166,19 +180,6 @@ export default function DirectWizardCheckoutModal({ wizard, comunas, regions, on
                                         </div>
                                     </div>
 
-                                    <div>
-                                        <label className="block font-bold mb-1 text-brand-text text-[0.8rem]">Fecha de Entrega <span className="text-primary">*</span></label>
-                                        <input
-                                            type="date"
-                                            required
-                                            min={minDate}
-                                            className="w-full p-2.5 border border-slate-200 rounded-xl focus:border-primary focus:ring-2 focus:ring-primary/10 outline-none text-sm bg-white"
-                                            value={state.eventData.date}
-                                            onChange={(e) => updateEventData('date', e.target.value)}
-                                            onClick={(e) => e.currentTarget.showPicker?.()}
-                                        />
-                                    </div>
-
                                     <RegionComunaFields
                                         regions={regions}
                                         comunas={comunas}
@@ -187,7 +188,10 @@ export default function DirectWizardCheckoutModal({ wizard, comunas, regions, on
                                         comuna={state.contact.comuna}
                                         otherComuna={state.contact.otherComuna}
                                         onRegionChange={(code) => updateContact('region', code)}
-                                        onComunaChange={(name) => updateContact('comuna', name)}
+                                        onComunaChange={(name) => {
+                                            updateContact('comuna', name);
+                                            setDateError(null);
+                                        }}
                                         onOtherComunaChange={(v) => updateContact('otherComuna', v)}
                                     />
 
@@ -200,6 +204,30 @@ export default function DirectWizardCheckoutModal({ wizard, comunas, regions, on
                                             value={state.contact.address}
                                             onChange={(e) => updateContact('address', e.target.value)}
                                         />
+                                    </div>
+
+                                    <div>
+                                        <label className="block font-bold mb-1 text-brand-text text-[0.8rem]">
+                                            {dateCopy.label} <span className="text-primary">*</span>
+                                        </label>
+                                        <input
+                                            type="date"
+                                            required
+                                            min={minDate}
+                                            className={`w-full p-2.5 border rounded-xl focus:border-primary focus:ring-2 focus:ring-primary/10 outline-none text-sm bg-white ${
+                                                dateError ? 'border-red-400' : 'border-slate-200'
+                                            }`}
+                                            value={state.eventData.date}
+                                            onChange={(e) => {
+                                                updateEventData('date', e.target.value);
+                                                setDateError(null);
+                                            }}
+                                            onClick={(e) => e.currentTarget.showPicker?.()}
+                                        />
+                                        <p className="text-brand-text-muted text-[0.7rem] mt-1.5 leading-snug">{dateCopy.hint}</p>
+                                        {dateError && (
+                                            <p className="text-red-600 text-[0.75rem] font-semibold mt-1.5">{dateError}</p>
+                                        )}
                                     </div>
 
                                     {showComments ? (

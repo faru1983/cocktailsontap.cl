@@ -5,7 +5,8 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { formatCurrency, copyToClipboard } from '@/lib/utils';
 import { isValidPhoneE164, normalizePhoneE164 } from '@/lib/phone';
 import PhoneInput from '@/components/ui/PhoneInput';
-import { formatEventDate, getTodayString, getMinDateString, getSizeLiters, resolveShipping } from '@/lib/wizardLogic';
+import { formatEventDate, getTodayString, getMinDateString, getSizeLiters, resolveShipping, DIRECT_SALE_MIN_DISPATCH_OFFSET_DAYS, validateDirectSaleDate } from '@/lib/wizardLogic';
+import { getDirectSaleDateFieldCopy } from '@/lib/blueExpress';
 import { confirmQuote } from '@/app/actions/confirmQuote';
 import {
     CheckCircle, Clock, XCircle, AlertCircle, ShoppingCart,
@@ -75,6 +76,7 @@ export default function DirectQuoteView({ quote, comunas, regions, availableCock
     const [confirmed, setConfirmed] = useState(quote.status === 'confirmed');
     const [acceptedTerms, setAcceptedTerms] = useState(false);
     const [validationErrors, setValidationErrors] = useState<Record<string, boolean>>({});
+    const [dateError, setDateError] = useState<string | null>(null);
     const [clientUrl, setClientUrl] = useState('');
 
     const isDraft = quote.status === 'draft' && !confirmed;
@@ -180,10 +182,11 @@ export default function DirectQuoteView({ quote, comunas, regions, availableCock
         const totalDiscount = totalNormal - totalOffer;
         const totalCocktails = totalLiters * 5;
 
-        return { totalNormal, totalOffer, totalFinal, totalLiters, totalCocktails, shipping, totalDiscount, shippingCarrier: resolved.shippingCarrier };
+        return { totalNormal, totalOffer, totalFinal, totalLiters, totalCocktails, shipping, totalDiscount, shippingCarrier: resolved.shippingCarrier, blueExpressZone: resolved.blueExpressZone ?? null };
     };
 
     const totals = calculateTotals();
+    const dateCopy = getDirectSaleDateFieldCopy(totals.shippingCarrier);
     const totalPaid = (quote.payments || []).reduce((sum: number, p: any) => sum + (Number(p.amount) || 0), 0);
     const advanceAmount = totals.totalFinal; // Siempre 100%
     const advancePercentText = '100%';
@@ -197,6 +200,15 @@ export default function DirectQuoteView({ quote, comunas, regions, availableCock
         if (!comuna || comuna === '...') errors.comuna = true;
         if (comuna === 'Otra' && !comunaOther.trim()) errors.comunaOther = true;
         if (!eventDate) errors.eventDate = true;
+        else {
+            const dateErr = validateDirectSaleDate(eventDate);
+            if (dateErr) {
+                errors.eventDate = true;
+                setDateError(dateErr);
+            } else {
+                setDateError(null);
+            }
+        }
         
         // Validar que haya al menos un producto
         if (!items.some(i => i.quantity > 0)) {
@@ -266,6 +278,7 @@ export default function DirectQuoteView({ quote, comunas, regions, availableCock
             shippingCost: totals.shipping,
             shippingLabel: comuna === 'Otra' && totals.shipping === 0 ? 'Pendiente de factibilidad' : (totals.shipping === 0 ? '¡Gratis!' : formatCurrency(totals.shipping)),
             shippingCarrier: totals.shippingCarrier,
+            blueExpressZone: totals.blueExpressZone,
             installationCost: 0,
             dispenserLabel: 'Barril Desechable',
             manualDiscount: quote.manual_discount || 0,
@@ -723,10 +736,6 @@ export default function DirectQuoteView({ quote, comunas, regions, availableCock
                         </div>
 
                         <div className="space-y-4">
-                            <div className="flex flex-col gap-1">
-                                <label className="text-[0.65rem] font-black text-brand-text-muted flex items-center gap-1.5 uppercase"><Calendar className="w-3 h-3" /> Fecha de Entrega <span className="text-red-500">*</span></label>
-                                <input id="field-eventDate" type="date" value={eventDate} min={getMinDateString(2)} onChange={(e) => { setEventDate(e.target.value); setValidationErrors(prev => ({ ...prev, eventDate: false })); }} className={`w-full px-3 py-2.5 bg-slate-50 border rounded-xl text-[0.95rem] font-bold focus:outline-none focus:border-primary shadow-sm ${validationErrors.eventDate ? 'border-red-500 bg-red-50/30' : 'border-brand-border'}`} />
-                            </div>
                             <RegionComunaFields
                                 regions={regions}
                                 comunas={comunas}
@@ -739,16 +748,39 @@ export default function DirectQuoteView({ quote, comunas, regions, availableCock
                                     setComuna('');
                                     setComunaOther('');
                                     setValidationErrors((prev) => ({ ...prev, comuna: false }));
+                                    setDateError(null);
                                 }}
                                 onComunaChange={(name) => {
                                     setComuna(name);
                                     setValidationErrors((prev) => ({ ...prev, comuna: false }));
+                                    setDateError(null);
                                 }}
                                 onOtherComunaChange={setComunaOther}
                             />
                             <div className="flex flex-col gap-1">
                                 <label className="text-[0.65rem] font-black text-brand-text-muted flex items-center gap-1.5 uppercase"><MapPin className="w-3 h-3" /> Dirección <span className="text-red-500">*</span></label>
                                 <input id="field-address" type="text" value={address} onChange={(e) => { setAddress(e.target.value); setValidationErrors(prev => ({ ...prev, address: false })); }} placeholder="Calle, Número, Depto..." className={`w-full px-3 py-2.5 bg-slate-50 border rounded-xl text-[0.95rem] font-bold focus:outline-none focus:border-primary shadow-sm ${validationErrors.address ? 'border-red-500 bg-red-50/30' : 'border-brand-border'}`} />
+                            </div>
+                            <div className="flex flex-col gap-1">
+                                <label className="text-[0.65rem] font-black text-brand-text-muted flex items-center gap-1.5 uppercase">
+                                    <Calendar className="w-3 h-3" /> {dateCopy.label} <span className="text-red-500">*</span>
+                                </label>
+                                <input
+                                    id="field-eventDate"
+                                    type="date"
+                                    value={eventDate}
+                                    min={getMinDateString(DIRECT_SALE_MIN_DISPATCH_OFFSET_DAYS)}
+                                    onChange={(e) => {
+                                        setEventDate(e.target.value);
+                                        setValidationErrors((prev) => ({ ...prev, eventDate: false }));
+                                        setDateError(null);
+                                    }}
+                                    className={`w-full px-3 py-2.5 bg-slate-50 border rounded-xl text-[0.95rem] font-bold focus:outline-none focus:border-primary shadow-sm ${validationErrors.eventDate ? 'border-red-500 bg-red-50/30' : 'border-brand-border'}`}
+                                />
+                                <p className="text-brand-text-muted text-[0.7rem] leading-snug">{dateCopy.hint}</p>
+                                {dateError && (
+                                    <p className="text-red-600 text-[0.75rem] font-semibold">{dateError}</p>
+                                )}
                             </div>
                         </div>
                     </div>
