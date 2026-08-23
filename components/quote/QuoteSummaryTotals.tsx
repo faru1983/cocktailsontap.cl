@@ -2,7 +2,6 @@
 
 import { formatCurrency } from '@/lib/utils';
 import type { QuoteSummaryData } from '@/components/quote/QuoteSummaryProducts';
-import { getBlueExpressShippingLine } from '@/lib/blueExpress';
 
 interface Props {
     data: QuoteSummaryData;
@@ -26,10 +25,7 @@ export default function QuoteSummaryTotals({
 }: Props) {
     const isDesechable = data.dispenserLabel.toLowerCase().includes('desechable');
     const shippingPending = !hasComuna || data.shippingLabel === 'Por calcular';
-    const shippingName =
-        data.shippingCarrier === 'blue_express'
-            ? getBlueExpressShippingLine(data.blueExpressZone)
-            : 'Transporte';
+    const shippingName = data.shippingCarrier === 'blue_express' ? 'Blue Express' : 'Transporte';
     const shippingValue = shippingPending
         ? 'Elige comuna para calcular'
         : data.shippingLabel;

@@ -149,22 +149,3 @@ export function getDirectSaleDateFieldCopy(carrier: ShippingCarrier): {
         hint: 'Indica cuándo quieres recibir tu pedido en la dirección indicada.',
     };
 }
-
-/** Plazo referencial de entrega al domicilio (después de ingreso en Blue Express). */
-export function formatBlueExpressTransitLabel(zone: BlueExpressZone | null | undefined): string | null {
-    switch (zone) {
-        case 'misma_zona':
-            return '1 día hábil';
-        case 'centro':
-            return '2 días hábiles';
-        case 'extremo':
-            return '3 a 7 días hábiles';
-        default:
-            return null;
-    }
-}
-
-export function getBlueExpressShippingLine(zone: BlueExpressZone | null | undefined): string {
-    const transit = formatBlueExpressTransitLabel(zone);
-    return transit ? `Blue Express (${transit})` : 'Blue Express';
-}

@@ -182,7 +182,7 @@ export default function DirectQuoteView({ quote, comunas, regions, availableCock
         const totalDiscount = totalNormal - totalOffer;
         const totalCocktails = totalLiters * 5;
 
-        return { totalNormal, totalOffer, totalFinal, totalLiters, totalCocktails, shipping, totalDiscount, shippingCarrier: resolved.shippingCarrier, blueExpressZone: resolved.blueExpressZone ?? null };
+        return { totalNormal, totalOffer, totalFinal, totalLiters, totalCocktails, shipping, totalDiscount, shippingCarrier: resolved.shippingCarrier };
     };
 
     const totals = calculateTotals();
@@ -278,7 +278,6 @@ export default function DirectQuoteView({ quote, comunas, regions, availableCock
             shippingCost: totals.shipping,
             shippingLabel: comuna === 'Otra' && totals.shipping === 0 ? 'Pendiente de factibilidad' : (totals.shipping === 0 ? '¡Gratis!' : formatCurrency(totals.shipping)),
             shippingCarrier: totals.shippingCarrier,
-            blueExpressZone: totals.blueExpressZone,
             installationCost: 0,
             dispenserLabel: 'Barril Desechable',
             manualDiscount: quote.manual_discount || 0,

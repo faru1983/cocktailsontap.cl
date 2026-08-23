@@ -24,7 +24,6 @@ export interface QuoteSummaryData {
     shippingCost: number;
     shippingLabel: string;
     shippingCarrier?: 'own' | 'blue_express';
-    blueExpressZone?: 'misma_zona' | 'centro' | 'extremo' | null;
     installationCost: number;
     dispenserLabel: string;
     manualDiscount: number;

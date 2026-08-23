@@ -44,7 +44,7 @@
 ### 23-08-2026 (Sesión 88) — Revert días hábiles Blue Express
 
 - Eliminada configuración de días de entrega en Blue Express (admin, API catalog, `site_settings`, tipo `Comuna`).
-- Calendario venta directa unificado (`input type="date"` nativo, mínimo 2 días). Copy del campo según carrier: reparto propio vs “Fecha de entrega en Blue Express” (`getDirectSaleDateFieldCopy`). Resumen de totales: línea `Blue Express (X días hábiles)` según zona; extremo **3 a 7 días hábiles**.
+- Calendario venta directa unificado (`input type="date"` nativo, mínimo 2 días). Copy del campo según carrier (`getDirectSaleDateFieldCopy`). Resumen de totales: línea **Blue Express** sin plazo (varía por comuna).
 
 ### 23-08-2026 (Sesión 87) — WhatsApp flotante: menos intrusivo y arrastrable
 
