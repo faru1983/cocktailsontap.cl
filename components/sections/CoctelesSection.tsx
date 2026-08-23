@@ -7,13 +7,12 @@ import type { Product } from '@/lib/types';
 import ProductCatalog from '@/components/catalog/ProductCatalog';
 import CartModal from '../catalog/CartModal';
 import CategoryTabs from '../ui/CategoryTabs';
+import { COCKTAILS_PER_LITER } from '@/lib/config';
 
-const YIELDS = [
-    { liters: '5L', count: 25 },
-    { liters: '10L', count: 50 },
-    { liters: '20L', count: 100 },
-    { liters: '30L', count: 150 },
-];
+const YIELDS = ([5, 10, 20, 30] as const).map((liters) => ({
+    liters: `${liters}L`,
+    count: liters * COCKTAILS_PER_LITER,
+}));
 
 interface Props {
     products: Product[];

@@ -1,6 +1,6 @@
 import type { CocktailForWizard, Comuna, WizardState, WizardSelection, Quote, QuoteItem } from './types';
 import { formatCurrency } from './utils';
-import { SITE_URL, WHATSAPP_URL, MURO_INSTALLATION_COST, MURO_COMPATIBLE_SIZES, MURO_MIN_LITERS, PROJECT_TIMEZONE } from './config';
+import { SITE_URL, WHATSAPP_URL, MURO_INSTALLATION_COST, MURO_COMPATIBLE_SIZES, MURO_MIN_LITERS, PROJECT_TIMEZONE, COCKTAILS_PER_LITER } from './config';
 import {
     barrelsFromLiters,
     isBlueExpressZone,
@@ -14,6 +14,14 @@ export type ShippingResolution = {
     isPending: boolean;
     shippingCarrier: ShippingCarrier;
 };
+
+/** Rendimiento y precio aprox. por trago para catálogo (solo formatos en litros). */
+export function getDrinkYieldInfo(offerPrice: number, liters: number, unit = 'L') {
+    if (unit !== 'L' || liters <= 0) return null;
+    const cocktailCount = liters * COCKTAILS_PER_LITER;
+    const pricePerDrink = Math.round(offerPrice / cocktailCount);
+    return { cocktailCount, pricePerDrink };
+}
 
 /**
  * Resuelve tarifa de despacho.

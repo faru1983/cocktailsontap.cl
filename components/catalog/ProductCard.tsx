@@ -4,6 +4,7 @@ import Image from 'next/image';
 import { useState } from 'react';
 import type { Product, ICart } from '@/lib/types';
 import { formatCurrency } from '@/lib/utils';
+import { getDrinkYieldInfo } from '@/lib/wizardLogic';
 import QuantitySelector from '@/components/ui/QuantitySelector';
 
 interface ProductCardProps {
@@ -31,6 +32,7 @@ export default function ProductCard({ product, cart }: ProductCardProps) {
 
     const hasOffer = sizeInfo.offerPrice < sizeInfo.price;
     const quantity = cart.getQuantity(product.id, selectedSize);
+    const drinkYield = getDrinkYieldInfo(sizeInfo.offerPrice, sizeInfo.sizeValue, sizeInfo.unit);
 
     const handleSizeChange = (newSize: string) => {
         setSelectedSize(newSize);
@@ -131,7 +133,7 @@ export default function ProductCard({ product, cart }: ProductCardProps) {
                     ))}
                 </select>
 
-                <div className="flex flex-row items-baseline justify-center gap-2 font-extrabold text-[#059669] text-[1.3rem] min-h-[2rem] mb-4 leading-none">
+                <div className={`flex flex-row items-baseline justify-center gap-2 font-extrabold text-[#059669] text-[1.3rem] min-h-[2rem] leading-none ${drinkYield ? 'mb-1' : 'mb-4'}`}>
                     {quantity > 0 ? (
                         <>
                             <span>{formatCurrency(sizeInfo.offerPrice * quantity)}</span>
@@ -152,6 +154,12 @@ export default function ProductCard({ product, cart }: ProductCardProps) {
                         </>
                     )}
                 </div>
+
+                {drinkYield && (
+                    <p className="text-center text-[0.75rem] text-brand-text-muted mb-4 leading-snug">
+                        {drinkYield.cocktailCount} cócteles ({formatCurrency(drinkYield.pricePerDrink)} aprox.)
+                    </p>
+                )}
 
                 {quantity === 0 ? (
                     <button

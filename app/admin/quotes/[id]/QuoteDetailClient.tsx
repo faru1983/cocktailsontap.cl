@@ -25,11 +25,12 @@ import {
 import { 
     FileText, ShoppingBag, CreditCard, Mail, Edit2, Save, Send,
     Link as LinkIcon, Trash2, ArrowRight, MessageCircle, Star, ArrowLeft, X,
-    Calendar
+    Calendar, ChevronDown
 } from 'lucide-react';
 import type { Comuna, Region } from '@/lib/types';
 import { DEFAULT_REGION_CODE } from '@/lib/types';
 import { sourceBadge, normalizeQuoteSource } from '@/lib/quoteSource';
+import QuoteOperationalSummary from './QuoteOperationalSummary';
 
 const statusFlow = ['draft', 'confirmed', 'in_delivery', 'completed', 'cancelled'];
 const statusBadge: Record<string, { label: string; color: string; bg: string }> = {
@@ -85,8 +86,12 @@ export default function QuoteDetailClient({ quote: initial, allProducts, eventTy
     const [trackingNumber, setTrackingNumber] = useState('');
     const [customCarrierName, setCustomCarrierName] = useState('');
     const [customTrackingUrl, setCustomTrackingUrl] = useState('');
+    const [manualTriggersOpen, setManualTriggersOpen] = useState(
+        () => normalizeQuoteSource(quote.source) === 'admin'
+    );
 
     const isDirectSale = isDirectSaleQuote(quote);
+    const isReadOnlyView = !isEditingInfo && !isEditingItems;
     const balance = getQuoteBalance(quote);
     const totalPaid = (Number(quote.total_price) || 0) - balance;
     const canMarkInDelivery = isDirectSale && quote.status === 'confirmed' && balance <= 0;
@@ -575,45 +580,74 @@ export default function QuoteDetailClient({ quote: initial, allProducts, eventTy
                 )}
             </div>
 
-            {/* Manual Triggers Section */}
+            {isReadOnlyView && (
+                <QuoteOperationalSummary
+                    quote={quote}
+                    isDirectSale={isDirectSale}
+                    balance={balance}
+                    onCopied={(msg) => showToast(msg)}
+                />
+            )}
+
+            {/* Manual Triggers Section — colapsable */}
             <div style={{ 
                 background: 'rgba(226,160,73,0.05)', 
                 borderRadius: '16px', 
                 border: '1px solid rgba(226,160,73,0.15)', 
-                padding: '20px 24px', 
+                padding: manualTriggersOpen ? '20px 24px' : '14px 20px', 
                 marginBottom: '24px',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '14px'
             }}>
-                <h3 style={{ color: '#E2A049', fontSize: '13px', fontWeight: 800, margin: 0, textTransform: 'uppercase', letterSpacing: '1px' }}>Disparadores Manuales</h3>
-                <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                    <button onClick={handleManualEmail} disabled={isPending} style={{
-                        flex: 1, minWidth: '200px', padding: '12px', borderRadius: '12px', fontSize: '13px', fontWeight: 700,
-                        background: '#E2A049', color: '#1a1a2e', border: 'none', cursor: 'pointer', transition: 'all 0.15s',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', opacity: isPending ? 0.6 : 1
-                    }}>
-                        <Mail size={16}/> Enviar Email de {quote.status === 'confirmed' || quote.service_type === 'direct' ? 'Confirmación' : 'Cotización'}
-                    </button>
-                    
-                    <button onClick={handleManualCalendar} disabled={isPending} style={{
-                        flex: 1, minWidth: '200px', padding: '12px', borderRadius: '12px', fontSize: '13px', fontWeight: 700,
-                        background: 'rgba(255,255,255,0.05)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)', 
-                        cursor: 'pointer', transition: 'all 0.15s',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', opacity: isPending ? 0.6 : 1
-                    }}>
-                        <Calendar size={16}/> {quote.google_event_id ? 'Actualizar en Calendar' : 'Sincronizar con Calendar'}
-                    </button>
-                </div>
-                <p style={{ margin: 0, fontSize: '11px', color: '#64748b', fontStyle: 'italic' }}>
-                    * Las automatizaciones automáticas están desactivadas para creaciones desde el Admin. Usa estos botones para dispararlas.
-                </p>
+                <button
+                    type="button"
+                    onClick={() => setManualTriggersOpen(v => !v)}
+                    style={{
+                        display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%',
+                        background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontFamily: 'inherit',
+                    }}
+                >
+                    <h3 style={{ color: '#E2A049', fontSize: '13px', fontWeight: 800, margin: 0, textTransform: 'uppercase', letterSpacing: '1px' }}>
+                        Disparadores manuales
+                    </h3>
+                    <ChevronDown
+                        size={18}
+                        style={{
+                            color: '#E2A049',
+                            transform: manualTriggersOpen ? 'rotate(180deg)' : undefined,
+                            transition: 'transform 0.15s',
+                        }}
+                    />
+                </button>
+                {manualTriggersOpen && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginTop: '14px' }}>
+                        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                            <button onClick={handleManualEmail} disabled={isPending} style={{
+                                flex: 1, minWidth: '200px', padding: '12px', borderRadius: '12px', fontSize: '13px', fontWeight: 700,
+                                background: '#E2A049', color: '#1a1a2e', border: 'none', cursor: 'pointer', transition: 'all 0.15s',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', opacity: isPending ? 0.6 : 1
+                            }}>
+                                <Mail size={16}/> Enviar Email de {quote.status === 'confirmed' || quote.service_type === 'direct' ? 'Confirmación' : 'Cotización'}
+                            </button>
+                            
+                            <button onClick={handleManualCalendar} disabled={isPending} style={{
+                                flex: 1, minWidth: '200px', padding: '12px', borderRadius: '12px', fontSize: '13px', fontWeight: 700,
+                                background: 'rgba(255,255,255,0.05)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)', 
+                                cursor: 'pointer', transition: 'all 0.15s',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', opacity: isPending ? 0.6 : 1
+                            }}>
+                                <Calendar size={16}/> {quote.google_event_id ? 'Actualizar en Calendar' : 'Sincronizar con Calendar'}
+                            </button>
+                        </div>
+                        <p style={{ margin: 0, fontSize: '11px', color: '#64748b', fontStyle: 'italic' }}>
+                            * Las automatizaciones automáticas están desactivadas para creaciones desde el Admin. Usa estos botones para dispararlas.
+                        </p>
+                    </div>
+                )}
             </div>
 
             {/* New Tabs Design */}
             <div className="q-tabs">
                 {[
-                    { id: 'info', name: 'Detalle', icon: <FileText size={16}/> },
+                    { id: 'info', name: 'Datos', icon: <FileText size={16}/> },
                     { id: 'review', name: 'Items', icon: <ShoppingBag size={16}/> },
                     { id: 'payments', name: 'Pagos', icon: <CreditCard size={16}/> },
                     { id: 'email', name: 'Email', icon: <Mail size={16}/> },
@@ -652,8 +686,14 @@ export default function QuoteDetailClient({ quote: initial, allProducts, eventTy
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '40px' }}>
                         <div className="q-section-header">
                             <div>
-                                <h3 style={{ color: '#f1f5f9', fontSize: '18px', fontWeight: 800, margin: 0 }}>Detalles de la Cotización</h3>
-                                <p style={{ color: '#64748b', fontSize: '13px', margin: '4px 0 0' }}>Gestión de datos del cliente y logística del evento</p>
+                                <h3 style={{ color: '#f1f5f9', fontSize: '18px', fontWeight: 800, margin: 0 }}>
+                                    {isEditingInfo ? 'Detalles de la Cotización' : 'Datos completos'}
+                                </h3>
+                                <p style={{ color: '#64748b', fontSize: '13px', margin: '4px 0 0' }}>
+                                    {isEditingInfo
+                                        ? 'Gestión de datos del cliente y logística del evento'
+                                        : 'Resumen operativo arriba. Edita aquí para modificar cliente, dirección y logística.'}
+                                </p>
                             </div>
                             <div className="q-btn-group">
                                 {!isEditingInfo ? (
@@ -673,6 +713,14 @@ export default function QuoteDetailClient({ quote: initial, allProducts, eventTy
                             </div>
                         </div>
 
+                        {!isEditingInfo && (
+                            <p style={{ margin: 0, padding: '14px 16px', borderRadius: '12px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', color: '#64748b', fontSize: '13px', lineHeight: 1.5 }}>
+                                Los datos operativos (fecha, dirección, productos, pago y contacto) están en el <strong style={{ color: '#94a3b8' }}>resumen operativo</strong>. Pulsa <strong style={{ color: '#E2A049' }}>Editar</strong> para cambiar campos del formulario.
+                            </p>
+                        )}
+
+                        {isEditingInfo && (
+                        <>
                         {/* SECCIÓN CLIENTE */}
                         <div>
                             <h4 style={{ color: '#E2A049', fontSize: '14px', fontWeight: 800, textTransform: 'uppercase', marginBottom: '20px', letterSpacing: '1px', display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -904,20 +952,16 @@ export default function QuoteDetailClient({ quote: initial, allProducts, eventTy
                                 <span style={{ width: '24px', height: '1px', background: 'rgba(226,160,73,0.3)' }}></span>
                                 Comentarios
                             </h4>
-                            {isEditingInfo ? (
-                                <textarea 
-                                    value={editInfo.comments || ''} 
-                                    onChange={(e) => setEditInfo((prev: any) => ({ ...prev, comments: e.target.value }))}
-                                    className="q-input" 
-                                    rows={4}
-                                    style={{ resize: 'vertical' }}
-                                />
-                            ) : (
-                                <div style={{ color: '#94a3b8', fontSize: '14px', lineHeight: '1.6', padding: '16px', background: 'rgba(255,255,255,0.02)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)', minHeight: '60px' }}>
-                                    {quote.comments || <span style={{ fontStyle: 'italic', opacity: 0.5 }}>Sin comentarios adicionales</span>}
-                                </div>
-                            )}
+                            <textarea 
+                                value={editInfo.comments || ''} 
+                                onChange={(e) => setEditInfo((prev: any) => ({ ...prev, comments: e.target.value }))}
+                                className="q-input" 
+                                rows={4}
+                                style={{ resize: 'vertical' }}
+                            />
                         </div>
+                        </>
+                        )}
                     </div>
                 )}
 

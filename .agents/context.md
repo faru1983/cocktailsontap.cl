@@ -41,6 +41,22 @@
 
 ## Ultimos Cambios
 
+### 23-08-2026 (Sesión 91) — Catálogo: precio aprox. por trago
+
+- `ProductCard`: bajo el precio, línea `25 cócteles ($1.600 aprox.)` según formato seleccionado.
+- Constante `COCKTAILS_PER_LITER = 5` en `lib/config.ts`; helper `getDrinkYieldInfo` en `wizardLogic.ts`.
+- `CoctelesSection` YIELDS derivado de la misma constante.
+
+### 23-08-2026 (Sesión 90) — Admin detalle cotización: resumen operativo
+
+- Vista lectura en `/admin/quotes/[id]`: tarjeta **Resumen operativo** (fecha, dirección + Maps/copiar, productos, pago, contacto WA, despacho si aplica; evento vs venta directa).
+- Pestaña Datos en lectura: solo aviso + botón Editar; formulario completo sin cambios al editar.
+- Disparadores manuales colapsables (abiertos por defecto si `source=admin`).
+
+### 23-08-2026 (Sesión 89) — Bulk cotizaciones: sin Confirmar
+
+- Eliminado botón **Confirmar** del cambio de estado masivo en `/admin/quotes`. Confirmar borradores solo vía link del cliente, wizard admin (`confirmNow`) o detalle con flujo real — evita marcar `confirmed` sin datos, Calendar, emails ni CRM.
+
 ### 23-08-2026 (Sesión 88) — Revert días hábiles Blue Express
 
 - Eliminada configuración de días de entrega en Blue Express (admin, API catalog, `site_settings`, tipo `Comuna`).
@@ -86,4 +102,4 @@
 
 ---
 
-*Ultima actualizacion: 23-08-2026 (Sesión 87)*
+*Ultima actualizacion: 23-08-2026 (Sesión 91)*

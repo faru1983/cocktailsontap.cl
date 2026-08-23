@@ -327,7 +327,6 @@ export default function QuotesListClient({
                     <div className="qp-bulk-bar">
                         <span style={{ fontSize: '12px', color: '#E2A049', fontWeight: 800 }}>{selectedIds.length} seleccionadas</span>
                         <div style={{ display: 'flex', gap: '6px' }}>
-                            <button onClick={() => handleBulkStatus('confirmed')} className="bulk-btn" style={{ background: '#34d399', color: '#064e3b' }}>Confirmar</button>
                             <button onClick={() => handleBulkStatus('completed')} className="bulk-btn" style={{ background: '#a78bfa', color: '#2e1065' }}>Completar</button>
                             <button onClick={() => handleBulkStatus('cancelled')} className="bulk-btn" style={{ background: '#f87171', color: '#450a0a' }}>Cancelar</button>
                         </div>
