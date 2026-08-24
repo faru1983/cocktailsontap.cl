@@ -7,6 +7,7 @@ import {
     CALENDAR_DESECHABLE_ID,
 } from '@/lib/googleSync';
 import { SITE_URL } from '@/lib/config';
+import { formatQuoteItemCalendarLine } from '@/lib/utils';
 import type { WizardState, Quote } from '@/lib/types';
 import { QuoteService } from './quoteService';
 import { calculateMaxPickupDate } from '@/lib/wizardLogic';
@@ -152,9 +153,7 @@ export const GoogleSyncService = {
                 new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(amount);
 
             // Generar la lista limpia de productos y totales para ambas descripciones
-            const itemsText = quote.quote_items?.map(item => 
-                `${item.size} ${item.product_name} (x${item.quantity}) ${formatClp(item.offer_price_at_time * item.quantity)}`
-            ).join('\n') || 'Sin productos';
+            const itemsText = quote.quote_items?.map((item) => formatQuoteItemCalendarLine(item)).join('\n') || 'Sin productos';
 
             const dispenserLabel = quote.dispenser === 'muro' ? 'Muro' : 'Portátil';
             

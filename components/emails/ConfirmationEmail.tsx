@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { Section, Text } from '@react-email/components';
 import type { Quote, QuoteItem } from '@/lib/types';
-import { SITE_URL } from '@/lib/config';
+import { SITE_URL, BANK_TRANSFER_FIELDS } from '@/lib/config';
 import { formatCurrency } from '@/lib/utils';
 import { 
     BaseLayout, QuoteButton, ContactNote, ItemsTable, YieldsSection, 
@@ -63,11 +63,12 @@ export const ConfirmationEmail: React.FC<Readonly<ConfirmationEmailProps>> = ({ 
       <Section style={{ backgroundColor: lightGray, borderRadius: '12px', padding: '20px 24px', marginBottom: '28px', border: `1px solid ${borderColor}` }}>
         <table width="100%">
           <tbody>
-            <tr><td style={{ padding: '2px 0' }}><strong>Banco</strong></td><td>Mercado Pago</td></tr>
-            <tr><td style={{ padding: '2px 0' }}><strong>Cta Vista</strong></td><td>1098081647</td></tr>
-            <tr><td style={{ padding: '2px 0' }}><strong>Nombre</strong></td><td>Felipe Ramírez</td></tr>
-            <tr><td style={{ padding: '2px 0' }}><strong>RUT</strong></td><td>15.332.189-2</td></tr>
-            <tr><td style={{ padding: '2px 0' }}><strong>Email</strong></td><td>contacto@cocktailsontap.cl</td></tr>
+            {BANK_TRANSFER_FIELDS.map((field) => (
+              <tr key={field.label}>
+                <td style={{ padding: '2px 0' }}><strong>{field.label}</strong></td>
+                <td>{field.value}</td>
+              </tr>
+            ))}
           </tbody>
         </table>
       </Section>

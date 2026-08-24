@@ -61,6 +61,50 @@ export const CRON_SECRET_ENV = 'CRON_SECRET';
 /** Meta Pixel ID (público; también en lib/fpixel.ts). */
 export const META_PIXEL_ID = process.env.NEXT_PUBLIC_META_PIXEL_ID ?? '1739547250109039';
 
+/** Campo parseado de datos bancarios (etiqueta + valor). */
+export type BankTransferField = { label: string; value: string };
+
+const DEFAULT_BANK_TRANSFER_BLOCK = `Banco: Mercado Pago
+Cuenta Vista: 1098081647
+Nombre: Felipe Ramírez
+RUT: 15.332.189-2
+E-mail: contacto@cocktailsontap.cl`;
+
+function parseBankTransferBlock(raw: string): BankTransferField[] {
+    return raw
+        .replace(/\\n/g, '\n')
+        .split('\n')
+        .map((line) => line.trim())
+        .filter(Boolean)
+        .map((line) => {
+            const colon = line.indexOf(':');
+            if (colon === -1) return { label: line, value: '' };
+            return {
+                label: line.slice(0, colon).trim(),
+                value: line.slice(colon + 1).trim(),
+            };
+        });
+}
+
+/**
+ * Datos bancarios para transferencias (link único, wizard, emails).
+ * Fuente: `NEXT_PUBLIC_BANK_TRANSFER` — una línea por campo, formato `Etiqueta: valor`.
+ * Separador de líneas: `\\n` en .env o saltos reales en el fallback.
+ */
+export const BANK_TRANSFER_FIELDS: BankTransferField[] = parseBankTransferBlock(
+    process.env.NEXT_PUBLIC_BANK_TRANSFER?.trim() || DEFAULT_BANK_TRANSFER_BLOCK
+);
+
+/** Texto plano para copiar al portapapeles. */
+export function getBankTransferCopyText(): string {
+    return BANK_TRANSFER_FIELDS.map((f) => `${f.label}: ${f.value}`).join('\n');
+}
+
+/** Etiquetas que se muestran con fuente monoespaciada / select-all (cuenta, RUT). */
+export function isBankTransferMonoField(label: string): boolean {
+    return /cuenta|rut|n[º°]\s*cuenta/i.test(label);
+}
+
 /**
  * Meta Conversions API — solo server-side.
  * Leer process.env en lib/services/metaCapiService.ts (no exportar el token aquí;

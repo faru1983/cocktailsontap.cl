@@ -19,6 +19,7 @@ import { DEFAULT_REGION_CODE } from '@/lib/types';
 import ProductCatalog from '@/components/catalog/ProductCatalog';
 import QuoteSummaryProducts, { QuoteSummaryData } from '@/components/quote/QuoteSummaryProducts';
 import QuoteSummaryReservation, { QuoteSummaryReservationData } from '@/components/quote/QuoteSummaryReservation';
+import BankTransferCard from '@/components/quote/BankTransferCard';
 import RegionComunaFields from '@/components/ui/RegionComunaFields';
 import { formatQuoteAddress } from '@/lib/geo';
 import { buildWhatsAppMessageFromQuote, getWhatsAppUrl } from '@/lib/wizardLogic';
@@ -544,39 +545,27 @@ export default function EventQuoteView({ quote, comunas, regions, availableCockt
                 </p>
 
                 {!isNew ? (
-                <div className="bg-green-50 border-2 border-green-200 rounded-3xl p-4 sm:p-8 max-w-sm mx-auto text-left shadow-lg overflow-hidden relative group">
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-green-200/20 rounded-full -mr-16 -mt-16" />
-                    <p className="text-green-800 font-black text-center mb-1 uppercase tracking-widest text-[0.65rem] sm:text-[0.7rem]">Monto a depositar ({advancePercentText})</p>
-                    <p className="text-green-600 font-black text-3xl sm:text-4xl text-center mb-6">{formatCurrency(advanceAmount)}</p>
-                    <div className="text-xs sm:text-[0.9rem] text-green-800 space-y-2 border-t border-green-200 pt-4 sm:pt-6">
-                        <p className="flex flex-row justify-between gap-2"><strong>Banco:</strong> <span>Mercado Pago</span></p>
-                        <p className="flex flex-row justify-between gap-2"><strong>Cuenta Vista:</strong> <span>1098081647</span></p>
-                        <p className="flex flex-row justify-between gap-2"><strong>Nombre:</strong> <span>Felipe Ramírez</span></p>
-                        <p className="flex flex-row justify-between gap-2"><strong>RUT:</strong> <span>15.332.189-2</span></p>
-                        <p className="flex flex-row justify-between gap-2"><strong>Email:</strong> <span className="break-all text-[0.7rem] sm:text-xs">contacto@cocktailsontap.cl</span></p>
-                    </div>
-                    <button 
-                        onClick={() => {
-                            const text = `Banco: Mercado Pago\nCuenta Vista: 1098081647\nNombre: Felipe Ramírez\nRUT: 15.332.189-2\nE-mail: contacto@cocktailsontap.cl`;
-                            copyToClipboard(text);
-                        }}
-                        className="w-full mt-6 inline-flex items-center justify-center gap-2 px-4 py-3 bg-white border border-green-200 rounded-xl text-[0.85rem] font-black text-green-700 hover:border-green-400 hover:bg-green-50 transition-all active:scale-95 shadow-sm"
-                    >
-                        <Copy className="w-4 h-4" /> Copiar Datos de Cuenta
-                    </button>
-                    <div className="mt-4 pt-3 border-t border-green-200/60 flex flex-col items-center gap-2">
-                        <p className="text-[0.7rem] sm:text-[0.8rem] text-green-700 text-center italic font-bold leading-tight">
-                            Envía tu comprobante por WhatsApp o Email para validar tu reserva:
-                        </p>
-                        <a 
-                            href={`${WHATSAPP_URL}?text=${encodeURIComponent(`Hola, adjunto el comprobante de transferencia para mi reserva: ${clientUrl}`)}`} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="w-full inline-flex justify-center items-center gap-1.5 px-4 py-2 bg-[#25D366] hover:bg-[#128c7e] text-white rounded-xl text-xs font-black transition-all active:scale-95 shadow-sm no-underline text-center"
-                        >
-                            <WhatsappIcon className="w-3.5 h-3.5 fill-white" /> Enviar Comprobante
-                        </a>
-                    </div>
+                <div className="max-w-sm mx-auto shadow-lg">
+                    <BankTransferCard
+                        amount={advanceAmount}
+                        amountLabel={`Monto a depositar (${advancePercentText})`}
+                        variant="green"
+                        footer={
+                            <>
+                                <p className="text-[0.7rem] sm:text-[0.8rem] text-green-700 text-center italic font-bold leading-tight">
+                                    Envía tu comprobante por WhatsApp o Email para validar tu reserva:
+                                </p>
+                                <a
+                                    href={`${WHATSAPP_URL}?text=${encodeURIComponent(`Hola, adjunto el comprobante de transferencia para mi reserva: ${clientUrl}`)}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="w-full inline-flex justify-center items-center gap-1.5 px-4 py-2 bg-[#25D366] hover:bg-[#128c7e] text-white rounded-xl text-xs font-black transition-all active:scale-95 shadow-sm no-underline text-center"
+                                >
+                                    <WhatsappIcon className="w-3.5 h-3.5 fill-white" /> Enviar Comprobante
+                                </a>
+                            </>
+                        }
+                    />
                     </div>
                 ) : (
                     <div className="relative mb-8 sm:mb-10 overflow-hidden rounded-2xl sm:rounded-[3rem] bg-gradient-to-br from-[#fdfcfb] to-[#e2d1c3] border-2 border-primary/20 p-5 sm:p-10 shadow-[0_15px_40px_rgba(226,160,73,0.12)] group mx-auto max-w-2xl">
@@ -770,19 +759,11 @@ export default function EventQuoteView({ quote, comunas, regions, availableCockt
                     )}
                     
                     {balance > 0 && (
-                        <div className="mt-8 p-6 bg-amber-50 rounded-[1.5rem] border-2 border-dashed border-amber-200 text-center">
-                            <p className="text-[0.85rem] text-amber-800 font-bold mb-4">
+                        <div className="mt-8 space-y-4">
+                            <p className="text-[0.85rem] text-amber-800 font-bold text-center">
                                 Si aún no realizas tu transferencia, recuerda que el monto total para asegurar tu reserva es de <strong>{formatCurrency(balance)}</strong>.
                             </p>
-                            <button 
-                                onClick={() => {
-                                    const text = `Banco: Mercado Pago\nCuenta Vista: 1098081647\nNombre: Felipe Ramírez\nRUT: 15.332.189-2\nE-mail: contacto@cocktailsontap.cl`;
-                                    navigator.clipboard.writeText(text);
-                                }}
-                                className="inline-flex items-center gap-2 px-6 py-3 bg-white border border-amber-200 rounded-xl text-[0.85rem] font-black text-amber-700 hover:border-amber-400 transition-all active:scale-95 shadow-sm"
-                            >
-                                <Copy className="w-4 h-4" /> Copiar Datos para Transferir
-                            </button>
+                            <BankTransferCard variant="amber" />
                         </div>
                     )}
                 </div>
@@ -1210,26 +1191,7 @@ export default function EventQuoteView({ quote, comunas, regions, availableCockt
                                 <h3 className="text-[0.75rem] font-black text-brand-text flex items-center gap-2 uppercase tracking-widest">
                                     <CreditCard className="w-4 h-4 text-primary" /> 1. Datos para el Pago ({advancePercentText})
                                 </h3>
-                                <div className="bg-slate-50 border-2 border-brand-border rounded-[1.75rem] p-6 relative group overflow-hidden shadow-sm">
-                                    <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
-                                        <CreditCard className="w-12 h-12 text-brand-text" />
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-y-3 gap-x-4 border-b border-brand-border/50 pb-5 mb-5 font-medium">
-                                        <div><p className="text-[0.65rem] font-black text-brand-text-muted uppercase tracking-widest">Banco</p><p className="truncate">Mercado Pago</p></div>
-                                        <div><p className="text-[0.65rem] font-black text-brand-text-muted uppercase tracking-widest">Tipo</p><p>Vista</p></div>
-                                        <div className="col-span-2"><p className="text-[0.65rem] font-black text-brand-text-muted uppercase tracking-widest">Nº Cuenta</p><p className="text-lg font-black select-all">1098081647</p></div>
-                                        <div className="col-span-2"><p className="text-[0.65rem] font-black text-brand-text-muted uppercase tracking-widest">Nombre y RUT</p><p className="font-bold">Felipe Ramírez (15.332.189-2)</p></div>
-                                    </div>
-                                    <button 
-                                        onClick={() => {
-                                            const text = `Banco: Mercado Pago\nCuenta Vista: 1098081647\nNombre: Felipe Ramírez\nRUT: 15.332.189-2\nE-mail: contacto@cocktailsontap.cl`;
-                                            copyToClipboard(text);
-                                        }}
-                                        className="w-full inline-flex items-center justify-center gap-2 px-6 py-3.5 bg-white border-2 border-brand-border rounded-xl text-[0.85rem] font-black text-brand-text hover:border-primary hover:text-primary transition-all active:scale-95 shadow-sm"
-                                    >
-                                        <Copy className="w-4 h-4" /> Copiar Datos para Transferir
-                                    </button>
-                                </div>
+                                <BankTransferCard variant="neutral" />
                             </div>
 
                             {/* 2. Resumen del Monto */}

@@ -2,8 +2,9 @@
 
 import React, { useMemo } from 'react';
 import { CheckCircle, Copy, ExternalLink, RefreshCw, ArrowRight, Mail, MessageSquare } from 'lucide-react';
-import { SITE_URL, WHATSAPP_URL, WHATSAPP_LABEL } from '@/lib/config';
-import { formatCurrency, copyToClipboard } from '@/lib/utils';
+import { SITE_URL, WHATSAPP_URL } from '@/lib/config';
+import { copyToClipboard } from '@/lib/utils';
+import BankTransferCard from '@/components/quote/BankTransferCard';
 import type { WizardState, CocktailForWizard, Comuna } from '@/lib/types';
 import { calculateSummaryData } from '@/lib/wizardLogic';
 import { WhatsappIcon } from '@/components/shared/icons';
@@ -26,11 +27,6 @@ export default function DirectWizardSuccess({ token, state, cocktails, comunas, 
 
     const handleCopyLink = () => {
         copyToClipboard(quoteLink);
-    };
-
-    const copyBankDetails = () => {
-        const text = `Banco: Mercado Pago\nCuenta Vista: 1098081647\nNombre: Felipe Ramírez\nRUT: 15.332.189-2\nE-mail: contacto@cocktailsontap.cl`;
-        copyToClipboard(text);
     };
 
     return (
@@ -80,41 +76,27 @@ export default function DirectWizardSuccess({ token, state, cocktails, comunas, 
                 </div>
 
                 {/* Card de Pago */}
-                <div className="relative mb-6 overflow-hidden rounded-2xl sm:rounded-[2.5rem] bg-green-50 border-2 border-green-200 p-4 sm:p-8 shadow-sm sm:shadow-lg text-left">
-                    <div className="absolute top-0 right-0 w-24 h-24 sm:w-32 sm:h-32 bg-green-200/20 rounded-full -mr-12 -mt-12 sm:-mr-16 sm:-mt-16" />
-                    
-                    <p className="text-green-800 font-black text-center mb-1 uppercase tracking-widest text-[0.6rem] sm:text-[0.7rem]">Monto a depositar (100%)</p>
-                    <p className="text-green-600 font-black text-2xl sm:text-4xl text-center mb-4 sm:mb-6">{formatCurrency(summary.totalOfferPrice + summary.shippingCost)}</p>
-                    
-                    <div className="text-xs sm:text-[0.9rem] text-green-800 space-y-2 border-t border-green-200 pt-4 sm:pt-6 max-w-sm mx-auto">
-                        <p className="flex flex-row justify-between gap-2"><strong>Banco:</strong> <span>Mercado Pago</span></p>
-                        <p className="flex flex-row justify-between gap-2"><strong>Cuenta Vista:</strong> <span>1098081647</span></p>
-                        <p className="flex flex-row justify-between gap-2"><strong>Nombre:</strong> <span>Felipe Ramírez</span></p>
-                        <p className="flex flex-row justify-between gap-2"><strong>RUT:</strong> <span>15.332.189-2</span></p>
-                        <p className="flex flex-row justify-between gap-2"><strong>Email:</strong> <span className="break-all text-[0.7rem] sm:text-xs">contacto@cocktailsontap.cl</span></p>
-                    </div>
-                    
-                    <button 
-                        onClick={copyBankDetails}
-                        className="w-full max-w-sm mx-auto mt-4 sm:mt-6 flex items-center justify-center gap-2 py-2.5 sm:py-3 bg-white border border-green-200 rounded-xl text-[0.75rem] sm:text-[0.85rem] font-black text-green-700 hover:border-green-400 hover:bg-green-50 transition-all active:scale-95 shadow-sm"
-                    >
-                        <Copy className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> Copiar Datos
-                    </button>
-                    
-                    <div className="mt-4 sm:mt-6 pt-3 sm:pt-4 border-t border-green-200/60 flex flex-col items-center gap-2 sm:gap-3">
-                        <p className="text-[0.7rem] sm:text-[0.8rem] text-green-700 text-center italic font-bold leading-tight">
-                            Envía tu comprobante por WhatsApp o Email para validar tu pedido:
-                        </p>
-                        <a 
-                            href={`${WHATSAPP_URL}?text=${encodeURIComponent(`Hola, adjunto el comprobante de transferencia para mi pedido: ${SITE_URL}/cotizar/${token}`)}`} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="w-full sm:w-auto inline-flex justify-center items-center gap-1.5 px-4 sm:px-5 py-2.5 bg-[#25D366] hover:bg-[#128c7e] text-white rounded-xl text-[0.75rem] sm:text-xs font-black transition-all active:scale-95 shadow-sm no-underline text-center"
-                        >
-                            <WhatsappIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-white" /> Enviar Comprobante
-                        </a>
-                    </div>
-                </div>
+                <BankTransferCard
+                    amount={summary.totalOfferPrice + summary.shippingCost}
+                    amountLabel="Monto a depositar (100%)"
+                    variant="green"
+                    className="mb-6"
+                    footer={
+                        <>
+                            <p className="text-[0.7rem] sm:text-[0.8rem] text-green-700 text-center italic font-bold leading-tight">
+                                Envía tu comprobante por WhatsApp o Email para validar tu pedido:
+                            </p>
+                            <a
+                                href={`${WHATSAPP_URL}?text=${encodeURIComponent(`Hola, adjunto el comprobante de transferencia para mi pedido: ${SITE_URL}/cotizar/${token}`)}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="w-full sm:w-auto inline-flex justify-center items-center gap-1.5 px-4 sm:px-5 py-2.5 bg-[#25D366] hover:bg-[#128c7e] text-white rounded-xl text-[0.75rem] sm:text-xs font-black transition-all active:scale-95 shadow-sm no-underline text-center"
+                            >
+                                <WhatsappIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-white" /> Enviar Comprobante
+                            </a>
+                        </>
+                    }
+                />
 
                 {/* Pasos Siguientes */}
                 <div className="max-w-md mx-auto mb-8 sm:mb-10 text-left">

@@ -41,6 +41,16 @@
 
 ## Ultimos Cambios
 
+### 24-08-2026 (Sesión 97) — Google Calendar `{{items_list}}`: cantidad junto al tamaño
+
+- `formatQuoteItemCalendarLine` en `lib/utils.ts`: `5L (x2) Desechable Sangría $79.980` / `5L (x1) Piña Colada Sin Alcohol $79.990` (antes cantidad al final).
+- Usado en `GoogleSyncService.scheduleCalendarEvents` para la variable `items_list` de plantillas en `/admin/settings`.
+
+### 24-08-2026 (Sesión 96) — Link único: datos bancarios visibles + copiar en iOS
+
+- Datos bancarios centralizados en `NEXT_PUBLIC_BANK_TRANSFER` (`.env` / Vercel): una variable multilínea `Etiqueta: valor`; parse en `lib/config.ts` → `BANK_TRANSFER_FIELDS`, tarjeta web y `ConfirmationEmail`.
+- Reemplazado en `EventQuoteView`, `DirectQuoteView`, `DirectWizardSuccess`; sección saldo pendiente ahora muestra la tarjeta completa (antes solo botón copiar).
+
 ### 23-08-2026 (Sesión 95) — Formato unificado de direcciones
 
 - Helper `formatQuoteAddress` en `lib/geo.ts`: `"Dirección, Comuna (Región)"`; quita comuna duplicada en direcciones legacy.
@@ -69,22 +79,6 @@
 - `ProductCard`: bajo el precio, una línea compacta `25 tragos $1.600 c/u` (texto 0.65rem, sin wrap).
 - Constante `COCKTAILS_PER_LITER = 5` en `lib/config.ts`; helper `getDrinkYieldInfo` en `wizardLogic.ts`.
 - `CoctelesSection` YIELDS derivado de la misma constante.
-
-### 23-08-2026 (Sesión 90) — Admin detalle cotización: resumen operativo
-
-- Vista lectura en `/admin/quotes/[id]`: tarjeta **Resumen operativo** (fecha, dirección + Maps/copiar, productos, pago, contacto WA, despacho si aplica; evento vs venta directa).
-- Pestaña Datos en lectura: solo aviso + botón Editar; formulario completo sin cambios al editar.
-- Disparadores manuales colapsables (abiertos por defecto si `source=admin`).
-- Cambiar estado: chips en una línea con scroll horizontal en móvil; eliminar como icono en esquina del encabezado.
-
-### 23-08-2026 (Sesión 89) — Bulk cotizaciones: sin Confirmar
-
-- Eliminado botón **Confirmar** del cambio de estado masivo en `/admin/quotes`. Confirmar borradores solo vía link del cliente, wizard admin (`confirmNow`) o detalle con flujo real — evita marcar `confirmed` sin datos, Calendar, emails ni CRM.
-
-### 23-08-2026 (Sesión 88) — Revert días hábiles Blue Express
-
-- Eliminada configuración de días de entrega en Blue Express (admin, API catalog, `site_settings`, tipo `Comuna`).
-- Calendario venta directa unificado (`input type="date"` nativo, mínimo 2 días). Copy del campo según carrier (`getDirectSaleDateFieldCopy`). Resumen de totales: línea **Blue Express** sin plazo (varía por comuna).
 
 ### 23-08-2026 (Sesión 87) — WhatsApp flotante: menos intrusivo y arrastrable
 

@@ -11,7 +11,7 @@ import { confirmQuote } from '@/app/actions/confirmQuote';
 import {
     CheckCircle, Clock, XCircle, AlertCircle, ShoppingCart,
     Calendar, MapPin, User, Mail, Phone, MessageSquare, Loader2, Lock,
-    Plus, Search, ChevronRight, Tag, Info, Copy, ExternalLink, CreditCard, FileText
+    Plus, Search, ChevronRight, Tag, Info, Copy, ExternalLink, FileText
 } from 'lucide-react';
 import * as fp from '@/lib/fpixel';
 import type { Quote, QuoteItem, Comuna, Region, CocktailForWizard, EventType, Product, ICart } from '@/lib/types';
@@ -21,6 +21,7 @@ import { formatQuoteAddress } from '@/lib/geo';
 import ProductCatalog from '@/components/catalog/ProductCatalog';
 import QuoteSummaryProducts, { QuoteSummaryData } from '@/components/quote/QuoteSummaryProducts';
 import QuoteSummaryReservation, { QuoteSummaryReservationData } from '@/components/quote/QuoteSummaryReservation';
+import BankTransferCard from '@/components/quote/BankTransferCard';
 import { buildWhatsAppMessageFromQuote, getWhatsAppUrl } from '@/lib/wizardLogic';
 import { WHATSAPP_URL } from '@/lib/config';
 import { WhatsappIcon } from '@/components/shared/icons';
@@ -460,54 +461,42 @@ export default function DirectQuoteView({ quote, comunas, regions, availableCock
                 <p className="text-brand-text-muted text-[0.95rem] sm:text-[1.05rem] mb-6 sm:mb-8 max-w-md mx-auto leading-relaxed px-2">
                     {subtitle}
                 </p>
-                <div className="bg-green-50 border-2 border-green-200 rounded-3xl p-4 sm:p-8 max-w-sm mx-auto text-left shadow-lg overflow-hidden relative group transition-all">
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-green-200/20 rounded-full -mr-16 -mt-16" />
-                    <p className="text-green-800 font-black text-center mb-1 uppercase tracking-widest text-[0.65rem] sm:text-[0.7rem]">Monto a depositar (100%)</p>
-                    <p className="text-green-600 font-black text-3xl sm:text-4xl text-center mb-6">{formatCurrency(advanceAmount)}</p>
-                    <div className="text-xs sm:text-[0.9rem] text-green-800 space-y-2 border-t border-green-200 pt-4 sm:pt-6">
-                        <p className="flex flex-row justify-between gap-2"><strong>Banco:</strong> <span>Mercado Pago</span></p>
-                        <p className="flex flex-row justify-between gap-2"><strong>Cuenta Vista:</strong> <span>1098081647</span></p>
-                        <p className="flex flex-row justify-between gap-2"><strong>Nombre:</strong> <span>Felipe Ramírez</span></p>
-                        <p className="flex flex-row justify-between gap-2"><strong>RUT:</strong> <span>15.332.189-2</span></p>
-                        <p className="flex flex-row justify-between gap-2"><strong>Email:</strong> <span className="break-all text-[0.7rem] sm:text-xs">contacto@cocktailsontap.cl</span></p>
-                    </div>
-                    <button 
-                        onClick={() => {
-                            const text = `Banco: Mercado Pago\nCuenta Vista: 1098081647\nNombre: Felipe Ramírez\nRUT: 15.332.189-2\nE-mail: contacto@cocktailsontap.cl`;
-                            copyToClipboard(text);
-                        }}
-                        className="w-full mt-6 inline-flex items-center justify-center gap-2 px-4 py-3 bg-white border border-green-200 rounded-xl text-[0.85rem] font-black text-green-700 hover:border-green-400 hover:bg-green-50 transition-all active:scale-95 shadow-sm"
-                    >
-                        <Copy className="w-4 h-4" /> Copiar Datos de Cuenta
-                    </button>
-                    <div className="mt-4 pt-3 border-t border-green-200/60 flex flex-col items-center gap-2">
-                        {isNew && (
+                <div className="max-w-sm mx-auto shadow-lg">
+                    <BankTransferCard
+                        amount={advanceAmount}
+                        amountLabel="Monto a depositar (100%)"
+                        variant="green"
+                        footer={
                             <>
-                                <p className="text-[0.7rem] sm:text-[0.8rem] text-green-700 text-center font-bold leading-tight">
-                                    Opcional: envía el detalle de tu pedido a nuestro WhatsApp
+                                {isNew && (
+                                    <>
+                                        <p className="text-[0.7rem] sm:text-[0.8rem] text-green-700 text-center font-bold leading-tight">
+                                            Opcional: envía el detalle de tu pedido a nuestro WhatsApp
+                                        </p>
+                                        <a
+                                            href={getWhatsAppUrl(buildWhatsAppMessageFromQuote({ ...quote, quote_items: items }))}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="w-full inline-flex justify-center items-center gap-1.5 px-4 py-2.5 bg-[#25D366] hover:bg-[#128c7e] text-white rounded-xl text-xs font-black transition-all active:scale-95 shadow-sm no-underline text-center"
+                                        >
+                                            <WhatsappIcon className="w-3.5 h-3.5 fill-white" /> Enviar pedido por WhatsApp
+                                        </a>
+                                    </>
+                                )}
+                                <p className="text-[0.7rem] sm:text-[0.8rem] text-green-700 text-center italic font-bold leading-tight">
+                                    Envía tu comprobante por WhatsApp o Email para validar tu pedido:
                                 </p>
                                 <a
-                                    href={getWhatsAppUrl(buildWhatsAppMessageFromQuote({ ...quote, quote_items: items }))}
+                                    href={`${WHATSAPP_URL}?text=${encodeURIComponent(`Hola, adjunto el comprobante de transferencia para mi pedido: ${clientUrl}`)}`}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="w-full inline-flex justify-center items-center gap-1.5 px-4 py-2.5 bg-[#25D366] hover:bg-[#128c7e] text-white rounded-xl text-xs font-black transition-all active:scale-95 shadow-sm no-underline text-center mb-2"
+                                    className="w-full inline-flex justify-center items-center gap-1.5 px-4 py-2 bg-[#25D366] hover:bg-[#128c7e] text-white rounded-xl text-xs font-black transition-all active:scale-95 shadow-sm no-underline text-center"
                                 >
-                                    <WhatsappIcon className="w-3.5 h-3.5 fill-white" /> Enviar pedido por WhatsApp
+                                    <WhatsappIcon className="w-3.5 h-3.5 fill-white" /> Enviar Comprobante
                                 </a>
                             </>
-                        )}
-                        <p className="text-[0.7rem] sm:text-[0.8rem] text-green-700 text-center italic font-bold leading-tight">
-                            Envía tu comprobante por WhatsApp o Email para validar tu pedido:
-                        </p>
-                        <a 
-                            href={`${WHATSAPP_URL}?text=${encodeURIComponent(`Hola, adjunto el comprobante de transferencia para mi pedido: ${clientUrl}`)}`} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="w-full inline-flex justify-center items-center gap-1.5 px-4 py-2 bg-[#25D366] hover:bg-[#128c7e] text-white rounded-xl text-xs font-black transition-all active:scale-95 shadow-sm no-underline text-center"
-                        >
-                            <WhatsappIcon className="w-3.5 h-3.5 fill-white" /> Enviar Comprobante
-                        </a>
-                    </div>
+                        }
+                    />
                 </div>
 
                 {/* Link Card de Seguimiento */}
@@ -650,19 +639,11 @@ export default function DirectQuoteView({ quote, comunas, regions, availableCock
                     )}
 
                     {balance > 0 && (
-                        <div className="mt-8 p-6 bg-amber-50 rounded-[1.5rem] border-2 border-dashed border-amber-200 text-center">
-                            <p className="text-[0.85rem] text-amber-800 font-bold mb-4">
+                        <div className="mt-8 space-y-4">
+                            <p className="text-[0.85rem] text-amber-800 font-bold text-center">
                                 Si aún no realizas tu transferencia, recuerda que el monto total pendiente es de <strong>{formatCurrency(balance)}</strong>.
                             </p>
-                            <button 
-                                onClick={() => {
-                                    const text = `Banco: Mercado Pago\nCuenta Vista: 1098081647\nNombre: Felipe Ramírez\nRUT: 15.332.189-2\nE-mail: contacto@cocktailsontap.cl`;
-                                    copyToClipboard(text);
-                                }}
-                                className="inline-flex items-center gap-2 px-6 py-3 bg-white border border-amber-200 rounded-xl text-[0.85rem] font-black text-amber-700 hover:border-amber-400 transition-all active:scale-95 shadow-sm"
-                            >
-                                <Copy className="w-4 h-4" /> Copiar Datos para Transferir
-                            </button>
+                            <BankTransferCard variant="amber" />
                         </div>
                     )}
                 </div>
@@ -849,18 +830,7 @@ export default function DirectQuoteView({ quote, comunas, regions, availableCock
                     <div className="bg-white rounded-[2.5rem] max-w-lg w-full max-h-[90vh] flex flex-col overflow-hidden relative" onClick={(e) => e.stopPropagation()}>
                         <div className="p-10 space-y-8 overflow-y-auto">
                             <h2 className="text-2xl font-black">Finalizar Pedido</h2>
-                            <div className="bg-slate-50 border-2 border-brand-border rounded-[1.75rem] p-6 space-y-4">
-                                <h3 className="text-[0.75rem] font-black flex items-center gap-2 uppercase tracking-widest"><CreditCard className="w-4 h-4 text-primary" /> Datos para el Pago (100%)</h3>
-                                <div className="text-[0.9rem] space-y-2 border-t border-brand-border/50 pt-4">
-                                    <p><strong>Banco:</strong> Mercado Pago</p>
-                                    <p><strong>Nº Cuenta:</strong> 1098081647 (Vista)</p>
-                                    <p><strong>RUT:</strong> 15.332.189-2 (Felipe Ramírez)</p>
-                                </div>
-                                <button onClick={() => {
-                                    const text = `Banco: Mercado Pago\nCuenta Vista: 1098081647\nNombre: Felipe Ramírez\nRUT: 15.332.189-2\nE-mail: contacto@cocktailsontap.cl`;
-                                    navigator.clipboard.writeText(text);
-                                }} className="w-full py-3 bg-white border-2 border-brand-border rounded-xl font-black text-[0.8rem] hover:border-primary">Copiar Datos</button>
-                            </div>
+                            <BankTransferCard variant="neutral" />
                             <div className="space-y-4">
                                 <h3 className="text-[0.75rem] font-black uppercase tracking-widest flex items-center gap-2"><FileText className="w-4 h-4 text-primary" /> Términos de Despacho</h3>
                                 <div className="bg-slate-50 border-2 border-brand-border rounded-2xl p-6 text-[0.85rem] text-brand-text-muted leading-relaxed">

@@ -7,6 +7,23 @@ export function formatCurrency(n: number) {
 }
 
 /**
+ * Línea de producto para Google Calendar ({{items_list}}).
+ * Ej: `5L (x2) Desechable Sangría $79.980` · `5L (x1) Piña Colada Sin Alcohol $79.990`
+ */
+export function formatQuoteItemCalendarLine(item: {
+    size: string;
+    product_name: string;
+    quantity: number;
+    offer_price_at_time: number;
+}): string {
+    const sizeParts = item.size.split(' - ').map((p) => p.trim()).filter(Boolean);
+    const baseSize = sizeParts[0] || item.size;
+    const sizeSuffix = sizeParts.slice(1).join(' - ');
+    const productLabel = sizeSuffix ? `${sizeSuffix} ${item.product_name}`.trim() : item.product_name;
+    return `${baseSize} (x${item.quantity}) ${productLabel} ${formatCurrency(item.offer_price_at_time * item.quantity)}`;
+}
+
+/**
  * Fechas Chile deterministas (SSR = cliente). Evita hydration mismatch de
  * toLocaleString('es-CL') por espacios distintos en a. m. / p. m. (ICU Node vs browser).
  */
@@ -84,25 +101,34 @@ export { formatPhoneDisplay as formatPhoneNumber, phoneInputToE164, toWhatsAppDi
 
 export function copyToClipboard(text: string): Promise<boolean> {
     if (typeof window === 'undefined') return Promise.resolve(false);
-    if (navigator.clipboard && window.isSecureContext) {
+    if (navigator.clipboard?.writeText) {
         return navigator.clipboard.writeText(text)
             .then(() => true)
-            .catch(() => copyFallback(text));
+            .catch(() => Promise.resolve(copyFallback(text)));
     }
     return Promise.resolve(copyFallback(text));
 }
 
+/** Fallback compatible con iOS Safari (evita opacity:0 y usa setSelectionRange). */
 function copyFallback(text: string): boolean {
     if (typeof document === 'undefined') return false;
-    const textArea = document.createElement("textarea");
+    const textArea = document.createElement('textarea');
     textArea.value = text;
-    textArea.style.top = "0";
-    textArea.style.left = "0";
-    textArea.style.position = "fixed";
-    textArea.style.opacity = "0";
+    textArea.setAttribute('readonly', '');
+    textArea.style.position = 'fixed';
+    textArea.style.top = '0';
+    textArea.style.left = '0';
+    textArea.style.width = '2em';
+    textArea.style.height = '2em';
+    textArea.style.padding = '0';
+    textArea.style.border = 'none';
+    textArea.style.outline = 'none';
+    textArea.style.boxShadow = 'none';
+    textArea.style.background = 'transparent';
     document.body.appendChild(textArea);
     textArea.focus();
     textArea.select();
+    textArea.setSelectionRange(0, text.length);
     let success = false;
     try {
         success = document.execCommand('copy');
