@@ -33,9 +33,16 @@ export async function proxy(request: NextRequest) {
         }
     }
 
+    // Cotizaciones con token: no indexar (refuerzo además de meta robots en la página)
+    if (pathname.startsWith('/cotizar/')) {
+        const response = NextResponse.next();
+        response.headers.set('X-Robots-Tag', 'noindex, nofollow');
+        return response;
+    }
+
     return NextResponse.next();
 }
 
 export const config = {
-    matcher: ['/admin', '/admin/:path*'],
+    matcher: ['/admin', '/admin/:path*', '/cotizar/:path*'],
 };

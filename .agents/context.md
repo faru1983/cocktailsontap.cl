@@ -41,6 +41,12 @@
 
 ## Ultimos Cambios
 
+### 24-08-2026 (Sesión 98) — Seguridad SEO: URLs `/cotizar/[token]` no indexables
+
+- `robots.txt`: `Disallow: /cotizar/` (el selector `/cotizar` sigue permitido y en sitemap).
+- Cabecera `X-Robots-Tag: noindex, nofollow` en `proxy.ts` y `vercel.json` para rutas con token.
+- Refuerzo sobre el `robots: { index: false }` ya existente en metadata de `app/cotizar/[token]/page.tsx`.
+
 ### 24-08-2026 (Sesión 97) — Google Calendar `{{items_list}}`: cantidad junto al tamaño
 
 - `formatQuoteItemCalendarLine` en `lib/utils.ts`: `5L (x2) Desechable Sangría $79.980` / `5L (x1) Piña Colada Sin Alcohol $79.990` (antes cantidad al final).
