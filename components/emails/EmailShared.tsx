@@ -4,6 +4,7 @@ import { formatCurrency } from '@/lib/utils';
 import { formatPhoneDisplay } from '@/lib/phone';
 import { SITE_URL, LOGO_URL, CONTACT_EMAIL, WHATSAPP_URL } from '@/lib/config';
 import type { Quote, QuoteItem } from '@/lib/types';
+import { formatQuoteAddress } from '@/lib/geo';
 
 export const brandColor = '#E2A049';
 export const brandDark  = '#1a1a2e';
@@ -196,8 +197,7 @@ export const PriceBreakdownSection: React.FC<{ quote: Quote, isDirect?: boolean 
 
 export const ReservationInfoSection: React.FC<{ quote: Quote, isDirect?: boolean }> = ({ quote, isDirect = false }) => {
   const directMode = isDirect || (quote as any).isDirect || quote.service_type === 'direct';
-  const comunaDisplay = quote.comuna_name === 'Otra' ? (quote.comuna_other || '') : (quote.comuna_name || '');
-  const fullAddress   = [quote.client_address, comunaDisplay, quote.region_name].filter(Boolean).join(', ');
+  const fullAddress = formatQuoteAddress(quote);
   const eventDate     = quote.event_date
       ? new Date(quote.event_date + 'T12:00:00').toLocaleDateString('es-CL', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })
       : '';

@@ -14,6 +14,7 @@ import {
     Droplets,
 } from 'lucide-react';
 import { copyToClipboard } from '@/lib/utils';
+import { formatQuoteAddress } from '@/lib/geo';
 import { formatPhoneDisplay, toWhatsAppDigits } from '@/lib/phone';
 import { useState, type ReactNode } from 'react';
 
@@ -39,16 +40,6 @@ function formatPickupLabel(pickupTime: string | null | undefined): string {
     if (!pickupTime) return '—';
     if (pickupTime === '--:--') return 'Todo el día';
     return pickupTime;
-}
-
-function formatComuna(quote: {
-    comuna_name?: string | null;
-    comuna_other?: string | null;
-}): string {
-    const c = quote.comuna_name;
-    const o = quote.comuna_other;
-    if (c === 'Otra' && o) return o;
-    return c || '—';
 }
 
 function formatTheme(quote: {
@@ -80,20 +71,6 @@ function resolveTotalLiters(quote: {
         0
     );
     return sum > 0 ? sum : null;
-}
-
-function buildFullAddress(quote: {
-    client_address?: string | null;
-    comuna_name?: string | null;
-    comuna_other?: string | null;
-    region_name?: string | null;
-}): string {
-    const parts = [
-        quote.client_address?.trim(),
-        formatComuna(quote),
-        quote.region_name?.trim(),
-    ].filter(Boolean);
-    return parts.join(', ') || '—';
 }
 
 type QuoteOperationalSummaryProps = {
@@ -221,7 +198,7 @@ export default function QuoteOperationalSummary({
         total_liters?: number | null;
     };
 
-    const fullAddress = buildFullAddress(q);
+    const fullAddress = formatQuoteAddress(q) || '—';
     const mapsQuery = fullAddress !== '—' ? encodeURIComponent(fullAddress) : '';
     const totalLiters = resolveTotalLiters(q);
     const items = q.quote_items || [];

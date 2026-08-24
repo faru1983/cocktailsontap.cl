@@ -17,6 +17,7 @@ import * as fp from '@/lib/fpixel';
 import type { Quote, QuoteItem, Comuna, Region, CocktailForWizard, EventType, Product, ICart } from '@/lib/types';
 import { DEFAULT_REGION_CODE } from '@/lib/types';
 import RegionComunaFields from '@/components/ui/RegionComunaFields';
+import { formatQuoteAddress } from '@/lib/geo';
 import ProductCatalog from '@/components/catalog/ProductCatalog';
 import QuoteSummaryProducts, { QuoteSummaryData } from '@/components/quote/QuoteSummaryProducts';
 import QuoteSummaryReservation, { QuoteSummaryReservationData } from '@/components/quote/QuoteSummaryReservation';
@@ -289,12 +290,17 @@ export default function DirectQuoteView({ quote, comunas, regions, availableCock
 
     const reservationData: QuoteSummaryReservationData = useMemo(() => {
         const fullName = `${quote.client_name}${lastName ? ' ' + lastName : ''}`;
+        const regionDisplay = regions.find((r) => r.code === regionCode)?.shortName || quote.region_name || '';
         return {
             clientName: fullName,
             clientEmail: quote.client_email || '',
             clientPhone: phone,
-            clientAddress: address,
-            comunaDisplay: comuna === 'Otra' ? comunaOther : comuna,
+            addressDisplay: formatQuoteAddress({
+                client_address: address,
+                comuna_name: comuna,
+                comuna_other: comunaOther,
+                region_name: regionDisplay,
+            }),
             eventTypeDisplay: 'Venta Directa',
             guests: 0,
             formattedDate: formatEventDate(eventDate),
@@ -304,7 +310,7 @@ export default function DirectQuoteView({ quote, comunas, regions, availableCock
             comments: comments,
             isDirect: true
         };
-    }, [quote.client_name, lastName, quote.client_email, phone, address, comuna, comunaOther, eventDate, comments]);
+    }, [quote.client_name, lastName, quote.client_email, quote.region_name, phone, address, comuna, comunaOther, regionCode, regions, eventDate, comments]);
 
     const mappedProducts: Product[] = useMemo(() => availableCocktails.map(c => ({
         id: c.id,

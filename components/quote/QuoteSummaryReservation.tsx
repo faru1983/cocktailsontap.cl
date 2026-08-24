@@ -6,8 +6,7 @@ export interface QuoteSummaryReservationData {
     clientName: string;
     clientEmail: string;
     clientPhone: string;
-    clientAddress: string;
-    comunaDisplay: string;
+    addressDisplay: string;
     eventTypeDisplay: string;
     guests: number;
     formattedDate: string;
@@ -49,7 +48,7 @@ export default function QuoteSummaryReservation({ data }: Props) {
                     <div className="flex items-start gap-2">
                         <span className="font-bold text-brand-text-muted min-w-[85px]">Dirección:</span>
                         <span className="font-medium text-brand-text leading-tight break-all">
-                            {data.clientAddress}{data.clientAddress && data.comunaDisplay ? ', ' : ''}{data.comunaDisplay}
+                            {data.addressDisplay}
                         </span>
                     </div>
                 </div>

@@ -41,6 +41,11 @@
 
 ## Ultimos Cambios
 
+### 23-08-2026 (Sesión 95) — Formato unificado de direcciones
+
+- Helper `formatQuoteAddress` en `lib/geo.ts`: `"Dirección, Comuna (Región)"`; quita comuna duplicada en direcciones legacy.
+- Aplicado en emails (`EmailShared`), link único (`QuoteSummaryReservation`), admin resumen operativo, Google Contacts/Calendar y sync manual de contacto.
+
 ### 23-08-2026 (Sesión 94) — Admin cliente: gestión de identifiers
 
 - Detalle `/admin/clients/[id]`: agregar email/celular adicional, eliminar secundarios, marcar primario (ya existía).

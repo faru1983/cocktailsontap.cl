@@ -222,7 +222,8 @@ export async function createQuoteCore(input: CreateQuoteInput): Promise<CreateQu
                 : GoogleSyncService.syncContactForQuote(
                       state,
                       createResult.token,
-                      clientId ?? undefined
+                      clientId ?? undefined,
+                      createResult.quote
                   )
         );
 

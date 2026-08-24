@@ -10,6 +10,7 @@ import { GoogleSyncService } from '@/lib/services/googleSyncService';
 import { validateSession } from '@/lib/adminAuth';
 import type { Quote, QuoteItem } from '@/lib/types';
 import { normalizePhoneE164 } from '@/lib/phone';
+import { formatQuoteAddress } from '@/lib/geo';
 
 async function checkAuth() {
     const isAuth = await validateSession();
@@ -847,7 +848,7 @@ export async function syncClientWithGoogle(clientId: string): Promise<{ success:
 
         // Fetch their latest quote for context (address, etc)
         const { data: latestQuote } = await db.from('quotes')
-            .select('client_address, comuna_name, comuna_other, event_date, token')
+            .select('client_address, comuna_name, comuna_other, region_name, event_date, token')
             .eq('client_id', clientId)
             .order('created_at', { ascending: false })
             .limit(1)
@@ -855,8 +856,7 @@ export async function syncClientWithGoogle(clientId: string): Promise<{ success:
 
         const { syncGoogleContact } = await import('@/lib/googleSync');
 
-        const comunaDisplay = latestQuote?.comuna_name === 'Otra' ? latestQuote?.comuna_other : latestQuote?.comuna_name;
-        const fullAddress = latestQuote ? [latestQuote.client_address, comunaDisplay].filter(Boolean).join(', ') : undefined;
+        const fullAddress = latestQuote ? formatQuoteAddress(latestQuote) : undefined;
         const quoteUrl = latestQuote ? `${SITE_URL}/cotizar/${latestQuote.token}` : undefined;
 
         const clientAddress = latestQuote?.client_address?.trim() || '';

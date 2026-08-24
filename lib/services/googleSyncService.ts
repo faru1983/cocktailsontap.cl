@@ -10,6 +10,7 @@ import { SITE_URL } from '@/lib/config';
 import type { WizardState, Quote } from '@/lib/types';
 import { QuoteService } from './quoteService';
 import { calculateMaxPickupDate } from '@/lib/wizardLogic';
+import { formatQuoteAddress, resolveComunaDisplay, stripTrailingComuna } from '@/lib/geo';
 import { createServerClient } from '@/lib/supabaseServer';
 import { SettingsService } from './settingsService';
 
@@ -32,7 +33,12 @@ export const GoogleSyncService = {
     /**
      * Syncs a quote's client to Google Contacts. Safe to fail (non-blocking).
      */
-    async syncContactForQuote(state: WizardState, quoteToken: string, clientId?: string): Promise<void> {
+    async syncContactForQuote(
+        state: WizardState,
+        quoteToken: string,
+        clientId?: string,
+        quoteAddress?: Pick<Quote, 'client_address' | 'comuna_name' | 'comuna_other' | 'region_name'>
+    ): Promise<void> {
         try {
             const emailTrimmed = state.contact.email.trim().toLowerCase();
             if (!emailTrimmed || !clientId) return;
@@ -41,9 +47,14 @@ export const GoogleSyncService = {
              const db = createServerClient();
              const { data: clientData } = await db.from('clients').select('google_contact_id').eq('id', clientId).single();
 
-             const comunaStr = state.contact.comuna === 'Otra' ? state.contact.otherComuna : state.contact.comuna;
-             const regionStr = state.contact.region || '';
-             const fullAddress = [state.contact.address.trim(), comunaStr, regionStr].filter(Boolean).join(', ');
+             const fullAddress = formatQuoteAddress(
+                 quoteAddress ?? {
+                     client_address: state.contact.address.trim(),
+                     comuna_name: state.contact.comuna,
+                     comuna_other: state.contact.otherComuna,
+                     region_name: state.contact.region,
+                 }
+             );
              const quoteUrl = `${SITE_URL}/cotizar/${quoteToken}`;
 
              const rawPhone = state.contact.phone.trim();
@@ -84,8 +95,7 @@ export const GoogleSyncService = {
         if (!quote.client_email) return;
         try {
              const quoteUrl = `${SITE_URL}/cotizar/${quote.token}`;
-             const comunaDisplay = quote.comuna_name === 'Otra' ? quote.comuna_other : quote.comuna_name;
-             const fullAddress = [quote.client_address, comunaDisplay, quote.region_name].filter(Boolean).join(', ');
+             const fullAddress = formatQuoteAddress(quote);
              
              // Buscar ID de Google si existe en la base de datos para este cliente
              const db = createServerClient();
@@ -132,10 +142,9 @@ export const GoogleSyncService = {
     async scheduleCalendarEvents(quote: Quote, options?: { updateEventId?: string; updatePickupEventId?: string; isDirectSaleOverride?: boolean }): Promise<{ eventId?: string; pickupEventId?: string }> {
         try {
             const fullName = `${quote.client_name} ${quote.client_lastname || ''}`.trim();
-            const comunaStr = quote.comuna_name === 'Otra' ? quote.comuna_other : quote.comuna_name;
-            const fullLocation = [quote.client_address || '', comunaStr || '', quote.region_name || '']
-                .filter(Boolean)
-                .join(', ');
+            const comunaStr = resolveComunaDisplay(quote.comuna_name, quote.comuna_other);
+            const streetAddress = stripTrailingComuna(quote.client_address || '', comunaStr);
+            const fullLocation = formatQuoteAddress(quote);
             const link = `${SITE_URL}/cotizar/${quote.token}`;
 
             // Formatting currency helper for the description
@@ -186,7 +195,7 @@ export const GoogleSyncService = {
                 pickup_time: quote.pickup_time || 'Sin definir',
                 event_type: quote.event_type_id === 'Otro' ? quote.event_type_other : quote.event_type_id,
                 comuna: comunaStr || '',
-                address: quote.client_address || '',
+                address: streetAddress,
                 total_liters: quote.total_liters || '0',
             };
 

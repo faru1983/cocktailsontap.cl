@@ -20,6 +20,7 @@ import ProductCatalog from '@/components/catalog/ProductCatalog';
 import QuoteSummaryProducts, { QuoteSummaryData } from '@/components/quote/QuoteSummaryProducts';
 import QuoteSummaryReservation, { QuoteSummaryReservationData } from '@/components/quote/QuoteSummaryReservation';
 import RegionComunaFields from '@/components/ui/RegionComunaFields';
+import { formatQuoteAddress } from '@/lib/geo';
 import { buildWhatsAppMessageFromQuote, getWhatsAppUrl } from '@/lib/wizardLogic';
 import { WHATSAPP_URL } from '@/lib/config';
 import { WhatsappIcon } from '@/components/shared/icons';
@@ -346,12 +347,17 @@ export default function EventQuoteView({ quote, comunas, regions, availableCockt
 
     const reservationData: QuoteSummaryReservationData = useMemo(() => {
         const fullName = `${quote.client_name}${quote.client_lastname ? ' ' + quote.client_lastname : ''}`;
+        const regionDisplay = regions.find((r) => r.code === regionCode)?.shortName || quote.region_name || '';
         return {
             clientName: fullName,
             clientEmail: quote.client_email || '',
             clientPhone: phone,
-            clientAddress: address,
-            comunaDisplay: comuna === 'Otra' ? comunaOther : comuna,
+            addressDisplay: formatQuoteAddress({
+                client_address: address,
+                comuna_name: comuna,
+                comuna_other: comunaOther,
+                region_name: regionDisplay,
+            }),
             eventTypeDisplay: (otherType || eventTypes.find(t => t.id === eventType)?.name) ?? '',
             guests: guests,
             formattedDate: formatEventDate(eventDate),
@@ -361,7 +367,7 @@ export default function EventQuoteView({ quote, comunas, regions, availableCockt
             comments: comments,
             isDirect: false
         };
-    }, [quote.client_name, quote.client_lastname, quote.client_email, phone, address, comuna, comunaOther, eventType, otherType, eventTypes, guests, eventDate, startTime, pickupDate, pickupTime, comments]);
+    }, [quote.client_name, quote.client_lastname, quote.client_email, quote.region_name, phone, address, comuna, comunaOther, regionCode, regions, eventType, otherType, eventTypes, guests, eventDate, startTime, pickupDate, pickupTime, comments]);
 
     // 1. Mapeamos availableCocktails a Product (para el modal)
     const mappedProducts: Product[] = useMemo(() => availableCocktails
