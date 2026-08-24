@@ -169,6 +169,10 @@ Define la arquitectura, reglas irrompibles, convenciones de código, esquema de 
 - Costo de instalación: **$50.000 CLP** (`MURO_INSTALLATION_COST`)
 - Si no cumple requisitos, se fuerza automáticamente a "Dispensador Portátil"
 
+### Dispensador Portátil
+- Requiere volumen total **≥ 10L** (`PORTATIL_MIN_LITERS`)
+- **Solo compatible** con barriles de 5L y 10L (`PORTATIL_COMPATIBLE_SIZES = [5, 10]`)
+
 ### Envíos Dinámicos
 - **Carrier:** región por defecto; **override por comuna** (`shipping_carrier` / `blue_express_zone` null = hereda). RM: provincia Santiago = propio; resto RM = Blue Express `misma_zona`.
 - Blue Express domicilio: tarifas en Admin → Cobertura (`misma_zona` / centro / extremo). 5L = 1 barril; 1→M, 2–4→L, 5→L+M. Wizard no muestra provincias.

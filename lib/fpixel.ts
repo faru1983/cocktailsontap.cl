@@ -57,6 +57,8 @@ declare global {
 
 // https://developers.facebook.com/docs/facebook-pixel/advanced/advanced-matching
 export interface FBUserData {
+  /** clients.id (UUID) — mismo valor que CAPI user_data.external_id (Meta hashea en browser). */
+  external_id?: string;
   em?: string;
   ph?: string;
   fn?: string;
@@ -65,6 +67,39 @@ export interface FBUserData {
   st?: string;
   zp?: string;
   country?: string;
+}
+
+/** Campos mínimos de Quote para Advanced Matching en checkout/compra. */
+export interface QuotePixelContact {
+  client_id?: string | null;
+  client_email?: string | null;
+  client_name?: string | null;
+}
+
+export interface QuotePixelExtras {
+  ph?: string;
+  fn?: string;
+  ln?: string;
+  ct?: string;
+}
+
+/**
+ * Advanced Matching para InitiateCheckout / Purchase.
+ * external_id = clients.id, alineado con sendMetaCapiEvent (SHA-256 server-side).
+ */
+export function quotePixelUserData(
+  quote: QuotePixelContact,
+  extras: QuotePixelExtras = {}
+): FBUserData {
+  const data: FBUserData = {};
+  if (quote.client_id?.trim()) data.external_id = quote.client_id.trim();
+  if (quote.client_email?.trim()) data.em = quote.client_email;
+  if (extras.ph) data.ph = extras.ph;
+  if (extras.fn?.trim()) data.fn = extras.fn;
+  else if (quote.client_name?.trim()) data.fn = quote.client_name;
+  if (extras.ln?.trim()) data.ln = extras.ln;
+  if (extras.ct?.trim()) data.ct = extras.ct;
+  return data;
 }
 
 /** Rutas internas que no deben enviar eventos al Pixel. */
@@ -89,6 +124,7 @@ function stripAccents(value: string): string {
 export function normalizeFBUserData(data: FBUserData): FBUserData {
   const out: FBUserData = { country: 'cl' };
 
+  if (data.external_id?.trim()) out.external_id = data.external_id.trim().toLowerCase();
   if (data.em?.trim()) out.em = data.em.trim().toLowerCase();
   if (data.ph) {
     const digits = data.ph.replace(/\D/g, '');

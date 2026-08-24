@@ -122,13 +122,11 @@ export default function DirectQuoteView({ quote, comunas, regions, availableCock
                 })),
                 content_type: 'product',
                 order_id: quote.token
-            }, {
-                em: quote.client_email || undefined,
+            }, fp.quotePixelUserData(quote, {
                 ph: phone || undefined,
-                fn: quote.client_name || undefined,
                 ln: lastName || undefined,
                 ct: comuna && comuna !== 'Otra' ? comuna : (comunaOther || undefined),
-            });
+            }));
         }
     }, [isNew]);
 
@@ -391,7 +389,7 @@ export default function DirectQuoteView({ quote, comunas, regions, availableCock
             client_lastname: lastName,
             client_address: address,
             comuna_name: comuna,
-            region_name: regions.find(r => r.code === regionCode)?.name || quote.region_name || null,
+            region_name: regions.find(r => r.code === regionCode)?.shortName || quote.region_name || null,
             comuna_other: comunaOther,
             guests: 0,
             event_type_id: null as any,
@@ -430,13 +428,11 @@ export default function DirectQuoteView({ quote, comunas, regions, availableCock
                 })),
                 content_type: 'product',
                 order_id: quote.token
-            }, {
-                em: quote.client_email || undefined,
+            }, fp.quotePixelUserData(quote, {
                 ph: phone || undefined,
-                fn: quote.client_name || undefined,
                 ln: lastName || undefined,
                 ct: comuna && comuna !== 'Otra' ? comuna : (comunaOther || undefined),
-            });
+            }));
         } else {
             setConfirmError(result.error ?? 'Error al confirmar. Intenta nuevamente.');
         }

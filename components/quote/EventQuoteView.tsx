@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { formatCurrency, copyToClipboard } from '@/lib/utils';
 import { isValidPhoneE164, normalizePhoneE164 } from '@/lib/phone';
 import PhoneInput from '@/components/ui/PhoneInput';
-import { formatEventDate, calculateMaxPickupDate, isAllowedEventPickupDate, EVENT_NEXT_DAY_PICKUP_SLOTS, getTodayString, resolveShipping } from '@/lib/wizardLogic';
+import { formatEventDate, calculateMaxPickupDate, isAllowedEventPickupDate, EVENT_NEXT_DAY_PICKUP_SLOTS, getTodayString, resolveShipping, isEventBarrelSizeLabelCompatible } from '@/lib/wizardLogic';
 import { confirmQuote } from '@/app/actions/confirmQuote';
 import { MURO_INSTALLATION_COST, PORTATIL_MIN_LITERS, MURO_MIN_LITERS } from '@/lib/config';
 import {
@@ -235,13 +235,11 @@ export default function EventQuoteView({ quote, comunas, regions, availableCockt
                 num_items: contents.reduce((sum, c) => sum + c.quantity, 0),
                 content_type: 'product',
                 order_id: quote.token
-            }, {
-                em: quote.client_email || undefined,
+            }, fp.quotePixelUserData(quote, {
                 ph: phone || undefined,
-                fn: quote.client_name || undefined,
                 ln: lastName || undefined,
                 ct: comuna && comuna !== 'Otra' ? comuna : (comunaOther || undefined),
-            });
+            }));
         }
     }, [isNew]); // trackOnce evita re-disparo en refresh
 
@@ -380,7 +378,7 @@ export default function EventQuoteView({ quote, comunas, regions, availableCockt
             image: c.image,
             category: c.category,
             sizes: Object.entries(c.prices)
-                .filter(([size]) => !size.toLowerCase().includes('desechable') && !(dispenser === 'muro' && (size === '5L' || size.includes('5L'))))
+                .filter(([size]) => !size.toLowerCase().includes('desechable') && isEventBarrelSizeLabelCompatible(size, dispenser))
                 .map(([size, p]) => ({
                     size,
                     price: p.price,
@@ -467,7 +465,7 @@ export default function EventQuoteView({ quote, comunas, regions, availableCockt
             client_lastname: lastName,
             client_address: address,
             comuna_name: comuna,
-            region_name: regions.find(r => r.code === regionCode)?.name || quote.region_name || null,
+            region_name: regions.find(r => r.code === regionCode)?.shortName || quote.region_name || null,
             comuna_other: comunaOther,
             guests: guests,
             event_type_id: eventType,
@@ -506,13 +504,11 @@ export default function EventQuoteView({ quote, comunas, regions, availableCockt
                 })),
                 content_type: 'product',
                 order_id: quote.token
-            }, {
-                em: quote.client_email || undefined,
+            }, fp.quotePixelUserData(quote, {
                 ph: phone || undefined,
-                fn: quote.client_name || undefined,
                 ln: lastName || undefined,
                 ct: comuna && comuna !== 'Otra' ? comuna : (comunaOther || undefined),
-            });
+            }));
         } else {
             setConfirmError(result.error ?? 'Error al confirmar. Intenta nuevamente.');
         }

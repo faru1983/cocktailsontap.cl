@@ -890,7 +890,7 @@ export default function QuoteDetailClient({ quote: initial, allProducts, eventTy
                                                             const r = regions.find(x => x.code === e.target.value);
                                                             setEditInfo((prev: any) => ({
                                                                 ...prev,
-                                                                region_name: r?.name || e.target.value,
+                                                                region_name: r?.shortName || e.target.value,
                                                                 comuna_name: '',
                                                                 comuna_other: null,
                                                             }));

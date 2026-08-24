@@ -10,6 +10,8 @@ interface CategoryTabsProps {
   children?: React.ReactNode; // Espacio extra para el carrito o botones
   stickyTop?: string; // Valor de 'top' para sticky (ej: 'top-0' o 'top-[85px]')
   fullWidth?: boolean; // Si debe romper el contenedor padre para ir de borde a borde
+  /** En móvil, desplaza las tabs para dejar visibles las categorías siguientes (wizard eventos/barriles). */
+  peekCategoriesOnMobile?: boolean;
 }
 
 const CategoryTabs = React.forwardRef<HTMLDivElement, CategoryTabsProps>(({ 
@@ -18,7 +20,8 @@ const CategoryTabs = React.forwardRef<HTMLDivElement, CategoryTabsProps>(({
   onCategoryChange, 
   children,
   stickyTop = 'top-0',
-  fullWidth = false
+  fullWidth = false,
+  peekCategoriesOnMobile = false,
 }, ref) => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [showLeftFade, setShowLeftFade] = useState(false);
@@ -46,39 +49,66 @@ const CategoryTabs = React.forwardRef<HTMLDivElement, CategoryTabsProps>(({
     }
   };
 
+  /** En móvil, deja visibles las categorías siguientes cuando la primera está activa. */
+  const applyMobileCategoryPeek = useCallback(() => {
+    const el = scrollContainerRef.current;
+    if (!el || !peekCategoriesOnMobile || window.innerWidth >= 640) return;
+
+    const activeIndex = categories.indexOf(activeCategory);
+    if (activeIndex !== 0 || el.scrollWidth <= el.clientWidth) return;
+
+    const firstBtn = el.querySelector('button') as HTMLElement | null;
+    if (!firstBtn) return;
+
+    const gap = 8;
+    const target = firstBtn.offsetWidth + gap - 20;
+    el.scrollLeft = Math.max(0, Math.min(target, el.scrollWidth - el.clientWidth));
+    checkScroll();
+  }, [peekCategoriesOnMobile, categories, activeCategory, checkScroll]);
+
   useEffect(() => {
     const el = scrollContainerRef.current;
     if (el) {
       el.addEventListener('scroll', checkScroll);
-      // Ejecutar inicial y en cambios de ventana
       checkScroll();
-      window.addEventListener('resize', checkScroll);
-      
-      // Pequeño bounce de descubrimiento al cargar
-      setTimeout(() => {
-        if (el.scrollWidth > el.clientWidth) {
-          el.scrollBy({ left: 40, behavior: 'smooth' });
-          setTimeout(() => {
-            el.scrollBy({ left: -40, behavior: 'smooth' });
-          }, 400);
-        }
-      }, 800);
+      const onResize = () => {
+        checkScroll();
+        if (peekCategoriesOnMobile) applyMobileCategoryPeek();
+      };
+      window.addEventListener('resize', onResize);
+
+      if (peekCategoriesOnMobile) {
+        const runPeek = () => applyMobileCategoryPeek();
+        requestAnimationFrame(() => {
+          runPeek();
+          setTimeout(runPeek, 120);
+        });
+      } else {
+        // Pequeño bounce de descubrimiento al cargar (landing / otros usos)
+        setTimeout(() => {
+          if (el.scrollWidth > el.clientWidth) {
+            el.scrollBy({ left: 40, behavior: 'smooth' });
+            setTimeout(() => {
+              el.scrollBy({ left: -40, behavior: 'smooth' });
+            }, 400);
+          }
+        }, 800);
+      }
 
       return () => {
         el.removeEventListener('scroll', checkScroll);
-        window.removeEventListener('resize', checkScroll);
+        window.removeEventListener('resize', onResize);
       };
     }
-  }, [checkScroll, categories]);
+  }, [checkScroll, categories, peekCategoriesOnMobile, applyMobileCategoryPeek]);
 
-  // Asegurar que el botón activo sea visible al cambiar
+  // Asegurar que el botón activo sea visible al cambiar (salvo peek inicial en móvil)
   const isFirstRender = useRef(true);
   useEffect(() => {
     const activeBtn = scrollContainerRef.current?.querySelector('[data-active="true"]') as HTMLElement;
     const container = scrollContainerRef.current;
     
     if (activeBtn && container) {
-      // Evitar scroll en la carga inicial si es el primer elemento (no es necesario y evita saltos de página)
       if (isFirstRender.current) {
         isFirstRender.current = false;
         return;

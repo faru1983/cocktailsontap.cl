@@ -4,7 +4,7 @@ import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import type { CocktailForWizard, Comuna, WizardState, WizardSelection } from '@/lib/types';
 import { DEFAULT_REGION_CODE } from '@/lib/types';
-import { calculateSmartConfig, calculateSummaryData, buildWhatsAppMessage, getWhatsAppUrl } from '@/lib/wizardLogic';
+import { calculateSmartConfig, calculateSummaryData, buildWhatsAppMessage, getWhatsAppUrl, isEventBarrelSizeLabelCompatible } from '@/lib/wizardLogic';
 import { getMinDateString } from '@/lib/wizardLogic';
 import { isValidPhoneE164 } from '@/lib/phone';
 
@@ -148,9 +148,11 @@ export function useWizard(cocktails: CocktailForWizard[], comunas: Comuna[], cat
     const updateDispenser = useCallback((id: 'portatil' | 'muro' | 'desechable') => {
         setState((prev) => {
             let newSelections = prev.selections;
-            // Si elige muro, eliminamos cualquier formato 5L que haya elegido antes
             if (id === 'muro') {
-                newSelections = newSelections.filter(s => s.size !== '5L');
+                newSelections = newSelections.filter(s => isEventBarrelSizeLabelCompatible(s.size, 'muro'));
+            }
+            if (id === 'portatil') {
+                newSelections = newSelections.filter(s => isEventBarrelSizeLabelCompatible(s.size, 'portatil'));
             }
             return { ...prev, dispenser: id, selections: newSelections };
         });

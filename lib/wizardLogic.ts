@@ -1,6 +1,6 @@
 import type { CocktailForWizard, Comuna, WizardState, WizardSelection, Quote, QuoteItem } from './types';
 import { formatCurrency } from './utils';
-import { SITE_URL, WHATSAPP_URL, MURO_INSTALLATION_COST, MURO_COMPATIBLE_SIZES, MURO_MIN_LITERS, PROJECT_TIMEZONE, COCKTAILS_PER_LITER } from './config';
+import { SITE_URL, WHATSAPP_URL, MURO_INSTALLATION_COST, MURO_COMPATIBLE_SIZES, MURO_MIN_LITERS, PORTATIL_COMPATIBLE_SIZES, PROJECT_TIMEZONE, COCKTAILS_PER_LITER } from './config';
 import {
     barrelsFromLiters,
     isBlueExpressZone,
@@ -156,29 +156,9 @@ export function resolveDirectSaleCarrier(
 
 /**
  * Acepta code (RM), short_name (Metropolitana) o name oficial y devuelve el code.
+ * @deprecated Import from `@/lib/geo` instead.
  */
-export function resolveRegionCode(
-    regionSnapshot: string | null | undefined,
-    comunas: Comuna[]
-): string {
-    const raw = (regionSnapshot || '').trim();
-    if (!raw) return '';
-    if (comunas.some((c) => c.regionCode === raw)) return raw;
-    const byShort = comunas.find((c) => c.regionShortName === raw);
-    if (byShort) return byShort.regionCode;
-    const byName = comunas.find((c) => c.regionName === raw);
-    return byName?.regionCode || raw;
-}
-
-/** Snapshot legible para quotes.region_name (short_name). */
-export function resolveRegionShortName(
-    regionSnapshot: string | null | undefined,
-    comunas: Comuna[]
-): string | null {
-    const code = resolveRegionCode(regionSnapshot, comunas);
-    if (!code) return null;
-    return comunas.find((c) => c.regionCode === code)?.regionShortName || code;
-}
+export { resolveRegionCode, resolveRegionShortName } from './geo';
 
 /**
  * UTILS DE FECHAS
@@ -230,6 +210,27 @@ export function getSizeLiters(size: string): number {
     }
     
     return 0; // Si no es litros, no suma volumen líquido
+}
+
+/** Indica si un barril en litros es compatible con el dispensador elegido en eventos. */
+export function isEventBarrelCompatibleWithDispenser(
+    sizeLiters: number,
+    dispenser: 'portatil' | 'muro' | 'desechable' | ''
+): boolean {
+    if (!sizeLiters) return true;
+    if (dispenser === 'muro') return MURO_COMPATIBLE_SIZES.includes(sizeLiters);
+    if (dispenser === 'portatil') return PORTATIL_COMPATIBLE_SIZES.includes(sizeLiters);
+    return true;
+}
+
+/** Indica si el label de tamaño (ej. "10L") es compatible con el dispensador elegido. */
+export function isEventBarrelSizeLabelCompatible(
+    size: string,
+    dispenser: 'portatil' | 'muro' | 'desechable' | ''
+): boolean {
+    const liters = getSizeLiters(size);
+    if (!liters) return true;
+    return isEventBarrelCompatibleWithDispenser(liters, dispenser);
 }
 
 /**
@@ -400,6 +401,7 @@ export interface SummaryData {
     formattedDate: string;
     formattedPickupDate: string;
     canHaveMuro: boolean;
+    canHavePortatil: boolean;
     manualDiscount: number;
     totalCocktails: number; 
     serviceType?: 'event' | 'direct' | '';
@@ -475,12 +477,18 @@ export function calculateSummaryData(
     // Lógica del Muro de Coctelería
     // REGLA: No debe tener barriles de formato incompatible y debe sumar al menos MURO_MIN_LITERS.
     // Solo consideramos items de tipo líquido (L) para esta validación.
-    const hasIncompatibleSize = items.some((item) => {
+    const hasMuroIncompatibleSize = items.some((item) => {
         const pd = (item as any).priceData;
         if (pd.unit !== 'L') return false; // Items no líquidos no bloquean el muro
         return !MURO_COMPATIBLE_SIZES.includes(pd.sizeValue);
     });
-    const canHaveMuro = !hasIncompatibleSize && totalLiters >= MURO_MIN_LITERS;
+    const hasPortatilIncompatibleSize = items.some((item) => {
+        const pd = (item as any).priceData;
+        if (pd.unit !== 'L') return false;
+        return !PORTATIL_COMPATIBLE_SIZES.includes(pd.sizeValue);
+    });
+    const canHaveMuro = !hasMuroIncompatibleSize && totalLiters >= MURO_MIN_LITERS;
+    const canHavePortatil = !hasPortatilIncompatibleSize;
     
     let dispenserLabel = 'Dispensador Portátil';
     if (state.dispenser === 'muro') dispenserLabel = 'Muro de Coctelería';
@@ -505,6 +513,7 @@ export function calculateSummaryData(
         formattedDate: formatEventDate(state.eventData.date),
         formattedPickupDate: formatEventDate(state.eventData.pickupDate),
         canHaveMuro,
+        canHavePortatil,
         manualDiscount: 0,
         totalCocktails: totalLiters * 5,
         serviceType: state.serviceType
@@ -613,11 +622,23 @@ export function getWhatsAppUrl(message: string): string {
 }
 
 /**
+ * Tips de consumo para el wizard de eventos (barra complemento vs principal).
+ */
+export function getEventConsumptionGuidance(drinksPerPerson: number) {
+    const complementTip = 'Barra complemento: unos 2 tragos por persona.';
+    const mainTip = 'Barra principal: 3 o más tragos por persona.';
+    const activeTip = drinksPerPerson <= 2 ? complementTip : mainTip;
+    const compactActiveTip = drinksPerPerson <= 2 ? 'Complemento · ~2 tr/p' : 'Principal · 3+ tr/p';
+
+    return { complementTip, mainTip, activeTip, compactActiveTip };
+}
+
+/**
  * LÓGICA DE SUGERENCIA PARA COTIZADOR EN VIVO
  * ─────────────────────────────────────────────────────────────────────────────
  */
 export function calculateLiveQuoterSuggestion(guests: number, drinks: number) {
-    if (guests === 0 || drinks === 0) return { recommendedLiters: 0, barrelSuggestionText: '' };
+    if (guests === 0 || drinks === 0) return { recommendedLiters: 0 };
 
     const totalDrinks = guests * drinks;
     const exactLiters = totalDrinks / 5;
@@ -631,104 +652,5 @@ export function calculateLiveQuoterSuggestion(guests: number, drinks: number) {
         recommendedLiters = Math.round(exactLiters / 5) * 5;
     }
 
-    const sizes = [30, 20, 10, 5];
-    const combos: number[][] = [];
-    let iterations = 0;
-    
-    function findCombos(remaining: number, currentCombo: number[], startIndex: number) {
-        if (iterations > 15000) return;
-        iterations++;
-        
-        if (remaining === 0) {
-            combos.push([...currentCombo]);
-            return;
-        }
-        if (remaining < 0) return;
-
-        for (let i = startIndex; i < sizes.length; i++) {
-            currentCombo.push(sizes[i]);
-            findCombos(remaining - sizes[i], currentCombo, i);
-            currentCombo.pop();
-        }
-    }
-
-    findCombos(recommendedLiters, [], 0);
-
-    let bestCombo: number[] = [];
-    let bestScore = -1;
-
-    if (combos.length > 0) {
-        for (const combo of combos) {
-            const numBarrels = combo.length;
-            const uniqueSizes = new Set(combo).size;
-            
-            const countDiff = Math.abs(numBarrels - drinks);
-            const diffScore = countDiff * 100;
-            
-            let sizePenalty = 0;
-            const count5 = combo.filter(s => s === 5).length;
-            const count10 = combo.filter(s => s === 10).length;
-            if (count5 > 2) sizePenalty += 20;
-            if (count10 > 3) sizePenalty += 10;
-
-            const maxSz = Math.max(...combo);
-            const minSz = Math.min(...combo);
-            const rangePenalty = maxSz - minSz;
-
-            const score = diffScore + sizePenalty + (uniqueSizes * 5) + rangePenalty;
-
-            if (bestScore === -1 || score < bestScore) {
-                bestScore = score;
-                bestCombo = combo;
-            }
-        }
-    } else {
-        let rem = recommendedLiters;
-        for (const sz of sizes) {
-            while (rem >= sz) {
-                bestCombo.push(sz);
-                rem -= sz;
-            }
-        }
-    }
-
-    let barrelSuggestionText = '';
-    let compactSuggestionText = '';
-    if (bestCombo.length > 0) {
-        const totalCounts = { 30: 0, 20: 0, 10: 0, 5: 0 };
-        for (const sz of bestCombo) {
-            totalCounts[sz as keyof typeof totalCounts]++;
-        }
-
-        const parts = [];
-        if (totalCounts[30] > 0) parts.push({ qty: totalCounts[30], size: '30L' });
-        if (totalCounts[20] > 0) parts.push({ qty: totalCounts[20], size: '20L' });
-        if (totalCounts[10] > 0) parts.push({ qty: totalCounts[10], size: '10L' });
-        if (totalCounts[5] > 0) parts.push({ qty: totalCounts[5], size: '5L' });
-
-        if (parts.length > 0) {
-            compactSuggestionText = parts.map(p => `${p.qty}x ${p.size}`).join(' + ');
-        }
-
-        if (parts.length === 1) {
-            const p = parts[0];
-            barrelSuggestionText = `${p.qty} ${p.qty === 1 ? 'barril' : 'barriles'} de ${p.size}`;
-        } else if (parts.length > 1) {
-            const strParts = parts.map((p, index) => {
-                if (index === 0) {
-                    return `${p.qty} ${p.qty === 1 ? 'barril' : 'barriles'} de ${p.size}`;
-                } else {
-                    return `${p.qty} de ${p.size}`;
-                }
-            });
-            const last = strParts.pop();
-            barrelSuggestionText = strParts.join(', ') + ' y ' + last;
-        }
-    }
-
-    return {
-        recommendedLiters,
-        barrelSuggestionText,
-        compactSuggestionText
-    };
+    return { recommendedLiters };
 }

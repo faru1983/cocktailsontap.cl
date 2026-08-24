@@ -41,6 +41,22 @@
 
 ## Ultimos Cambios
 
+### 24-08-2026 (Sesión 100) — Wizard eventos: guía de pedido (tips consumo)
+
+- Eliminada sugerencia de mezcla de barriles (`1 barril de 20L`, etc.) en paso 1 y 2.
+- Nuevo helper `getEventConsumptionGuidance`: tips barra complemento (~2 tr/p) vs principal (3+ tr/p).
+- Paso 1 (`EventWizardConfig`): bloque «Guía de pedido» con litros calculados + tips de referencia (resalta según slider).
+- Paso 2 (`EventWizardCatalog`): barra inferior muestra tip activo + objetivo en litros.
+
+### 24-08-2026 (Sesión 99) — Wizard eventos: formatos portátil 5L/10L
+
+- `PORTATIL_COMPATIBLE_SIZES = [5, 10]` en `lib/config.ts`.
+- Helpers `isEventBarrelCompatibleWithDispenser` / `isEventBarrelSizeLabelCompatible` en `wizardLogic.ts`.
+- Paso 2 (`EventWizardCatalog`): catálogo y círculos «Rendimientos por Formato» filtran según dispensador (portátil → solo 5L y 10L).
+- `useWizard.updateDispenser`: limpia selecciones incompatibles al cambiar dispensador.
+- Validación servidor en `confirmQuoteCore` + `canHavePortatil` en `calculateSummaryData`.
+- `EventQuoteView`: mismo filtro de tamaños al editar cotización.
+
 ### 24-08-2026 (Sesión 98) — Seguridad SEO: URLs `/cotizar/[token]` no indexables
 
 - `robots.txt`: `Disallow: /cotizar/` (el selector `/cotizar` sigue permitido y en sitemap).
@@ -56,6 +72,12 @@
 
 - Datos bancarios centralizados en `NEXT_PUBLIC_BANK_TRANSFER` (`.env` / Vercel): una variable multilínea `Etiqueta: valor`; parse en `lib/config.ts` → `BANK_TRANSFER_FIELDS`, tarjeta web y `ConfirmationEmail`.
 - Reemplazado en `EventQuoteView`, `DirectQuoteView`, `DirectWizardSuccess`; sección saldo pendiente ahora muestra la tarjeta completa (antes solo botón copiar).
+
+### 24-08-2026 (Sesión 96) — Región corta en emails y confirmación
+
+- `formatRegionDisplayName` en `lib/geo.ts`: normaliza nombres legacy (`Región Metropolitana de Santiago` → `Metropolitana`).
+- Fix confirmación: el email usaba `region_name` del formulario (nombre largo) en vez del short name guardado en DB.
+- Guardado de región unificado a `shortName` en link único y admin.
 
 ### 23-08-2026 (Sesión 95) — Formato unificado de direcciones
 

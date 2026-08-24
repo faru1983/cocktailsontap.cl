@@ -6,7 +6,7 @@ import type { useWizard } from '@/hooks/useWizard';
 import { renderIconFromKey } from '@/lib/icons';
 import OptionCard from '@/components/ui/OptionCard';
 import SelectField from '@/components/ui/SelectField';
-import { calculateMaxPickupDate, getMinDateString, calculateLiveQuoterSuggestion } from '@/lib/wizardLogic';
+import { calculateMaxPickupDate, getMinDateString, calculateLiveQuoterSuggestion, getEventConsumptionGuidance } from '@/lib/wizardLogic';
 import { MURO_MIN_LITERS, PORTATIL_MIN_LITERS } from '@/lib/config';
 import { ArrowRight, Check, Wine, Droplets, Snowflake, Leaf, GlassWater, Martini, Infinity, Box, Layout, Info, X, Sparkles } from 'lucide-react';
 import Image from 'next/image';
@@ -43,6 +43,7 @@ export default function EventWizardConfig({ wizard, eventTypes, onNext }: Props)
     const drinks = state.consumption.drinksPerPerson || 3;
 
     const suggestionInfo = useMemo(() => calculateLiveQuoterSuggestion(guests, drinks), [guests, drinks]);
+    const guidance = useMemo(() => getEventConsumptionGuidance(drinks), [drinks]);
 
     const recommendedLiters = suggestionInfo ? suggestionInfo.recommendedLiters : 0;
 
@@ -198,26 +199,28 @@ export default function EventWizardConfig({ wizard, eventTypes, onNext }: Props)
 
                     {/* Resultado en vivo */}
                     <div className="mt-auto pt-4 border-t border-brand-border">
-                        <div className="bg-primary/5 rounded-xl p-4 border border-primary/20">
+                        <div className="bg-primary/5 rounded-xl p-4 border border-primary/20 min-h-[118px] flex flex-col justify-center">
                             <div className="flex items-center gap-2 mb-1.5">
                                 <Sparkles className="w-5 h-5 text-primary" />
-                                <span className="font-black text-brand-text text-[1.05rem]">Pedido Sugerido</span>
+                                <span className="font-black text-brand-text text-[1.05rem]">Pedido sugerido</span>
                             </div>
-                            <div className="flex flex-col gap-2.5 mt-2.5 text-[0.95rem] font-medium text-brand-text leading-snug">
-                                <div className="flex items-start gap-2.5">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-primary shrink-0 mt-2" />
-                                    <p className="flex-1">
+                            <div className="flex flex-col gap-2 mt-2 text-[0.9rem] font-medium text-brand-text leading-snug">
+                                {guests > 0 && drinks > 0 ? (
+                                    <p>
                                         Necesitas <span className="text-primary font-black">{recommendedLiters} litros</span> para ofrecer {drinks} {drinks === 1 ? 'trago' : 'tragos'} a {guests} invitados.
                                     </p>
-                                </div>
-                                {suggestionInfo && suggestionInfo.barrelSuggestionText && (
-                                    <div className="flex items-start gap-2.5">
-                                        <div className="w-1.5 h-1.5 rounded-full bg-primary shrink-0 mt-2" />
-                                        <p className="flex-1">
-                                            Selecciona <span className="text-primary font-black">{suggestionInfo.barrelSuggestionText}</span> (las variedades que prefieras).
-                                        </p>
-                                    </div>
+                                ) : (
+                                    <p className="text-brand-text-muted">Indica invitados y tragos para calcular tu pedido.</p>
                                 )}
+                                <div className="pt-2 border-t border-primary/15 space-y-1.5">
+                                    <p className="text-[0.7rem] font-bold uppercase tracking-wider text-brand-text-muted">Como referencia</p>
+                                    <p className={`text-[0.85rem] leading-snug ${drinks <= 2 ? 'text-brand-text font-semibold' : 'text-brand-text-muted'}`}>
+                                        {guidance.complementTip}
+                                    </p>
+                                    <p className={`text-[0.85rem] leading-snug ${drinks >= 3 ? 'text-brand-text font-semibold' : 'text-brand-text-muted'}`}>
+                                        {guidance.mainTip}
+                                    </p>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -444,15 +447,15 @@ export default function EventWizardConfig({ wizard, eventTypes, onNext }: Props)
             <div className="fixed bottom-0 left-0 right-0 z-40 p-3 sm:p-4 pointer-events-none">
                 <div className="max-w-[1400px] mx-auto pointer-events-auto">
                     <div className="bg-white rounded-2xl shadow-[0_-5px_30px_rgba(0,0,0,0.1)] border border-brand-border p-3 flex items-center justify-between gap-4">
-                        <div className="flex items-center gap-3 sm:gap-4 flex-1">
-                            <div className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5 shrink-0">
                                 <span className="text-[0.9rem] font-bold text-brand-text-muted">Pedido Sugerido:</span>
                                 <span className="text-xl font-black text-brand-text">{recommendedLiters}L</span>
                             </div>
-                            
-                            <div className="hidden sm:block h-6 w-[2px] bg-brand-border" />
-                            
-                            <div className="hidden sm:flex items-center gap-1.5">
+
+                            <div className="hidden sm:block h-6 w-[2px] bg-brand-border shrink-0" />
+
+                            <div className="hidden sm:flex items-center gap-1.5 min-w-0">
                                 <span className="text-[0.9rem] font-bold text-brand-text">{guests} invitados / {drinks} tragos</span>
                                 {state.dispenser && (
                                     <>

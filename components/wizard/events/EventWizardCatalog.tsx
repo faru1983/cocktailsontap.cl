@@ -3,7 +3,7 @@
 import React, { useRef, useMemo } from 'react';
 import { ShoppingCart, ArrowLeft } from 'lucide-react';
 import type { useWizard } from '@/hooks/useWizard';
-import { calculateLiveQuoterSuggestion } from '@/lib/wizardLogic';
+import { calculateLiveQuoterSuggestion, isEventBarrelCompatibleWithDispenser, isEventBarrelSizeLabelCompatible } from '@/lib/wizardLogic';
 import type { Product, CocktailForWizard, ICart } from '@/lib/types';
 import ProductCatalog from '@/components/catalog/ProductCatalog';
 import CategoryTabs from '@/components/ui/CategoryTabs';
@@ -44,7 +44,7 @@ export default function EventWizardCatalog({ wizard, cocktails, categories, onOp
             selectedSize: existingSelection?.size,
             sizes: Object.entries(c.prices)
                 .filter(([size]) => !size.toLowerCase().includes('desechable'))
-                .filter(([size]) => !(state.dispenser === 'muro' && size === '5L'))
+                .filter(([size]) => isEventBarrelSizeLabelCompatible(size, state.dispenser))
                 .map(([size, p]) => ({
                     size,
                     price: p.price,
@@ -56,7 +56,7 @@ export default function EventWizardCatalog({ wizard, cocktails, categories, onOp
                     image: p.image
                 }))
         };
-    }), [cocktails, state.selections]);
+    }), [cocktails, state.selections, state.dispenser]);
 
     const wizardCart: ICart = {
         addItem: (id, name, size, price, offer, sizeValue, unitId, isDisposable, image) => updateQuantity(id, size, 1),
@@ -88,7 +88,6 @@ export default function EventWizardCatalog({ wizard, cocktails, categories, onOp
     const drinks = state.consumption.drinksPerPerson || 3;
     const suggestionInfo = useMemo(() => calculateLiveQuoterSuggestion(guests, drinks), [guests, drinks]);
     const recommendedLiters = suggestionInfo ? suggestionInfo.recommendedLiters : 0;
-    const suggestionText = suggestionInfo ? suggestionInfo.compactSuggestionText : '';
     const currentLiters = summaryData.totalLiters;
     
     // Calcula el porcentaje de avance respecto a la meta (max 100%)
@@ -114,12 +113,12 @@ export default function EventWizardCatalog({ wizard, cocktails, categories, onOp
                 
                 <div className="flex justify-center flex-wrap gap-4 md:gap-8 w-full max-w-[600px] mx-auto">
                     {[
-                        { l: '5L', t: '25', delay: 0 },
-                        { l: '10L', t: '50', delay: 0.2 },
-                        { l: '20L', t: '100', delay: 0.4 },
-                        { l: '30L', t: '150', delay: 0.6 }
+                        { l: '5L', t: '25', liters: 5, delay: 0 },
+                        { l: '10L', t: '50', liters: 10, delay: 0.2 },
+                        { l: '20L', t: '100', liters: 20, delay: 0.4 },
+                        { l: '30L', t: '150', liters: 30, delay: 0.6 }
                     ]
-                    .filter(r => !(state.dispenser === 'muro' && r.l === '5L'))
+                    .filter(r => isEventBarrelCompatibleWithDispenser(r.liters, state.dispenser))
                     .map((r) => (
                         <div key={r.l} className="flex-1 min-w-[75px] max-w-[110px]">
                             <div 
@@ -142,6 +141,7 @@ export default function EventWizardCatalog({ wizard, cocktails, categories, onOp
                 onCategoryChange={handleCategoryChange}
                 stickyTop="top-[0px] z-30"
                 fullWidth={true}
+                peekCategoriesOnMobile
             />
 
             {/* Catálogo */}
@@ -168,17 +168,12 @@ export default function EventWizardCatalog({ wizard, cocktails, categories, onOp
 
                         <div className="flex items-center justify-end flex-1 px-2 sm:px-4">
                             <div className="flex items-center gap-3 sm:gap-5 w-full max-w-lg">
-                                {/* Columna 1: Info Base (Espacio dinámico) */}
                                 <div className="flex flex-col justify-center flex-1 text-right border-r border-brand-border/60 pr-2 sm:pr-5">
-                                    <span className="text-[0.65rem] sm:text-[0.7rem] font-bold text-brand-text-muted uppercase tracking-wider leading-none mb-1">
+                                    <span className="text-[0.65rem] sm:text-[0.7rem] font-bold text-brand-text-muted uppercase tracking-wider leading-none">
                                         {guests} Inv / {drinks} Tragos
                                     </span>
-                                    <span className="text-[0.7rem] sm:text-[0.85rem] font-bold text-primary leading-tight">
-                                        {suggestionText}
-                                    </span>
                                 </div>
-                                
-                                {/* Columna 2: Progreso (Espacio fijo) */}
+
                                 <div className="flex flex-col justify-center shrink-0 w-[55px] sm:w-[90px] text-left">
                                     <span className="text-[0.6rem] sm:text-[0.7rem] font-bold text-brand-text-muted uppercase tracking-wider leading-none mb-1">
                                         Sugerido

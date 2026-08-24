@@ -108,6 +108,12 @@ export async function confirmQuoteCore(
                     error: 'El Muro de Coctelería requiere al menos 30L y solo barriles de 10L, 20L o 30L.',
                 };
             }
+            if (data.dispenser === 'portatil' && !summary.canHavePortatil) {
+                return {
+                    success: false,
+                    error: 'El Dispensador Portátil solo es compatible con barriles de 5L y 10L.',
+                };
+            }
         }
 
         if (isDirectSale) {
@@ -141,6 +147,10 @@ export async function confirmQuoteCore(
         if (insertResult.error) throw new Error(insertResult.error.message);
 
         const normalizedPhone = normalizePhoneE164(data.client_phone) || data.client_phone;
+        const resolvedRegionName =
+            resolveRegionShortName(data.region_name || quote.region_name, catalogRes.comunas) ??
+            quote.region_name ??
+            null;
 
         const updateResult = await db
             .from('quotes')
@@ -151,11 +161,7 @@ export async function confirmQuoteCore(
                 client_address: data.client_address,
                 comuna_name: data.comuna_name,
                 comuna_other: data.comuna_other,
-                region_name:
-                    resolveRegionShortName(
-                        data.region_name || quote.region_name,
-                        catalogRes.comunas
-                    ) ?? quote.region_name ?? null,
+                region_name: resolvedRegionName,
                 guests: data.guests,
                 event_type_id: data.event_type_id,
                 event_type_other: data.event_type_other,
@@ -223,6 +229,7 @@ export async function confirmQuoteCore(
             ...quote,
             ...data,
             client_phone: normalizedPhone,
+            region_name: resolvedRegionName,
             status: 'confirmed',
             quote_items: data.items as QuoteItem[],
             total_price: total,

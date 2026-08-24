@@ -113,6 +113,7 @@ export default function DirectStep1Products({ wizard, cocktails, categories }: P
                 onCategoryChange={handleCategoryChange}
                 stickyTop="top-[-1px]"
                 fullWidth={true}
+                peekCategoriesOnMobile
             />
 
             {/* Catálogo de productos */}

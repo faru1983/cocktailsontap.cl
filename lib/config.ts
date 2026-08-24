@@ -39,6 +39,9 @@ export const PORTATIL_MIN_LITERS = 10;
 /** Tamaños compatibles con el Muro (en litros). El 5L no es compatible. */
 export const MURO_COMPATIBLE_SIZES = [10, 20, 30];
 
+/** Tamaños compatibles con el Dispensador Portátil (en litros). Solo 5L y 10L. */
+export const PORTATIL_COMPATIBLE_SIZES = [5, 10];
+
 /** Rendimiento comercial: cócteles por litro (200 ml c/u). Usado en catálogo y landing. */
 export const COCKTAILS_PER_LITER = 5;
 
