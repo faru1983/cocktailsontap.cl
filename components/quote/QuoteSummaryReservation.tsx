@@ -47,7 +47,7 @@ export default function QuoteSummaryReservation({ data }: Props) {
                     )}
                     <div className="flex items-start gap-2">
                         <span className="font-bold text-brand-text-muted min-w-[85px]">Dirección:</span>
-                        <span className="font-medium text-brand-text leading-tight break-all">
+                        <span className="font-medium text-brand-text leading-tight break-words min-w-0 flex-1">
                             {data.addressDisplay}
                         </span>
                     </div>
