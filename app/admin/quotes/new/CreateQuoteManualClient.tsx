@@ -50,6 +50,7 @@ export default function CreateQuoteManualClient({ allProducts, comunas, regions,
 
     // Overrides (undefined means use default)
     const [shippingOverride, setShippingOverride] = useState<number | undefined>(undefined);
+    const [shippingPorPagar, setShippingPorPagar] = useState(false);
     const [installationOverride, setInstallationOverride] = useState<number | undefined>(undefined);
     const [discountOverride, setDiscountOverride] = useState<number>(0);
 
@@ -254,7 +255,7 @@ export default function CreateQuoteManualClient({ allProducts, comunas, regions,
                 isAdmin: true,
                 confirmNow: serviceType === 'event' && confirmNow,
                 overrides: {
-                    ...(shippingOverride !== undefined && { shippingCost: shippingOverride }),
+                    ...(shippingPorPagar ? { shippingCost: 0, shippingLabel: 'Por Pagar' } : shippingOverride !== undefined ? { shippingCost: shippingOverride } : {}),
                     ...(serviceType === 'event' && installationOverride !== undefined && { installationCost: installationOverride }),
                     ...(serviceType === 'direct' && { installationCost: 0 }),
                     manualDiscount: discountOverride
@@ -731,22 +732,37 @@ export default function CreateQuoteManualClient({ allProducts, comunas, regions,
                             <div className="flex flex-col gap-2">
                                 <div className="flex justify-between items-center mb-1">
                                     <label className="text-slate-500 text-[9px] font-black uppercase tracking-widest ml-1">Valor Traslado</label>
-                                    {shippingOverride !== undefined && (
+                                    {shippingOverride !== undefined && !shippingPorPagar && (
                                         <button type="button" onClick={() => setShippingOverride(undefined)} className="text-[#E2A049] text-[8px] font-black uppercase tracking-widest flex items-center gap-1 hover:text-white transition-colors">
                                             <RefreshCw size={10} /> Auto
                                         </button>
                                     )}
                                 </div>
-                                <div className="relative">
-                                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 text-sm">$</span>
-                                    <input 
-                                        type="number" 
-                                        value={shippingOverride !== undefined ? shippingOverride : (summary.shippingCost === 0 && selections.length > 0 ? 0 : summary.shippingCost || '')} 
-                                        onChange={e => setShippingOverride(e.target.value === '' ? undefined : Number(e.target.value))} 
-                                        className={`w-full bg-black/30 border rounded-xl pl-8 pr-4 py-3 text-white text-sm outline-none transition-all ${shippingOverride !== undefined ? 'border-[#E2A049] shadow-[0_0_10px_rgba(226,160,73,0.1)]' : 'border-white/10 focus:border-[#E2A049]'}`} 
-                                        placeholder={selections.length > 0 ? summary.shippingCost.toString() : 'Selecciona comuna...'}
+                                {!shippingPorPagar && (
+                                    <div className="relative">
+                                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 text-sm">$</span>
+                                        <input 
+                                            type="number" 
+                                            value={shippingOverride !== undefined ? shippingOverride : (summary.shippingCost === 0 && selections.length > 0 ? 0 : summary.shippingCost || '')} 
+                                            onChange={e => setShippingOverride(e.target.value === '' ? undefined : Number(e.target.value))} 
+                                            className={`w-full bg-black/30 border rounded-xl pl-8 pr-4 py-3 text-white text-sm outline-none transition-all ${shippingOverride !== undefined ? 'border-[#E2A049] shadow-[0_0_10px_rgba(226,160,73,0.1)]' : 'border-white/10 focus:border-[#E2A049]'}`} 
+                                            placeholder={selections.length > 0 ? summary.shippingCost.toString() : 'Selecciona comuna...'}
+                                        />
+                                    </div>
+                                )}
+                                <label className="flex items-center gap-2 cursor-pointer mt-1">
+                                    <input
+                                        type="checkbox"
+                                        className="w-4 h-4 accent-amber-500 shrink-0"
+                                        checked={shippingPorPagar}
+                                        onChange={e => {
+                                            setShippingPorPagar(e.target.checked);
+                                            if (e.target.checked) setShippingOverride(0);
+                                            else setShippingOverride(undefined);
+                                        }}
                                     />
-                                </div>
+                                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Por Pagar <span className="text-slate-600 normal-case font-normal">(el cliente paga el envío al carrier)</span></span>
+                                </label>
                             </div>
 
                             {/* Valor Dispensador Override */}

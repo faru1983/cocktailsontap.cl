@@ -177,7 +177,7 @@ export default function DirectQuoteView({ quote, comunas, regions, availableCock
         } else if (resolved.shippingLabel === '¡Gratis!') {
             shipping = 0;
         } else {
-            shipping = quote.shipping_cost || resolved.shippingCost;
+            shipping = quote.shipping_cost ?? resolved.shippingCost;
         }
 
         const totalFinal = totalOffer + shipping - (quote.manual_discount || 0);
@@ -278,7 +278,7 @@ export default function DirectQuoteView({ quote, comunas, regions, availableCock
             totalOfferPrice: totals.totalOffer,
             totalDiscount: totals.totalDiscount,
             shippingCost: totals.shipping,
-            shippingLabel: comuna === 'Otra' && totals.shipping === 0 ? 'Pendiente de factibilidad' : (totals.shipping === 0 ? '¡Gratis!' : formatCurrency(totals.shipping)),
+            shippingLabel: comuna === 'Otra' && totals.shipping === 0 ? 'Pendiente de factibilidad' : (totals.shipping === 0 ? (quote.shipping_label ?? '¡Gratis!') : formatCurrency(totals.shipping)),
             shippingCarrier: totals.shippingCarrier,
             installationCost: 0,
             dispenserLabel: 'Barril Desechable',

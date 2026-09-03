@@ -311,6 +311,9 @@ export interface Quote {
     quote_items?: QuoteItem[];
     payments?: { date: string; amount: number; note: string }[];
 
+    /** Etiqueta de transporte personalizada desde admin (ej: 'Por Pagar'). Anula '¡Gratis!' en la vista pública. */
+    shipping_label?: string | null;
+
     /** Solo venta directa — en reparto */
     dispatch_mode?: QuoteDispatchMode | null;
     dispatch_carrier_name?: string | null;

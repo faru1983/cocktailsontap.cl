@@ -104,6 +104,7 @@ export async function updateQuoteItemsAdmin(
         shipping_cost: number;
         installation_cost: number;
         dispenser: string;
+        shipping_label?: string | null;
     }
 ): Promise<{ success: boolean; error?: string }> {
     await checkAuth();
@@ -160,6 +161,7 @@ export async function updateQuoteItemsAdmin(
             shipping_cost: data.shipping_cost,
             installation_cost: data.installation_cost,
             dispenser: data.dispenser,
+            shipping_label: data.shipping_label ?? null,
             updated_at: new Date().toISOString()
         }).eq('id', quoteId) as any);
 

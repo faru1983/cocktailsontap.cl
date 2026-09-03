@@ -155,6 +155,8 @@ export type QuoteOperationalSummaryProps = {
     editItems: QuoteItem[];
     editCosts: EditCosts;
     setEditCosts: React.Dispatch<React.SetStateAction<EditCosts>>;
+    editShippingPorPagar: boolean;
+    setEditShippingPorPagar: React.Dispatch<React.SetStateAction<boolean>>;
     searchTerm: string;
     setSearchTerm: (v: string) => void;
     allProducts: Product[];
@@ -423,6 +425,8 @@ export default function QuoteOperationalSummary({
     editItems,
     editCosts,
     setEditCosts,
+    editShippingPorPagar,
+    setEditShippingPorPagar,
     searchTerm,
     setSearchTerm,
     allProducts,
@@ -1102,17 +1106,33 @@ export default function QuoteOperationalSummary({
                         <CostRow label="Productos" value={formatCLP(itemsSubtotal)} />
                         <CostRow
                             label="Transporte"
-                            value={shipping > 0 ? formatCLP(shipping) : 'Incluido'}
+                            value={shipping > 0 ? formatCLP(shipping) : (quote.shipping_label === 'Por Pagar' ? 'Por Pagar' : 'Incluido')}
                             editNode={
                                 isEditing ? (
-                                    <input
-                                        type="number"
-                                        value={editCosts.shipping_cost}
-                                        onChange={(e) =>
-                                            setEditCosts((p) => ({ ...p, shipping_cost: Number(e.target.value) }))
-                                        }
-                                        style={{ ...inputStyle, width: '120px', textAlign: 'right' }}
-                                    />
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'flex-end' }}>
+                                        {!editShippingPorPagar && (
+                                            <input
+                                                type="number"
+                                                value={editCosts.shipping_cost}
+                                                onChange={(e) =>
+                                                    setEditCosts((p) => ({ ...p, shipping_cost: Number(e.target.value) }))
+                                                }
+                                                style={{ ...inputStyle, width: '120px', textAlign: 'right' }}
+                                            />
+                                        )}
+                                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '11px', color: '#94a3b8' }}>
+                                            <input
+                                                type="checkbox"
+                                                checked={editShippingPorPagar}
+                                                onChange={e => {
+                                                    setEditShippingPorPagar(e.target.checked);
+                                                    if (e.target.checked) setEditCosts(p => ({ ...p, shipping_cost: 0 }));
+                                                }}
+                                                style={{ accentColor: '#f59e0b', width: '14px', height: '14px' }}
+                                            />
+                                            Por Pagar
+                                        </label>
+                                    </div>
                                 ) : undefined
                             }
                         />

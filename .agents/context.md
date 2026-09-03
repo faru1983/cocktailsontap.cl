@@ -41,6 +41,13 @@
 
 ## Ultimos Cambios
 
+### 03-09-2026 (Sesión 104) — Overrides admin en costos y fechas
+
+- `/admin/quotes/new`: email opcional para creación manual (se elimina requisito en UI y validación local).
+- `/admin/quotes/new`: fecha libre para admin en venta directa (sin `min` y sin validación `validateDirectSaleDate` en cliente/servidor cuando `isAdmin`).
+- Tracking Blue Express actualizado a `https://www.blue.cl/enviar/seguimiento?n_seguimiento=...` en admin, emails y vista pública.
+- `/cotizar/[token]` ahora respeta `shipping_cost = 0` guardado en DB (no lo reemplaza por tarifa dinámica), permitiendo casos como “por pagar”, cortesía o ajuste manual.
+
 ### 03-09-2026 (Sesión 103) — Admin detalle: vista unificada sin pestañas
 
 - `/admin/quotes/[id]`: una sola ficha visual (`QuoteOperationalSummary`) reemplaza resumen + pestañas Datos/Items/Pagos/Email.
@@ -68,15 +75,6 @@
 - Paso 1 (`EventWizardConfig`): bloque «Guía de pedido» con litros calculados + tips de referencia (resalta según slider).
 - Paso 2 (`EventWizardCatalog`): barra inferior muestra tip activo + objetivo en litros.
 
-### 24-08-2026 (Sesión 99) — Wizard eventos: formatos portátil 5L/10L
-
-- `PORTATIL_COMPATIBLE_SIZES = [5, 10]` en `lib/config.ts`.
-- Helpers `isEventBarrelCompatibleWithDispenser` / `isEventBarrelSizeLabelCompatible` en `wizardLogic.ts`.
-- Paso 2 (`EventWizardCatalog`): catálogo y círculos «Rendimientos por Formato» filtran según dispensador (portátil → solo 5L y 10L).
-- `useWizard.updateDispenser`: limpia selecciones incompatibles al cambiar dispensador.
-- Validación servidor en `confirmQuoteCore` + `canHavePortatil` en `calculateSummaryData`.
-- `EventQuoteView`: mismo filtro de tamaños al editar cotización.
-
 ---
 
-*Ultima actualizacion: 03-09-2026 (Sesión 103)*
+*Ultima actualizacion: 03-09-2026 (Sesión 104)*

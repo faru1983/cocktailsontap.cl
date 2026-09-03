@@ -27,7 +27,7 @@ export interface CreateQuoteInput {
     confirmNow?: boolean;
     /** Canal explícito; si falta, admin → admin y web → web. API WhatsApp pasa whatsapp. */
     source?: QuoteSource;
-    overrides?: { shippingCost?: number; installationCost?: number; manualDiscount?: number };
+    overrides?: { shippingCost?: number; installationCost?: number; manualDiscount?: number; shippingLabel?: string | null };
 }
 
 export interface CreateQuoteResult {

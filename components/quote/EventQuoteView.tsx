@@ -193,8 +193,6 @@ export default function EventQuoteView({ quote, comunas, regions, availableCockt
             shipping = 0;
         } else if (comuna !== quote.comuna_name || regionCode !== initialRegionCode) {
             shipping = resolved.shippingCost;
-        } else if (quote.shipping_cost === 0 && resolved.shippingLabel !== '¡Gratis!') {
-            shipping = resolved.shippingCost;
         } else if (resolved.shippingLabel === '¡Gratis!') {
             shipping = 0;
         } else {
@@ -333,7 +331,7 @@ export default function EventQuoteView({ quote, comunas, regions, availableCockt
             totalOfferPrice: totals.totalOffer,
             totalDiscount: totals.totalDiscount,
             shippingCost: totals.shipping,
-            shippingLabel: comuna === 'Otra' && totals.shipping === 0 ? 'Pendiente de factibilidad' : (totals.shipping === 0 ? '¡Gratis!' : formatCurrency(totals.shipping)),
+            shippingLabel: comuna === 'Otra' && totals.shipping === 0 ? 'Pendiente de factibilidad' : (totals.shipping === 0 ? (quote.shipping_label ?? '¡Gratis!') : formatCurrency(totals.shipping)),
             shippingCarrier: totals.shippingCarrier,
             installationCost: isDraft ? totals.installationCost : quote.installation_cost,
             dispenserLabel: dispenser === 'muro' ? 'Muro de Coctelería' : 'Dispensador Portátil',

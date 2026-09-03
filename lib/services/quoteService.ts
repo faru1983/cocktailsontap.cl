@@ -61,7 +61,7 @@ export const QuoteService = {
         cocktails: CocktailForWizard[],
         comunas: Comuna[],
         clientId: string | null,
-        overrides?: { shippingCost?: number; installationCost?: number; manualDiscount?: number },
+        overrides?: { shippingCost?: number; installationCost?: number; manualDiscount?: number; shippingLabel?: string | null },
         source: QuoteSource = 'web'
     ): Promise<CreateQuoteResult> {
         const db = createServerClient();
@@ -112,6 +112,7 @@ export const QuoteService = {
                 total_liters: data.totalLiters,
                 service_type: state.serviceType || 'event',
                 source,
+                shipping_label: overrides?.shippingLabel ?? null,
             })
             .select('*')
             .single();

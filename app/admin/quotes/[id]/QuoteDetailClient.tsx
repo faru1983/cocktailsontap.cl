@@ -145,6 +145,7 @@ export default function QuoteDetailClient({
         installation_cost: Number(initial.installation_cost) || 0,
         dispenser: String(initial.dispenser || 'portatil'),
     });
+    const [editShippingPorPagar, setEditShippingPorPagar] = useState(initial.shipping_label === 'Por Pagar');
     const [searchTerm, setSearchTerm] = useState('');
 
     const [showPayModal, setShowPayModal] = useState(false);
@@ -365,6 +366,7 @@ export default function QuoteDetailClient({
             installation_cost: Number(quote.installation_cost) || 0,
             dispenser: String(quote.dispenser || 'portatil'),
         });
+        setEditShippingPorPagar(quote.shipping_label === 'Por Pagar');
         setSearchTerm('');
         setIsEditing(true);
     };
@@ -393,9 +395,10 @@ export default function QuoteDetailClient({
             const itemsRes = await updateQuoteItemsAdmin(String(quote.id), {
                 items: editItems,
                 manual_discount: Number(editCosts.manual_discount),
-                shipping_cost: Number(editCosts.shipping_cost),
+                shipping_cost: editShippingPorPagar ? 0 : Number(editCosts.shipping_cost),
                 installation_cost: Number(editCosts.installation_cost),
                 dispenser: editCosts.dispenser as 'portatil' | 'muro' | 'desechable',
+                shipping_label: editShippingPorPagar ? 'Por Pagar' : null,
             });
 
             if (!itemsRes.success) {
@@ -803,6 +806,8 @@ export default function QuoteDetailClient({
                 editItems={editItems}
                 editCosts={editCosts}
                 setEditCosts={setEditCosts}
+                editShippingPorPagar={editShippingPorPagar}
+                setEditShippingPorPagar={setEditShippingPorPagar}
                 searchTerm={searchTerm}
                 setSearchTerm={setSearchTerm}
                 allProducts={allProducts}
