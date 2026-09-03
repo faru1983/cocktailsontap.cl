@@ -7,8 +7,32 @@ import type { Quote } from '@/lib/types';
 /** Preset Blue Express para despacho por tercero. */
 export const BLUE_EXPRESS_CARRIER = {
     name: 'Blue Express',
-    trackingUrl: 'https://www.blue.cl/enviar/seguimiento',
 } as const;
+
+const BLUE_EXPRESS_TRACKING_BASE = 'https://www.blue.cl/enviar/seguimiento';
+
+/** URL de seguimiento Blue Express con número de envío. */
+export function buildBlueExpressTrackingUrl(trackingNumber: string): string {
+    const n = trackingNumber.trim();
+    if (!n) return BLUE_EXPRESS_TRACKING_BASE;
+    return `${BLUE_EXPRESS_TRACKING_BASE}?n_seguimiento=${encodeURIComponent(n)}`;
+}
+
+/** URL efectiva de tracking (corrige registros legacy de Blue Express sin query). */
+export function resolveDispatchTrackingUrl(quote: {
+    dispatch_carrier_name?: string | null;
+    dispatch_tracking_number?: string | null;
+    dispatch_tracking_url?: string | null;
+}): string | null {
+    const trackingNumber = quote.dispatch_tracking_number?.trim() || '';
+    if (!trackingNumber) return quote.dispatch_tracking_url?.trim() || null;
+
+    if (quote.dispatch_carrier_name?.trim() === BLUE_EXPRESS_CARRIER.name) {
+        return buildBlueExpressTrackingUrl(trackingNumber);
+    }
+
+    return quote.dispatch_tracking_url?.trim() || null;
+}
 
 export const PAYMENT_NOTE_FULL = 'Transferencia total';
 export const PAYMENT_NOTE_PARTIAL = 'Abono transferencia';

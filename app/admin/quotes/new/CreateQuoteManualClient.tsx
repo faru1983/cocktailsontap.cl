@@ -235,8 +235,8 @@ export default function CreateQuoteManualClient({ allProducts, comunas, regions,
         e.preventDefault();
         setError(null);
         
-        if (!contact.firstName || !contact.lastName || !contact.email || !isValidPhoneE164(contact.phone)) {
-            return setError('Nombre, Apellido, Email y un Celular válido (+56 9 ...) son obligatorios.');
+        if (!contact.firstName || !contact.lastName || !isValidPhoneE164(contact.phone)) {
+            return setError('Nombre, Apellido y un Celular válido (+56 9 ...) son obligatorios.');
         }
         if (selections.length === 0) {
             return setError('Debe seleccionar al menos un producto.');
@@ -427,8 +427,8 @@ export default function CreateQuoteManualClient({ allProducts, comunas, regions,
                             <Field label="Apellido" required>
                                 <input required value={contact.lastName} onChange={e => setContact(c => ({...c, lastName: e.target.value}))} className="admin-input" placeholder="Pérez" />
                             </Field>
-                            <Field label="Email" required>
-                                <input required type="email" value={contact.email} onChange={e => setContact(c => ({...c, email: e.target.value}))} className="admin-input" placeholder="juan@correo.com" />
+                            <Field label="Email">
+                                <input type="email" value={contact.email} onChange={e => setContact(c => ({...c, email: e.target.value}))} className="admin-input" placeholder="juan@correo.com (opcional)" />
                             </Field>
                             <Field label="Celular" required>
                                 <PhoneInput

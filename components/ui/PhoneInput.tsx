@@ -19,6 +19,7 @@ interface PhoneInputProps {
     required?: boolean;
     disabled?: boolean;
     className?: string;
+    style?: React.CSSProperties;
     placeholder?: string;
     autoComplete?: string;
 }
@@ -40,6 +41,7 @@ export default function PhoneInput({
     required,
     disabled,
     className = '',
+    style,
     placeholder = PHONE_PLACEHOLDER,
     autoComplete = 'tel',
 }: PhoneInputProps) {
@@ -102,6 +104,7 @@ export default function PhoneInput({
             onChange={handleChange}
             onBlur={handleBlur}
             className={className}
+            style={style}
         />
     );
 }

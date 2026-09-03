@@ -24,6 +24,7 @@ import QuoteSummaryReservation, { QuoteSummaryReservationData } from '@/componen
 import BankTransferCard from '@/components/quote/BankTransferCard';
 import { buildWhatsAppMessageFromQuote, getWhatsAppUrl } from '@/lib/wizardLogic';
 import { WHATSAPP_URL } from '@/lib/config';
+import { resolveDispatchTrackingUrl } from '@/lib/directSaleFulfillment';
 import { WhatsappIcon } from '@/components/shared/icons';
 
 interface Props {
@@ -80,6 +81,7 @@ export default function DirectQuoteView({ quote, comunas, regions, availableCock
     const [validationErrors, setValidationErrors] = useState<Record<string, boolean>>({});
     const [dateError, setDateError] = useState<string | null>(null);
     const [clientUrl, setClientUrl] = useState('');
+    const dispatchTrackingUrl = resolveDispatchTrackingUrl(quote);
 
     const isDraft = quote.status === 'draft' && !confirmed;
     const statusCfg = STATUS_CONFIG[quote.status] ?? STATUS_CONFIG.draft;
@@ -664,9 +666,9 @@ export default function DirectQuoteView({ quote, comunas, regions, availableCock
                                     Número de seguimiento: <strong className="font-black">{quote.dispatch_tracking_number}</strong>
                                 </p>
                             )}
-                            {quote.dispatch_tracking_url && (
+                            {dispatchTrackingUrl && (
                                 <a
-                                    href={quote.dispatch_tracking_url}
+                                    href={dispatchTrackingUrl}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="inline-flex items-center gap-2 text-sky-700 font-black text-[0.85rem] hover:underline"

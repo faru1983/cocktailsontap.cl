@@ -11,6 +11,7 @@ import {
     gray,
     brandColor,
 } from './EmailShared';
+import { resolveDispatchTrackingUrl } from '@/lib/directSaleFulfillment';
 
 interface DispatchEmailProps {
     quote: Quote;
@@ -30,7 +31,7 @@ export const DispatchEmail: React.FC<Readonly<DispatchEmailProps>> = ({ quote })
     const isOwn = quote.dispatch_mode === 'own';
     const carrier = quote.dispatch_carrier_name?.trim() || 'el transportista';
     const trackingNumber = quote.dispatch_tracking_number?.trim() || '';
-    const trackingUrl = quote.dispatch_tracking_url?.trim() || '';
+    const trackingUrl = resolveDispatchTrackingUrl(quote) || '';
 
     return (
         <BaseLayout preview={`Tu pedido en reparto – ${clientName}`} accentColor={brandColor}>

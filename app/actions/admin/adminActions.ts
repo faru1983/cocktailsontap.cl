@@ -302,7 +302,7 @@ export async function markDirectSaleInDelivery(
         return { success: false, error: 'El pedido tiene saldo pendiente. Registra el pago antes del despacho.' };
     }
 
-    const { BLUE_EXPRESS_CARRIER } = await import('@/lib/directSaleFulfillment');
+    const { BLUE_EXPRESS_CARRIER, buildBlueExpressTrackingUrl } = await import('@/lib/directSaleFulfillment');
 
     let dispatch_mode: 'own' | 'carrier';
     let dispatch_carrier_name: string | null = null;
@@ -321,7 +321,7 @@ export async function markDirectSaleInDelivery(
 
         if (input.carrierPreset === 'blue_express') {
             dispatch_carrier_name = BLUE_EXPRESS_CARRIER.name;
-            dispatch_tracking_url = BLUE_EXPRESS_CARRIER.trackingUrl;
+            dispatch_tracking_url = buildBlueExpressTrackingUrl(trackingNumber);
         } else {
             const name = String(input.carrierName || '').trim();
             const url = String(input.trackingUrl || '').trim();
