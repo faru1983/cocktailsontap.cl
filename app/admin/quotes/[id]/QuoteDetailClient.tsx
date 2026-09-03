@@ -16,7 +16,7 @@ import {
     markDirectSaleInDelivery,
 } from '@/app/actions/admin/adminActions';
 import { SITE_URL } from '@/lib/config';
-import type { QuoteItem, Product } from '@/lib/types';
+import type { QuoteItem, Product, Quote, QuoteStatus } from '@/lib/types';
 import type { Comuna, Region } from '@/lib/types';
 import { toWhatsAppDigits } from '@/lib/phone';
 import {
@@ -41,6 +41,13 @@ import {
 } from 'lucide-react';
 import { sourceBadge, normalizeQuoteSource } from '@/lib/quoteSource';
 import QuoteOperationalSummary from './QuoteOperationalSummary';
+
+type QuoteDetail = Quote & {
+    review_email_sent?: boolean | null;
+    event_types?: { name: string } | null;
+};
+
+type QuotePayment = NonNullable<Quote['payments']>[number];
 
 const statusFlow = ['draft', 'confirmed', 'in_delivery', 'completed', 'cancelled'];
 const statusBadge: Record<string, { label: string; shortLabel: string; color: string; bg: string }> = {
@@ -118,13 +125,13 @@ export default function QuoteDetailClient({
     comunas,
     regions,
 }: {
-    quote: Record<string, unknown>;
+    quote: QuoteDetail;
     allProducts: Product[];
     eventTypes: { id: string; name: string }[];
     comunas: Comuna[];
     regions: Region[];
 }) {
-    const [quote, setQuote] = useState(initial);
+    const [quote, setQuote] = useState<QuoteDetail>(initial);
     const [isPending, startTransition] = useTransition();
     const [isDeleting, setIsDeleting] = useState(false);
     const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
@@ -178,7 +185,7 @@ export default function QuoteDetailClient({
         startTransition(async () => {
             const res = await updateQuoteStatus(String(quote.id), newStatus);
             if (res.success) {
-                setQuote((q) => ({ ...q, status: newStatus }));
+                setQuote((q) => ({ ...q, status: newStatus as QuoteStatus }));
                 showToast('Estado actualizado');
             } else showToast(res.error || 'Error', false);
         });
@@ -270,7 +277,7 @@ export default function QuoteDetailClient({
         startTransition(async () => {
             const res = await addQuotePayment(String(quote.id), p);
             if (res.success) {
-                const updatedPayments = [...((quote.payments as unknown[]) || []), p];
+                const updatedPayments: QuotePayment[] = [...(quote.payments || []), p];
                 setQuote((q) => ({ ...q, payments: updatedPayments }));
                 setShowPayModal(false);
                 setPayNoteType('partial');
@@ -292,7 +299,7 @@ export default function QuoteDetailClient({
         startTransition(async () => {
             const res = await addQuotePayment(String(quote.id), p);
             if (res.success) {
-                const updatedPayments = [...((quote.payments as unknown[]) || []), p];
+                const updatedPayments: QuotePayment[] = [...(quote.payments || []), p];
                 setQuote((q) => ({ ...q, payments: updatedPayments }));
                 if (res.emailWarning) showToast(`Pago registrado (email: ${res.emailWarning})`, false);
                 else showToast('Transferencia total registrada y email enviado');
@@ -432,7 +439,7 @@ export default function QuoteDetailClient({
         startTransition(async () => {
             const res = await deleteQuotePayment(String(quote.id), index);
             if (res.success) {
-                const updatedPayments = [...((quote.payments as unknown[]) || [])];
+                const updatedPayments: QuotePayment[] = [...(quote.payments || [])];
                 updatedPayments.splice(index, 1);
                 setQuote((q) => ({ ...q, payments: updatedPayments }));
                 showToast('Pago eliminado');

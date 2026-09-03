@@ -28,7 +28,7 @@ import { copyToClipboard } from '@/lib/utils';
 import { formatQuoteAddress } from '@/lib/geo';
 import { formatPhoneDisplay, toWhatsAppDigits, normalizePhoneE164 } from '@/lib/phone';
 import PhoneInput from '@/components/ui/PhoneInput';
-import type { Comuna, Product, QuoteItem, Region } from '@/lib/types';
+import type { Comuna, Product, QuoteItem, Region, Quote } from '@/lib/types';
 import { DEFAULT_REGION_CODE } from '@/lib/types';
 import { resolveDispatchTrackingUrl } from '@/lib/directSaleFulfillment';
 import { useState, type ReactNode } from 'react';
@@ -141,7 +141,7 @@ type EditCosts = {
 };
 
 export type QuoteOperationalSummaryProps = {
-    quote: Record<string, unknown>;
+    quote: Quote & { event_types?: { name: string } | null };
     isDirectSale: boolean;
     balance: number;
     isEditing: boolean;
