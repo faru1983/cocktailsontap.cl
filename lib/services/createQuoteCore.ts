@@ -117,7 +117,7 @@ export async function createQuoteCore(input: CreateQuoteInput): Promise<CreateQu
             }
         }
 
-        if (state.serviceType === 'direct') {
+        if (state.serviceType === 'direct' && !isAdmin) {
             const dateErr = validateDirectSaleDate(state.eventData.date);
             if (dateErr) return { success: false, error: dateErr };
         }

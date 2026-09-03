@@ -8,7 +8,7 @@ import { createQuote } from '@/app/actions/createQuote';
 import { getClientAddressesFromQuotes, type ClientQuoteAddress } from '@/app/actions/admin/adminActions';
 import type { Product, Comuna, Region, EventType, WizardState } from '@/lib/types';
 import { DEFAULT_REGION_CODE } from '@/lib/types';
-import { calculateSummaryData, getMinDateString, DIRECT_SALE_MIN_DISPATCH_OFFSET_DAYS, validateDirectSaleDate } from '@/lib/wizardLogic';
+import { calculateSummaryData } from '@/lib/wizardLogic';
 import { getDirectSaleDateFieldCopy } from '@/lib/blueExpress';
 import { validateConfirmNowState } from '@/lib/confirmNowValidation';
 import { SITE_URL, MURO_INSTALLATION_COST, PORTATIL_MIN_LITERS } from '@/lib/config';
@@ -244,10 +244,6 @@ export default function CreateQuoteManualClient({ allProducts, comunas, regions,
         if (serviceType === 'event' && confirmNow) {
             const confirmErr = validateConfirmNowState(currentWizardState);
             if (confirmErr) return setError(confirmErr);
-        }
-        if (serviceType === 'direct') {
-            const dateErr = validateDirectSaleDate(eventData.date);
-            if (dateErr) return setError(dateErr);
         }
 
         startTransition(async () => {
@@ -507,7 +503,6 @@ export default function CreateQuoteManualClient({ allProducts, comunas, regions,
                                     <input
                                         type="date"
                                         value={eventData.date}
-                                        min={getMinDateString(DIRECT_SALE_MIN_DISPATCH_OFFSET_DAYS)}
                                         onChange={e => setEventData(d => ({...d, date: e.target.value}))}
                                         className="admin-input"
                                     />
