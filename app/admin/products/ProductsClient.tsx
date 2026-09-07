@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useTransition, useEffect } from 'react';
-import { saveCategory, toggleCategoryStatus, saveProduct, toggleProductStatus, reorderItems, saveUnit, toggleUnitStatus, uploadImage, deleteImage, updateQuickPrice, listProductImages } from '@/app/actions/admin/productActions';
+import { saveCategory, toggleCategoryStatus, saveProduct, toggleProductStatus, toggleProductHideFromRecipes, reorderItems, saveUnit, toggleUnitStatus, uploadImage, deleteImage, updateQuickPrice, listProductImages } from '@/app/actions/admin/productActions';
 import Modal from '@/components/admin/Modal';
 import { 
     GripVertical, 
@@ -15,6 +15,7 @@ import {
     RefreshCw,
     Maximize2,
     Eye,
+    EyeOff,
     Tag,
     Layers,
     Package,
@@ -197,7 +198,7 @@ export default function ProductsClient({ products, categories, measurementUnits 
     const openProductModal = (prod: any = null) => {
         setModalProduct({ 
             isOpen: true, 
-            data: prod || { name: '', description: '', image_url: '', display_order: 0, category_id: categories[0]?.id || '', is_active: true },
+            data: prod || { name: '', description: '', image_url: '', display_order: 0, category_id: categories[0]?.id || '', is_active: true, hide_from_recipes: false },
             prices: prod ? p_normalize(prod.product_prices) : [{ size: '', size_value: 0, unit_id: measurementUnits.find(u => u.abbreviation === 'L')?.id || '', is_disposable: false, price: 0, offer_price: null }]
         });
     }
@@ -264,6 +265,16 @@ export default function ProductsClient({ products, categories, measurementUnits 
             }
         });
     }
+
+    const toggleHideFromRecipes = (id: string, current: boolean) => {
+        startTransition(async () => {
+            try {
+                await toggleProductHideFromRecipes(id, !current);
+            } catch (err: any) {
+                alert(err?.message || 'No se pudo cambiar el recetario.');
+            }
+        });
+    };
 
     const addPriceRow = () => {
         setModalProduct(prev => ({ 
@@ -407,8 +418,16 @@ export default function ProductsClient({ products, categories, measurementUnits 
                                         <div className="text-white font-bold text-sm tracking-tight">{p.name}</div>
                                         <div className="text-[10px] text-[#E2A049] font-black uppercase tracking-widest">{p.categories?.name}</div>
                                     </div>
-                                    <button onClick={() => toggleStatus(p.id, 'prod', p.is_active)} className={`p-2 rounded-lg ${p.is_active ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'}`}>
+                                    <button type="button" onClick={() => toggleStatus(p.id, 'prod', p.is_active)} className={`p-2 rounded-lg ${p.is_active ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'}`}>
                                         {p.is_active ? <Check size={16}/> : <X size={16}/>}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => toggleHideFromRecipes(p.id, !!p.hide_from_recipes)}
+                                        className={`p-2 rounded-lg ${p.hide_from_recipes ? 'bg-[#E2A049]/15 text-[#E2A049]' : 'bg-white/5 text-slate-400'}`}
+                                        title={p.hide_from_recipes ? 'Oculto en recetas' : 'Ocultar de recetas'}
+                                    >
+                                        {p.hide_from_recipes ? <EyeOff size={16}/> : <Eye size={16}/>}
                                     </button>
                                     <button onClick={() => openProductModal(p)} className="p-2 bg-white/5 text-slate-400 rounded-lg hover:text-[#E2A049]"><Pencil size={16}/></button>
                                 </div>
@@ -427,6 +446,7 @@ export default function ProductsClient({ products, categories, measurementUnits 
                                         <th className="hidden lg:table-cell text-left py-4 px-6 text-slate-500 text-[11px] font-bold uppercase tracking-widest border-b border-white/5 cursor-pointer" onClick={() => toggleSortProd('price')}>P. Normal</th>
                                         <th className="hidden lg:table-cell text-left py-4 px-6 text-slate-500 text-[11px] font-bold uppercase tracking-widest border-b border-white/5 cursor-pointer" onClick={() => toggleSortProd('offer_price')}>P. Oferta</th>
                                         <th className="text-left py-4 px-6 text-slate-500 text-[11px] font-bold uppercase tracking-widest border-b border-white/5 cursor-pointer" onClick={() => toggleSortProd('is_active')}>Estado</th>
+                                        <th className="text-left py-4 px-6 text-slate-500 text-[11px] font-bold uppercase tracking-widest border-b border-white/5 cursor-pointer" onClick={() => toggleSortProd('hide_from_recipes')}>Recetas</th>
                                         <th className="text-right py-4 px-6 text-slate-500 text-[11px] font-bold uppercase tracking-widest border-b border-white/5"></th>
                                     </tr>
                                 </thead>
@@ -468,6 +488,16 @@ export default function ProductsClient({ products, categories, measurementUnits 
                                             <td className="py-4 px-6">
                                                 <button onClick={() => toggleStatus(p.id, 'prod', p.is_active)} className={`text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-lg transition-all ${p.is_active ? 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20' : 'bg-rose-500/10 text-rose-400 hover:bg-rose-500/20'}`}>
                                                     {p.is_active ? 'Publicado' : 'Oculto'}
+                                                </button>
+                                            </td>
+                                            <td className="py-4 px-6">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => toggleHideFromRecipes(p.id, !!p.hide_from_recipes)}
+                                                    className={`p-2 rounded-lg border-none cursor-pointer ${p.hide_from_recipes ? 'bg-[#E2A049]/15 text-[#E2A049]' : 'bg-white/5 text-slate-400'}`}
+                                                    title={p.hide_from_recipes ? 'Oculto en recetas' : 'Ocultar de recetas'}
+                                                >
+                                                    {p.hide_from_recipes ? <EyeOff size={16}/> : <Eye size={16}/>}
                                                 </button>
                                             </td>
                                             <td className="py-4 px-6 text-right">
@@ -608,6 +638,26 @@ export default function ProductsClient({ products, categories, measurementUnits 
                         <label className="block text-slate-500 text-[10px] font-black uppercase tracking-widest mb-2">Descripción Detallada</label>
                         <textarea className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white text-sm outline-none focus:border-[#E2A049] resize-none h-24" value={modalProduct.data?.description || ''} onChange={e => setModalProduct({ ...modalProduct, data: { ...modalProduct.data, description: e.target.value } })} />
                     </div>
+
+                    <label className="flex items-start gap-3 cursor-pointer">
+                        <input
+                            type="checkbox"
+                            className="mt-1 accent-[#E2A049]"
+                            checked={!!modalProduct.data?.hide_from_recipes}
+                            onChange={(e) =>
+                                setModalProduct({
+                                    ...modalProduct,
+                                    data: { ...modalProduct.data, hide_from_recipes: e.target.checked },
+                                })
+                            }
+                        />
+                        <span>
+                            <span className="block text-sm font-bold text-slate-200">Ocultar de recetas</span>
+                            <span className="block text-xs text-slate-500 mt-0.5">
+                                Sigue en el catálogo de venta, pero no pide receta en Recetario.
+                            </span>
+                        </span>
+                    </label>
 
                     <div className="pt-4 border-t border-white/5">
                         <div className="flex justify-between items-center mb-4 px-1">

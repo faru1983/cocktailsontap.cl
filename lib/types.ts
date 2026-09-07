@@ -458,7 +458,8 @@ export const ConfirmQuoteSchema = z.object({
 
 /** Recetario — insumos y recetas */
 export const IngredientCategorySchema = z.enum(['Licor', 'Bebida', 'Endulzante', 'Jugo', 'Otros']);
-export const FormatUnitSchema = z.enum(['ml', 'g']);
+export const FormatUnitSchema = z.enum(['ml', 'g', 'u']);
+export const RecipeAppliesToSchema = z.enum(['all', 'disposable', 'event']);
 
 export const IngredientSaveSchema = z.object({
     id: z.string().uuid().optional().nullable(),
@@ -469,6 +470,7 @@ export const IngredientSaveSchema = z.object({
     format_price: z.coerce.number().min(0, 'Precio inválido'),
     supplier: z.string().max(120).nullable().optional(),
     is_active: z.boolean().optional().default(true),
+    hide_in_production: z.boolean().optional().default(false),
 });
 
 export const IngredientPatchSchema = z.object({
@@ -480,11 +482,13 @@ export const IngredientPatchSchema = z.object({
     format_price: z.coerce.number().min(0).optional(),
     supplier: z.string().max(120).nullable().optional(),
     is_active: z.boolean().optional(),
+    hide_in_production: z.boolean().optional(),
 });
 
 export const RecipeItemSaveSchema = z.object({
     ingredient_id: z.string().uuid(),
     qty_base: z.coerce.number().positive('Cantidad debe ser > 0'),
+    applies_to: RecipeAppliesToSchema.optional().default('all'),
 });
 
 export const RecipeSaveSchema = z

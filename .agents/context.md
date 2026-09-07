@@ -41,40 +41,39 @@
 
 ## Ultimos Cambios
 
-### 03-09-2026 (Sesión 104) — Overrides admin en costos y fechas
+### 07-09-2026 (Sesión 114) — Productos ocultos del recetario
 
-- `/admin/quotes/new`: email opcional para creación manual (se elimina requisito en UI y validación local).
-- `/admin/quotes/new`: fecha libre para admin en venta directa (sin `min` y sin validación `validateDirectSaleDate` en cliente/servidor cuando `isAdmin`).
-- Tracking Blue Express actualizado a `https://www.blue.cl/enviar/seguimiento?n_seguimiento=...` en admin, emails y vista pública.
-- `/cotizar/[token]` ahora respeta `shipping_cost = 0` guardado en DB (no lo reemplaza por tarifa dinámica), permitiendo casos como “por pagar”, cortesía o ajuste manual.
+- `products.hide_from_recipes`: extras de venta (hielo, decoración, bombillas) siguen en catálogo y no aparecen en Recetario como «sin receta».
+- UI Productos: botón ojo + checkbox en ficha. Recetario filtra esos productos al crear receta.
+- Ya marcados: **Hielo Cubo**, **Hielo Frappe**, **Decoracción Limón**, **Decoracción Naranja**, **Decoración Menta Fresca**, **Bombillas Largas**.
+- Migración `20260907183000_product_hide_from_recipes`.
 
-### 03-09-2026 (Sesión 103) — Admin detalle: vista unificada sin pestañas
+### 07-09-2026 (Sesión 113) — Insumos ocultos en producción
 
-- `/admin/quotes/[id]`: una sola ficha visual (`QuoteOperationalSummary`) reemplaza resumen + pestañas Datos/Items/Pagos/Email.
-- Barra de acciones unificada: cambio de estado, eliminar, email confirmación/cotización, Calendar, redactar email (modal), review.
-- Modo edición global (Editar → Guardar/Cancelar): cliente, logística, dirección, productos, costos y notas en la misma ficha; guardado secuencial `updateQuoteAdmin` + `updateQuoteItemsAdmin`.
-- Cobro integra historial de pagos, registrar pago y transferencia total; WhatsApp y link público movidos al header.
+- `ingredients.hide_in_production`: el insumo sigue en costeo de recetas pero no aparece en Producción (lista, WhatsApp, recetas escaladas).
+- UI Insumos: botón ojo (ocultar en producción) + checkbox en el modal. Recetas marcan «Solo costeo».
+- Ya marcados: **Hielo Cubo/Frappe**, **Decoración Desidratada**, **Decoración Menta**, **Barril Pet 5L Talos**.
+- Migración `20260907180000_ingredient_hide_in_production`.
 
-### 03-09-2026 (Sesión 102) — Admin detalle: resumen operativo completo
+### 07-09-2026 (Sesión 112) — Producción manual: lista corta de cócteles
 
-- `QuoteOperationalSummary` rediseñado como ficha completa del pedido (estilo «Información de Contacto» del link único).
-- Nuevo: bloque Cliente (nombre, email, celular + copiar/WhatsApp/mailto), tarjeta Evento/Entrega (fecha, retiro, temática), stats (invitados, equipo, volumen, barriles).
-- Pedido con precio por línea (`qty × size`, total línea + unitario) y sección «Cobro»: productos, transporte, instalación, descuento, total, pagado y saldo.
-- Header con chip de estado de pago; despacho y notas mantienen su lugar. Solo estilos inline (sin `<style>`), grids responsivas `auto-fit`.
+- En Recetario → Producción → Manual ya no se muestra el catálogo completo con un input por receta.
+- Flujo: buscar y agregar solo los cócteles necesarios; después ingresar litros en esa lista corta (quitar con X).
+- Archivo: `app/admin/recetario/RecetarioClient.tsx`.
 
-### 25-08-2026 (Sesión 101) — Supabase security linter (RLS + función geo)
+### 07-09-2026 (Sesión 111) — Exportador admin configurable
 
-- Alerta `rls_disabled_in_public`: RLS en `reminder_suppressions` (`20260825200000_...`).
-- Warning `function_search_path_mutable`: `prevent_geo_delete` con `SET search_path = ''`.
-- INFO `rls_enabled_no_policy` (20 tablas service-only): política explícita `deny_api_access` (`USING false`); migración `20260825210000_security_linter_fixes.sql`. Advisors en cero.
+- Nueva sección `/admin/exportar`: datasets **Clientes** y **Cotizaciones**, catálogo de campos, filtros, formatos CSV/TXT/JSON (BOM UTF-8, separador `;`/`,`, fechas es-CL o ISO, montos planos o `$`).
+- Presets incorporados: Meta Ads (PII crudo o SHA-256), Mailchimp, Contabilidad; presets propios en `site_settings` (`category=exports`, `key=export_preset_<slug>`).
+- Archivos: `lib/services/exportService.ts`, `lib/exportSchemas.ts`, `app/actions/admin/exportActions.ts`, `app/admin/exportar/*`, ítem **Exportar** en sidebar.
 
-### 24-08-2026 (Sesión 100) — Wizard eventos: guía de pedido (tips consumo)
+### 07-09-2026 (Sesión 110) — Recetario: hielo, decoraciones y orden Barril Pet
 
-- Eliminada sugerencia de mezcla de barriles (`1 barril de 20L`, etc.) en paso 1 y 2.
-- Nuevo helper `getEventConsumptionGuidance`: tips barra complemento (~2 tr/p) vs principal (3+ tr/p).
-- Paso 1 (`EventWizardConfig`): bloque «Guía de pedido» con litros calculados + tips de referencia (resalta según slider).
-- Paso 2 (`EventWizardCatalog`): barra inferior muestra tip activo + objetivo en litros.
+- Migración `20260907160000_recipe_event_ice_decorations`: en las 25 recetas activas base 5L se agregó **Hielo Cubo/Frappe** 4000 g y **Decoración Desidratada** 1 u con `applies_to=event`.
+- **Decoración Menta** 1 u (`event`) en los 8 mojitos y Moscow Mule.
+- **Barril Pet 5L Talos** se muestra y persiste al final de la lista de insumos (`sortRecipeItemsForDisplay`, guardado en `saveRecipe`, producción y `created_at` en BD).
+- UI recetas: costos/precios en tablas (margen + **Precio para el cliente** por tamaño); en PC selector combobox arriba (búsqueda + anterior/siguiente) en vez de barra lateral; móvil sigue con lista de cards.
 
 ---
 
-*Ultima actualizacion: 03-09-2026 (Sesión 104)*
+*Ultima actualizacion: 07-09-2026 (Sesión 114)*

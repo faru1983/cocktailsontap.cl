@@ -20,14 +20,18 @@ export default async function RecetarioPage() {
                 id,
                 ingredient_id,
                 qty_base,
-                ingredients ( id, name, category, format_qty, format_unit, format_price, is_active )
+                applies_to,
+                ingredients ( id, name, category, format_qty, format_unit, format_price, is_active, hide_in_production )
             )
-        `).order('created_at', { ascending: true }),
+        `)
+            .order('created_at', { ascending: true })
+            .order('created_at', { foreignTable: 'recipe_items', ascending: true }),
         db.from('products').select(`
             id,
             name,
             is_active,
-            product_prices ( id, size, size_value, price, offer_price, is_active, display_order )
+            hide_from_recipes,
+            product_prices ( id, size, size_value, price, offer_price, is_active, display_order, is_disposable )
         `).order('display_order', { ascending: true }),
         db.from('categories').select('id, name, is_active').eq('is_active', true).order('display_order', { ascending: true }),
     ]);

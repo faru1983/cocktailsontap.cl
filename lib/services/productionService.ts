@@ -2,7 +2,8 @@
 
 export const INGREDIENT_CATEGORIES = ['Licor', 'Bebida', 'Endulzante', 'Jugo', 'Otros'] as const;
 export type IngredientCategory = (typeof INGREDIENT_CATEGORIES)[number];
-export type FormatUnit = 'ml' | 'g';
+export type FormatUnit = 'ml' | 'g' | 'u';
+export type RecipeAppliesTo = 'all' | 'disposable' | 'event';
 
 export interface IngredientLike {
     id: string;
@@ -12,11 +13,15 @@ export interface IngredientLike {
     format_unit: FormatUnit | string;
     format_price: number;
     is_active?: boolean;
+    /** Si true, entra en costeo de recetas pero no en listas de producción. */
+    hide_in_production?: boolean;
 }
 
 export interface RecipeItemLike {
     ingredient_id: string;
     qty_base: number;
+    /** all = ambos; disposable = solo desechables; event = solo eventos */
+    applies_to?: RecipeAppliesTo | string | null;
     ingredients?: IngredientLike | null;
 }
 
@@ -36,6 +41,8 @@ export interface QuoteItemForProduction {
     product_name: string;
     quantity: number;
     size_value: number | null;
+    size?: string | null;
+    is_disposable?: boolean | null;
 }
 
 export interface ProductionLine {
@@ -85,11 +92,70 @@ export interface ProductionResult {
     skipped: string[];
 }
 
+export interface ScopedLiters {
+    disposable: number;
+    event: number;
+}
+
 function groupLinesByCategory(lines: ScaledRecipeLine[]): { category: string; items: ScaledRecipeLine[] }[] {
     return INGREDIENT_CATEGORIES.map((category) => ({
         category,
         items: lines.filter((l) => l.category === category),
     })).filter((g) => g.items.length > 0);
+}
+
+export function normalizeAppliesTo(value: unknown): RecipeAppliesTo {
+    if (value === 'disposable' || value === 'event') return value;
+    return 'all';
+}
+
+/** Packaging (ej. Barril Pet) se muestra al final de la lista de insumos. */
+export function isPackagingIngredientName(name: string): boolean {
+    return /barril pet/i.test(name);
+}
+
+export function compareIngredientDisplayOrder(aName: string, bName: string): number {
+    const aPack = isPackagingIngredientName(aName);
+    const bPack = isPackagingIngredientName(bName);
+    if (aPack !== bPack) return aPack ? 1 : -1;
+    return aName.localeCompare(bName, 'es');
+}
+
+export function sortRecipeItemsForDisplay<
+    T extends { ingredients?: { name?: string } | null; ingredient_id?: string },
+>(items: T[]): T[] {
+    const packaging: T[] = [];
+    const regular: T[] = [];
+    for (const item of items) {
+        const name = item.ingredients?.name || '';
+        if (isPackagingIngredientName(name)) packaging.push(item);
+        else regular.push(item);
+    }
+    return [...regular, ...packaging];
+}
+
+export function sortRecipeItemRowsByIngredientName<
+    T extends { ingredient_id: string },
+>(items: T[], nameById: Map<string, string>): T[] {
+    return [...items].sort((a, b) =>
+        compareIngredientDisplayOrder(nameById.get(a.ingredient_id) || '', nameById.get(b.ingredient_id) || '')
+    );
+}
+
+/** true si la línea aplica al canal (margen o producción). */
+export function recipeItemAppliesToScope(
+    item: Pick<RecipeItemLike, 'applies_to'>,
+    scope: RecipeAppliesTo
+): boolean {
+    const applies = normalizeAppliesTo(item.applies_to);
+    if (applies === 'all') return true;
+    return applies === scope;
+}
+
+export function isDisposableQuoteItem(item: Pick<QuoteItemForProduction, 'is_disposable' | 'size'>): boolean {
+    if (item.is_disposable === true) return true;
+    if (item.is_disposable === false) return false;
+    return /desechable/i.test(String(item.size || ''));
 }
 
 export function costPerUnit(ing: Pick<IngredientLike, 'format_price' | 'format_qty'>): number {
@@ -98,12 +164,20 @@ export function costPerUnit(ing: Pick<IngredientLike, 'format_price' | 'format_q
     return Number(ing.format_price) / qty;
 }
 
+/**
+ * Costo de receta filtrado por canal.
+ * - event: líneas all + event (barriles de evento)
+ * - disposable: líneas all + disposable (barriles desechables)
+ * - all: todas las líneas (lista completa / modo manual sin canal)
+ */
 export function costRecipe(
     items: RecipeItemLike[],
-    baseLiters = 5
+    baseLiters = 5,
+    scope: RecipeAppliesTo = 'all'
 ): { total: number; perLiter: number; perDrink: number } {
     let total = 0;
     for (const item of items) {
+        if (scope !== 'all' && !recipeItemAppliesToScope(item, scope)) continue;
         const ing = item.ingredients;
         if (!ing) continue;
         total += Number(item.qty_base) * costPerUnit(ing);
@@ -200,6 +274,7 @@ export function rangeFor(range: QuoteRange, timeZone: string, now = new Date()):
 /**
  * Agrega litros por product_id desde items de cotización.
  * Solo suma si product_id está en recipeProductIds y size_value > 0.
+ * Separa litros desechables vs evento para insumos con applies_to.
  */
 export function aggregateFromQuotes(
     items: QuoteItemForProduction[],
@@ -207,10 +282,12 @@ export function aggregateFromQuotes(
 ): {
     litersByProductId: Record<string, number>;
     sizeBreakdownByProductId: Record<string, Record<number, number>>;
+    scopedLitersByProductId: Record<string, ScopedLiters>;
     skipped: string[];
 } {
     const litersByProductId: Record<string, number> = {};
     const sizeBreakdownByProductId: Record<string, Record<number, number>> = {};
+    const scopedLitersByProductId: Record<string, ScopedLiters> = {};
     const skipped: string[] = [];
     const skippedSet = new Set<string>();
 
@@ -233,13 +310,22 @@ export function aggregateFromQuotes(
             }
             continue;
         }
-        litersByProductId[item.product_id] = (litersByProductId[item.product_id] || 0) + sizeVal * qty;
+        const addLiters = sizeVal * qty;
+        litersByProductId[item.product_id] = (litersByProductId[item.product_id] || 0) + addLiters;
         const breakdown = sizeBreakdownByProductId[item.product_id] || {};
         breakdown[sizeVal] = (breakdown[sizeVal] || 0) + qty;
         sizeBreakdownByProductId[item.product_id] = breakdown;
+
+        const scoped = scopedLitersByProductId[item.product_id] || { disposable: 0, event: 0 };
+        if (isDisposableQuoteItem(item)) {
+            scoped.disposable += addLiters;
+        } else {
+            scoped.event += addLiters;
+        }
+        scopedLitersByProductId[item.product_id] = scoped;
     }
 
-    return { litersByProductId, sizeBreakdownByProductId, skipped };
+    return { litersByProductId, sizeBreakdownByProductId, scopedLitersByProductId, skipped };
 }
 
 /** Desglose de barriles para resumen (ej. "4x5L" o "1x10L + 2x5L"). */
@@ -264,7 +350,8 @@ export function formatProductionProductLine(row: Pick<ProductionProductSummary, 
 export function scaleProduction(
     litersByProductId: Record<string, number>,
     recipes: RecipeLike[],
-    sizeBreakdownByProductId?: Record<string, Record<number, number>>
+    sizeBreakdownByProductId?: Record<string, Record<number, number>>,
+    scopedLitersByProductId?: Record<string, ScopedLiters>
 ): ProductionResult {
     const recipeByProduct = new Map(recipes.map((r) => [r.product_id, r]));
     const ingredientTotals = new Map<string, ProductionLine>();
@@ -290,12 +377,22 @@ export function scaleProduction(
         };
 
         const base = Number(recipe.base_liters) || 5;
-        const factor = liters / base;
+        const scoped = scopedLitersByProductId?.[productId];
         const recipeLines: ScaledRecipeLine[] = [];
 
         for (const item of recipe.recipe_items || []) {
             const ing = item.ingredients;
-            if (!ing || ing.is_active === false) continue;
+            if (!ing || ing.is_active === false || ing.hide_in_production) continue;
+
+            const applies = normalizeAppliesTo(item.applies_to);
+            let litersForItem = liters;
+            if (scoped) {
+                if (applies === 'disposable') litersForItem = scoped.disposable;
+                else if (applies === 'event') litersForItem = scoped.event;
+            }
+            if (litersForItem <= 0) continue;
+
+            const factor = litersForItem / base;
             const qty = Number(item.qty_base) * factor;
             recipeLines.push({
                 ingredientId: ing.id,
@@ -330,7 +427,7 @@ export function scaleProduction(
             }
         }
 
-        recipeLines.sort((a, b) => a.name.localeCompare(b.name, 'es'));
+        recipeLines.sort((a, b) => compareIngredientDisplayOrder(a.name, b.name));
         scaledRecipes.push({
             productId,
             name,

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState, useTransition, Fragment } from 'react';
+import { useEffect, useMemo, useRef, useState, useTransition, Fragment } from 'react';
 import { useRouter } from 'next/navigation';
 import Modal from '@/components/admin/Modal';
 import { formatCurrency } from '@/lib/utils';
@@ -27,9 +27,13 @@ import {
     roundQty,
     isBottleCategory,
     formatBottleCount,
+    normalizeAppliesTo,
+    sortRecipeItemsForDisplay,
     type ProductionResult,
     type QuoteRange,
     type IngredientCategory,
+    type RecipeAppliesTo,
+    type FormatUnit,
 } from '@/lib/services/productionService';
 import type { IngredientPatchInput } from '@/lib/types';
 import {
@@ -45,10 +49,21 @@ import {
     Printer,
     Search,
     ArrowLeft,
+    ChevronLeft,
+    ChevronRight,
+    ChevronsUpDown,
+    Eye,
+    EyeOff,
 } from 'lucide-react';
 
 type Tab = 'insumos' | 'recetas' | 'produccion';
 type ProdMode = 'manual' | 'quotes';
+
+const APPLIES_TO_LABELS: Record<RecipeAppliesTo, string> = {
+    all: 'Todos',
+    disposable: 'Desechables',
+    event: 'Eventos',
+};
 
 type Ingredient = {
     id: string;
@@ -59,6 +74,7 @@ type Ingredient = {
     format_price: number;
     supplier: string | null;
     is_active: boolean;
+    hide_in_production?: boolean;
 };
 
 type IngEditField = 'name' | 'category' | 'format' | 'format_price' | 'supplier';
@@ -67,6 +83,7 @@ type RecipeItem = {
     id?: string;
     ingredient_id: string;
     qty_base: number;
+    applies_to?: RecipeAppliesTo | string | null;
     ingredients?: Ingredient | null;
 };
 
@@ -84,6 +101,7 @@ type ProductRow = {
     id: string;
     name: string;
     is_active: boolean;
+    hide_from_recipes?: boolean;
     product_prices?: {
         id: string;
         size: string;
@@ -92,6 +110,7 @@ type ProductRow = {
         offer_price: number | null;
         is_active: boolean;
         display_order: number | null;
+        is_disposable?: boolean | null;
     }[];
 };
 
@@ -100,6 +119,327 @@ const fieldClass =
     'bg-[#0d1117] border border-white/10 rounded-xl px-3 py-2.5 text-sm text-slate-200 outline-none focus:border-[#E2A049]/50';
 const inputClass = `w-full ${fieldClass}`;
 const labelClass = 'block text-[11px] font-bold uppercase tracking-widest text-slate-500 mb-1.5';
+
+function RecipeSwitcher({
+    recipes,
+    selected,
+    onSelect,
+}: {
+    recipes: Recipe[];
+    selected: Recipe | null;
+    onSelect: (id: string) => void;
+}) {
+    const [open, setOpen] = useState(false);
+    const [query, setQuery] = useState('');
+    const [highlight, setHighlight] = useState(0);
+    const rootRef = useRef<HTMLDivElement>(null);
+    const inputRef = useRef<HTMLInputElement>(null);
+    const optionRefs = useRef<(HTMLButtonElement | null)[]>([]);
+
+    const filtered = useMemo(() => {
+        const q = query.trim().toLowerCase();
+        if (!q) return recipes;
+        return recipes.filter((r) => (r.products?.name || '').toLowerCase().includes(q));
+    }, [recipes, query]);
+
+    const selectedIndex = recipes.findIndex((r) => r.id === selected?.id);
+
+    const goRelative = (delta: number) => {
+        if (recipes.length === 0) return;
+        const i = selectedIndex < 0 ? 0 : selectedIndex;
+        const next = recipes[(i + delta + recipes.length) % recipes.length];
+        onSelect(next.id);
+    };
+
+    useEffect(() => {
+        if (!open) return;
+        const onDoc = (e: MouseEvent) => {
+            if (!rootRef.current?.contains(e.target as Node)) setOpen(false);
+        };
+        document.addEventListener('mousedown', onDoc);
+        return () => document.removeEventListener('mousedown', onDoc);
+    }, [open]);
+
+    useEffect(() => {
+        if (!open) return;
+        setQuery('');
+        const idx = recipes.findIndex((r) => r.id === selected?.id);
+        setHighlight(idx >= 0 ? idx : 0);
+        requestAnimationFrame(() => inputRef.current?.focus());
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [open]);
+
+    useEffect(() => {
+        optionRefs.current[highlight]?.scrollIntoView({ block: 'nearest' });
+    }, [highlight]);
+
+    const pick = (id: string) => {
+        onSelect(id);
+        setOpen(false);
+    };
+
+    const onKeyDown = (e: React.KeyboardEvent) => {
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            if (!open) {
+                setOpen(true);
+                return;
+            }
+            setHighlight((h) => Math.min(h + 1, Math.max(filtered.length - 1, 0)));
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            setHighlight((h) => Math.max(h - 1, 0));
+        } else if (e.key === 'Enter') {
+            e.preventDefault();
+            const item = filtered[highlight];
+            if (open && item) pick(item.id);
+            else setOpen(true);
+        } else if (e.key === 'Escape') {
+            setOpen(false);
+        }
+    };
+
+    const name = selected?.products?.name || 'Selecciona una receta';
+    const positionLabel =
+        selectedIndex >= 0 ? `${selectedIndex + 1} / ${recipes.length}` : `${recipes.length} recetas`;
+
+    return (
+        <div ref={rootRef} className="flex items-center gap-2 min-w-0 flex-1">
+            <div className="relative min-w-0 flex-1">
+                <button
+                    type="button"
+                    aria-haspopup="listbox"
+                    aria-expanded={open}
+                    onClick={() => setOpen((v) => !v)}
+                    onKeyDown={onKeyDown}
+                    className="w-full flex items-center justify-between gap-3 bg-[#0d1117] border border-white/10 hover:border-[#E2A049]/40 rounded-xl px-4 py-2.5 text-left cursor-pointer"
+                >
+                    <span className="min-w-0">
+                        <span className="block text-[10px] font-bold uppercase tracking-widest text-slate-500">
+                            Receta
+                        </span>
+                        <span className="block text-white font-black text-base truncate">{name}</span>
+                    </span>
+                    <ChevronsUpDown size={16} className="shrink-0 text-slate-500" />
+                </button>
+
+                {open && (
+                    <div className="absolute left-0 right-0 top-full mt-2 z-30 bg-[#161c28] border border-white/10 rounded-xl shadow-2xl overflow-hidden">
+                        <div className="relative border-b border-white/5">
+                            <Search
+                                size={14}
+                                className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
+                            />
+                            <input
+                                ref={inputRef}
+                                value={query}
+                                onChange={(e) => {
+                                    setQuery(e.target.value);
+                                    setHighlight(0);
+                                }}
+                                onKeyDown={onKeyDown}
+                                placeholder="Buscar cóctel…"
+                                className="w-full bg-transparent border-none outline-none text-sm text-slate-200 pl-9 pr-3 py-2.5"
+                            />
+                        </div>
+                        <div role="listbox" className="max-h-72 overflow-y-auto">
+                            {filtered.length === 0 && (
+                                <p className="px-4 py-6 text-center text-sm text-slate-500">Sin coincidencias</p>
+                            )}
+                            {filtered.map((r, idx) => {
+                                const active = r.id === selected?.id;
+                                const highlighted = idx === highlight;
+                                return (
+                                    <button
+                                        key={r.id}
+                                        type="button"
+                                        role="option"
+                                        aria-selected={active}
+                                        ref={(el) => {
+                                            optionRefs.current[idx] = el;
+                                        }}
+                                        onMouseEnter={() => setHighlight(idx)}
+                                        onClick={() => pick(r.id)}
+                                        className={`w-full text-left px-4 py-2.5 border-none cursor-pointer flex items-center justify-between gap-3 ${
+                                            highlighted ? 'bg-[#E2A049]/12' : 'bg-transparent'
+                                        }`}
+                                    >
+                                        <span className="min-w-0">
+                                            <span
+                                                className={`block text-sm font-bold truncate ${
+                                                    active ? 'text-white' : 'text-slate-300'
+                                                }`}
+                                            >
+                                                {r.products?.name || 'Sin producto'}
+                                            </span>
+                                            <span className="block text-[10px] uppercase tracking-widest text-slate-500 mt-0.5">
+                                                {r.recipe_items?.length || 0} insumos
+                                                {r.products && !r.products.is_active ? ' · Oculto' : ''}
+                                                {!r.is_active ? ' · Inactiva' : ''}
+                                            </span>
+                                        </span>
+                                        {active && <Check size={14} className="shrink-0 text-[#E2A049]" />}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            <div className="hidden lg:flex items-center gap-1 shrink-0">
+                <button
+                    type="button"
+                    title="Receta anterior"
+                    disabled={recipes.length < 2}
+                    onClick={() => goRelative(-1)}
+                    className="p-2 rounded-xl bg-white/5 text-slate-400 border-none cursor-pointer hover:text-white disabled:opacity-30"
+                >
+                    <ChevronLeft size={16} />
+                </button>
+                <span className="text-[11px] tabular-nums text-slate-500 font-bold min-w-[4.5rem] text-center">
+                    {positionLabel}
+                </span>
+                <button
+                    type="button"
+                    title="Receta siguiente"
+                    disabled={recipes.length < 2}
+                    onClick={() => goRelative(1)}
+                    className="p-2 rounded-xl bg-white/5 text-slate-400 border-none cursor-pointer hover:text-white disabled:opacity-30"
+                >
+                    <ChevronRight size={16} />
+                </button>
+            </div>
+        </div>
+    );
+}
+
+function ManualCocktailPicker({
+    recipes,
+    onAdd,
+}: {
+    recipes: Recipe[];
+    onAdd: (productId: string) => void;
+}) {
+    const [open, setOpen] = useState(false);
+    const [query, setQuery] = useState('');
+    const [highlight, setHighlight] = useState(0);
+    const rootRef = useRef<HTMLDivElement>(null);
+    const inputRef = useRef<HTMLInputElement>(null);
+    const optionRefs = useRef<(HTMLButtonElement | null)[]>([]);
+
+    const filtered = useMemo(() => {
+        const q = query.trim().toLowerCase();
+        if (!q) return recipes;
+        return recipes.filter((r) => (r.products?.name || '').toLowerCase().includes(q));
+    }, [recipes, query]);
+
+    useEffect(() => {
+        if (!open) return;
+        const onDoc = (e: MouseEvent) => {
+            if (!rootRef.current?.contains(e.target as Node)) setOpen(false);
+        };
+        document.addEventListener('mousedown', onDoc);
+        return () => document.removeEventListener('mousedown', onDoc);
+    }, [open]);
+
+    useEffect(() => {
+        optionRefs.current[highlight]?.scrollIntoView({ block: 'nearest' });
+    }, [highlight]);
+
+    useEffect(() => {
+        if (highlight >= filtered.length) setHighlight(0);
+    }, [filtered.length, highlight]);
+
+    useEffect(() => {
+        if (open && recipes.length === 0) setOpen(false);
+    }, [open, recipes.length]);
+
+    const pick = (productId: string) => {
+        onAdd(productId);
+        setQuery('');
+        setHighlight(0);
+        setOpen(false);
+        requestAnimationFrame(() => inputRef.current?.focus());
+    };
+
+    const onKeyDown = (e: React.KeyboardEvent) => {
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            if (!open) {
+                setOpen(true);
+                return;
+            }
+            setHighlight((h) => Math.min(h + 1, Math.max(filtered.length - 1, 0)));
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            setHighlight((h) => Math.max(h - 1, 0));
+        } else if (e.key === 'Enter') {
+            e.preventDefault();
+            const item = filtered[highlight];
+            if (item) pick(item.product_id);
+            else setOpen(true);
+        } else if (e.key === 'Escape') {
+            setOpen(false);
+        }
+    };
+
+    const disabled = recipes.length === 0;
+
+    return (
+        <div ref={rootRef} className="relative">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
+            <input
+                ref={inputRef}
+                value={query}
+                disabled={disabled}
+                placeholder={disabled ? 'No quedan cócteles por agregar' : 'Buscar y agregar cóctel…'}
+                onChange={(e) => {
+                    setQuery(e.target.value);
+                    setOpen(true);
+                    setHighlight(0);
+                }}
+                onFocus={() => {
+                    if (!disabled) setOpen(true);
+                }}
+                onKeyDown={onKeyDown}
+                className={`${inputClass} pl-9`}
+            />
+            {open && !disabled && (
+                <div className="absolute left-0 right-0 top-full mt-2 z-30 bg-[#161c28] border border-white/10 rounded-xl shadow-2xl overflow-hidden">
+                    <div role="listbox" className="max-h-72 overflow-y-auto">
+                        {filtered.length === 0 && (
+                            <p className="px-4 py-6 text-center text-sm text-slate-500">Sin coincidencias</p>
+                        )}
+                        {filtered.map((r, idx) => {
+                            const highlighted = idx === highlight;
+                            return (
+                                <button
+                                    key={r.id}
+                                    type="button"
+                                    role="option"
+                                    aria-selected={highlighted}
+                                    ref={(el) => {
+                                        optionRefs.current[idx] = el;
+                                    }}
+                                    onMouseEnter={() => setHighlight(idx)}
+                                    onClick={() => pick(r.product_id)}
+                                    className={`w-full text-left px-4 py-2.5 border-none cursor-pointer ${
+                                        highlighted ? 'bg-[#E2A049]/12' : 'bg-transparent'
+                                    }`}
+                                >
+                                    <span className="block text-sm font-bold truncate text-slate-200">
+                                        {r.products?.name || 'Sin producto'}
+                                    </span>
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
 
 export default function RecetarioClient({
     ingredients,
@@ -116,7 +456,15 @@ export default function RecetarioClient({
     const [isPending, startTransition] = useTransition();
     const [tab, setTab] = useState<Tab>('produccion');
     const [search, setSearch] = useState('');
-    type IngSortKey = 'name' | 'category' | 'supplier' | 'format_qty' | 'format_price' | 'cost' | 'is_active';
+    type IngSortKey =
+        | 'name'
+        | 'category'
+        | 'supplier'
+        | 'format_qty'
+        | 'format_price'
+        | 'cost'
+        | 'is_active'
+        | 'hide_in_production';
     const [ingSort, setIngSort] = useState<{ key: IngSortKey; dir: 'asc' | 'desc' }>({
         key: 'name',
         dir: 'asc',
@@ -138,10 +486,11 @@ export default function RecetarioClient({
             name: string;
             category: IngredientCategory;
             format_qty: number;
-            format_unit: 'ml' | 'g';
+            format_unit: FormatUnit;
             format_price: number;
             supplier: string;
             is_active: boolean;
+            hide_in_production: boolean;
         };
     }>({
         open: false,
@@ -153,6 +502,7 @@ export default function RecetarioClient({
             format_price: 0,
             supplier: '',
             is_active: true,
+            hide_in_production: false,
         },
     });
 
@@ -167,11 +517,19 @@ export default function RecetarioClient({
             base_liters: number;
             notes: string;
             is_active: boolean;
-            items: { ingredient_id: string; qty_base: number }[];
+            items: { ingredient_id: string; qty_base: number; applies_to: RecipeAppliesTo }[];
         };
     }>({
         open: false,
-        data: { product_id: '', new_product_name: '', new_product_category_id: '', base_liters: 5, notes: '', is_active: true, items: [{ ingredient_id: '', qty_base: 0 }] },
+        data: {
+            product_id: '',
+            new_product_name: '',
+            new_product_category_id: '',
+            base_liters: 5,
+            notes: '',
+            is_active: true,
+            items: [{ ingredient_id: '', qty_base: 0, applies_to: 'all' }],
+        },
     });
     const [recipeError, setRecipeError] = useState<string | null>(null);
     const [selectedRecipeId, setSelectedRecipeId] = useState<string | null>(null);
@@ -180,6 +538,7 @@ export default function RecetarioClient({
     // ── Producción ──
     const [prodMode, setProdMode] = useState<ProdMode>('quotes');
     const [manualLiters, setManualLiters] = useState<Record<string, string>>({});
+    const [selectedManualProductIds, setSelectedManualProductIds] = useState<string[]>([]);
     const [quoteRange, setQuoteRange] = useState<QuoteRange>('week');
     const [quotes, setQuotes] = useState<ProductionQuoteRow[]>([]);
     const [quoteRangeLabel, setQuoteRangeLabel] = useState({ from: '', to: '' });
@@ -195,8 +554,28 @@ export default function RecetarioClient({
 
     const recipeProductIds = useMemo(() => new Set(recipes.map((r) => r.product_id)), [recipes]);
 
+    const activeRecipesSorted = useMemo(
+        () =>
+            recipes
+                .filter((r) => r.is_active)
+                .sort((a, b) => (a.products?.name || '').localeCompare(b.products?.name || '', 'es')),
+        [recipes]
+    );
+
+    const remainingManualRecipes = useMemo(() => {
+        const selected = new Set(selectedManualProductIds);
+        return activeRecipesSorted.filter((r) => !selected.has(r.product_id));
+    }, [activeRecipesSorted, selectedManualProductIds]);
+
+    const selectedManualRecipes = useMemo(() => {
+        const byProduct = new Map(activeRecipesSorted.map((r) => [r.product_id, r]));
+        return selectedManualProductIds
+            .map((id) => byProduct.get(id))
+            .filter((r): r is Recipe => Boolean(r));
+    }, [activeRecipesSorted, selectedManualProductIds]);
+
     const productsWithoutRecipe = useMemo(
-        () => products.filter((p) => !recipeProductIds.has(p.id)),
+        () => products.filter((p) => !p.hide_from_recipes && !recipeProductIds.has(p.id)),
         [products, recipeProductIds]
     );
 
@@ -236,6 +615,9 @@ export default function RecetarioClient({
             } else if (ingSort.key === 'is_active') {
                 valA = a.is_active ? 1 : 0;
                 valB = b.is_active ? 1 : 0;
+            } else if (ingSort.key === 'hide_in_production') {
+                valA = a.hide_in_production ? 1 : 0;
+                valB = b.hide_in_production ? 1 : 0;
             } else if (ingSort.key === 'category') {
                 valA = a.category.toLowerCase();
                 valB = b.category.toLowerCase();
@@ -264,9 +646,22 @@ export default function RecetarioClient({
         );
     }, [recipes, search]);
 
+    const sortedRecipes = useMemo(
+        () =>
+            [...recipes].sort((a, b) =>
+                (a.products?.name || '').localeCompare(b.products?.name || '', 'es', { sensitivity: 'base' })
+            ),
+        [recipes]
+    );
+
     const selectedRecipe = useMemo(
-        () => recipes.find((r) => r.id === selectedRecipeId) || filteredRecipes[0] || null,
-        [recipes, selectedRecipeId, filteredRecipes]
+        () => recipes.find((r) => r.id === selectedRecipeId) || sortedRecipes[0] || null,
+        [recipes, selectedRecipeId, sortedRecipes]
+    );
+
+    const selectedRecipeItems = useMemo(
+        () => sortRecipeItemsForDisplay(selectedRecipe?.recipe_items || []),
+        [selectedRecipe?.recipe_items]
     );
 
     useEffect(() => {
@@ -308,10 +703,11 @@ export default function RecetarioClient({
                         ? ing.category
                         : 'Otros') as IngredientCategory,
                     format_qty: Number(ing.format_qty),
-                    format_unit: (ing.format_unit as 'ml' | 'g') || 'ml',
+                    format_unit: (ing.format_unit as FormatUnit) || 'ml',
                     format_price: Number(ing.format_price),
                     supplier: ing.supplier || '',
                     is_active: ing.is_active,
+                    hide_in_production: !!ing.hide_in_production,
                 },
             });
         } else {
@@ -325,6 +721,7 @@ export default function RecetarioClient({
                     format_price: 0,
                     supplier: '',
                     is_active: true,
+                    hide_in_production: false,
                 },
             });
         }
@@ -371,10 +768,11 @@ export default function RecetarioClient({
                     notes: recipe.notes || '',
                     is_active: recipe.is_active,
                     items:
-                        recipe.recipe_items?.map((i) => ({
+                        sortRecipeItemsForDisplay(recipe.recipe_items || []).map((i) => ({
                             ingredient_id: i.ingredient_id,
                             qty_base: Number(i.qty_base),
-                        })) || [{ ingredient_id: '', qty_base: 0 }],
+                            applies_to: normalizeAppliesTo(i.applies_to),
+                        })) || [{ ingredient_id: '', qty_base: 0, applies_to: 'all' }],
                 },
             });
         } else {
@@ -387,7 +785,7 @@ export default function RecetarioClient({
                     base_liters: 5,
                     notes: '',
                     is_active: true,
-                    items: [{ ingredient_id: '', qty_base: 0 }],
+                    items: [{ ingredient_id: '', qty_base: 0, applies_to: 'all' }],
                 },
             });
         }
@@ -437,10 +835,16 @@ export default function RecetarioClient({
     };
 
     const calculateManual = () => {
+        if (selectedManualProductIds.length === 0) {
+            setResult(null);
+            setSkippedNotice([]);
+            alert('Agrega al menos un cóctel.');
+            return;
+        }
         const litersByProductId: Record<string, number> = {};
-        for (const recipe of recipes.filter((r) => r.is_active)) {
-            const val = parseFloat(manualLiters[recipe.product_id] || '0');
-            if (val > 0) litersByProductId[recipe.product_id] = val;
+        for (const productId of selectedManualProductIds) {
+            const val = parseFloat(manualLiters[productId] || '0');
+            if (val > 0) litersByProductId[productId] = val;
         }
         if (Object.keys(litersByProductId).length === 0) {
             setResult(null);
@@ -461,23 +865,44 @@ export default function RecetarioClient({
         }
         const allItems = selected.flatMap((q) => q.quote_items || []);
         const recipeIds = new Set(recipes.filter((r) => r.is_active).map((r) => r.product_id));
-        const { litersByProductId, sizeBreakdownByProductId, skipped } = aggregateFromQuotes(allItems, recipeIds);
+        const { litersByProductId, sizeBreakdownByProductId, scopedLitersByProductId, skipped } =
+            aggregateFromQuotes(allItems, recipeIds);
         if (Object.keys(litersByProductId).length === 0) {
             setResult(null);
             setSkippedNotice(skipped);
             alert('No hay cócteles con receta en las cotizaciones seleccionadas.');
             return;
         }
-        const scaled = scaleProduction(litersByProductId, recipes, sizeBreakdownByProductId);
+        const scaled = scaleProduction(
+            litersByProductId,
+            recipes,
+            sizeBreakdownByProductId,
+            scopedLitersByProductId
+        );
         setResult(scaled);
         setSkippedNotice(skipped);
     };
 
     const clearProduction = () => {
         setManualLiters({});
+        setSelectedManualProductIds([]);
         setSelectedQuoteIds(new Set());
         setResult(null);
         setSkippedNotice([]);
+    };
+
+    const addManualCocktail = (productId: string) => {
+        setSelectedManualProductIds((prev) => (prev.includes(productId) ? prev : [...prev, productId]));
+    };
+
+    const removeManualCocktail = (productId: string) => {
+        setSelectedManualProductIds((prev) => prev.filter((id) => id !== productId));
+        setManualLiters((prev) => {
+            if (!(productId in prev)) return prev;
+            const next = { ...prev };
+            delete next[productId];
+            return next;
+        });
     };
 
     const shareWhatsApp = () => {
@@ -486,13 +911,40 @@ export default function RecetarioClient({
         window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
     };
 
-    const recipeCost = selectedRecipe
-        ? costRecipe(selectedRecipe.recipe_items || [], Number(selectedRecipe.base_liters) || 5)
+    const recipeCostEvent = selectedRecipe
+        ? costRecipe(selectedRecipe.recipe_items || [], Number(selectedRecipe.base_liters) || 5, 'event')
+        : null;
+    const recipeCostDisposable = selectedRecipe
+        ? costRecipe(selectedRecipe.recipe_items || [], Number(selectedRecipe.base_liters) || 5, 'disposable')
         : null;
 
     const selectedProduct = selectedRecipe
         ? products.find((p) => p.id === selectedRecipe.product_id)
         : null;
+
+    const sortedProductPrices = useMemo(() => {
+        if (!selectedProduct?.product_prices) return [];
+        return [...selectedProduct.product_prices]
+            .filter((p) => p.is_active !== false)
+            .sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
+    }, [selectedProduct]);
+
+    const salePriceBySize = useMemo(() => {
+        if (sortedProductPrices.length === 0) return [];
+        return sortedProductPrices.map((price) => {
+            const liters = Number(price.size_value) || 0;
+            const sale = Number(price.offer_price ?? price.price) || 0;
+            const perLiter = liters > 0 ? sale / liters : 0;
+            const perDrink = perLiter / 5;
+            return {
+                id: price.id,
+                size: price.size,
+                sale,
+                perLiter,
+                perDrink,
+            };
+        });
+    }, [sortedProductPrices]);
 
     const tabTitle =
         tab === 'produccion' ? 'Producción' : tab === 'recetas' ? 'Recetas y Costeo' : 'Insumos';
@@ -510,8 +962,12 @@ export default function RecetarioClient({
                     </p>
                 </div>
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-                    {tab !== 'produccion' && (
-                        <div className="relative flex-1 sm:flex-none">
+                    {(tab === 'insumos' || tab === 'recetas') && (
+                        <div
+                            className={`relative flex-1 sm:flex-none ${
+                                tab === 'recetas' ? 'lg:hidden' : ''
+                            }`}
+                        >
                             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
                             <input
                                 value={search}
@@ -611,8 +1067,33 @@ export default function RecetarioClient({
                                                         ? 'bg-emerald-500/10 text-emerald-400'
                                                         : 'bg-rose-500/10 text-rose-400'
                                                 }`}
+                                                title={ing.is_active ? 'Activo' : 'Inactivo'}
                                             >
                                                 {ing.is_active ? <Check size={16} /> : <X size={16} />}
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() =>
+                                                    applyIngredientPatch(ing.id, {
+                                                        hide_in_production: !ing.hide_in_production,
+                                                    })
+                                                }
+                                                className={`p-2.5 rounded-xl border-none cursor-pointer ${
+                                                    ing.hide_in_production
+                                                        ? 'bg-[#E2A049]/15 text-[#E2A049]'
+                                                        : 'bg-white/5 text-slate-400'
+                                                }`}
+                                                title={
+                                                    ing.hide_in_production
+                                                        ? 'Oculto en producción (solo costeo)'
+                                                        : 'Ocultar en producción'
+                                                }
+                                            >
+                                                {ing.hide_in_production ? (
+                                                    <EyeOff size={16} />
+                                                ) : (
+                                                    <Eye size={16} />
+                                                )}
                                             </button>
                                             <button
                                                 type="button"
@@ -707,6 +1188,7 @@ export default function RecetarioClient({
                                                 { label: 'Precio', field: 'format_price' as const },
                                                 { label: 'Costo/u', field: 'cost' as const },
                                                 { label: 'Estado', field: 'is_active' as const },
+                                                { label: 'Prod.', field: 'hide_in_production' as const },
                                             ] as const
                                         ).map((h) => (
                                             <th
@@ -882,7 +1364,7 @@ export default function RecetarioClient({
                                                                         `fmt-unit-${ing.id}`
                                                                     ) as HTMLSelectElement | null;
                                                                     const unit = (unitEl?.value ||
-                                                                        ing.format_unit) as 'ml' | 'g';
+                                                                        ing.format_unit) as FormatUnit;
                                                                     if (
                                                                         Number.isNaN(qty) ||
                                                                         qty <= 0 ||
@@ -903,7 +1385,7 @@ export default function RecetarioClient({
                                                                 defaultValue={ing.format_unit}
                                                                 className="bg-[#0d1117] border border-[#E2A049]/50 rounded-lg px-2 py-1.5 text-sm text-slate-200 outline-none"
                                                                 onChange={(e) => {
-                                                                    const unit = e.target.value as 'ml' | 'g';
+                                                                    const unit = e.target.value as FormatUnit;
                                                                     const qtyEl = document.getElementById(
                                                                         `fmt-qty-${ing.id}`
                                                                     ) as HTMLInputElement | null;
@@ -930,6 +1412,7 @@ export default function RecetarioClient({
                                                             >
                                                                 <option value="ml">ml</option>
                                                                 <option value="g">g</option>
+                                                                <option value="u">u</option>
                                                             </select>
                                                         </div>
                                                     ) : (
@@ -996,8 +1479,35 @@ export default function RecetarioClient({
                                                                 ? 'bg-emerald-500/10 text-emerald-400'
                                                                 : 'bg-rose-500/10 text-rose-400'
                                                         }`}
+                                                        title={ing.is_active ? 'Activo' : 'Inactivo'}
                                                     >
                                                         {ing.is_active ? <Check size={16} /> : <X size={16} />}
+                                                    </button>
+                                                </td>
+                                                <td className="py-3 px-4">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() =>
+                                                            applyIngredientPatch(ing.id, {
+                                                                hide_in_production: !ing.hide_in_production,
+                                                            })
+                                                        }
+                                                        className={`p-2 rounded-lg border-none cursor-pointer ${
+                                                            ing.hide_in_production
+                                                                ? 'bg-[#E2A049]/15 text-[#E2A049]'
+                                                                : 'bg-white/5 text-slate-400'
+                                                        }`}
+                                                        title={
+                                                            ing.hide_in_production
+                                                                ? 'Oculto en producción (solo costeo)'
+                                                                : 'Ocultar en producción'
+                                                        }
+                                                    >
+                                                        {ing.hide_in_production ? (
+                                                            <EyeOff size={16} />
+                                                        ) : (
+                                                            <Eye size={16} />
+                                                        )}
                                                     </button>
                                                 </td>
                                                 <td className="py-3 px-4">
@@ -1046,95 +1556,60 @@ export default function RecetarioClient({
 
             {/* ═══════════════ RECETAS ═══════════════ */}
             {tab === 'recetas' && (
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
-                    {/* Lista */}
+                <div>
+                    {/* Móvil: lista de cards */}
                     <div
-                        className={`lg:col-span-1 ${
-                            mobileShowRecipeDetail ? 'hidden lg:block' : 'block'
+                        className={`flex flex-col gap-3 lg:hidden ${
+                            mobileShowRecipeDetail ? 'hidden' : 'block'
                         }`}
                     >
-                        {/* Mobile cards */}
-                        <div className="flex flex-col gap-3 lg:hidden">
-                            {filteredRecipes.length === 0 && (
-                                <div className="bg-[#1e2433] rounded-2xl border border-white/5 p-8 text-center text-slate-500 text-sm font-bold">
-                                    No hay recetas.
-                                </div>
-                            )}
-                            {filteredRecipes.map((r) => (
-                                <button
-                                    key={r.id}
-                                    type="button"
-                                    onClick={() => {
-                                        setSelectedRecipeId(r.id);
-                                        setMobileShowRecipeDetail(true);
-                                    }}
-                                    className="bg-[#1e2433] rounded-2xl border border-white/5 p-5 text-left shadow-lg cursor-pointer border-solid"
-                                >
-                                    <div className="flex justify-between items-start gap-3">
-                                        <div className="min-w-0">
-                                            <div className="text-white font-black text-base tracking-tight">
-                                                {r.products?.name || 'Sin producto'}
-                                                {r.products && !r.products.is_active ? (
-                                                    <span className="ml-2 text-[10px] font-bold uppercase tracking-widest text-slate-500">
-                                                        Oculto
-                                                    </span>
-                                                ) : null}
-                                            </div>
-                                            <div className="text-[10px] uppercase tracking-widest mt-1.5 text-slate-500 font-bold">
-                                                {r.recipe_items?.length || 0} insumos · Base{' '}
-                                                {Number(r.base_liters)} L
-                                            </div>
+                        {filteredRecipes.length === 0 && (
+                            <div className="bg-[#1e2433] rounded-2xl border border-white/5 p-8 text-center text-slate-500 text-sm font-bold">
+                                No hay recetas.
+                            </div>
+                        )}
+                        {filteredRecipes.map((r) => (
+                            <button
+                                key={r.id}
+                                type="button"
+                                onClick={() => {
+                                    setSelectedRecipeId(r.id);
+                                    setMobileShowRecipeDetail(true);
+                                }}
+                                className="bg-[#1e2433] rounded-2xl border border-white/5 p-5 text-left shadow-lg cursor-pointer border-solid"
+                            >
+                                <div className="flex justify-between items-start gap-3">
+                                    <div className="min-w-0">
+                                        <div className="text-white font-black text-base tracking-tight">
+                                            {r.products?.name || 'Sin producto'}
+                                            {r.products && !r.products.is_active ? (
+                                                <span className="ml-2 text-[10px] font-bold uppercase tracking-widest text-slate-500">
+                                                    Oculto
+                                                </span>
+                                            ) : null}
                                         </div>
-                                        <span
-                                            className={`shrink-0 text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg ${
-                                                r.is_active
-                                                    ? 'bg-emerald-500/10 text-emerald-400'
-                                                    : 'bg-rose-500/10 text-rose-400'
-                                            }`}
-                                        >
-                                            {r.is_active ? 'Activa' : 'Inactiva'}
-                                        </span>
+                                        <div className="text-[10px] uppercase tracking-widest mt-1.5 text-slate-500 font-bold">
+                                            {r.recipe_items?.length || 0} insumos · Base{' '}
+                                            {Number(r.base_liters)} L
+                                        </div>
                                     </div>
-                                </button>
-                            ))}
-                        </div>
-
-                        {/* Desktop sidebar list */}
-                        <div className="hidden lg:block bg-[#1e2433] rounded-2xl border border-white/5 overflow-hidden max-h-[70vh] overflow-y-auto">
-                            {filteredRecipes.map((r) => (
-                                <button
-                                    key={r.id}
-                                    type="button"
-                                    onClick={() => setSelectedRecipeId(r.id)}
-                                    className={`w-full text-left px-4 py-3 border-b border-white/5 border-x-0 border-t-0 cursor-pointer ${
-                                        selectedRecipe?.id === r.id
-                                            ? 'bg-[#E2A049]/10 text-white'
-                                            : 'bg-transparent text-slate-400 hover:bg-white/5'
-                                    }`}
-                                >
-                                    <div className="font-bold text-sm">
-                                        {r.products?.name || 'Sin producto'}
-                                        {r.products && !r.products.is_active ? (
-                                            <span className="ml-2 text-[10px] font-bold uppercase tracking-widest text-slate-500">
-                                                Oculto
-                                            </span>
-                                        ) : null}
-                                    </div>
-                                    <div className="text-[10px] uppercase tracking-widest mt-1 text-slate-500">
-                                        {r.recipe_items?.length || 0} insumos ·{' '}
+                                    <span
+                                        className={`shrink-0 text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg ${
+                                            r.is_active
+                                                ? 'bg-emerald-500/10 text-emerald-400'
+                                                : 'bg-rose-500/10 text-rose-400'
+                                        }`}
+                                    >
                                         {r.is_active ? 'Activa' : 'Inactiva'}
-                                    </div>
-                                </button>
-                            ))}
-                            {filteredRecipes.length === 0 && (
-                                <p className="p-6 text-slate-500 text-sm text-center">No hay recetas.</p>
-                            )}
-                        </div>
+                                    </span>
+                                </div>
+                            </button>
+                        ))}
                     </div>
 
-                    {/* Detalle */}
+                    {/* Detalle: ancho completo en PC; selector arriba */}
                     <div
-                        className={`lg:col-span-2 bg-[#1e2433] rounded-2xl border border-white/5 p-4 sm:p-6 ${
+                        className={`bg-[#1e2433] rounded-2xl border border-white/5 p-4 sm:p-6 ${
                             mobileShowRecipeDetail ? 'block' : 'hidden lg:block'
                         }`}
                     >
@@ -1150,8 +1625,8 @@ export default function RecetarioClient({
                                     <ArrowLeft size={16} /> Volver a la lista
                                 </button>
 
-                                <div className="flex flex-col sm:flex-row sm:flex-wrap items-start justify-between gap-4 mb-6">
-                                    <div>
+                                <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4 mb-6">
+                                    <div className="lg:hidden">
                                         <h2 className="text-white text-xl font-black mb-1">
                                             {selectedRecipe.products?.name}
                                         </h2>
@@ -1159,7 +1634,17 @@ export default function RecetarioClient({
                                             Base {Number(selectedRecipe.base_liters)} L
                                         </p>
                                     </div>
-                                    <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+                                    <div className="hidden lg:block min-w-0 flex-1">
+                                        <RecipeSwitcher
+                                            recipes={sortedRecipes}
+                                            selected={selectedRecipe}
+                                            onSelect={setSelectedRecipeId}
+                                        />
+                                        <p className="text-slate-500 text-xs mt-2 pl-1">
+                                            Base {Number(selectedRecipe.base_liters)} L
+                                        </p>
+                                    </div>
+                                    <div className="flex flex-wrap gap-2 w-full lg:w-auto shrink-0">
                                         <button
                                             type="button"
                                             onClick={() => openRecipeModal(selectedRecipe)}
@@ -1209,16 +1694,29 @@ export default function RecetarioClient({
 
                                 {/* Mobile: líneas como cards */}
                                 <div className="flex flex-col gap-2 mb-6 sm:hidden">
-                                    {(selectedRecipe.recipe_items || []).map((item) => {
+                                    {selectedRecipeItems.map((item) => {
                                         const ing = item.ingredients;
                                         const line = ing ? Number(item.qty_base) * costPerUnit(ing) : 0;
+                                        const applies = normalizeAppliesTo(item.applies_to);
                                         return (
                                             <div
                                                 key={item.id || item.ingredient_id}
                                                 className="bg-[#0d1117] rounded-xl border border-white/5 p-3"
                                             >
-                                                <div className="text-white text-sm font-bold">
-                                                    {ing?.name || '—'}
+                                                <div className="flex items-start justify-between gap-2">
+                                                    <div className="text-white text-sm font-bold">
+                                                        {ing?.name || '—'}
+                                                        {ing?.hide_in_production ? (
+                                                            <span className="ml-2 text-[10px] font-bold uppercase tracking-wide text-[#E2A049]">
+                                                                Solo costeo
+                                                            </span>
+                                                        ) : null}
+                                                    </div>
+                                                    {applies !== 'all' && (
+                                                        <span className="shrink-0 text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-md bg-[#E2A049]/15 text-[#E2A049]">
+                                                            {APPLIES_TO_LABELS[applies]}
+                                                        </span>
+                                                    )}
                                                 </div>
                                                 <div className="flex justify-between mt-1 text-xs text-slate-400">
                                                     <span>
@@ -1238,7 +1736,7 @@ export default function RecetarioClient({
                                     <table className="w-full border-collapse">
                                         <thead>
                                             <tr className="bg-white/[0.02]">
-                                                {['Insumo', 'Cantidad', 'Costo línea'].map((h) => (
+                                                {['Insumo', 'Alcance', 'Cantidad', 'Costo línea'].map((h) => (
                                                     <th
                                                         key={h}
                                                         className="text-left py-3 px-4 text-slate-500 text-[11px] font-bold uppercase tracking-widest border-b border-white/5"
@@ -1249,10 +1747,11 @@ export default function RecetarioClient({
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {(selectedRecipe.recipe_items || []).map((item) => {
+                                            {selectedRecipeItems.map((item) => {
                                                 const ing = item.ingredients;
                                                 const line =
                                                     ing ? Number(item.qty_base) * costPerUnit(ing) : 0;
+                                                const applies = normalizeAppliesTo(item.applies_to);
                                                 return (
                                                     <tr
                                                         key={item.id || item.ingredient_id}
@@ -1260,9 +1759,17 @@ export default function RecetarioClient({
                                                     >
                                                         <td className="py-3 px-4 text-sm text-white font-medium">
                                                             {ing?.name || '—'}
+                                                            {ing?.hide_in_production ? (
+                                                                <span className="ml-2 text-[10px] font-bold uppercase tracking-wide text-[#E2A049]">
+                                                                    Solo costeo
+                                                                </span>
+                                                            ) : null}
                                                             <span className="block text-[10px] text-slate-500 uppercase">
                                                                 {ing?.category}
                                                             </span>
+                                                        </td>
+                                                        <td className="py-3 px-4 text-sm text-slate-300">
+                                                            {APPLIES_TO_LABELS[applies]}
                                                         </td>
                                                         <td className="py-3 px-4 text-sm text-slate-300">
                                                             {Number(item.qty_base)} {ing?.format_unit}
@@ -1277,53 +1784,21 @@ export default function RecetarioClient({
                                     </table>
                                 </div>
 
-                                {recipeCost && (
-                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
-                                        <div className="bg-[#0d1117] rounded-xl p-4 border border-white/5">
-                                            <div className="text-[10px] uppercase tracking-widest text-slate-500 mb-1">
-                                                Costo {Number(selectedRecipe.base_liters)} L
-                                            </div>
-                                            <div className="text-lg font-black text-white">
-                                                {formatCurrency(recipeCost.total)}
-                                            </div>
-                                        </div>
-                                        <div className="bg-[#0d1117] rounded-xl p-4 border border-white/5">
-                                            <div className="text-[10px] uppercase tracking-widest text-slate-500 mb-1">
-                                                Por litro
-                                            </div>
-                                            <div className="text-lg font-black text-white">
-                                                {formatCurrency(recipeCost.perLiter)}
-                                            </div>
-                                        </div>
-                                        <div className="bg-[#0d1117] rounded-xl p-4 border border-white/5">
-                                            <div className="text-[10px] uppercase tracking-widest text-slate-500 mb-1">
-                                                Por trago (200 ml)
-                                            </div>
-                                            <div className="text-lg font-black text-white">
-                                                {formatCurrency(recipeCost.perDrink)}
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
-
-                                {selectedProduct?.product_prices && recipeCost && (
+                                {selectedProduct?.product_prices && recipeCostEvent && recipeCostDisposable && (
                                     <div>
                                         <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-3">
                                             Margen vs precio venta
                                         </h3>
                                         {/* Mobile margin cards */}
                                         <div className="flex flex-col gap-2 sm:hidden">
-                                            {[...(selectedProduct.product_prices || [])]
-                                                .filter((p) => p.is_active !== false)
-                                                .sort(
-                                                    (a, b) =>
-                                                        (a.display_order || 0) - (b.display_order || 0)
-                                                )
-                                                .map((price) => {
+                                            {sortedProductPrices.map((price) => {
                                                     const liters = Number(price.size_value) || 0;
                                                     const sale =
                                                         Number(price.offer_price ?? price.price) || 0;
-                                                    const cost = recipeCost.perLiter * liters;
+                                                    const perLiter = price.is_disposable
+                                                        ? recipeCostDisposable.perLiter
+                                                        : recipeCostEvent.perLiter;
+                                                    const cost = perLiter * liters;
                                                     const margin = sale - cost;
                                                     const pct = sale > 0 ? (margin / sale) * 100 : 0;
                                                     return (
@@ -1398,20 +1873,16 @@ export default function RecetarioClient({
                                                     </tr>
                                                 </thead>
                                                 <tbody>
-                                                    {[...(selectedProduct.product_prices || [])]
-                                                        .filter((p) => p.is_active !== false)
-                                                        .sort(
-                                                            (a, b) =>
-                                                                (a.display_order || 0) -
-                                                                (b.display_order || 0)
-                                                        )
-                                                        .map((price) => {
+                                                    {sortedProductPrices.map((price) => {
                                                             const liters = Number(price.size_value) || 0;
                                                             const sale =
                                                                 Number(
                                                                     price.offer_price ?? price.price
                                                                 ) || 0;
-                                                            const cost = recipeCost.perLiter * liters;
+                                                            const cost =
+                                                                (price.is_disposable
+                                                                    ? recipeCostDisposable.perLiter
+                                                                    : recipeCostEvent.perLiter) * liters;
                                                             const margin = sale - cost;
                                                             const pct =
                                                                 sale > 0 ? (margin / sale) * 100 : 0;
@@ -1444,6 +1915,91 @@ export default function RecetarioClient({
                                                                 </tr>
                                                             );
                                                         })}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {salePriceBySize.length > 0 && (
+                                    <div className="mt-6">
+                                        <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-3">
+                                            Precio para el cliente
+                                        </h3>
+                                        <div className="flex flex-col gap-2 sm:hidden">
+                                            {salePriceBySize.map((row) => (
+                                                <div
+                                                    key={row.id}
+                                                    className="bg-[#0d1117] rounded-xl border border-white/5 p-3"
+                                                >
+                                                    <div className="text-[#E2A049]/80 text-[10px] font-bold uppercase tracking-wider mb-2">
+                                                        {row.size}
+                                                    </div>
+                                                    <div className="grid grid-cols-3 gap-2 text-[11px]">
+                                                        <div>
+                                                            <div className="text-slate-500 uppercase font-bold">
+                                                                Precio venta
+                                                            </div>
+                                                            <div className="text-slate-300 font-semibold tabular-nums">
+                                                                {formatCurrency(row.sale)}
+                                                            </div>
+                                                        </div>
+                                                        <div>
+                                                            <div className="text-slate-500 uppercase font-bold">
+                                                                Por litro
+                                                            </div>
+                                                            <div className="text-slate-300 tabular-nums">
+                                                                {formatCurrency(row.perLiter)}
+                                                            </div>
+                                                        </div>
+                                                        <div>
+                                                            <div className="text-slate-500 uppercase font-bold">
+                                                                Por trago
+                                                            </div>
+                                                            <div className="text-slate-300 tabular-nums">
+                                                                {formatCurrency(row.perDrink)}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                        <div className="hidden sm:block overflow-x-auto rounded-xl border border-white/5">
+                                            <table className="w-full border-collapse">
+                                                <thead>
+                                                    <tr className="bg-white/[0.02]">
+                                                        {[
+                                                            'Tamaño',
+                                                            'Precio venta',
+                                                            'Por litro',
+                                                            'Por trago (200 ml)',
+                                                        ].map((h) => (
+                                                            <th
+                                                                key={h}
+                                                                className="text-left py-3 px-4 text-slate-500 text-[11px] font-bold uppercase tracking-widest border-b border-white/5"
+                                                            >
+                                                                {h}
+                                                            </th>
+                                                        ))}
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {salePriceBySize.map((row) => (
+                                                        <tr key={row.id} className="border-b border-white/5">
+                                                            <td className="py-3 px-4 text-sm font-medium text-[#E2A049]/80">
+                                                                {row.size}
+                                                            </td>
+                                                            <td className="py-3 px-4 text-sm text-white font-semibold tabular-nums">
+                                                                {formatCurrency(row.sale)}
+                                                            </td>
+                                                            <td className="py-3 px-4 text-sm text-slate-300 tabular-nums">
+                                                                {formatCurrency(row.perLiter)}
+                                                            </td>
+                                                            <td className="py-3 px-4 text-sm text-slate-300 tabular-nums">
+                                                                {formatCurrency(row.perDrink)}
+                                                            </td>
+                                                        </tr>
+                                                    ))}
                                                 </tbody>
                                             </table>
                                         </div>
@@ -1486,34 +2042,61 @@ export default function RecetarioClient({
 
                     {prodMode === 'manual' && (
                         <div className="bg-[#1e2433] rounded-2xl border border-white/5 p-6 mb-6 print:hidden">
-                            <h2 className="text-white font-bold mb-4">Litros por cóctel</h2>
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                {recipes
-                                    .filter((r) => r.is_active)
-                                    .sort((a, b) =>
-                                        (a.products?.name || '').localeCompare(b.products?.name || '', 'es')
-                                    )
-                                    .map((r) => (
-                                        <div key={r.id}>
-                                            <label className={labelClass}>{r.products?.name}</label>
-                                            <input
-                                                type="number"
-                                                min={0}
-                                                step={0.1}
-                                                placeholder="Litros"
-                                                value={manualLiters[r.product_id] || ''}
-                                                onChange={(e) =>
-                                                    setManualLiters((prev) => ({
-                                                        ...prev,
-                                                        [r.product_id]: e.target.value,
-                                                    }))
-                                                }
-                                                className={inputClass}
-                                            />
+                            <h2 className="text-white font-bold mb-1">Cócteles a producir</h2>
+                            <p className="text-slate-500 text-sm mb-4">
+                                Elige primero los que necesitas y después escribe los litros.
+                            </p>
+                            <ManualCocktailPicker
+                                recipes={remainingManualRecipes}
+                                onAdd={addManualCocktail}
+                            />
+                            {selectedManualRecipes.length === 0 ? (
+                                <p className="mt-6 py-8 text-center text-sm text-slate-500">
+                                    Todavía no hay cócteles. Búscalos arriba para armar la lista corta.
+                                </p>
+                            ) : (
+                                <div className="flex flex-col gap-2 mt-4">
+                                    {selectedManualRecipes.map((r) => (
+                                        <div
+                                            key={r.product_id}
+                                            className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 bg-[#0d1117] rounded-xl border border-white/5 px-4 py-3"
+                                        >
+                                            <div className="min-w-0 flex-1 text-white font-bold truncate">
+                                                {r.products?.name}
+                                            </div>
+                                            <div className="flex items-center gap-2 shrink-0">
+                                                <input
+                                                    type="number"
+                                                    min={0}
+                                                    step={0.1}
+                                                    inputMode="decimal"
+                                                    placeholder="0"
+                                                    aria-label={`Litros de ${r.products?.name || 'cóctel'}`}
+                                                    value={manualLiters[r.product_id] || ''}
+                                                    onChange={(e) =>
+                                                        setManualLiters((prev) => ({
+                                                            ...prev,
+                                                            [r.product_id]: e.target.value,
+                                                        }))
+                                                    }
+                                                    className={`${fieldClass} w-24 text-right tabular-nums`}
+                                                />
+                                                <span className="text-slate-500 text-sm font-bold w-4">L</span>
+                                                <button
+                                                    type="button"
+                                                    title="Quitar"
+                                                    aria-label={`Quitar ${r.products?.name || 'cóctel'}`}
+                                                    onClick={() => removeManualCocktail(r.product_id)}
+                                                    className="p-2 bg-white/5 text-slate-400 rounded-lg hover:text-rose-400 border-none cursor-pointer"
+                                                >
+                                                    <X size={16} />
+                                                </button>
+                                            </div>
                                         </div>
                                     ))}
-                            </div>
-                            <div className="flex flex-wrap gap-3 mt-6 pt-6 border-t border-white/5">
+                                </div>
+                            )}
+                            <div className="flex flex-wrap items-center gap-3 mt-6 pt-6 border-t border-white/5">
                                 <button
                                     type="button"
                                     onClick={calculateManual}
@@ -1528,6 +2111,12 @@ export default function RecetarioClient({
                                 >
                                     Limpiar
                                 </button>
+                                {selectedManualRecipes.length > 0 && (
+                                    <span className="text-slate-500 text-xs font-bold ml-auto">
+                                        {selectedManualRecipes.length}{' '}
+                                        {selectedManualRecipes.length === 1 ? 'cóctel' : 'cócteles'}
+                                    </span>
+                                )}
                             </div>
                         </div>
                     )}
@@ -1884,12 +2473,13 @@ export default function RecetarioClient({
                                 onChange={(e) =>
                                     setIngModal((p) => ({
                                         ...p,
-                                        data: { ...p.data, format_unit: e.target.value as 'ml' | 'g' },
+                                        data: { ...p.data, format_unit: e.target.value as FormatUnit },
                                     }))
                                 }
                             >
                                 <option value="ml">ml</option>
                                 <option value="g">g</option>
+                                <option value="u">u (unidad)</option>
                             </select>
                         </div>
                     </div>
@@ -1930,6 +2520,27 @@ export default function RecetarioClient({
                             ))}
                         </datalist>
                     </div>
+                    <label className="flex items-start gap-3 cursor-pointer">
+                        <input
+                            type="checkbox"
+                            className="mt-1 accent-[#E2A049]"
+                            checked={ingModal.data.hide_in_production}
+                            onChange={(e) =>
+                                setIngModal((p) => ({
+                                    ...p,
+                                    data: { ...p.data, hide_in_production: e.target.checked },
+                                }))
+                            }
+                        />
+                        <span>
+                            <span className="block text-sm font-bold text-slate-200">
+                                Ocultar en producción
+                            </span>
+                            <span className="block text-xs text-slate-500 mt-0.5">
+                                Sigue en el costeo de recetas, pero no aparece en la lista de producción.
+                            </span>
+                        </span>
+                    </label>
                     <div className="flex gap-3 pt-2">
                         <button
                             type="submit"
@@ -2067,7 +2678,7 @@ export default function RecetarioClient({
                                         ...p,
                                         data: {
                                             ...p.data,
-                                            items: [...p.data.items, { ingredient_id: '', qty_base: 0 }],
+                                            items: [...p.data.items, { ingredient_id: '', qty_base: 0, applies_to: 'all' }],
                                         },
                                     }))
                                 }
@@ -2080,7 +2691,7 @@ export default function RecetarioClient({
                             {recipeModal.data.items.map((item, idx) => (
                                 <div
                                     key={idx}
-                                    className="grid grid-cols-[minmax(0,1fr)_6.5rem_2rem] gap-2 items-center"
+                                    className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_7rem_7.5rem_2rem] gap-2 items-center"
                                 >
                                     <select
                                         className={`${fieldClass} w-full min-w-0`}
@@ -2115,6 +2726,23 @@ export default function RecetarioClient({
                                             setRecipeModal((p) => ({ ...p, data: { ...p.data, items } }));
                                         }}
                                     />
+                                    <select
+                                        className={`${fieldClass} w-full min-w-0`}
+                                        value={item.applies_to || 'all'}
+                                        title="A qué canal aplica este insumo"
+                                        onChange={(e) => {
+                                            const items = [...recipeModal.data.items];
+                                            items[idx] = {
+                                                ...items[idx],
+                                                applies_to: e.target.value as RecipeAppliesTo,
+                                            };
+                                            setRecipeModal((p) => ({ ...p, data: { ...p.data, items } }));
+                                        }}
+                                    >
+                                        <option value="all">Todos</option>
+                                        <option value="disposable">Desechables</option>
+                                        <option value="event">Eventos</option>
+                                    </select>
                                     <button
                                         type="button"
                                         onClick={() =>

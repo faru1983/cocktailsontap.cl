@@ -12,7 +12,7 @@ import {
     type IngredientPatchInput,
     type RecipeSaveInput,
 } from '@/lib/types';
-import { rangeFor, type QuoteRange } from '@/lib/services/productionService';
+import { rangeFor, sortRecipeItemRowsByIngredientName, type QuoteRange } from '@/lib/services/productionService';
 
 async function checkAuth() {
     const isAuth = await validateSession();
@@ -80,6 +80,7 @@ export async function saveIngredient(raw: IngredientSaveInput) {
         format_price: data.format_price,
         supplier: data.supplier?.trim() ? data.supplier.trim() : null,
         is_active: data.is_active ?? true,
+        hide_in_production: data.hide_in_production ?? false,
         updated_at: new Date().toISOString(),
     };
 
@@ -163,6 +164,7 @@ export async function patchIngredient(raw: IngredientPatchInput) {
         payload.supplier = fields.supplier?.trim() ? fields.supplier.trim() : null;
     }
     if (fields.is_active !== undefined) payload.is_active = fields.is_active;
+    if (fields.hide_in_production !== undefined) payload.hide_in_production = fields.hide_in_production;
 
     if (Object.keys(payload).length <= 1) {
         return { success: false, error: 'Sin cambios.' };
@@ -190,15 +192,26 @@ export async function saveRecipe(raw: RecipeSaveInput) {
     const data = parsed.data;
     const db = createServerClient();
 
-    // Deduplicate ingredient lines (keep last qty)
-    const itemMap = new Map<string, number>();
+    // Deduplicate ingredient lines (keep last qty + applies_to)
+    const itemMap = new Map<string, { qty_base: number; applies_to: 'all' | 'disposable' | 'event' }>();
     for (const item of data.items) {
-        itemMap.set(item.ingredient_id, item.qty_base);
+        itemMap.set(item.ingredient_id, {
+            qty_base: item.qty_base,
+            applies_to: item.applies_to || 'all',
+        });
     }
-    const uniqueItems = Array.from(itemMap.entries()).map(([ingredient_id, qty_base]) => ({
+    const uniqueItems = Array.from(itemMap.entries()).map(([ingredient_id, row]) => ({
         ingredient_id,
-        qty_base,
+        qty_base: row.qty_base,
+        applies_to: row.applies_to,
     }));
+
+    const ingredientIds = uniqueItems.map((item) => item.ingredient_id);
+    const { data: ingredientRows } = ingredientIds.length
+        ? await db.from('ingredients').select('id, name').in('id', ingredientIds)
+        : { data: [] as { id: string; name: string }[] };
+    const nameById = new Map((ingredientRows || []).map((row) => [row.id, row.name]));
+    const sortedItems = sortRecipeItemRowsByIngredientName(uniqueItems, nameById);
 
     let productId = data.product_id || null;
     if (!productId) {
@@ -254,10 +267,11 @@ export async function saveRecipe(raw: RecipeSaveInput) {
     }
 
     const { error: itemsError } = await db.from('recipe_items').insert(
-        uniqueItems.map((item) => ({
+        sortedItems.map((item) => ({
             recipe_id: recipeId,
             ingredient_id: item.ingredient_id,
             qty_base: item.qty_base,
+            applies_to: item.applies_to,
         }))
     );
     if (itemsError) {
@@ -308,6 +322,7 @@ export type ProductionQuoteRow = {
         quantity: number;
         size_value: number | null;
         size: string;
+        is_disposable?: boolean | null;
     }[];
 };
 
@@ -335,7 +350,8 @@ export async function getConfirmedQuotesForProduction(range: QuoteRange = 'week'
                 product_name,
                 quantity,
                 size_value,
-                size
+                size,
+                is_disposable
             )
         `)
         .eq('status', 'confirmed')

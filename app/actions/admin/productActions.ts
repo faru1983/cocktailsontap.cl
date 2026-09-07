@@ -37,6 +37,7 @@ export async function saveProduct(product: any, prices: any[]) {
     await checkAuth();
     const db = createServerClient();
     const { id, _idx, categories, product_prices, ...pData } = product;
+    pData.hide_from_recipes = !!pData.hide_from_recipes;
     
     let productId = id;
     if (id) {
@@ -75,6 +76,7 @@ export async function saveProduct(product: any, prices: any[]) {
         }
     }
     revalidatePath('/admin/products');
+    revalidatePath('/admin/recetario');
     revalidateTag('product-data', 'max');
 }
 
@@ -121,6 +123,17 @@ export async function toggleProductStatus(id: string, current: boolean) {
     }
     await db.from('products').update({ is_active: nextActive }).eq('id', id);
     revalidatePath('/admin/products');
+    revalidatePath('/admin/recetario');
+    revalidateTag('product-data', 'max');
+}
+
+export async function toggleProductHideFromRecipes(id: string, hideFromRecipes: boolean) {
+    await checkAuth();
+    const db = createServerClient();
+    const { error } = await db.from('products').update({ hide_from_recipes: hideFromRecipes }).eq('id', id);
+    if (error) throw new Error(error.message);
+    revalidatePath('/admin/products');
+    revalidatePath('/admin/recetario');
     revalidateTag('product-data', 'max');
 }
 
