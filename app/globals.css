@@ -10,6 +10,15 @@
   --color-brand-border: #e2e8f0;
   --color-brand-dark: #0f172a;
   --color-brand-light: #f1f5f9;
+  --color-admin-bg: #0d1117;
+  --color-admin-surface: #1e2433;
+  --color-admin-sidebar: #161b27;
+  --color-admin-border: rgba(255, 255, 255, 0.06);
+  --color-chart-event: #34d399;
+  --color-chart-direct: #fb923c;
+  --color-chart-prev: #64748b;
+  --color-chart-expense: #fb7185;
+  --color-chart-profit: #38bdf8;
   --font-sans: var(--font-outfit), ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
   --spacing-navbar: 70px;
 

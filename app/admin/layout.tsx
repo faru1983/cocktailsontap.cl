@@ -10,30 +10,15 @@ export const metadata: Metadata = {
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
     const isValid = await validateSession();
 
-    // Si no está validado renderizamos solo el login (sin sidebar ni estructura de panel)
     if (!isValid) {
         return <>{children}</>;
     }
 
     return (
-        <div style={{
-            minHeight: '100vh',
-            background: '#0d1117',
-            fontFamily: "'Outfit', -apple-system, sans-serif",
-            color: '#e2e8f0',
-        }}>
-            {/* Sidebar como drawer fixed — no ocupa espacio en el flujo */}
+        <div className="min-h-screen bg-admin-bg text-slate-200 font-sans">
             <AdminSidebar />
-
-            {/* Contenido principal: padding superior para dejar espacio al botón hamburguesa */}
-            <main style={{
-                minHeight: '100vh',
-                padding: '64px 16px 32px',     /* top: espacio para el hamburger */
-            }}>
-                {/* Contenedor con max-width para pantallas grandes */}
-                <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
-                    {children}
-                </div>
+            <main className="min-h-screen pt-16 px-4 pb-8 lg:pl-60 lg:pt-8 lg:px-8">
+                <div className="mx-auto max-w-[1400px]">{children}</div>
             </main>
         </div>
     );

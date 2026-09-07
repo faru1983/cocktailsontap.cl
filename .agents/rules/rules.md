@@ -23,7 +23,7 @@ Define la arquitectura, reglas irrompibles, convenciones de código, esquema de 
 | 6 | **Proxy File Convention** | Prohibido crear `middleware.ts`. Este proyecto usa exclusivamente `proxy.ts` en la raíz para protección de rutas `/admin`. |
 | 7 | **Single Contact Source** | El número de WhatsApp oficial es la única vía de soporte mencionada. Usar `WHATSAPP_URL` o `WHATSAPP_NUMBER` de `lib/config.ts`. Nunca hardcodear números. |
 | 8 | **Celulares E.164** | Pedir celular con `PhoneInput` (`components/ui/PhoneInput.tsx`). Guardar siempre E.164 con `+` (ej. `+56912345678`) vía `lib/phone.ts`. UI: al focus prefijo `+56` (sin inyectar el 9); máscara/placeholder `+56 9 1234 5678`; validación Chile `+569` + 8 dígitos (acepta CO/PE/VE). WhatsApp: `toWhatsAppDigits()`. |
-| 9 | **Iconografía Única** | Prohibido usar emojis o SVGs inline en la UI del dashboard administrativo. Usar exclusivamente **lucide-react** para iconos. Los emojis solo son aceptables en emails y asuntos de correo. |
+| 9 | **Iconografía Única** | Prohibido usar emojis o SVGs inline en la UI del dashboard administrativo. Usar exclusivamente **lucide-react** para iconos. Los emojis solo son aceptables en emails y asuntos de correo. **Excepción:** gráficos SVG de **Recharts** en Dashboard/Estadísticas (visualización de datos, no iconografía de UI). |
 | 10 | **Dos Clientes Supabase** | `lib/supabase.ts` (anon key, lectura pública con caché). `lib/supabaseServer.ts` (service_role, solo Server Actions/Components). Nunca importar el server client en código client-side. |
 | 11 | **Contexto AI Actualizado** | Al finalizar cada sesión de trabajo, **actualizar `.agents/context.md`** con un resumen de los cambios realizados. Ver sección "Protocolo de Contexto AI" al final. |
 
@@ -60,7 +60,6 @@ Define la arquitectura, reglas irrompibles, convenciones de código, esquema de 
 │   │   ├── clients/          # Gestión de clientes
 │   │   ├── estadisticas/     # Estadísticas y BI
 │   │   ├── gastos/           # Gestión de gastos
-│   │   ├── logs/             # Logs de sincronización
 │   │   ├── products/         # Gestión de catálogo
 │   │   ├── recetario/        # Insumos, recetas/costeo y producción
 │   │   ├── quotes/           # Administración de cotizaciones
@@ -105,7 +104,8 @@ Define la arquitectura, reglas irrompibles, convenciones de código, esquema de 
 │       ├── googleSyncService.ts  # Orquestación de Google Contacts/Calendar
 │       ├── settingsService.ts    # Configuración dinámica desde site_settings
 │       ├── reminderService.ts    # Recordatorios: audiencias, omitidos, Resend, cron job
-│       └── productionService.ts  # Costeo de recetas y escalado de producción
+│       ├── productionService.ts  # Costeo de recetas y escalado de producción
+│       └── exportService.ts      # Exportación admin: clientes/cotizaciones, CSV/TXT/JSON, presets Meta/Mailchimp
 ├── proxy.ts                  # Protección de rutas /admin (reemplaza middleware.ts)
 ├── vercel.json               # Redirects + Security Headers + cron horario /api/cron/reminders
 └── public/assets/            # Imágenes estáticas (logo, barriles, etc.)
@@ -126,7 +126,7 @@ Define la arquitectura, reglas irrompibles, convenciones de código, esquema de 
 | `client_merge_logs` | Auditoría de merges (auto o manual) | `from_client_id`, `into_client_id`, `reason`, `details` |
 | `quotes` | Cotizaciones (draft/confirmed/completed/cancelled) | `token` (unique, auto-gen), `client_id` FK |
 | `quote_items` | Items de cada cotización con precios congelados | `quote_id` FK, `product_id` FK nullable |
-| `products` | Catálogo de cócteles | `is_active`, `display_order`, `category_id` FK |
+| `products` | Catálogo de cócteles | `is_active`, `display_order`, `category_id` FK, `hide_from_recipes` (true = no aparece en Recetario; extras de venta sin BOM) |
 | `product_prices` | Precios por tamaño (5L, 10L, 20L, 30L) | `product_id` FK, `size`, `price`, `offer_price` |
 | `categories` | Categorías de productos | `is_active`, `display_order` |
 | `regions` | Regiones de Chile (tarifas + transporte) | `code`, flags eventos/barriles, `cost` / `direct_sale_delivery_cost` / `free_from`, `shipping_carrier` (`own`\|`blue_express`), `blue_express_zone` (`centro`\|`extremo`) |
@@ -134,13 +134,13 @@ Define la arquitectura, reglas irrompibles, convenciones de código, esquema de 
 | `event_types` | Tipos de evento (Matrimonio, Cumpleaños, etc.) | `name`, `icon`, `display_order` |
 | `expenses` | Registro de gastos del negocio | `amount`, `expense_date`, `category`, `description` |
 | `payment_methods` | Medios de pago configurables | `name`, `is_active` |
-| `site_settings` | Configuración dinámica (plantillas, templates) | `key` (unique), `category`, `value`, `is_active` — categoría `reminders` = cron enable/hora/último run |
+| `site_settings` | Configuración dinámica (plantillas, templates) | `key` (unique), `category`, `value`, `is_active` — categorías: `reminders` (cron enable/hora/último run), `exports` (presets guardados `export_preset_<slug>` con JSON de config) |
 | `reminder_templates` | Plantillas de recordatorio (manual + auto email) | `trigger` draft_event\|anniversary_event\|anniversary_direct; `auto_enabled`; `days_before` |
 | `reminder_logs` | Historial de envíos (manual/cron) | `status` sent\|failed\|skipped; `source` manual\|cron; `target_date`; `template_name` (snapshot al enviar / al borrar plantilla) |
 | `reminder_suppressions` | Emails omitidos (no batch ni cron) | `email` unique (lowercase) |
-| `ingredients` | Insumos de producción (formato + precio de compra) | `name` (unique), `category`, `format_qty`, `format_unit` (`ml`\|`g`), `format_price`, `supplier` (nullable), `is_active` |
+| `ingredients` | Insumos de producción (formato + precio de compra) | `name` (unique), `category`, `format_qty`, `format_unit` (`ml`\|`g`\|`u`), `format_price`, `supplier` (nullable), `is_active`, `hide_in_production` (true = solo costeo, no lista de producción) |
 | `recipes` | Recetas BOM vinculadas al catálogo de venta | `product_id` (unique FK → products), `base_liters` (default 5) |
-| `recipe_items` | Líneas de receta (cantidad base por insumo) | `recipe_id` FK, `ingredient_id` FK, unique (`recipe_id`,`ingredient_id`) |
+| `recipe_items` | Líneas de receta (cantidad base por insumo) | `recipe_id` FK, `ingredient_id` FK, `applies_to` (`all`\|`disposable`\|`event`), unique (`recipe_id`,`ingredient_id`) |
 
 ### Campos Críticos en `quotes`
 - `token`: UUID auto-generado por Supabase, usado como URL pública `/cotizar/[token]`
@@ -285,6 +285,7 @@ Define la arquitectura, reglas irrompibles, convenciones de código, esquema de 
 ## 🛡️ Seguridad
 
 - **Proxy (`proxy.ts`)**: Protege todas las rutas `/admin/*` excepto `/admin/login`
+- **Exportar (`/admin/exportar`)**: datasets Clientes y Cotizaciones; campos/filtros/formato configurables; presets builtin Meta Ads (PII crudo o SHA-256), Mailchimp y Contabilidad; presets propios en `site_settings` (`category=exports`); descarga vía `GET /admin/exportar/download?c=` (config base64url) con `Content-Disposition`; vista previa 20 filas vía Server Action
 - **Auth**: SHA-256 hash de `ADMIN_PASSWORD` almacenado en cookie `admin_session` (7 días)
 - **Session Validation**: `lib/adminAuth.ts` → `validateSession()` verifica cookie vs hash
 - **Security Headers**: `vercel.json` → `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`

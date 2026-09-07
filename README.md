@@ -685,7 +685,6 @@ Clasificación:
 | **Gastos** | `/admin/gastos` | Registro de gastos, medios de pago configurables |
 | **Estadísticas** | `/admin/estadisticas` | BI avanzado: ranking de productos, comunas, clientes, temporalidad |
 | **Recordatorios** | `/admin/reminders` | Sistema de recordatorios para seguimiento |
-| **Logs** | `/admin/logs` | Diagnóstico de errores de sincronización Google |
 | **Configuración** | `/admin/settings` | Cerebro Central: templates de emails, calendario, contactos |
 
 ---

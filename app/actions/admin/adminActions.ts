@@ -69,7 +69,6 @@ export async function deleteQuotePermanent(quoteId: string): Promise<{ success: 
 
     // 1. Limpieza manual de tablas relacionadas (cascada manual)
     await db.from('quote_items').delete().eq('quote_id', quoteId);
-    await db.from('sync_logs').delete().eq('quote_id', quoteId);
     await db.from('reminder_logs').delete().eq('quote_id', quoteId);
     
     // 2. Borrar pagos asociados si existen
@@ -182,16 +181,6 @@ export async function updateQuoteItemsAdmin(
 
     } catch (e: any) {
         console.error('Error updating items admin:', e);
-        // Log Error in sync_logs for visibility in the dashboard
-        try {
-            await db.from('sync_logs').insert({
-                quote_id: quoteId,
-                type: 'google_calendar',
-                status: 'error',
-                error_msg: `Error sincronizando items: ${e.message || 'Error desconocido'}`
-            });
-        } catch (logErr) { console.error('Error writing to sync_logs:', logErr); }
-        
         return { success: false, error: e.message };
     }
 }
@@ -467,14 +456,12 @@ export async function updateQuoteAdmin(quoteId: string, data: Record<string, any
                 });
             } catch (e: any) {
                 console.error('Error syncing Google Contact in updateQuoteAdmin:', e);
-                try {
-                    await db.from('sync_logs').insert({
-                        quote_id: quoteId,
-                        type: 'google_contact',
-                        status: 'error',
-                        error_msg: `Error actualizando contacto: ${e.message || 'Error desconocido'}`
-                    });
-                } catch (logErr) { console.error('Error writing to sync_logs:', logErr); }
+                const stamp = new Date().toISOString().slice(0, 19).replace('T', ' ');
+                const note = `[${stamp}] Google Contact: ${e.message || 'Error desconocido'}`;
+                const { data: q } = await db.from('quotes').select('comments').eq('id', quoteId).single();
+                await db.from('quotes').update({
+                    comments: q?.comments ? `${q.comments}\n${note}` : note,
+                }).eq('id', quoteId);
             }
         }
     }
@@ -517,15 +504,12 @@ export async function updateQuoteAdmin(quoteId: string, data: Record<string, any
             }
         } catch (e: any) {
             console.error('Admin: Error syncing calendar after update', e);
-            // Log Calendar Sync Error
-            try {
-                await db.from('sync_logs').insert({
-                    quote_id: quoteId,
-                    type: 'google_calendar',
-                    status: 'error',
-                    error_msg: `Error actualizando calendario: ${e.message || 'Error desconocido'}`
-                });
-            } catch (logErr) { console.error('Error writing to sync_logs:', logErr); }
+            const stamp = new Date().toISOString().slice(0, 19).replace('T', ' ');
+            const note = `[${stamp}] Calendar al actualizar: ${e.message || 'Error desconocido'}`;
+            const { data: q } = await db.from('quotes').select('comments').eq('id', quoteId).single();
+            await db.from('quotes').update({
+                comments: q?.comments ? `${q.comments}\n${note}` : note,
+            }).eq('id', quoteId);
         }
     }
 
@@ -677,7 +661,6 @@ export async function deleteClientPermanent(clientId: string): Promise<{ success
             // Borramos los hijos de cada cotización antes de eliminar la cotización principal.
             const quoteDependencies = await Promise.all([
                 db.from('quote_items').delete().in('quote_id', quoteIds),
-                db.from('sync_logs').delete().in('quote_id', quoteIds),
                 db.from('reminder_logs').delete().in('quote_id', quoteIds),
             ]);
             const dependencyError = quoteDependencies.find((result) => result.error)?.error;
@@ -1006,30 +989,6 @@ export async function saveAdminSettings(formData: FormData): Promise<{ success: 
     ]);
     revalidatePath('/admin/settings');
     return { success: true };
-}
-
-// ── Retry Sync Log ───────────────────────────────────────────────────────
-export async function retrySyncLog(logId: string): Promise<{ success: boolean; error?: string }> {
-    await checkAuth();
-    const db = createServerClient();
-    const { data: log } = await db.from('sync_logs').select('quote_id, type').eq('id', logId).single();
-    if (!log) return { success: false, error: 'Log no encontrado.' };
-
-    const { data: quote } = await db.from('quotes').select('*, quote_items(*)').eq('id', log.quote_id).single();
-    if (!quote) return { success: false, error: 'Cotización no encontrada.' };
-
-    try {
-        if (log.type === 'google_calendar') {
-            await GoogleSyncService.scheduleCalendarEvents(quote);
-        } else if (log.type === 'google_contact') {
-            await GoogleSyncService.updateContactConfirmedStatus(quote);
-        }
-        await db.from('sync_logs').update({ status: 'retried' }).eq('id', logId);
-        revalidatePath('/admin/logs');
-        return { success: true };
-    } catch (e: any) {
-        return { success: false, error: e.message };
-    }
 }
 
 // ── Sync Client to Google ─────────────────────────────────────────────────

@@ -99,11 +99,11 @@ export async function syncDirectSaleCalendarAfterPayment(
     } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : 'Unknown error';
         console.error('syncDirectSaleCalendarAfterPayment:', err);
-        await db.from('sync_logs').insert({
-            quote_id: quoteId,
-            type: 'google_calendar',
-            status: 'error',
-            error_msg: `Calendar tras pago: ${msg}`,
-        });
+        const stamp = new Date().toISOString().slice(0, 19).replace('T', ' ');
+        const note = `[${stamp}] Calendar tras pago: ${msg}`;
+        const existing = typeof quote.comments === 'string' ? quote.comments : '';
+        await db.from('quotes').update({
+            comments: existing ? `${existing}\n${note}` : note,
+        }).eq('id', quoteId);
     }
 }

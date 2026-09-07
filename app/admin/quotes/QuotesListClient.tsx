@@ -157,7 +157,6 @@ export default function QuotesListClient({
         { label: 'Cliente',       field: 'client_name' },
         { label: 'Email',         field: 'client_email' },
         { label: 'Fecha Evento',  field: 'event_date' },
-        { label: 'Creación',      field: 'created_at' },
         { label: 'Comuna',        field: 'comuna_name' },
         { label: 'Total',         field: 'total_price' },
         { label: 'Estado',        field: 'status' },
@@ -403,7 +402,7 @@ export default function QuotesListClient({
                     </thead>
                     <tbody>
                         {initialQuotes.length === 0 ? (
-                            <tr><td colSpan={10} style={{ padding: '48px 20px', textAlign: 'center', color: '#475569' }}>No se encontraron cotizaciones.</td></tr>
+                            <tr><td colSpan={9} style={{ padding: '48px 20px', textAlign: 'center', color: '#475569' }}>No se encontraron cotizaciones.</td></tr>
                         ) : initialQuotes.map((q: any) => {
                             const badge = getQuoteListBadge(q);
                             const srcBadge = sourceBadge[normalizeQuoteSource(q.source)];
@@ -424,7 +423,6 @@ export default function QuotesListClient({
                                     <td style={{ padding: '14px 20px', color: '#94a3b8', fontSize: '13px' }}>
                                         {q.event_date ? new Date(q.event_date + 'T12:00:00').toLocaleDateString('es-CL') : '—'}
                                     </td>
-                                    <td style={{ padding: '14px 20px', color: '#64748b', fontSize: '12px' }}>{new Date(q.created_at).toLocaleDateString('es-CL')}</td>
                                     <td style={{ padding: '14px 20px', color: '#64748b', fontSize: '13px' }}>{q.comuna_name === 'Otra' && q.comuna_other ? q.comuna_other : (q.comuna_name || '—')}</td>
                                     <td style={{ padding: '14px 20px', color: '#E2A049', fontSize: '14px', fontWeight: 700 }}>{formatCLP(Number(q.total_price))}</td>
                                     <td style={{ padding: '14px 20px' }}>

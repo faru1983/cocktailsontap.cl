@@ -1,615 +1,539 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
-    GlassWater,
     Activity,
-    DollarSign,
-    TrendingDown,
-    PieChart,
-    Award,
-    ChevronRight,
-    CalendarDays,
     ArrowLeft,
-    ArrowRight
+    ArrowRight,
+    Award,
+    CalendarDays,
+    ChevronRight,
+    DollarSign,
+    GlassWater,
+    Package,
+    PieChart,
+    TrendingDown,
 } from 'lucide-react';
+import { Panel } from '@/components/admin/ui/Panel';
+import { StatCard } from '@/components/admin/ui/StatCard';
+import { SegmentedControl } from '@/components/admin/ui/SegmentedControl';
+import { SplitBar } from '@/components/admin/ui/SplitBar';
+import { EmptyState } from '@/components/admin/ui/EmptyState';
+import { RevenueTrendChart } from '@/components/admin/charts/RevenueTrendChart';
+import { SimpleDonut } from '@/components/admin/charts/LaneDonut';
+import { CategoryBars } from '@/components/admin/charts/CategoryBars';
+import {
+    MONTH_OPTIONS,
+    formatCLP,
+    formatPctDelta,
+    pctDelta,
+    type LaneFilter,
+} from '@/lib/adminStats';
+import type { StatsPeriodBundle } from '@/lib/adminStatsServer';
 
-type Quote = {
-    id: string;
-    status: string;
-    total_price: number;
-    event_date: string;
-    created_at: string;
-    client_id: string;
-    client_name: string;
-    client_lastname: string;
-    comuna_name: string;
-    comuna_other: string;
-    dispenser: string;
-    service_type: string;
-};
-
-type Expense = {
-    id: string;
-    amount: number;
-    expense_date: string;
-    category_name: string;
-    subcategory_name: string;
-};
-
-type QuoteItem = {
-    quote_id: string;
-    product_name: string;
-    quantity: number;
-    offer_price_at_time: number;
-    size: string;
-};
-
-interface StatsClientProps {
-    allQuotes: Quote[];
-    allQuoteItems: QuoteItem[];
-    allExpenses: Expense[];
+type StatsClientProps = {
+    bundles: Record<LaneFilter, StatsPeriodBundle>;
+    laneComparison: {
+        event: number;
+        direct: number;
+        eventCount: number;
+        directCount: number;
+        yoyEvent: number;
+        yoyDirect: number;
+    };
+    operations: {
+        service: { event: number; direct: number };
+        dispenser: { muro: number; portatil: number };
+        comunas: { name: string; value: number }[];
+        sizes: { name: string; value: number }[];
+    };
     selectedMonth: string;
     currentMonth: string;
     monthLabel: string;
     previousMonth: string;
     nextMonth: string;
     initialTab: string;
-}
+    initialLane: LaneFilter;
+    lastYear: number;
+};
 
-const MONTH_OPTIONS = [
-    { value: '01', label: 'Enero' }, { value: '02', label: 'Febrero' }, { value: '03', label: 'Marzo' },
-    { value: '04', label: 'Abril' }, { value: '05', label: 'Mayo' }, { value: '06', label: 'Junio' },
-    { value: '07', label: 'Julio' }, { value: '08', label: 'Agosto' }, { value: '09', label: 'Septiembre' },
-    { value: '10', label: 'Octubre' }, { value: '11', label: 'Noviembre' }, { value: '12', label: 'Diciembre' }
+const LANE_OPTIONS: { value: LaneFilter; label: string }[] = [
+    { value: 'all', label: 'Todos' },
+    { value: 'event', label: 'Eventos' },
+    { value: 'direct', label: 'Directas' },
 ];
 
-const formatCLP = (n: number) => new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0 }).format(n);
-const pctDelta = (current: number, previous: number) => previous > 0 ? ((current - previous) / previous) * 100 : 0;
-const formatPctDelta = (v: number) => `${v >= 0 ? '+' : ''}${v.toFixed(1)}%`;
-
-export default function StatsClient({ allQuotes, allQuoteItems, allExpenses, selectedMonth, currentMonth, monthLabel, previousMonth, nextMonth, initialTab }: StatsClientProps) {
+export default function StatsClient({
+    bundles,
+    laneComparison,
+    operations,
+    selectedMonth,
+    currentMonth,
+    monthLabel,
+    previousMonth,
+    nextMonth,
+    initialTab,
+    initialLane,
+    lastYear,
+}: StatsClientProps) {
     const router = useRouter();
     const searchParams = useSearchParams();
     const [tab, setTab] = useState<'mensual' | 'anual' | 'operaciones'>(
         initialTab === 'anual' ? 'anual' : initialTab === 'operaciones' ? 'operaciones' : 'mensual'
     );
+    const [lane, setLane] = useState<LaneFilter>(initialLane);
 
     useEffect(() => {
         const currentTab = searchParams.get('tab') || 'mensual';
         if (currentTab !== tab && (currentTab === 'mensual' || currentTab === 'anual' || currentTab === 'operaciones')) {
             setTab(currentTab as 'mensual' | 'anual' | 'operaciones');
         }
-    }, [searchParams, tab]);
+        const currentLane = searchParams.get('lane') as LaneFilter;
+        if (currentLane && currentLane !== lane && LANE_OPTIONS.some((o) => o.value === currentLane)) {
+            setLane(currentLane);
+        }
+    }, [searchParams, tab, lane]);
+
     const [selectedYear, selectedMonthNum] = selectedMonth.split('-');
     const currentYear = Number(currentMonth.split('-')[0]);
     const yearOptions = Array.from({ length: 7 }, (_, i) => String(currentYear - 3 + i));
 
-    const [startDate, endDate] = useMemo(() => {
-        const [year, month] = selectedMonth.split('-').map(Number);
-        if (tab === 'anual') {
-            return [`${year}-01-01`, `${year}-12-31`];
-        }
-        const start = `${selectedMonth}-01`;
-        const end = new Date(Date.UTC(year, month, 0)).toISOString().split('T')[0];
-        return [start, end];
-    }, [selectedMonth, tab]);
-    const [prevStartDate, prevEndDate] = useMemo(() => {
-        const [year, month] = selectedMonth.split('-').map(Number);
-        if (tab === 'anual') {
-            return [`${year - 1}-01-01`, `${year - 1}-12-31`];
-        }
-        const prev = new Date(Date.UTC(year, month - 2, 1));
-        const prevMonthKey = `${prev.getUTCFullYear()}-${String(prev.getUTCMonth() + 1).padStart(2, '0')}`;
-        const start = `${prevMonthKey}-01`;
-        const end = new Date(Date.UTC(prev.getUTCFullYear(), prev.getUTCMonth() + 1, 0)).toISOString().split('T')[0];
-        return [start, end];
-    }, [selectedMonth, tab]);
-    const [yoyStartDate, yoyEndDate] = useMemo(() => {
-        const [year, month] = selectedMonth.split('-').map(Number);
-        if (tab === 'anual') {
-            return [`${year - 1}-01-01`, `${year - 1}-12-31`];
-        }
-        const start = `${year - 1}-${String(month).padStart(2, '0')}-01`;
-        const end = new Date(Date.UTC(year - 1, month, 0)).toISOString().split('T')[0];
-        return [start, end];
-    }, [selectedMonth, tab]);
+    const bundle = bundles[lane];
+    const { metrics, prevMetrics, yoyMetrics, trend, expenseCategories, topProducts, topClients, topComunas, alerts } =
+        bundle;
 
-    const filteredQuotes = useMemo(() => allQuotes.filter(q => q.event_date >= startDate && q.event_date <= endDate), [allQuotes, startDate, endDate]);
-    const filteredExpenses = useMemo(() => allExpenses.filter(e => e.expense_date >= startDate && e.expense_date <= endDate), [allExpenses, startDate, endDate]);
-    const confirmedQuotes = useMemo(() => filteredQuotes.filter(q => q.status === 'confirmed' || q.status === 'completed'), [filteredQuotes]);
-    const prevConfirmedQuotes = useMemo(
-        () => allQuotes.filter(q => (q.status === 'confirmed' || q.status === 'completed') && q.event_date >= prevStartDate && q.event_date <= prevEndDate),
-        [allQuotes, prevStartDate, prevEndDate]
-    );
-    const prevExpenses = useMemo(
-        () => allExpenses.filter(e => e.expense_date >= prevStartDate && e.expense_date <= prevEndDate),
-        [allExpenses, prevStartDate, prevEndDate]
-    );
-    const yoyConfirmedQuotes = useMemo(
-        () => allQuotes.filter(q => (q.status === 'confirmed' || q.status === 'completed') && q.event_date >= yoyStartDate && q.event_date <= yoyEndDate),
-        [allQuotes, yoyStartDate, yoyEndDate]
-    );
-    const yoyExpenses = useMemo(
-        () => allExpenses.filter(e => e.expense_date >= yoyStartDate && e.expense_date <= yoyEndDate),
-        [allExpenses, yoyStartDate, yoyEndDate]
-    );
+    const revenueDelta = pctDelta(metrics.revenue, prevMetrics.revenue);
+    const expensesDelta = pctDelta(metrics.expenses, prevMetrics.expenses);
+    const profitDelta = pctDelta(metrics.profit, prevMetrics.profit);
+    const yoyRevenueDelta = pctDelta(metrics.revenue, yoyMetrics.revenue);
+    const yoyExpensesDelta = pctDelta(metrics.expenses, yoyMetrics.expenses);
+    const yoyProfitDelta = pctDelta(metrics.profit, yoyMetrics.profit);
+    const costRatio = metrics.revenue > 0 ? (metrics.expenses / metrics.revenue) * 100 : 0;
 
-    const totalRevenue = confirmedQuotes.reduce((sum, q) => sum + Number(q.total_price), 0);
-    const totalExpenses = filteredExpenses.reduce((sum, e) => sum + Number(e.amount), 0);
-    const netProfit = totalRevenue - totalExpenses;
-    const profitMargin = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0;
-    const prevRevenue = prevConfirmedQuotes.reduce((sum, q) => sum + Number(q.total_price), 0);
-    const prevExpensesTotal = prevExpenses.reduce((sum, e) => sum + Number(e.amount), 0);
-    const revenueDelta = pctDelta(totalRevenue, prevRevenue);
-    const expensesDelta = pctDelta(totalExpenses, prevExpensesTotal);
-    const netProfitDelta = pctDelta(netProfit, prevRevenue - prevExpensesTotal);
-    const yoyRevenue = yoyConfirmedQuotes.reduce((sum, q) => sum + Number(q.total_price), 0);
-    const yoyExpensesTotal = yoyExpenses.reduce((sum, e) => sum + Number(e.amount), 0);
-    const yoyProfit = yoyRevenue - yoyExpensesTotal;
-    const yoyRevenueDelta = pctDelta(totalRevenue, yoyRevenue);
-    const yoyExpensesDelta = pctDelta(totalExpenses, yoyExpensesTotal);
-    const yoyProfitDelta = pctDelta(netProfit, yoyProfit);
-    const ticketAvg = confirmedQuotes.length ? totalRevenue / confirmedQuotes.length : 0;
-    const costRatio = totalRevenue > 0 ? (totalExpenses / totalRevenue) * 100 : 0;
+    const prevPeriodLabel = tab === 'anual' ? 'año anterior' : 'periodo anterior';
+    const yoyLabel = tab === 'anual' ? `vs ${lastYear}` : `vs ${lastYear} mismo mes`;
 
-    const confirmedIds = useMemo(() => new Set(confirmedQuotes.map(q => q.id)), [confirmedQuotes]);
-    const confirmedItems = useMemo(() => allQuoteItems.filter(item => confirmedIds.has(item.quote_id)), [allQuoteItems, confirmedIds]);
-
-    const productStats = useMemo(() => {
-        const stats: Record<string, { qty: number; revenue: number }> = {};
-        confirmedItems.forEach(item => {
-            if (!stats[item.product_name]) stats[item.product_name] = { qty: 0, revenue: 0 };
-            stats[item.product_name].qty += item.quantity;
-            stats[item.product_name].revenue += item.offer_price_at_time * item.quantity;
-        });
-        return Object.entries(stats).sort((a, b) => b[1].revenue - a[1].revenue).slice(0, 10);
-    }, [confirmedItems]);
-
-    const expenseByCategory = useMemo(() => {
-        const stats: Record<string, number> = {};
-        filteredExpenses.forEach(e => {
-            stats[e.category_name] = (stats[e.category_name] || 0) + Number(e.amount);
-        });
-        return Object.entries(stats).sort((a, b) => b[1] - a[1]);
-    }, [filteredExpenses]);
-
-    const topClients = useMemo(() => {
-        const stats: Record<string, { name: string; total: number; count: number }> = {};
-        confirmedQuotes.forEach(q => {
-            const key = q.client_id || q.client_name;
-            if (!stats[key]) stats[key] = { name: `${q.client_name} ${q.client_lastname || ''}`, total: 0, count: 0 };
-            stats[key].total += Number(q.total_price);
-            stats[key].count += 1;
-        });
-        return Object.values(stats).sort((a, b) => b.total - a.total).slice(0, 5);
-    }, [confirmedQuotes]);
-
-    const topProductsQuantity = useMemo(() => {
-        const stats: Record<string, number> = {};
-        confirmedItems.forEach(item => {
-            stats[item.product_name] = (stats[item.product_name] || 0) + item.quantity;
-        });
-        return Object.entries(stats).sort((a, b) => b[1] - a[1]).slice(0, 5);
-    }, [confirmedItems]);
-    const trendData = useMemo(() => {
-        if (tab === 'anual') {
-            const monthMap: Record<string, { revenue: number; expenses: number; label: string }> = {};
-            MONTH_OPTIONS.forEach(m => {
-                monthMap[m.value] = { revenue: 0, expenses: 0, label: m.label.substring(0, 3) };
-            });
-            confirmedQuotes.forEach(q => {
-                const month = q.event_date.split('-')[1];
-                if (monthMap[month]) monthMap[month].revenue += Number(q.total_price);
-            });
-            filteredExpenses.forEach(e => {
-                const month = e.expense_date.split('-')[1];
-                if (monthMap[month]) monthMap[month].expenses += Number(e.amount);
-            });
-            return MONTH_OPTIONS.map(m => ({ key: m.value, ...monthMap[m.value] })).filter(m => m.revenue > 0 || m.expenses > 0);
-        } else {
-            const weekMap: Record<string, { revenue: number; expenses: number; label: string }> = {};
-            confirmedQuotes.forEach(q => {
-                const d = new Date(`${q.event_date}T12:00:00`);
-                const day = d.getUTCDate();
-                const bucket = Math.min(Math.floor((day - 1) / 7) + 1, 5);
-                const key = `S${bucket}`;
-                if (!weekMap[key]) weekMap[key] = { revenue: 0, expenses: 0, label: `Sem ${bucket}` };
-                weekMap[key].revenue += Number(q.total_price);
-            });
-            filteredExpenses.forEach(e => {
-                const d = new Date(`${e.expense_date}T12:00:00`);
-                const day = d.getUTCDate();
-                const bucket = Math.min(Math.floor((day - 1) / 7) + 1, 5);
-                const key = `S${bucket}`;
-                if (!weekMap[key]) weekMap[key] = { revenue: 0, expenses: 0, label: `Sem ${bucket}` };
-                weekMap[key].expenses += Number(e.amount);
-            });
-            return ['S1', 'S2', 'S3', 'S4', 'S5']
-                .filter(key => weekMap[key])
-                .map(key => ({ key, ...weekMap[key] }));
-        }
-    }, [confirmedQuotes, filteredExpenses, tab]);
-    const alerts = useMemo(() => {
-        const rows: string[] = [];
-        if (profitMargin < 25) rows.push(`Margen bajo: ${profitMargin.toFixed(1)}%`);
-        if (costRatio > 65) rows.push(`Costo sobre ingreso alto: ${costRatio.toFixed(1)}%`);
-        if (expenseByCategory[0] && totalExpenses > 0) {
-            const leadShare = (expenseByCategory[0][1] / totalExpenses) * 100;
-            if (leadShare > 45) rows.push(`Concentracion alta en ${expenseByCategory[0][0]} (${leadShare.toFixed(1)}%)`);
-        }
-        return rows;
-    }, [profitMargin, costRatio, expenseByCategory, totalExpenses]);
-
-    const opConfirmedQuotes = useMemo(() => allQuotes.filter(q => q.status === 'confirmed' || q.status === 'completed'), [allQuotes]);
-    const opConfirmedItems = useMemo(() => {
-        const ids = new Set(opConfirmedQuotes.map(q => q.id));
-        return allQuoteItems.filter(item => ids.has(item.quote_id));
-    }, [allQuoteItems, opConfirmedQuotes]);
-
-    const opComunaStats = useMemo(() => {
-        const stats: Record<string, number> = {};
-        opConfirmedQuotes.forEach(q => {
-            const c = q.comuna_name === 'Otra' && q.comuna_other ? q.comuna_other : (q.comuna_name || 'Desconocida');
-            stats[c] = (stats[c] || 0) + 1;
-        });
-        return Object.entries(stats).sort((a, b) => b[1] - a[1]).slice(0, 5);
-    }, [opConfirmedQuotes]);
-
-    const opServiceStats = useMemo(() => {
-        let event = 0;
-        let direct = 0;
-        opConfirmedQuotes.forEach(q => {
-            if (q.service_type === 'direct') direct++;
-            else event++;
-        });
-        return { event, direct };
-    }, [opConfirmedQuotes]);
-
-    const opDispenserStats = useMemo(() => {
-        let muro = 0;
-        let portatil = 0;
-        opConfirmedQuotes.forEach(q => {
-            if (q.dispenser === 'muro') muro++;
-            else portatil++;
-        });
-        return { muro, portatil };
-    }, [opConfirmedQuotes]);
-
-    const opSizeStats = useMemo(() => {
-        const stats: Record<string, number> = {};
-        opConfirmedItems.forEach(item => {
-            if (item.size) {
-                stats[item.size] = (stats[item.size] || 0) + item.quantity;
-            }
-        });
-        return Object.entries(stats).sort((a, b) => {
-            const sa = parseInt(a[0]) || 0;
-            const sb = parseInt(b[0]) || 0;
-            return sa - sb;
-        });
-    }, [opConfirmedItems]);
-
-    const navigateToMonth = (month: string, forceTab?: string) => {
-        if (!month) return;
+    const navigate = (patch: { month?: string; tab?: string; lane?: LaneFilter }) => {
         const params = new URLSearchParams(searchParams);
-        params.set('month', month);
-        params.set('tab', forceTab || tab);
+        if (patch.month) params.set('month', patch.month);
+        if (patch.tab) params.set('tab', patch.tab);
+        if (patch.lane) params.set('lane', patch.lane);
         router.replace(`/admin/estadisticas?${params.toString()}`, { scroll: false });
     };
 
     const handleTabChange = (newTab: 'mensual' | 'anual' | 'operaciones') => {
         setTab(newTab);
-        navigateToMonth(selectedMonth, newTab);
+        navigate({ tab: newTab });
     };
 
-    return (
-        <div className="pb-16 w-full">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
-                <div>
-                    <h1 className="text-white text-2xl font-black mb-1">Estadisticas</h1>
-                    <p className="text-slate-500 text-sm">Analisis financiero y rendimiento comercial del periodo seleccionado</p>
-                </div>
-            </div>
+    const handleLaneChange = (newLane: LaneFilter) => {
+        setLane(newLane);
+        navigate({ lane: newLane });
+    };
 
-            <div className="bg-[#1e2433] rounded-2xl border border-white/5 p-4 md:p-5 mb-6 shadow-xl">
+    const laneEventYoY = pctDelta(laneComparison.event, laneComparison.yoyEvent);
+    const laneDirectYoY = pctDelta(laneComparison.direct, laneComparison.yoyDirect);
+
+    const expenseChartItems = useMemo(
+        () =>
+            expenseCategories.map((c, i) => ({
+                name: c.name,
+                value: c.value,
+                color: ['#fb7185', '#f472b6', '#c084fc', '#818cf8', '#38bdf8'][i % 5],
+            })),
+        [expenseCategories]
+    );
+
+    return (
+        <div className="pb-16 w-full space-y-6 md:space-y-8">
+            <header className="space-y-1">
+                <h1 className="text-white text-2xl md:text-3xl font-black">Estadísticas</h1>
+                <p className="text-slate-500 text-sm">Análisis financiero y rendimiento comercial del periodo seleccionado</p>
+            </header>
+
+            <Panel
+                title="Controles"
+                subtitle="Periodo, carril de venta y vista"
+                accent="primary"
+                bodyClassName="p-4 @md:p-5 space-y-4"
+                actions={
+                    tab !== 'operaciones' ? (
+                        <SegmentedControl
+                            value={lane}
+                            options={LANE_OPTIONS}
+                            onChange={handleLaneChange}
+                            ariaLabel="Filtro de carril"
+                            size="sm"
+                        />
+                    ) : undefined
+                }
+            >
                 <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                     <div className="flex items-center gap-3">
-                        <div className="p-2.5 bg-[#E2A049]/10 rounded-xl text-[#E2A049]"><CalendarDays size={20} /></div>
+                        <div className="p-2.5 bg-primary/10 rounded-xl text-primary">
+                            <CalendarDays size={20} />
+                        </div>
                         <div>
                             <div className="text-[10px] text-slate-500 font-black uppercase tracking-widest">Periodo activo</div>
-                            <div className="text-white font-black text-lg capitalize">{tab === 'operaciones' ? 'Histórico Completo' : tab === 'anual' ? selectedYear : monthLabel}</div>
+                            <div className="text-white font-black text-lg capitalize">
+                                {tab === 'operaciones' ? 'Histórico completo' : tab === 'anual' ? selectedYear : monthLabel}
+                            </div>
                         </div>
                     </div>
                     {tab !== 'operaciones' && (
                         <div className="flex flex-col sm:flex-row gap-2">
                             <div className="grid grid-cols-3 gap-2">
-                                <button onClick={() => navigateToMonth(tab === 'anual' ? `${Number(selectedYear)-1}-${selectedMonthNum}` : previousMonth)} className="px-3 py-2 bg-black/20 border border-white/10 rounded-xl text-slate-400 hover:text-white hover:border-[#E2A049]/40 transition-colors flex items-center justify-center cursor-pointer" title={tab === 'anual' ? 'Año anterior' : 'Mes anterior'}><ArrowLeft size={16} /></button>
-                                <button onClick={() => navigateToMonth(currentMonth)} className="px-3 py-2 bg-black/20 border border-white/10 rounded-xl text-slate-300 hover:text-[#E2A049] hover:border-[#E2A049]/40 transition-colors text-xs font-black cursor-pointer">{tab === 'anual' ? 'Este año' : 'Este mes'}</button>
-                                <button onClick={() => navigateToMonth(tab === 'anual' ? `${Number(selectedYear)+1}-${selectedMonthNum}` : nextMonth)} className="px-3 py-2 bg-black/20 border border-white/10 rounded-xl text-slate-400 hover:text-white hover:border-[#E2A049]/40 transition-colors flex items-center justify-center cursor-pointer" title={tab === 'anual' ? 'Año siguiente' : 'Mes siguiente'}><ArrowRight size={16} /></button>
+                                <button
+                                    type="button"
+                                    onClick={() =>
+                                        navigate({
+                                            month:
+                                                tab === 'anual'
+                                                    ? `${Number(selectedYear) - 1}-${selectedMonthNum}`
+                                                    : previousMonth,
+                                        })
+                                    }
+                                    className="px-3 py-2 bg-black/20 border border-admin-border rounded-xl text-slate-400 hover:text-white hover:border-primary/40 transition-colors flex items-center justify-center cursor-pointer"
+                                >
+                                    <ArrowLeft size={16} />
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => navigate({ month: currentMonth })}
+                                    className="px-3 py-2 bg-black/20 border border-admin-border rounded-xl text-slate-300 hover:text-primary hover:border-primary/40 transition-colors text-xs font-black cursor-pointer"
+                                >
+                                    {tab === 'anual' ? 'Este año' : 'Este mes'}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() =>
+                                        navigate({
+                                            month:
+                                                tab === 'anual'
+                                                    ? `${Number(selectedYear) + 1}-${selectedMonthNum}`
+                                                    : nextMonth,
+                                        })
+                                    }
+                                    className="px-3 py-2 bg-black/20 border border-admin-border rounded-xl text-slate-400 hover:text-white hover:border-primary/40 transition-colors flex items-center justify-center cursor-pointer"
+                                >
+                                    <ArrowRight size={16} />
+                                </button>
                             </div>
                             <div className={`grid gap-2 ${tab === 'anual' ? 'grid-cols-1' : 'grid-cols-2'}`}>
-                                <select value={selectedYear} onChange={e => navigateToMonth(`${e.target.value}-${selectedMonthNum}`)} className="bg-black/20 border border-white/10 rounded-xl px-3 py-2 text-white outline-none focus:border-[#E2A049] transition-colors text-sm">
-                                    {yearOptions.map(year => <option key={year} value={year}>{year}</option>)}
+                                <select
+                                    value={selectedYear}
+                                    onChange={(e) => navigate({ month: `${e.target.value}-${selectedMonthNum}` })}
+                                    className="bg-black/20 border border-admin-border rounded-xl px-3 py-2 text-white outline-none focus:border-primary transition-colors text-sm"
+                                >
+                                    {yearOptions.map((year) => (
+                                        <option key={year} value={year}>
+                                            {year}
+                                        </option>
+                                    ))}
                                 </select>
                                 {tab === 'mensual' && (
-                                    <select value={selectedMonthNum} onChange={e => navigateToMonth(`${selectedYear}-${e.target.value}`)} className="bg-black/20 border border-white/10 rounded-xl px-3 py-2 text-white outline-none focus:border-[#E2A049] transition-colors text-sm">
-                                        {MONTH_OPTIONS.map(month => <option key={month.value} value={month.value}>{month.label}</option>)}
+                                    <select
+                                        value={selectedMonthNum}
+                                        onChange={(e) => navigate({ month: `${selectedYear}-${e.target.value}` })}
+                                        className="bg-black/20 border border-admin-border rounded-xl px-3 py-2 text-white outline-none focus:border-primary transition-colors text-sm"
+                                    >
+                                        {MONTH_OPTIONS.map((month) => (
+                                            <option key={month.value} value={month.value}>
+                                                {month.label}
+                                            </option>
+                                        ))}
                                     </select>
                                 )}
                             </div>
                         </div>
                     )}
                 </div>
-            </div>
 
-            <div className="flex flex-wrap sm:flex-nowrap gap-1.5 border-b border-white/5 mb-8 pb-3">
-                <button className={`flex-1 sm:flex-none text-center px-4 py-2 rounded-lg text-sm font-bold transition-all cursor-pointer ${tab === 'mensual' ? 'bg-[#E2A049]/10 text-[#E2A049]' : 'text-slate-500 hover:text-slate-300'}`} onClick={() => handleTabChange('mensual')}>Estadística Mensual</button>
-                <button className={`flex-1 sm:flex-none text-center px-4 py-2 rounded-lg text-sm font-bold transition-all cursor-pointer ${tab === 'anual' ? 'bg-[#E2A049]/10 text-[#E2A049]' : 'text-slate-500 hover:text-slate-300'}`} onClick={() => handleTabChange('anual')}>Estadística Anual</button>
-                <button className={`flex-1 sm:flex-none text-center px-4 py-2 rounded-lg text-sm font-bold transition-all cursor-pointer ${tab === 'operaciones' ? 'bg-[#E2A049]/10 text-[#E2A049]' : 'text-slate-500 hover:text-slate-300'}`} onClick={() => handleTabChange('operaciones')}>Operaciones</button>
-            </div>
+                <SegmentedControl
+                    value={tab}
+                    options={[
+                        { value: 'mensual', label: 'Mensual' },
+                        { value: 'anual', label: 'Anual' },
+                        { value: 'operaciones', label: 'Operaciones' },
+                    ]}
+                    onChange={(v) => handleTabChange(v as 'mensual' | 'anual' | 'operaciones')}
+                    ariaLabel="Tipo de estadística"
+                />
+            </Panel>
 
-            {tab === 'operaciones' ? (
-                <div className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {/* Tipo de Servicio */}
-                        <div className="bg-[#1e2433] rounded-2xl border border-white/5 p-6 shadow-xl">
-                            <h3 className="text-white text-base font-black mb-6">Tipos de Servicio</h3>
-                            <div className="flex items-center gap-6">
-                                <div className="flex-1">
-                                    <div className="flex justify-between mb-2">
-                                        <span className="text-slate-300 font-bold">Eventos</span>
-                                        <span className="text-emerald-400 font-black">{opServiceStats.event}</span>
-                                    </div>
-                                    <div className="h-3 bg-white/5 rounded-full overflow-hidden mb-4">
-                                        <div className="h-full bg-emerald-400 rounded-full" style={{ width: `${opServiceStats.event + opServiceStats.direct > 0 ? (opServiceStats.event / (opServiceStats.event + opServiceStats.direct)) * 100 : 0}%` }}></div>
-                                    </div>
-                                    <div className="flex justify-between mb-2">
-                                        <span className="text-slate-300 font-bold">Venta Directa</span>
-                                        <span className="text-sky-400 font-black">{opServiceStats.direct}</span>
-                                    </div>
-                                    <div className="h-3 bg-white/5 rounded-full overflow-hidden">
-                                        <div className="h-full bg-sky-400 rounded-full" style={{ width: `${opServiceStats.event + opServiceStats.direct > 0 ? (opServiceStats.direct / (opServiceStats.event + opServiceStats.direct)) * 100 : 0}%` }}></div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Dispensador */}
-                        <div className="bg-[#1e2433] rounded-2xl border border-white/5 p-6 shadow-xl">
-                            <h3 className="text-white text-base font-black mb-6">Uso de Equipamiento</h3>
-                            <div className="flex items-center gap-6">
-                                <div className="flex-1">
-                                    <div className="flex justify-between mb-2">
-                                        <span className="text-slate-300 font-bold">Dispensador Portátil</span>
-                                        <span className="text-[#E2A049] font-black">{opDispenserStats.portatil}</span>
-                                    </div>
-                                    <div className="h-3 bg-white/5 rounded-full overflow-hidden mb-4">
-                                        <div className="h-full bg-[#E2A049] rounded-full" style={{ width: `${opDispenserStats.muro + opDispenserStats.portatil > 0 ? (opDispenserStats.portatil / (opDispenserStats.muro + opDispenserStats.portatil)) * 100 : 0}%` }}></div>
-                                    </div>
-                                    <div className="flex justify-between mb-2">
-                                        <span className="text-slate-300 font-bold">Muro de Coctelería</span>
-                                        <span className="text-pink-400 font-black">{opDispenserStats.muro}</span>
-                                    </div>
-                                    <div className="h-3 bg-white/5 rounded-full overflow-hidden">
-                                        <div className="h-full bg-pink-400 rounded-full" style={{ width: `${opDispenserStats.muro + opDispenserStats.portatil > 0 ? (opDispenserStats.muro / (opDispenserStats.muro + opDispenserStats.portatil)) * 100 : 0}%` }}></div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {/* Comunas */}
-                        <div className="bg-[#1e2433] rounded-2xl border border-white/5 p-6 shadow-xl">
-                            <h3 className="text-white text-base font-black mb-6">Top Comunas (Histórico)</h3>
-                            <div className="space-y-4">
-                                {opComunaStats.map(([name, count]) => {
-                                    const maxCount = opComunaStats[0]?.[1] || 1;
-                                    const pct = (count / maxCount) * 100;
-                                    return (
-                                        <div key={name}>
-                                            <div className="flex justify-between items-baseline text-sm mb-1">
-                                                <span className="text-white font-bold">{name}</span>
-                                                <span className="text-indigo-400 font-black">{count}</span>
-                                            </div>
-                                            <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
-                                                <div className="h-full bg-indigo-400 rounded-full" style={{ width: `${pct}%` }}></div>
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        </div>
-
-                        {/* Formatos de Barril */}
-                        <div className="bg-[#1e2433] rounded-2xl border border-white/5 p-6 shadow-xl">
-                            <h3 className="text-white text-base font-black mb-6">Rotación de Formatos</h3>
-                            <div className="space-y-4">
-                                {opSizeStats.map(([size, count]) => {
-                                    const maxCount = Math.max(...opSizeStats.map(s => s[1]), 1);
-                                    const pct = (count / maxCount) * 100;
-                                    return (
-                                        <div key={size}>
-                                            <div className="flex justify-between items-baseline text-sm mb-1">
-                                                <span className="text-slate-300 font-bold">{size}</span>
-                                                <span className="text-[#E2A049] font-black">{count} unid</span>
-                                            </div>
-                                            <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
-                                                <div className="h-full bg-[#E2A049] rounded-full" style={{ width: `${pct}%` }}></div>
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            ) : (
+            {tab !== 'operaciones' && (
                 <>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
-                <div className="bg-[#1e2433] rounded-2xl border border-white/5 border-t-4 border-t-emerald-400 p-6 flex flex-col gap-2 shadow-xl">
-                    <div className="flex justify-between items-center"><DollarSign size={18} className="text-emerald-400"/><span className="text-[10px] font-black tracking-widest text-emerald-400 uppercase">Ingresos</span></div>
-                    <div className="text-3xl font-black text-white tracking-tight">{formatCLP(totalRevenue)}</div>
-                    <div className={`text-xs font-bold ${revenueDelta >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>vs {tab === 'anual' ? 'año anterior' : 'mes anterior'} {formatPctDelta(revenueDelta)} ({formatCLP(prevRevenue)})</div>
-                    {tab === 'mensual' && <div className={`text-[11px] font-bold ${yoyRevenueDelta >= 0 ? 'text-emerald-300' : 'text-rose-300'}`}>vs mismo mes año anterior {formatPctDelta(yoyRevenueDelta)} ({formatCLP(yoyRevenue)})</div>}
-                </div>
-                <div className="bg-[#1e2433] rounded-2xl border border-white/5 border-t-4 border-t-rose-400 p-6 flex flex-col gap-2 shadow-xl">
-                    <div className="flex justify-between items-center"><TrendingDown size={18} className="text-rose-400"/><span className="text-[10px] font-black tracking-widest text-rose-400 uppercase">Egresos</span></div>
-                    <div className="text-3xl font-black text-white tracking-tight">{formatCLP(totalExpenses)}</div>
-                    <div className={`text-xs font-bold ${expensesDelta <= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>vs {tab === 'anual' ? 'año anterior' : 'mes anterior'} {formatPctDelta(expensesDelta)} ({formatCLP(prevExpensesTotal)})</div>
-                    {tab === 'mensual' && <div className={`text-[11px] font-bold ${yoyExpensesDelta <= 0 ? 'text-emerald-300' : 'text-rose-300'}`}>vs mismo mes año anterior {formatPctDelta(yoyExpensesDelta)} ({formatCLP(yoyExpensesTotal)})</div>}
-                </div>
-                <div className="bg-[#1e2433] rounded-2xl border border-white/5 border-t-4 border-t-sky-400 p-6 flex flex-col gap-2 shadow-xl sm:col-span-2 lg:col-span-1">
-                    <div className="flex justify-between items-center"><Activity size={18} className="text-sky-400"/><span className="text-[10px] font-black tracking-widest text-sky-400 uppercase">Utilidad Neta</span></div>
-                    <div className={`text-3xl font-black tracking-tight ${netProfit >= 0 ? 'text-sky-400' : 'text-rose-400'}`}>{formatCLP(netProfit)}</div>
-                    <div className={`text-xs font-bold ${netProfitDelta >= 0 ? 'text-sky-400' : 'text-rose-400'}`}>vs {tab === 'anual' ? 'año anterior' : 'mes anterior'} {formatPctDelta(netProfitDelta)} ({formatCLP(prevRevenue - prevExpensesTotal)})</div>
-                    {tab === 'mensual' && <div className={`text-[11px] font-bold ${yoyProfitDelta >= 0 ? 'text-sky-300' : 'text-rose-300'}`}>vs mismo mes año anterior {formatPctDelta(yoyProfitDelta)} ({formatCLP(yoyProfit)})</div>}
-                </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
-                <div className="bg-[#1e2433] rounded-2xl border border-white/5 p-5 shadow-xl">
-                    <div className="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-2">Eventos confirmados</div>
-                    <div className="text-white text-2xl font-black">{confirmedQuotes.length}</div>
-                </div>
-                <div className="bg-[#1e2433] rounded-2xl border border-white/5 p-5 shadow-xl">
-                    <div className="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-2">Ticket promedio</div>
-                    <div className="text-white text-2xl font-black">{formatCLP(ticketAvg)}</div>
-                </div>
-                <div className="bg-[#1e2433] rounded-2xl border border-white/5 p-5 shadow-xl">
-                    <div className="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-2">Costo / Ingreso</div>
-                    <div className={`text-2xl font-black ${costRatio > 65 ? 'text-rose-400' : 'text-emerald-400'}`}>{costRatio.toFixed(1)}%</div>
-                </div>
-            </div>
-
-            <div className="bg-[#1e2433] rounded-2xl border border-white/5 p-6 md:p-8 shadow-xl mb-8">
-                <h3 className="text-white text-base font-black mb-6">{tab === 'anual' ? 'Tendencia Mensual' : 'Tendencia Semanal'}</h3>
-                {trendData.length === 0 ? <p className="text-slate-500 text-sm font-bold italic">Sin datos de tendencia.</p> : (
-                    <div className="space-y-4">
-                        {trendData.map((w) => {
-                            const maxValue = Math.max(...trendData.map(x => Math.max(x.revenue, x.expenses)), 1);
-                            const revPct = (w.revenue / maxValue) * 100;
-                            const expPct = (w.expenses / maxValue) * 100;
-                            return (
-                                <div key={w.key}>
-                                    <div className="flex justify-between text-xs mb-2">
-                                        <span className="text-slate-300 font-bold">{w.label}</span>
-                                        <span className="text-slate-500">Ing {formatCLP(w.revenue)} | Gas {formatCLP(w.expenses)}</span>
+                    <Panel
+                        title="Ventas del periodo"
+                        subtitle="Total primero, luego composición eventos vs directas"
+                        accent="direct"
+                        bodyClassName="p-4 @md:p-6"
+                    >
+                        <div className="rounded-xl border border-admin-border bg-black/10 p-4 mb-5">
+                            <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-2">
+                                <div>
+                                    <div className="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-1">Ventas totales</div>
+                                    <div className="text-white text-2xl font-black">
+                                        {formatCLP(laneComparison.event + laneComparison.direct)}
                                     </div>
-                                    <div className="grid grid-cols-2 gap-2">
-                                        <div className="h-2 bg-white/5 rounded-full overflow-hidden"><div className="h-full bg-emerald-400" style={{ width: `${revPct}%` }}></div></div>
-                                        <div className="h-2 bg-white/5 rounded-full overflow-hidden"><div className="h-full bg-rose-400" style={{ width: `${expPct}%` }}></div></div>
+                                    <div className="text-slate-500 text-xs mt-1">
+                                        {laneComparison.eventCount + laneComparison.directCount} pedidos
                                     </div>
                                 </div>
-                            );
-                        })}
-                    </div>
-                )}
-            </div>
+                                <div className={`text-[11px] font-bold ${pctDelta(laneComparison.event + laneComparison.direct, laneComparison.yoyEvent + laneComparison.yoyDirect) >= 0 ? 'text-emerald-300' : 'text-rose-300'}`}>
+                                    {yoyLabel}{' '}
+                                    {formatPctDelta(
+                                        pctDelta(
+                                            laneComparison.event + laneComparison.direct,
+                                            laneComparison.yoyEvent + laneComparison.yoyDirect
+                                        )
+                                    )}{' '}
+                                    ({formatCLP(laneComparison.yoyEvent + laneComparison.yoyDirect)})
+                                </div>
+                            </div>
+                            <SplitBar event={laneComparison.event} direct={laneComparison.direct} className="mt-4" />
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="rounded-xl border border-admin-border bg-black/10 p-4">
+                                <div className="text-chart-event text-[10px] font-black uppercase tracking-widest mb-1">Eventos</div>
+                                <div className="text-white text-xl font-black">{formatCLP(laneComparison.event)}</div>
+                                <div className="text-slate-500 text-xs mt-1">{laneComparison.eventCount} pedidos</div>
+                                <div className={`text-[11px] font-bold mt-2 ${laneEventYoY >= 0 ? 'text-emerald-300' : 'text-rose-300'}`}>
+                                    {yoyLabel} {formatPctDelta(laneEventYoY)} ({formatCLP(laneComparison.yoyEvent)})
+                                </div>
+                            </div>
+                            <div className="rounded-xl border border-admin-border bg-black/10 p-4">
+                                <div className="text-chart-direct text-[10px] font-black uppercase tracking-widest mb-1">Ventas directas</div>
+                                <div className="text-white text-xl font-black">{formatCLP(laneComparison.direct)}</div>
+                                <div className="text-slate-500 text-xs mt-1">{laneComparison.directCount} pedidos</div>
+                                <div className={`text-[11px] font-bold mt-2 ${laneDirectYoY >= 0 ? 'text-emerald-300' : 'text-rose-300'}`}>
+                                    {yoyLabel} {formatPctDelta(laneDirectYoY)} ({formatCLP(laneComparison.yoyDirect)})
+                                </div>
+                            </div>
+                        </div>
+                    </Panel>
 
-            {alerts.length > 0 && (
-                <div className="bg-rose-500/5 border border-rose-500/20 rounded-2xl p-4 mb-8">
-                    <div className="text-rose-400 text-xs font-black uppercase tracking-widest mb-2">Alertas del periodo</div>
-                    <div className="space-y-1">
-                        {alerts.map((alert) => <p key={alert} className="text-slate-300 text-sm">{alert}</p>)}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 md:gap-4">
+                        <StatCard
+                            label="Ingresos totales"
+                            value={formatCLP(metrics.revenue)}
+                            icon={<DollarSign size={18} />}
+                            sub={`${metrics.orderCount} pedidos`}
+                            accent="emerald"
+                            prevDelta={{
+                                label: `vs ${prevPeriodLabel}`,
+                                delta: revenueDelta,
+                                amount: prevMetrics.revenue,
+                            }}
+                            yoyDelta={{ label: yoyLabel, delta: yoyRevenueDelta, amount: yoyMetrics.revenue }}
+                        />
+                        {lane === 'all' && (
+                            <>
+                                <StatCard
+                                    label="Eventos"
+                                    value={formatCLP(metrics.eventRevenue)}
+                                    icon={<CalendarDays size={18} />}
+                                    sub={`${metrics.eventCount} pedidos`}
+                                    accent="blue"
+                                    yoyDelta={{
+                                        label: yoyLabel,
+                                        delta: pctDelta(metrics.eventRevenue, yoyMetrics.eventRevenue),
+                                        amount: yoyMetrics.eventRevenue,
+                                    }}
+                                />
+                                <StatCard
+                                    label="Ventas directas"
+                                    value={formatCLP(metrics.directRevenue)}
+                                    icon={<Package size={18} />}
+                                    sub={`${metrics.directCount} pedidos`}
+                                    accent="orange"
+                                    yoyDelta={{
+                                        label: yoyLabel,
+                                        delta: pctDelta(metrics.directRevenue, yoyMetrics.directRevenue),
+                                        amount: yoyMetrics.directRevenue,
+                                    }}
+                                />
+                            </>
+                        )}
+                        <StatCard
+                            label="Egresos"
+                            value={formatCLP(metrics.expenses)}
+                            icon={<TrendingDown size={18} />}
+                            accent="rose"
+                            prevDelta={{
+                                label: `vs ${prevPeriodLabel}`,
+                                delta: expensesDelta,
+                                amount: prevMetrics.expenses,
+                                invert: true,
+                            }}
+                            yoyDelta={{
+                                label: yoyLabel,
+                                delta: yoyExpensesDelta,
+                                amount: yoyMetrics.expenses,
+                                invert: true,
+                            }}
+                        />
+                        <StatCard
+                            label="Utilidad neta"
+                            value={formatCLP(metrics.profit)}
+                            icon={<Activity size={18} />}
+                            sub={`Margen ${metrics.margin.toFixed(1)}%`}
+                            accent="sky"
+                            prevDelta={{
+                                label: `vs ${prevPeriodLabel}`,
+                                delta: profitDelta,
+                                amount: prevMetrics.profit,
+                                positiveClass: 'text-sky-300',
+                            }}
+                            yoyDelta={{
+                                label: yoyLabel,
+                                delta: yoyProfitDelta,
+                                amount: yoyMetrics.profit,
+                                positiveClass: 'text-sky-300',
+                            }}
+                        />
                     </div>
-                </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4">
+                        <StatCard label="Pedidos" value={String(metrics.orderCount)} icon={<Award size={18} />} accent="blue" />
+                        <StatCard label="Ticket promedio" value={formatCLP(metrics.ticketAvg)} icon={<DollarSign size={18} />} accent="primary" />
+                        <StatCard
+                            label="Costo / ingreso"
+                            value={`${costRatio.toFixed(1)}%`}
+                            icon={<TrendingDown size={18} />}
+                            accent={costRatio > 65 ? 'rose' : 'emerald'}
+                        />
+                    </div>
+
+                    <Panel
+                        title={tab === 'anual' ? 'Tendencia mensual' : 'Tendencia semanal'}
+                        subtitle="Total, eventos, directas, gastos y comparativa año anterior"
+                        accent="primary"
+                        bodyClassName="p-4 @md:p-6"
+                    >
+                        <RevenueTrendChart data={trend} height={320} />
+                    </Panel>
+
+                    {alerts.length > 0 && (
+                        <div className="rounded-2xl border border-rose-500/20 bg-rose-500/5 p-4 md:p-5">
+                            <div className="text-rose-400 text-xs font-black uppercase tracking-widest mb-2">Alertas del periodo</div>
+                            <div className="space-y-1">
+                                {alerts.map((alert) => (
+                                    <p key={alert} className="text-slate-300 text-sm">
+                                        {alert}
+                                    </p>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 md:gap-6">
+                        <Panel title="Desglose de gastos" accent="expense" bodyClassName="p-4 @md:p-6">
+                            {expenseChartItems.length === 0 ? (
+                                <EmptyState message="Sin movimientos registrados." icon={PieChart} />
+                            ) : (
+                                <CategoryBars items={expenseChartItems} defaultColor="#fb7185" />
+                            )}
+                        </Panel>
+                        <Panel title="Catálogo destacado" accent="neutral" bodyClassName="p-4 @md:p-6">
+                            {topProducts.length === 0 ? (
+                                <EmptyState message="Sin datos de venta suficientes." icon={GlassWater} />
+                            ) : (
+                                <CategoryBars
+                                    items={topProducts.map((p, i) => ({
+                                        name: p.name,
+                                        value: p.value,
+                                        color: ['#a78bfa', '#818cf8', '#6366f1', '#8b5cf6', '#c084fc'][i % 5],
+                                    }))}
+                                    defaultColor="#a78bfa"
+                                />
+                            )}
+                        </Panel>
+                    </div>
+
+                    <Panel title="Ranking clientes y comunas" accent="primary" bodyClassName="p-4 @md:p-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
+                            <div>
+                                <h3 className="text-primary text-[10px] font-black uppercase tracking-[2px] mb-4 flex items-center gap-2">
+                                    <Award size={14} /> Top compradores
+                                </h3>
+                                {topClients.length === 0 ? (
+                                    <EmptyState message="Sin registros de clientes." />
+                                ) : (
+                                    <div className="space-y-3">
+                                        {topClients.map((c) => (
+                                            <div key={c.name} className="flex justify-between items-center gap-3">
+                                                <div className="min-w-0">
+                                                    <div className="text-slate-200 text-xs font-bold truncate">{c.name}</div>
+                                                    <div className="text-slate-600 text-[10px]">{c.count} servicios</div>
+                                                </div>
+                                                <span className="text-primary text-xs font-black shrink-0">{formatCLP(c.value)}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                            <div>
+                                <h3 className="text-chart-profit text-[10px] font-black uppercase tracking-[2px] mb-4 flex items-center gap-2">
+                                    <ChevronRight size={14} /> Top comunas
+                                </h3>
+                                {topComunas.length === 0 ? (
+                                    <EmptyState message="Sin registros de comunas." />
+                                ) : (
+                                    <CategoryBars
+                                        items={topComunas.map((c) => ({ name: c.name, value: c.value, color: '#818cf8' }))}
+                                        formatValue={(v) => `${v} pedidos`}
+                                        defaultColor="#818cf8"
+                                    />
+                                )}
+                            </div>
+                        </div>
+                    </Panel>
+                </>
             )}
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div className="bg-[#1e2433] rounded-2xl border border-white/5 p-6 md:p-8 shadow-xl">
-                    <h3 className="text-white text-base font-black mb-6 flex items-center gap-3">
-                        <PieChart size={18} className="text-pink-400" /> Desglose de Gastos
-                    </h3>
-                    {expenseByCategory.length === 0 ? <p className="text-slate-500 text-sm font-bold italic">Sin movimientos registrados.</p> : (
-                        <div className="flex flex-col gap-5">
-                            {expenseByCategory.map(([name, amount]) => {
-                                const pct = totalExpenses ? (amount / totalExpenses) * 100 : 0;
-                                return (
-                                    <div key={name}>
-                                        <div className="flex justify-between items-baseline text-sm mb-2">
-                                            <span className="text-white font-bold">{name}</span>
-                                            <span className="text-slate-400 font-black">{formatCLP(amount)} <span className="text-[10px] font-bold">({pct.toFixed(1)}%)</span></span>
-                                        </div>
-                                        <div className="h-2 bg-white/5 rounded-full overflow-hidden">
-                                            <div className="h-full bg-pink-400 rounded-full transition-all duration-700 ease-out" style={{ width: `${pct}%` }}></div>
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    )}
+            {tab === 'operaciones' && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+                    <Panel title="Tipos de servicio" accent="event" bodyClassName="p-4 @md:p-6">
+                        <SimpleDonut
+                            data={[
+                                { name: 'Eventos', value: operations.service.event, color: '#34d399' },
+                                { name: 'Directas', value: operations.service.direct, color: '#fb923c' },
+                            ]}
+                            height={220}
+                            centerLabel="Total"
+                            centerValue={String(operations.service.event + operations.service.direct)}
+                        />
+                    </Panel>
+                    <Panel title="Equipamiento" accent="primary" bodyClassName="p-4 @md:p-6">
+                        <SimpleDonut
+                            data={[
+                                { name: 'Portátil', value: operations.dispenser.portatil, color: '#E2A049' },
+                                { name: 'Muro', value: operations.dispenser.muro, color: '#f472b6' },
+                            ]}
+                            height={220}
+                            centerLabel="Total"
+                            centerValue={String(operations.dispenser.portatil + operations.dispenser.muro)}
+                        />
+                    </Panel>
+                    <Panel title="Top comunas (histórico)" accent="profit" bodyClassName="p-4 @md:p-6">
+                        <CategoryBars
+                            items={operations.comunas.map((c) => ({ name: c.name, value: c.value, color: '#818cf8' }))}
+                            formatValue={(v) => `${v} pedidos`}
+                        />
+                    </Panel>
+                    <Panel title="Rotación de formatos" accent="direct" bodyClassName="p-4 @md:p-6">
+                        <CategoryBars
+                            items={operations.sizes.map((s) => ({
+                                name: `${s.name}L`,
+                                value: s.value,
+                                color: '#fb923c',
+                            }))}
+                            formatValue={(v) => `${v} unid`}
+                        />
+                    </Panel>
                 </div>
-
-                <div className="bg-[#1e2433] rounded-2xl border border-white/5 p-6 md:p-8 shadow-xl">
-                    <h3 className="text-white text-base font-black mb-6 flex items-center gap-3">
-                        <GlassWater size={18} className="text-purple-400" /> Catalogo Destacado
-                    </h3>
-                    {productStats.length === 0 ? <p className="text-slate-500 text-sm font-bold italic">Sin datos de venta suficientes.</p> : (
-                        <div className="flex flex-col gap-5">
-                            {productStats.map(([name, stat]) => {
-                                const maxRev = productStats[0][1].revenue;
-                                const pct = maxRev ? (stat.revenue / maxRev) * 100 : 0;
-                                return (
-                                    <div key={name}>
-                                        <div className="flex justify-between items-baseline text-sm mb-2">
-                                            <span className="text-white font-bold truncate max-w-[200px] sm:max-w-[300px] shrink-0">{name}</span>
-                                            <span className="text-[#E2A049] font-black">{formatCLP(stat.revenue)}</span>
-                                        </div>
-                                        <div className="h-2 bg-white/5 rounded-full overflow-hidden">
-                                            <div className="h-full bg-purple-400 rounded-full transition-all duration-700 ease-out" style={{ width: `${pct}%` }}></div>
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    )}
-                </div>
-            </div>
-
-            <div className="mt-8 mb-8">
-                <div className="flex items-center gap-3 mb-5 px-1">
-                    <div className="bg-amber-500 w-1 h-5 rounded-full" />
-                    <h2 className="text-white text-lg font-extrabold">Ranking Clientes & Productos</h2>
-                </div>
-                <div className="bg-[#1e2433] rounded-2xl border border-white/5 p-6 shadow-xl">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        <div>
-                            <h3 className="text-[#E2A049] text-[10px] font-black uppercase tracking-[2px] mb-4 flex items-center gap-2">
-                                <Award size={14}/> Top Compradores
-                            </h3>
-                            <div className="space-y-4">
-                                {topClients.length === 0 ? <p className="text-slate-500 text-sm font-bold italic">Sin registros de clientes.</p> : topClients.map((c, index) => (
-                                    <div key={index} className="flex justify-between items-center group">
-                                        <div className="flex flex-col">
-                                            <span className="text-slate-200 text-xs font-bold group-hover:text-white transition-colors">{c.name}</span>
-                                            <span className="text-slate-600 text-[10px]">{c.count} servicios</span>
-                                        </div>
-                                        <span className="text-[#E2A049] text-xs font-black">{formatCLP(c.total)}</span>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                        <div>
-                            <h3 className="text-sky-400 text-[10px] font-black uppercase tracking-[2px] mb-4 flex items-center gap-2">
-                                <ChevronRight size={14}/> Estrellas del Bar
-                            </h3>
-                            <div className="space-y-4">
-                                {topProductsQuantity.length === 0 ? <p className="text-slate-500 text-sm font-bold italic">Sin registros de productos.</p> : topProductsQuantity.map(([name, qty], index) => (
-                                    <div key={index} className="flex justify-between items-center group">
-                                        <span className="text-slate-400 text-xs font-bold truncate max-w-[200px] shrink-0 group-hover:text-slate-200 transition-colors">{name}</span>
-                                        <span className="bg-sky-500/10 text-sky-400 text-[10px] font-black px-2 py-0.5 rounded-full">{qty} unid</span>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            </>
             )}
         </div>
     );
