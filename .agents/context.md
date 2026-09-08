@@ -41,6 +41,12 @@
 
 ## Ultimos Cambios
 
+### 08-09-2026 (Sesión 115) — Fix venta directa admin sin email
+
+- Al buscar cliente existente en `/admin/quotes/new`, si el CRM no tiene email (`null`, ej. David Namias) el formulario precargaba `email: null` y `createDraftQuote` fallaba con `.trim()` → "Error inesperado".
+- Fix: optional chaining en `quoteService` / `googleSyncService`; búsqueda de cliente usa `c.email || ''`.
+- Archivos: `lib/services/quoteService.ts`, `lib/services/googleSyncService.ts`, `app/admin/quotes/new/CreateQuoteManualClient.tsx`.
+
 ### 07-09-2026 (Sesión 114) — Productos ocultos del recetario
 
 - `products.hide_from_recipes`: extras de venta (hielo, decoración, bombillas) siguen en catálogo y no aparecen en Recetario como «sin receta».
@@ -76,4 +82,4 @@
 
 ---
 
-*Ultima actualizacion: 07-09-2026 (Sesión 114)*
+*Ultima actualizacion: 08-09-2026 (Sesión 115)*

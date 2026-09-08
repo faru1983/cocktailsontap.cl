@@ -41,7 +41,7 @@ export const GoogleSyncService = {
         quoteAddress?: Pick<Quote, 'client_address' | 'comuna_name' | 'comuna_other' | 'region_name'>
     ): Promise<void> {
         try {
-            const emailTrimmed = state.contact.email.trim().toLowerCase();
+            const emailTrimmed = state.contact.email?.trim().toLowerCase() || '';
             if (!emailTrimmed || !clientId) return;
 
              // Logica de De-duplicación: Buscar google_contact_id en la DB primero

@@ -73,7 +73,7 @@ export const QuoteService = {
         
         const finalTotalPrice = data.totalOfferPrice + finalShipping + finalInstallation - finalDiscount;
 
-        const emailTrimmed = state.contact.email.trim().toLowerCase();
+        const emailTrimmed = state.contact.email?.trim().toLowerCase() || '';
 
         // Insert quote
         const { data: quote, error: quoteError } = await db
