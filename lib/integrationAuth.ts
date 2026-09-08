@@ -1,4 +1,5 @@
 import { timingSafeEqual } from 'crypto';
+import { enforceRateLimit, RATE_LIMIT_MESSAGE } from '@/lib/rateLimit';
 
 function safeEqual(a: string, b: string): boolean {
     const bufA = Buffer.from(a);
@@ -14,7 +15,12 @@ export type IntegrationAuthResult =
 /**
  * Valida Authorization: Bearer <INTEGRATION_API_KEY>.
  */
-export function verifyIntegrationAuth(request: Request): IntegrationAuthResult {
+export async function verifyIntegrationAuth(request: Request): Promise<IntegrationAuthResult> {
+    const rl = await enforceRateLimit('apiV1', { limit: 60, windowMs: 60 * 1000 });
+    if (!rl.ok) {
+        return { ok: false, status: 401, error: RATE_LIMIT_MESSAGE };
+    }
+
     const expected = process.env.INTEGRATION_API_KEY?.trim();
     if (!expected) {
         return {

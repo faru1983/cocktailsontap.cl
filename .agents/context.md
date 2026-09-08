@@ -41,6 +41,21 @@
 
 ## Ultimos Cambios
 
+### 08-09-2026 (Sesión 117) — Hardening seguridad post-auditoría
+
+- **Zero Trust**: `createQuote` público solo `{ state, confirmNow? }`; catálogo vía `fetchAllProductData()`. Admin: `createQuoteAdmin` + `validateSession()`. `confirmQuoteCore` recalcula precios desde catálogo; confirm solo desde `status=draft` con UPDATE atómico.
+- **Sesión admin**: cookie HMAC firmada (no hash estático del password); `timingSafeEqual`; `requireAdmin()` en RSC; logout con path `/admin`.
+- **Rate limit**: `lib/rateLimit.ts` en login, cotizar, confirmar, `/api/v1`.
+- **Higiene**: Zod whitelist en `updateQuoteAdmin` / productos / status; upload MIME allowlist; CSP + HSTS en `vercel.json`; escape fórmulas TXT export.
+- **Vercel Firewall (manual)**: sugerido POST login 5/min/IP; `/api/v1/*` 60/min/IP.
+
+### 08-09-2026 (Sesión 116) — Google Contacts phone-only desde admin
+
+- Cotización, reserva y venta directa desde admin ya sincronizaban Google Contacts, pero se abortaba si no había email.
+- Ahora se sincroniza con email y/o celular: si no hay `google_contact_id`, busca por teléfono/email; si no existe, crea el contacto y guarda el ID.
+- El wizard público sigue exigiendo email para cotizar/confirmar; admin puede crear clientes solo con celular.
+- Archivo: `lib/services/googleSyncService.ts`.
+
 ### 08-09-2026 (Sesión 115) — Fix venta directa admin sin email
 
 - Al buscar cliente existente en `/admin/quotes/new`, si el CRM no tiene email (`null`, ej. David Namias) el formulario precargaba `email: null` y `createDraftQuote` fallaba con `.trim()` → "Error inesperado".
@@ -61,25 +76,6 @@
 - Ya marcados: **Hielo Cubo/Frappe**, **Decoración Desidratada**, **Decoración Menta**, **Barril Pet 5L Talos**.
 - Migración `20260907180000_ingredient_hide_in_production`.
 
-### 07-09-2026 (Sesión 112) — Producción manual: lista corta de cócteles
-
-- En Recetario → Producción → Manual ya no se muestra el catálogo completo con un input por receta.
-- Flujo: buscar y agregar solo los cócteles necesarios; después ingresar litros en esa lista corta (quitar con X).
-- Archivo: `app/admin/recetario/RecetarioClient.tsx`.
-
-### 07-09-2026 (Sesión 111) — Exportador admin configurable
-
-- Nueva sección `/admin/exportar`: datasets **Clientes** y **Cotizaciones**, catálogo de campos, filtros, formatos CSV/TXT/JSON (BOM UTF-8, separador `;`/`,`, fechas es-CL o ISO, montos planos o `$`).
-- Presets incorporados: Meta Ads (PII crudo o SHA-256), Mailchimp, Contabilidad; presets propios en `site_settings` (`category=exports`, `key=export_preset_<slug>`).
-- Archivos: `lib/services/exportService.ts`, `lib/exportSchemas.ts`, `app/actions/admin/exportActions.ts`, `app/admin/exportar/*`, ítem **Exportar** en sidebar.
-
-### 07-09-2026 (Sesión 110) — Recetario: hielo, decoraciones y orden Barril Pet
-
-- Migración `20260907160000_recipe_event_ice_decorations`: en las 25 recetas activas base 5L se agregó **Hielo Cubo/Frappe** 4000 g y **Decoración Desidratada** 1 u con `applies_to=event`.
-- **Decoración Menta** 1 u (`event`) en los 8 mojitos y Moscow Mule.
-- **Barril Pet 5L Talos** se muestra y persiste al final de la lista de insumos (`sortRecipeItemsForDisplay`, guardado en `saveRecipe`, producción y `created_at` en BD).
-- UI recetas: costos/precios en tablas (margen + **Precio para el cliente** por tamaño); en PC selector combobox arriba (búsqueda + anterior/siguiente) en vez de barra lateral; móvil sigue con lista de cards.
-
 ---
 
-*Ultima actualizacion: 08-09-2026 (Sesión 115)*
+*Ultima actualizacion: 08-09-2026 (Sesión 117)*

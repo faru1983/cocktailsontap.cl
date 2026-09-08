@@ -7,7 +7,7 @@ import * as React from 'react';
 import { Resend } from 'resend';
 import { render } from '@react-email/components';
 import { CreateQuoteSchema } from '@/lib/types';
-import type { WizardState, CocktailForWizard, Comuna, QuoteItem } from '@/lib/types';
+import type { WizardState, CocktailForWizard, Comuna, QuoteItem, WizardSelection } from '@/lib/types';
 import { ADMIN_EMAIL, FROM_EMAIL } from '@/lib/config';
 import { QuoteService } from '@/lib/services/quoteService';
 import { GoogleSyncService } from '@/lib/services/googleSyncService';
@@ -15,6 +15,7 @@ import { SettingsService } from '@/lib/services/settingsService';
 import { resolveQuoteSource, type QuoteSource } from '@/lib/quoteSource';
 import { confirmQuoteCore } from '@/lib/services/confirmQuoteCore';
 import { validateConfirmNowState } from '@/lib/confirmNowValidation';
+import { stripClientPricing } from '@/lib/catalogPricing';
 import { resolveRegionShortName, validateDirectSaleDate } from '@/lib/wizardLogic';
 
 export interface CreateQuoteInput {
@@ -63,16 +64,9 @@ function buildConfirmPayload(state: WizardState, token: string, items: QuoteItem
         comments: state.contact.comments?.trim() || null,
         dispenser: state.dispenser as 'portatil' | 'muro' | 'desechable',
         items: items.map((item) => ({
-            id: item.id,
             product_id: item.product_id,
-            product_name: item.product_name,
             size: item.size,
-            size_value: item.size_value,
-            unit_id: item.unit_id,
-            is_disposable: item.is_disposable ?? false,
             quantity: item.quantity,
-            price_at_time: item.price_at_time,
-            offer_price_at_time: item.offer_price_at_time,
         })),
     };
 }
@@ -80,20 +74,20 @@ function buildConfirmPayload(state: WizardState, token: string, items: QuoteItem
 export async function createQuoteCore(input: CreateQuoteInput): Promise<CreateQuoteResult> {
     try {
         const {
-            state,
             cocktails,
             comunas,
             skipEmail,
-            isAdmin,
+            isAdmin = false,
             confirmNow,
-            overrides,
             source: sourceInput,
         } = input;
+        let { state, overrides } = input;
         const source = resolveQuoteSource({ source: sourceInput, isAdmin });
         const wantsConfirmNow = Boolean(confirmNow) && state.serviceType === 'event';
+        const effectiveOverrides = isAdmin ? overrides : undefined;
 
         if (!isAdmin) {
-            const validation = CreateQuoteSchema.safeParse({ ...input, confirmNow: wantsConfirmNow });
+            const validation = CreateQuoteSchema.safeParse({ state, confirmNow: wantsConfirmNow });
             if (!validation.success) {
                 const errorMsg = validation.error.issues
                     .map((i) => `${i.path.join('.')}: ${i.message}`)
@@ -101,6 +95,13 @@ export async function createQuoteCore(input: CreateQuoteInput): Promise<CreateQu
                 console.error('Validation Error Details:', errorMsg);
                 return { success: false, error: `Datos de cotización inválidos (${errorMsg}).` };
             }
+            state = {
+                ...validation.data.state,
+                selections: stripClientPricing(
+                    validation.data.state.selections as WizardSelection[]
+                ),
+            } as WizardState;
+            overrides = undefined;
         } else if (wantsConfirmNow) {
             const confirmErr = validateConfirmNowState(state);
             if (confirmErr) return { success: false, error: confirmErr };
@@ -128,8 +129,9 @@ export async function createQuoteCore(input: CreateQuoteInput): Promise<CreateQu
             cocktails,
             comunas,
             clientId,
-            overrides,
-            source
+            effectiveOverrides,
+            source,
+            isAdmin
         );
 
         if (!createResult.success || !createResult.token || !createResult.quote) {

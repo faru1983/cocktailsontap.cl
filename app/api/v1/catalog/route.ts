@@ -11,7 +11,7 @@ import { fetchAllProductData } from '@/lib/serverData';
  */
 export async function GET(request: Request) {
     try {
-        const auth = verifyIntegrationAuth(request);
+        const auth = await verifyIntegrationAuth(request);
         if (!auth.ok) {
             return jsonError(auth.status, auth.error);
         }

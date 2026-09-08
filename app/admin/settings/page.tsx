@@ -1,4 +1,5 @@
 import { createServerClient } from '@/lib/supabaseServer';
+import { requireAdmin } from '@/lib/adminAuth';
 import SettingsClient from './SettingsClient';
 
 async function getSettings() {
@@ -27,6 +28,7 @@ async function getSettings() {
 }
 
 export default async function SettingsPage() {
+    await requireAdmin();
     const data = await getSettings();
     return <SettingsClient {...data} />;
 }

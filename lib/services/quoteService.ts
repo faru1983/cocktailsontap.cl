@@ -62,14 +62,23 @@ export const QuoteService = {
         comunas: Comuna[],
         clientId: string | null,
         overrides?: { shippingCost?: number; installationCost?: number; manualDiscount?: number; shippingLabel?: string | null },
-        source: QuoteSource = 'web'
+        source: QuoteSource = 'web',
+        isAdmin = false
     ): Promise<CreateQuoteResult> {
         const db = createServerClient();
+        const effectiveOverrides = isAdmin ? overrides : undefined;
         const data = calculateSummaryData(state, cocktails, comunas);
 
-        const finalShipping = overrides?.shippingCost !== undefined ? overrides.shippingCost : data.shippingCost;
-        const finalInstallation = overrides?.installationCost !== undefined ? overrides.installationCost : data.installationCost;
-        const finalDiscount = overrides?.manualDiscount !== undefined ? overrides.manualDiscount : 0;
+        const finalShipping =
+            effectiveOverrides?.shippingCost !== undefined
+                ? effectiveOverrides.shippingCost
+                : data.shippingCost;
+        const finalInstallation =
+            effectiveOverrides?.installationCost !== undefined
+                ? effectiveOverrides.installationCost
+                : data.installationCost;
+        const finalDiscount =
+            effectiveOverrides?.manualDiscount !== undefined ? effectiveOverrides.manualDiscount : 0;
         
         const finalTotalPrice = data.totalOfferPrice + finalShipping + finalInstallation - finalDiscount;
 
@@ -112,7 +121,7 @@ export const QuoteService = {
                 total_liters: data.totalLiters,
                 service_type: state.serviceType || 'event',
                 source,
-                shipping_label: overrides?.shippingLabel ?? null,
+                shipping_label: effectiveOverrides?.shippingLabel ?? null,
             })
             .select('*')
             .single();
@@ -137,7 +146,8 @@ export const QuoteService = {
                 is_disposable: priceData.isDisposable,
                 quantity: sel.quantity,
                 price_at_time: priceData.price,
-                offer_price_at_time: sel.customPrice !== undefined ? sel.customPrice : priceData.offerPrice,
+                offer_price_at_time:
+                    isAdmin && sel.customPrice !== undefined ? sel.customPrice : priceData.offerPrice,
             };
         });
 
@@ -147,12 +157,20 @@ export const QuoteService = {
                 .from('quote_items')
                 .insert(itemsToInsert)
                 .select('*');
-            
+
             if (itemsError) {
                 console.error('Error inserting quote items:', itemsError);
-            } else if (items) {
+                await db.from('quotes').delete().eq('id', quote.id);
+                return { success: false, error: 'No se pudieron guardar los productos de la cotización.' };
+            }
+            if (items) {
                 insertedItems = items;
             }
+        }
+
+        if (itemsToInsert.length > 0 && insertedItems.length === 0) {
+            await db.from('quotes').delete().eq('id', quote.id);
+            return { success: false, error: 'No se pudieron guardar los productos de la cotización.' };
         }
 
         return { 

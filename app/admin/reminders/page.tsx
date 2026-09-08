@@ -1,4 +1,5 @@
 import { createServerClient } from '@/lib/supabaseServer';
+import { requireAdmin } from '@/lib/adminAuth';
 import {
     getReminderCronSettings,
     listAnniversaryPendings,
@@ -11,6 +12,7 @@ import RemindersClient from './RemindersClient';
 type SearchParams = Promise<{ tab?: string }>;
 
 export default async function RemindersPage({ searchParams }: { searchParams: SearchParams }) {
+    await requireAdmin();
     const { tab } = await searchParams;
     const db = createServerClient();
 

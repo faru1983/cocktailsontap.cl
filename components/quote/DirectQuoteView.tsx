@@ -401,9 +401,12 @@ export default function DirectQuoteView({ quote, comunas, regions, availableCock
             pickup_date: null as any,
             pickup_time: '',
             comments: comments,
-            items: items,
+            items: items.map((item) => ({
+                product_id: item.product_id,
+                size: item.size,
+                quantity: item.quantity,
+            })),
             dispenser: 'desechable',
-            installation_cost: 0
         });
         setIsConfirming(false);
         if (result.success) {

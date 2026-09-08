@@ -1,4 +1,5 @@
 import { createServerClient } from '@/lib/supabaseServer';
+import { requireAdmin } from '@/lib/adminAuth';
 import type { Metadata } from 'next';
 import GastosClient from './GastosClient';
 
@@ -71,6 +72,7 @@ function getRelationName(relation: NamedRelation, fallback: string) {
 }
 
 export default async function GastosPage({ searchParams }: { searchParams: SearchParams }) {
+    await requireAdmin();
     const db = createServerClient();
     const rawParams = await searchParams;
     const currentMonth = getCurrentMonthKey();

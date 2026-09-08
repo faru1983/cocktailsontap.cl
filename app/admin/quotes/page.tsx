@@ -1,4 +1,5 @@
 import { createServerClient } from '@/lib/supabaseServer';
+import { requireAdmin } from '@/lib/adminAuth';
 import QuotesListClient from './QuotesListClient';
 
 type SearchParams = Promise<{
@@ -57,6 +58,7 @@ async function getQuotes(
 }
 
 export default async function QuotesPage({ searchParams }: { searchParams: SearchParams }) {
+    await requireAdmin();
     const rawParams = await searchParams;
     let { status = 'confirmed', type = 'all', source = 'all', q, sort = 'event_date', order = 'asc', sort_order, page = '1' } = rawParams as any;
     const currentPage = parseInt(page) || 1;

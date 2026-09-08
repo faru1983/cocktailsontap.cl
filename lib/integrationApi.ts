@@ -17,7 +17,7 @@ export async function handleIntegrationCreate(opts: {
         | { ok: true; state: WizardState; items: { productId: string; size: string; quantity: number }[]; source?: QuoteSource }
         | { ok: false; error: string };
 }) {
-    const auth = verifyIntegrationAuth(opts.request);
+    const auth = await verifyIntegrationAuth(opts.request);
     if (!auth.ok) {
         return jsonError(auth.status, auth.error);
     }

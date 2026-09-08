@@ -4,7 +4,7 @@ import { useState, useTransition, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Save, Plus, Trash2, Search, Check, AlertCircle, MessageCircle, RefreshCw, Copy, MapPin, Loader2 } from 'lucide-react';
-import { createQuote } from '@/app/actions/createQuote';
+import { createQuoteAdmin } from '@/app/actions/admin/createQuoteAdmin';
 import { getClientAddressesFromQuotes, type ClientQuoteAddress } from '@/app/actions/admin/adminActions';
 import type { Product, Comuna, Region, EventType, WizardState } from '@/lib/types';
 import { DEFAULT_REGION_CODE } from '@/lib/types';
@@ -248,11 +248,8 @@ export default function CreateQuoteManualClient({ allProducts, comunas, regions,
         }
 
         startTransition(async () => {
-            const res = await createQuote({
+            const res = await createQuoteAdmin({
                 state: currentWizardState,
-                cocktails: cocktailsForWizard,
-                comunas,
-                isAdmin: true,
                 confirmNow: serviceType === 'event' && confirmNow,
                 overrides: {
                     ...(shippingPorPagar ? { shippingCost: 0, shippingLabel: 'Por Pagar' } : shippingOverride !== undefined ? { shippingCost: shippingOverride } : {}),

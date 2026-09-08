@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { createServerClient } from '@/lib/supabaseServer';
+import { requireAdmin } from '@/lib/adminAuth';
 import ExportClient from './ExportClient';
 import { BUILTIN_PRESETS, loadSavedExportPresets } from '@/lib/services/exportService';
 
@@ -10,6 +11,7 @@ export const metadata: Metadata = {
 export const dynamic = 'force-dynamic';
 
 export default async function ExportarPage() {
+    await requireAdmin();
     const db = createServerClient();
 
     const [savedPresets, comunasRes] = await Promise.all([

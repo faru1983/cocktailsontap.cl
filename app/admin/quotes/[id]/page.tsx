@@ -1,10 +1,12 @@
 import { createServerClient } from '@/lib/supabaseServer';
+import { requireAdmin } from '@/lib/adminAuth';
 import { notFound } from 'next/navigation';
 import QuoteDetailClient from './QuoteDetailClient';
 
 type Params = Promise<{ id: string }>;
 
 export default async function QuoteDetailPage({ params }: { params: Params }) {
+    await requireAdmin();
     const { id } = await params;
     const db = createServerClient();
 

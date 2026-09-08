@@ -473,9 +473,12 @@ export default function EventQuoteView({ quote, comunas, regions, availableCockt
             pickup_date: pickupDate,
             pickup_time: pickupTime,
             comments: comments,
-            items: items,
+            items: items.map((item) => ({
+                product_id: item.product_id,
+                size: item.size,
+                quantity: item.quantity,
+            })),
             dispenser: dispenser,
-            installation_cost: totals.installationCost
         });
         setIsConfirming(false);
         if (result.success) {

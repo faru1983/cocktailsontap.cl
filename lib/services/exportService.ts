@@ -896,7 +896,7 @@ export function serializeExport(
     const separator = format.type === 'txt' ? '\t' : format.csvSeparator || ';';
 
     const headerLine =
-        format.type === 'csv'
+        format.type === 'csv' || format.type === 'txt'
             ? headers.map((h) => escapeCsvCell(h, separator)).join(separator)
             : headers.join(separator);
 
@@ -904,7 +904,9 @@ export function serializeExport(
         columnKeys
             .map((key) => {
                 const cell = row[key] ?? '';
-                return format.type === 'csv' ? escapeCsvCell(cell, separator) : cell.replace(/\t/g, ' ');
+                return format.type === 'csv' || format.type === 'txt'
+                    ? escapeCsvCell(cell, separator)
+                    : cell.replace(/\t/g, ' ');
             })
             .join(separator)
     );

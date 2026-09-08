@@ -1,9 +1,11 @@
 import { createServerClient } from '@/lib/supabaseServer';
+import { requireAdmin } from '@/lib/adminAuth';
 import ClientDetailClient from './ClientDetailClient';
 
 type Params = Promise<{ id: string }>;
 
 export default async function ClientDetailPage({ params }: { params: Params }) {
+    await requireAdmin();
     const { id } = await params;
     const db = createServerClient();
 

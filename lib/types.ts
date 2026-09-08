@@ -363,8 +363,6 @@ export const CreateQuoteSchema = z
                 dispenser: z.enum(['portatil', 'muro', 'desechable']),
             })
             .passthrough(),
-        cocktails: z.array(z.any()).optional(),
-        comunas: z.array(z.any()).optional(),
         confirmNow: z.boolean().optional(),
     })
     .superRefine((data, ctx) => {
@@ -442,18 +440,78 @@ export const ConfirmQuoteSchema = z.object({
     pickup_time: z.string().nullable(),
     comments: z.string().nullable(),
     dispenser: z.enum(['portatil', 'muro', 'desechable']),
-    items: z.array(z.object({
-        id: z.string().optional(),
-        product_id: z.string().nullable(),
-        product_name: z.string(),
-        size: z.string(),
-        size_value: z.coerce.number().nullable().optional(),
-        unit_id: z.string().nullable().optional(),
-        is_disposable: z.boolean().nullable().optional().transform((value) => value ?? false),
-        quantity: z.coerce.number().min(1),
-        price_at_time: z.coerce.number(),
-        offer_price_at_time: z.coerce.number(),
-    })).min(1, 'Debe haber al menos un producto'),
+    items: z
+        .array(
+            z.object({
+                product_id: z.string().min(1, 'Producto requerido'),
+                size: z.string().min(1),
+                quantity: z.coerce.number().min(1),
+            })
+        )
+        .min(1, 'Debe haber al menos un producto'),
+});
+
+export const QuoteStatusSchema = z.enum([
+    'draft',
+    'confirmed',
+    'in_delivery',
+    'cancelled',
+    'completed',
+]);
+
+/** Campos editables de ficha en admin (QuoteDetailClient). */
+export const UpdateQuoteAdminSchema = z
+    .object({
+        client_name: z.string().min(1).max(120).optional(),
+        client_lastname: z.string().max(120).nullable().optional(),
+        client_email: z.string().email().nullable().optional().or(z.literal('').transform(() => null)),
+        client_phone: z.string().max(30).nullable().optional(),
+        client_address: z.string().max(300).nullable().optional(),
+        comuna_name: z.string().max(120).nullable().optional(),
+        comuna_other: z.string().max(120).nullable().optional(),
+        region_name: z.string().max(120).nullable().optional(),
+        event_type_id: z.string().nullable().optional(),
+        event_type_other: z.string().max(120).nullable().optional(),
+        event_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+        start_time: z.string().max(20).nullable().optional(),
+        pickup_date: z.string().nullable().optional(),
+        pickup_time: z.string().max(20).nullable().optional(),
+        guests: z.coerce.number().min(0).optional(),
+        drinks_per_person: z.coerce.number().min(0).optional(),
+        comments: z.string().max(2000).nullable().optional(),
+        dispenser: z.enum(['portatil', 'muro', 'desechable']).optional(),
+    })
+    .strip();
+
+export const CategorySaveSchema = z.object({
+    id: z.string().uuid().optional().nullable(),
+    name: z.string().min(1).max(80),
+    display_order: z.coerce.number().int().min(0).optional(),
+    is_active: z.boolean().optional(),
+});
+
+export const ProductPriceSaveSchema = z.object({
+    id: z.string().uuid().optional().nullable(),
+    size: z.string().min(1),
+    size_value: z.coerce.number().min(0),
+    unit_id: z.string().uuid().nullable().optional(),
+    price: z.coerce.number().min(0),
+    offer_price: z.coerce.number().min(0).nullable().optional(),
+    is_disposable: z.boolean().optional(),
+    is_active: z.boolean().optional(),
+    display_order: z.coerce.number().int().min(0).optional(),
+    image_url: z.string().max(500).nullable().optional(),
+});
+
+export const ProductSaveSchema = z.object({
+    id: z.string().uuid().optional().nullable(),
+    name: z.string().min(1).max(120),
+    description: z.string().max(500).nullable().optional(),
+    category_id: z.string().uuid().nullable().optional(),
+    display_order: z.coerce.number().int().min(0).optional(),
+    is_active: z.boolean().optional(),
+    hide_from_recipes: z.boolean().optional(),
+    image_url: z.string().max(500).nullable().optional(),
 });
 
 /** Recetario — insumos y recetas */

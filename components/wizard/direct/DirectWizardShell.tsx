@@ -94,7 +94,7 @@ export default function DirectWizardShell({ cocktails, comunas, regions, categor
         setQuoteToken(null);
 
         // Guardar en Supabase
-        const result = await createQuote({ state, cocktails, comunas });
+        const result = await createQuote({ state });
 
         if (result.success && result.token) {
             setQuoteToken(result.token);

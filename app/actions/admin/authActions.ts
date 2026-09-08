@@ -2,39 +2,45 @@
 
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { createHash } from 'crypto';
-
-function hashPassword(password: string): string {
-    const salt = process.env.AUTH_SALT;
-    if (!salt) throw new Error('AUTH_SALT environment variable is missing.');
-    return createHash('sha256').update(password + salt).digest('hex');
-}
+import {
+    createSessionTokenValue,
+    getSessionCookieOptions,
+    sanitizeAdminRedirect,
+    verifyAdminPassword,
+} from '@/lib/adminAuth';
+import { enforceRateLimit, RATE_LIMIT_MESSAGE } from '@/lib/rateLimit';
 
 export async function adminLogin(formData: FormData): Promise<{ error?: string }> {
+    const rl = await enforceRateLimit('adminLogin', { limit: 5, windowMs: 15 * 60 * 1000 });
+    if (!rl.ok) return { error: RATE_LIMIT_MESSAGE };
+
     const password = formData.get('password') as string;
-    const from = formData.get('from') as string || '/admin';
-    
-    const adminPassword = process.env.ADMIN_PASSWORD;
-    if (!adminPassword) return { error: 'Configuración del servidor incompleta.' };
-    
-    if (password !== adminPassword) {
+    const from = formData.get('from') as string | null;
+
+    if (!process.env.ADMIN_PASSWORD) {
+        return { error: 'Configuración del servidor incompleta.' };
+    }
+
+    if (!verifyAdminPassword(password)) {
         return { error: 'Contraseña incorrecta.' };
     }
 
     const cookieStore = await cookies();
-    cookieStore.set('admin_session', hashPassword(adminPassword), {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
-        maxAge: 60 * 60 * 24 * 7, // 7 days
-        path: '/admin',
+    const token = createSessionTokenValue();
+    const opts = getSessionCookieOptions(token);
+    cookieStore.set(opts.name, opts.value, {
+        httpOnly: opts.httpOnly,
+        secure: opts.secure,
+        sameSite: opts.sameSite,
+        maxAge: opts.maxAge,
+        path: opts.path,
     });
 
-    redirect(from.startsWith('/admin') ? from : '/admin');
+    redirect(sanitizeAdminRedirect(from));
 }
 
 export async function adminLogout() {
     const cookieStore = await cookies();
-    cookieStore.delete('admin_session');
+    cookieStore.delete({ name: 'admin_session', path: '/admin' });
     redirect('/admin/login');
 }

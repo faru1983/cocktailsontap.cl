@@ -31,7 +31,7 @@ function isClientIntent(value: string | undefined): value is ClientIntent {
  * - human_reply / intent_selected → engaged + Contact CAPI (+ intent, snapshot en payload/notes)
  */
 export async function POST(request: Request) {
-    const auth = verifyIntegrationAuth(request);
+    const auth = await verifyIntegrationAuth(request);
     if (!auth.ok) {
         return jsonError(auth.status, auth.error);
     }
@@ -115,8 +115,8 @@ export async function POST(request: Request) {
             stageChanged: stage.changed,
             metaEventSent: stage.metaEventSent,
         });
-    } catch (err: any) {
+    } catch (err: unknown) {
         console.error('POST /api/v1/contacts:', err);
-        return jsonError(400, err?.message || 'No se pudo registrar el contacto.');
+        return jsonError(500, 'No se pudo registrar el contacto.');
     }
 }

@@ -14,6 +14,18 @@ import { calculateMaxPickupDate } from '@/lib/wizardLogic';
 import { formatQuoteAddress, resolveComunaDisplay, stripTrailingComuna } from '@/lib/geo';
 import { createServerClient } from '@/lib/supabaseServer';
 import { SettingsService } from './settingsService';
+import { isChilePrefixOnly, normalizePhoneE164 } from '@/lib/phone';
+
+function resolveContactEmail(raw?: string | null): string | undefined {
+    const v = (raw || '').trim().toLowerCase();
+    return v || undefined;
+}
+
+function resolveContactPhone(raw?: string | null): string | undefined {
+    const trimmed = (raw || '').trim();
+    if (!trimmed || isChilePrefixOnly(trimmed)) return undefined;
+    return normalizePhoneE164(trimmed) || undefined;
+}
 
 function formatLiteral(dateStr: string, timeStr: string): string {
     const cleanTime = timeStr.replace(/[^0-9:]/g, '').trim();
@@ -41,8 +53,10 @@ export const GoogleSyncService = {
         quoteAddress?: Pick<Quote, 'client_address' | 'comuna_name' | 'comuna_other' | 'region_name'>
     ): Promise<void> {
         try {
-            const emailTrimmed = state.contact.email?.trim().toLowerCase() || '';
-            if (!emailTrimmed || !clientId) return;
+            if (!clientId) return;
+            const emailTrimmed = resolveContactEmail(state.contact.email);
+            const phoneToSend = resolveContactPhone(state.contact.phone);
+            if (!emailTrimmed && !phoneToSend) return;
 
              // Logica de De-duplicación: Buscar google_contact_id en la DB primero
              const db = createServerClient();
@@ -58,8 +72,6 @@ export const GoogleSyncService = {
              );
              const quoteUrl = `${SITE_URL}/cotizar/${quoteToken}`;
 
-             const rawPhone = state.contact.phone.trim();
-             const phoneToSend = (rawPhone === '+56' || rawPhone === '+569' || rawPhone === '+56 9' || rawPhone === '') ? undefined : rawPhone;
              const street = state.contact.address.trim();
              const isAddressComplete = street.length > 0 && /[a-zA-Z]/.test(street);
 
@@ -93,7 +105,9 @@ export const GoogleSyncService = {
      * Updates an existing contact reflecting a confirmed status.
      */
     async updateContactConfirmedStatus(quote: Quote): Promise<void> {
-        if (!quote.client_email) return;
+        const email = resolveContactEmail(quote.client_email);
+        const phone = resolveContactPhone(quote.client_phone);
+        if (!email && !phone) return;
         try {
              const quoteUrl = `${SITE_URL}/cotizar/${quote.token}`;
              const fullAddress = formatQuoteAddress(quote);
@@ -113,8 +127,8 @@ export const GoogleSyncService = {
                  resourceName: googleId || undefined,
                  firstName: quote.client_name,
                  lastName: quote.client_lastname || undefined,
-                 email: quote.client_email || undefined,
-                 phone: quote.client_phone || undefined,
+                 email,
+                 phone,
                  address: isAddressComplete ? fullAddress : undefined,
                  notes: quote.comments || undefined,
                  eventDate: quote.event_date,

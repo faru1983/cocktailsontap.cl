@@ -1,7 +1,9 @@
 import { createServerClient } from '@/lib/supabaseServer';
+import { requireAdmin } from '@/lib/adminAuth';
 import ProductsClient from './ProductsClient';
 
 export default async function ProductsPage() {
+    await requireAdmin();
     const db = createServerClient();
     
     // Fetch categories

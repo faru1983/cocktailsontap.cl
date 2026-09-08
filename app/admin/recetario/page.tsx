@@ -1,4 +1,5 @@
 import { createServerClient } from '@/lib/supabaseServer';
+import { requireAdmin } from '@/lib/adminAuth';
 import type { Metadata } from 'next';
 import RecetarioClient from './RecetarioClient';
 
@@ -9,6 +10,7 @@ export const metadata: Metadata = {
 export const dynamic = 'force-dynamic';
 
 export default async function RecetarioPage() {
+    await requireAdmin();
     const db = createServerClient();
 
     const [ingredientsRes, recipesRes, productsRes, categoriesRes] = await Promise.all([

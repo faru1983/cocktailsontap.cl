@@ -1,9 +1,11 @@
 import { fetchAllProductData, fetchAllClients } from '@/lib/serverData';
+import { requireAdmin } from '@/lib/adminAuth';
 import CreateQuoteManualClient from './CreateQuoteManualClient';
 
 type SearchParams = Promise<{ type?: string }>;
 
 export default async function NewQuotePage({ searchParams }: { searchParams: SearchParams }) {
+    await requireAdmin();
     const params = await searchParams;
     const initialServiceType = params.type === 'direct' ? 'direct' : 'event';
 

@@ -1,4 +1,5 @@
 import { createServerClient } from '@/lib/supabaseServer';
+import { requireAdmin } from '@/lib/adminAuth';
 import type { Metadata } from 'next';
 import StatsClient from './StatsClient';
 import {
@@ -64,6 +65,7 @@ function periodRanges(selectedMonth: string, tab: string) {
 }
 
 export default async function EstadisticasPage({ searchParams }: { searchParams: SearchParams }) {
+    await requireAdmin();
     const db = createServerClient();
     const rawParams = await searchParams;
     const currentMonth = getCurrentMonthKey();

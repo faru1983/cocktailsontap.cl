@@ -18,7 +18,7 @@ Define la arquitectura, reglas irrompibles, convenciones de código, esquema de 
 | 1 | **Tailwind CSS v4 Only** | Prohibido crear archivos `.css` adicionales ni etiquetas `<style>`. Solo clases utilitarias de Tailwind. El archivo `globals.css` existe únicamente para el `@import "tailwindcss"` y definir el `@theme` con tokens de diseño. |
 | 2 | **Server Actions + API v1** | Mutaciones **web/admin**: Server Actions en `app/actions/`. Mutaciones **integraciones externas** (WhatsApp, Meta, CRM): `app/api/v1/*` autenticadas con `INTEGRATION_API_KEY`, que llaman la misma capa de servicios (`createQuoteCore`, etc.). No duplicar lógica de negocio en las rutas HTTP. |
 | 3 | **Capa de Servicios** | La lógica pesada de infraestructura (DB, Google APIs, Resend) reside en `lib/services/`. Los Server Actions solo **orquestan** llamadas a servicios, validaciones Zod y respuestas. |
-| 4 | **Zero Trust Financials** | Nunca confiar en precios del frontend. Todo total se **recalcula en el servidor** consultando `product_prices` y `comunas` en Supabase antes de persistir. |
+| 4 | **Zero Trust Financials** | Nunca confiar en precios del frontend. Todo total se **recalcula en el servidor** con `fetchAllProductData()` + `product_prices` / `comunas` antes de persistir. `createQuote` público solo acepta `{ state, confirmNow? }`; admin usa `createQuoteAdmin` tras `validateSession()`. `isAdmin`, `overrides` y `customPrice` **nunca** vienen del cliente público. Confirmación: items = `{ product_id, size, quantity }`; precios vía `lib/catalogPricing.ts`. |
 | 5 | **Configuración Centralizada** | Usar siempre las constantes de `lib/config.ts` para URLs, números de contacto y montos base. Prohibido leer `process.env` directamente en componentes client-side. Todo cambio en `.env.local` debe reflejarse en `lib/config.ts`. |
 | 6 | **Proxy File Convention** | Prohibido crear `middleware.ts`. Este proyecto usa exclusivamente `proxy.ts` en la raíz para protección de rutas `/admin`. |
 | 7 | **Single Contact Source** | El número de WhatsApp oficial es la única vía de soporte mencionada. Usar `WHATSAPP_URL` o `WHATSAPP_NUMBER` de `lib/config.ts`. Nunca hardcodear números. |
@@ -257,7 +257,8 @@ Define la arquitectura, reglas irrompibles, convenciones de código, esquema de 
 ## 📐 Integraciones Externas
 
 ### Google Contacts (People API)
-- **De-duplicación**: Busca contacto por `google_contact_id` en DB → fallback a búsqueda por email/telefono
+- **Identidad**: email y/o teléfono. Admin (cotización / reserva / venta directa) sincroniza aunque no haya email; el wizard público sigue exigiendo email para cotizar y confirmar.
+- **De-duplicación**: Busca contacto por `google_contact_id` en DB → fallback a búsqueda por email/teléfono; si no existe, crea el contacto.
 - **Nombres**: Prefijo "Cócteles - " para diferenciación en CRM
 - **Notas**: Bitácora cronológica con links a cotizaciones. La más reciente arriba.
 - **Direcciones**: Solo sincroniza si la dirección es "completa" (calle + comuna)
@@ -285,6 +286,9 @@ Define la arquitectura, reglas irrompibles, convenciones de código, esquema de 
 ## 🛡️ Seguridad
 
 - **Proxy (`proxy.ts`)**: Protege todas las rutas `/admin/*` excepto `/admin/login`
+- **Sesión admin**: Cookie `admin_session` = `exp.nonce.hmac` (HMAC-SHA256 con `AUTH_SALT` + `ADMIN_PASSWORD`); `timingSafeEqual`; TTL 7 días; logout con `path: '/admin'`
+- **RSC admin**: `requireAdmin()` en cada page bajo `/admin` (excepto login) además del proxy
+- **Rate limit**: `lib/rateLimit.ts` — login 5/15min, createQuote 8/10min, confirmQuote 15/10min, `/api/v1` 60/min (por IP; refuerzar con Vercel Firewall en prod)
 - **Exportar (`/admin/exportar`)**: datasets Clientes y Cotizaciones; campos/filtros/formato configurables; presets builtin Meta Ads (PII crudo o SHA-256), Mailchimp y Contabilidad; presets propios en `site_settings` (`category=exports`); descarga vía `GET /admin/exportar/download?c=` (config base64url) con `Content-Disposition`; vista previa 20 filas vía Server Action
 - **Auth**: SHA-256 hash de `ADMIN_PASSWORD` almacenado en cookie `admin_session` (7 días)
 - **Session Validation**: `lib/adminAuth.ts` → `validateSession()` verifica cookie vs hash

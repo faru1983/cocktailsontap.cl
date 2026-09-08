@@ -9,6 +9,7 @@ import { FROM_EMAIL, SITE_URL } from '@/lib/config';
 import { GoogleSyncService } from '@/lib/services/googleSyncService';
 import { validateSession } from '@/lib/adminAuth';
 import type { Quote, QuoteItem } from '@/lib/types';
+import { QuoteStatusSchema, UpdateQuoteAdminSchema } from '@/lib/types';
 import { normalizePhoneE164 } from '@/lib/phone';
 import { formatQuoteAddress } from '@/lib/geo';
 
@@ -20,6 +21,9 @@ async function checkAuth() {
 // ── Update Quote Status ──────────────────────────────────────────────────────
 export async function updateQuoteStatus(quoteId: string, status: string): Promise<{ success: boolean; error?: string }> {
     await checkAuth();
+    const parsed = QuoteStatusSchema.safeParse(status);
+    if (!parsed.success) return { success: false, error: 'Estado inválido.' };
+    status = parsed.data;
     const db = createServerClient();
 
     // Al cancelar: borrar eventos de Google Calendar antes/después del update (no bloquea)
@@ -385,30 +389,27 @@ export async function deleteQuotePayment(quoteId: string, index: number): Promis
 }
 
 // ── Update Quote (Master Editor) ──────────────────────────────────────────
-export async function updateQuoteAdmin(quoteId: string, data: Record<string, any>): Promise<{ success: boolean; error?: string }> {
+export async function updateQuoteAdmin(quoteId: string, data: Record<string, unknown>): Promise<{ success: boolean; error?: string }> {
     await checkAuth();
+    const parsed = UpdateQuoteAdminSchema.safeParse(data);
+    if (!parsed.success) {
+        return { success: false, error: 'Datos de cotización inválidos.' };
+    }
     const db = createServerClient();
 
-    // Separate client fields
-    const clientFields: Record<string, any> = {};
-    const quoteFields: Record<string, any> = { updated_at: new Date().toISOString() };
+    const clientFields: Record<string, unknown> = {};
+    const quoteFields: Record<string, unknown> = { updated_at: new Date().toISOString() };
 
     const clientMap = ['client_name', 'client_lastname', 'client_email', 'client_phone'];
-    const excludeFields = ['event_types', 'quote_items', 'id', 'created_at', 'client_id'];
 
-    for (const [k, v] of Object.entries(data)) {
-        if (excludeFields.includes(k)) continue;
-        
-        // Skip objects/arrays unless it's the payments JSONB field
-        if (typeof v === 'object' && v !== null && k !== 'payments') continue;
-
+    for (const [k, v] of Object.entries(parsed.data)) {
         if (clientMap.includes(k)) {
             let value = v;
             if (k === 'client_phone' && typeof v === 'string') {
                 value = normalizePhoneE164(v) || v || null;
             }
             clientFields[k] = value;
-            quoteFields[k] = value; // Field exists in both tables
+            quoteFields[k] = value;
         } else {
             quoteFields[k] = v;
         }
@@ -428,10 +429,10 @@ export async function updateQuoteAdmin(quoteId: string, data: Record<string, any
             await syncClientFromContact(
                 quote.client_id,
                 {
-                    firstName: clientFields.client_name,
-                    lastName: clientFields.client_lastname,
-                    email: clientFields.client_email,
-                    phone: clientFields.client_phone,
+                    firstName: String(clientFields.client_name ?? ''),
+                    lastName: (clientFields.client_lastname as string | null | undefined) ?? undefined,
+                    email: (clientFields.client_email as string | null | undefined) ?? undefined,
+                    phone: (clientFields.client_phone as string | null | undefined) ?? undefined,
                 },
                 'admin'
             );
@@ -1317,7 +1318,11 @@ export async function saveBlueExpressRates(rates: {
 export async function bulkUpdateQuoteStatus(ids: string[], status: string) {
     await checkAuth();
     if (!ids.length) return { success: false, error: 'No hay IDs seleccionados' };
-    
+
+    const parsed = QuoteStatusSchema.safeParse(status);
+    if (!parsed.success) return { success: false, error: 'Estado inválido.' };
+    status = parsed.data;
+
     const db = createServerClient();
 
     // Cancelar masivo: borrar reserva/retiro o venta directa de Google Calendar

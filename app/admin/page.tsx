@@ -1,4 +1,5 @@
 import { createServerClient } from '@/lib/supabaseServer';
+import { requireAdmin } from '@/lib/adminAuth';
 import { getMonthBounds, shiftMonthKey, santiagoDateParts } from '@/lib/adminStats';
 import { buildDashboardPayload } from '@/lib/adminStatsServer';
 import { DashboardClient } from './DashboardClient';
@@ -40,6 +41,7 @@ async function getDashboardData() {
 }
 
 export default async function AdminDashboardPage() {
+    await requireAdmin();
     const data = await getDashboardData();
 
     return (

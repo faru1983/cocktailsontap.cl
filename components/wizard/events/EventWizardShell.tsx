@@ -97,7 +97,7 @@ export default function EventWizardShell({ cocktails, eventTypes, comunas, regio
         setQuoteToken(null);
         setQuoteStatus(null);
 
-        const result = await createQuote({ state, cocktails, comunas, confirmNow });
+        const result = await createQuote({ state, confirmNow });
 
         if (result.success && result.token) {
             setQuoteToken(result.token);

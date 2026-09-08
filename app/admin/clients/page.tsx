@@ -1,4 +1,5 @@
 import { createServerClient } from '@/lib/supabaseServer';
+import { requireAdmin } from '@/lib/adminAuth';
 import Link from 'next/link';
 import SortSelect from '@/components/admin/SortSelect';
 import { formatPhoneDisplay } from '@/lib/phone';
@@ -114,6 +115,7 @@ function StageBadge({ stage }: { stage: string }) {
 }
 
 export default async function ClientsPage({ searchParams }: { searchParams: SearchParams }) {
+    await requireAdmin();
     const rawParams = await searchParams;
     let { q, sort = 'created_at', order = 'desc', sort_order, page = '1', stage = 'all' } =
         rawParams as any;
