@@ -41,6 +41,13 @@
 
 ## Ultimos Cambios
 
+### 08-09-2026 (Sesión 118) — Subida de oferta desechables + quitar banner lanzamiento
+
+- **Precios**: `offer_price` de los 25 barriles 5L desechables (`is_disposable = true`) subió **+$5.000**. Precio lista sin cambios. Ej: Pisco Sour $47.990 → $52.990; Mojito Tradicional $39.990 → $44.990; Margarita $71.990 → $76.990.
+- **Frontend `/barriles`**: se eliminó la tarjeta “Oferta de Lanzamiento / 20% de descuento por tiempo limitado”.
+- **Gateway `/cotizar`**: se quitó el badge “20% OFF Lanzamiento” (misma campaña); queda “¡Nuevo Formato!”.
+- Archivos: `app/barriles/page.tsx`, `components/wizard/CotizarGateway.tsx`. Datos en `product_prices` (producción). Caché catálogo 5 min.
+
 ### 08-09-2026 (Sesión 117) — Hardening seguridad post-auditoría
 
 - **Zero Trust**: `createQuote` público solo `{ state, confirmNow? }`; catálogo vía `fetchAllProductData()`. Admin: `createQuoteAdmin` + `validateSession()`. `confirmQuoteCore` recalcula precios desde catálogo; confirm solo desde `status=draft` con UPDATE atómico.
@@ -69,13 +76,6 @@
 - Ya marcados: **Hielo Cubo**, **Hielo Frappe**, **Decoracción Limón**, **Decoracción Naranja**, **Decoración Menta Fresca**, **Bombillas Largas**.
 - Migración `20260907183000_product_hide_from_recipes`.
 
-### 07-09-2026 (Sesión 113) — Insumos ocultos en producción
-
-- `ingredients.hide_in_production`: el insumo sigue en costeo de recetas pero no aparece en Producción (lista, WhatsApp, recetas escaladas).
-- UI Insumos: botón ojo (ocultar en producción) + checkbox en el modal. Recetas marcan «Solo costeo».
-- Ya marcados: **Hielo Cubo/Frappe**, **Decoración Desidratada**, **Decoración Menta**, **Barril Pet 5L Talos**.
-- Migración `20260907180000_ingredient_hide_in_production`.
-
 ---
 
-*Ultima actualizacion: 08-09-2026 (Sesión 117)*
+*Ultima actualizacion: 08-09-2026 (Sesión 118)*

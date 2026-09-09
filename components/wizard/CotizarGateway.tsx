@@ -103,9 +103,6 @@ export default function CotizarGateway({ cocktails, eventTypes, comunas, regions
                         <div className="bg-amber-400 text-amber-950 text-[0.65rem] font-black uppercase tracking-wider px-3.5 py-1.5 rounded-full shadow-lg border border-amber-300/50">
                             ¡Nuevo Formato!
                         </div>
-                        <div className="bg-red-500 text-white text-[0.65rem] font-black uppercase tracking-wider px-3.5 py-1.5 rounded-full shadow-lg border border-red-400/50 animate-pulse">
-                            20% OFF Lanzamiento
-                        </div>
                     </div>
                 </button>
             </div>
