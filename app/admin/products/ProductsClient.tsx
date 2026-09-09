@@ -1,8 +1,10 @@
 'use client';
 
 import { useState, useTransition, useEffect } from 'react';
+import Link from 'next/link';
 import { saveCategory, toggleCategoryStatus, saveProduct, toggleProductStatus, toggleProductHideFromRecipes, reorderItems, saveUnit, toggleUnitStatus, uploadImage, deleteImage, updateQuickPrice, listProductImages } from '@/app/actions/admin/productActions';
 import Modal from '@/components/admin/Modal';
+import { adminTabHref, isUnmodifiedLeftClick, parseAdminTab, replaceAdminTab } from '@/lib/adminTabUrl';
 import { 
     GripVertical, 
     Plus, 
@@ -22,8 +24,26 @@ import {
     PlusCircle
 } from 'lucide-react';
 
-export default function ProductsClient({ products, categories, measurementUnits }: { products: any[]; categories: any[]; measurementUnits: any[] }) {
-    const [tab, setTab] = useState<'products' | 'categories' | 'gallery' | 'units'>('products');
+type Tab = 'products' | 'categories' | 'gallery' | 'units';
+const TAB_IDS = ['products', 'categories', 'gallery', 'units'] as const;
+const DEFAULT_TAB: Tab = 'products';
+
+export default function ProductsClient({
+    products,
+    categories,
+    measurementUnits,
+    initialTab,
+}: {
+    products: any[];
+    categories: any[];
+    measurementUnits: any[];
+    initialTab?: string;
+}) {
+    const [tab, setTabState] = useState<Tab>(() => parseAdminTab(initialTab, TAB_IDS, DEFAULT_TAB));
+    const setTab = (next: Tab) => {
+        setTabState(next);
+        replaceAdminTab(next, DEFAULT_TAB);
+    };
     const [isPending, startTransition] = useTransition();
     const [savingId, setSavingId] = useState<string | null>(null);
     const DEFAULT_IMG = '/assets/barril_sin_imagen.webp';
@@ -371,38 +391,31 @@ export default function ProductsClient({ products, categories, measurementUnits 
 
             {/* Tabs with "Reminders" Style (No icons as requested for categories) */}
             <div className="flex gap-1.5 border-b border-white/5 mb-8 pb-3 overflow-x-auto scrollbar-none">
-                <button 
-                    className={`px-4 py-2 rounded-lg text-sm font-bold transition-all whitespace-nowrap cursor-pointer ${
-                        tab === 'products' ? 'bg-[#E2A049]/10 text-[#E2A049]' : 'text-slate-500 hover:text-slate-300'
-                    }`} 
-                    onClick={() => setTab('products')}
-                >
-                    Productos
-                </button>
-                <button 
-                    className={`px-4 py-2 rounded-lg text-sm font-bold transition-all whitespace-nowrap cursor-pointer ${
-                        tab === 'categories' ? 'bg-[#E2A049]/10 text-[#E2A049]' : 'text-slate-500 hover:text-slate-300'
-                    }`} 
-                    onClick={() => setTab('categories')}
-                >
-                    Categorías
-                </button>
-                <button 
-                    className={`px-4 py-2 rounded-lg text-sm font-bold transition-all whitespace-nowrap cursor-pointer ${
-                        tab === 'units' ? 'bg-[#E2A049]/10 text-[#E2A049]' : 'text-slate-500 hover:text-slate-300'
-                    }`} 
-                    onClick={() => setTab('units')}
-                >
-                    Unidades
-                </button>
-                <button 
-                    className={`px-4 py-2 rounded-lg text-sm font-bold transition-all whitespace-nowrap cursor-pointer ${
-                        tab === 'gallery' ? 'bg-[#E2A049]/10 text-[#E2A049]' : 'text-slate-500 hover:text-slate-300'
-                    }`} 
-                    onClick={() => setTab('gallery')}
-                >
-                    Galería
-                </button>
+                {(
+                    [
+                        { id: 'products' as const, label: 'Productos' },
+                        { id: 'categories' as const, label: 'Categorías' },
+                        { id: 'units' as const, label: 'Unidades' },
+                        { id: 'gallery' as const, label: 'Galería' },
+                    ]
+                ).map((t) => (
+                    <Link
+                        key={t.id}
+                        href={adminTabHref('/admin/products', t.id, DEFAULT_TAB)}
+                        scroll={false}
+                        aria-current={tab === t.id ? 'page' : undefined}
+                        onClick={(e) => {
+                            if (!isUnmodifiedLeftClick(e)) return;
+                            e.preventDefault();
+                            setTab(t.id);
+                        }}
+                        className={`px-4 py-2 rounded-lg text-sm font-bold transition-all whitespace-nowrap cursor-pointer no-underline ${
+                            tab === t.id ? 'bg-[#E2A049]/10 text-[#E2A049]' : 'text-slate-500 hover:text-slate-300'
+                        }`}
+                    >
+                        {t.label}
+                    </Link>
+                ))}
             </div>
 
             {/* Listing Section */}

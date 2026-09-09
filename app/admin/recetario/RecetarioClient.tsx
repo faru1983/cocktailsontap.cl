@@ -1,7 +1,9 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState, useTransition, Fragment } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { adminTabHref, isUnmodifiedLeftClick, parseAdminTab, replaceAdminTab } from '@/lib/adminTabUrl';
 import Modal from '@/components/admin/Modal';
 import { formatCurrency } from '@/lib/utils';
 import {
@@ -58,6 +60,9 @@ import {
 
 type Tab = 'insumos' | 'recetas' | 'produccion';
 type ProdMode = 'manual' | 'quotes';
+
+const TAB_IDS = ['insumos', 'recetas', 'produccion'] as const;
+const DEFAULT_TAB: Tab = 'produccion';
 
 const APPLIES_TO_LABELS: Record<RecipeAppliesTo, string> = {
     all: 'Todos',
@@ -446,15 +451,22 @@ export default function RecetarioClient({
     recipes,
     products,
     categories = [],
+    initialTab,
 }: {
     ingredients: Ingredient[];
     recipes: Recipe[];
     products: ProductRow[];
     categories?: { id: string; name: string; is_active: boolean }[];
+    initialTab?: string;
 }) {
     const router = useRouter();
     const [isPending, startTransition] = useTransition();
-    const [tab, setTab] = useState<Tab>('produccion');
+    const [tab, setTabState] = useState<Tab>(() => parseAdminTab(initialTab, TAB_IDS, DEFAULT_TAB));
+
+    const setTab = (next: Tab) => {
+        setTabState(next);
+        replaceAdminTab(next, DEFAULT_TAB);
+    };
     const [search, setSearch] = useState('');
     type IngSortKey =
         | 'name'
@@ -1007,21 +1019,25 @@ export default function RecetarioClient({
                         { id: 'insumos' as const, label: 'Insumos', icon: <Package size={14} /> },
                     ] as const
                 ).map((t) => (
-                    <button
+                    <Link
                         key={t.id}
-                        type="button"
-                        onClick={() => {
+                        href={adminTabHref('/admin/recetario', t.id, DEFAULT_TAB)}
+                        scroll={false}
+                        aria-current={tab === t.id ? 'page' : undefined}
+                        onClick={(e) => {
+                            if (!isUnmodifiedLeftClick(e)) return;
+                            e.preventDefault();
                             setTab(t.id);
                             setSearch('');
                             setMobileShowRecipeDetail(false);
                         }}
-                        className={`flex-1 sm:flex-none text-center px-4 py-2 rounded-lg text-sm font-bold transition-all whitespace-nowrap cursor-pointer flex items-center justify-center gap-2 border-none ${
+                        className={`flex-1 sm:flex-none text-center px-4 py-2 rounded-lg text-sm font-bold transition-all whitespace-nowrap cursor-pointer flex items-center justify-center gap-2 no-underline ${
                             tab === t.id ? 'bg-[#E2A049]/10 text-[#E2A049]' : 'bg-transparent text-slate-500 hover:text-slate-300'
                         }`}
                     >
                         {t.icon}
                         {t.label}
-                    </button>
+                    </Link>
                 ))}
             </div>
 

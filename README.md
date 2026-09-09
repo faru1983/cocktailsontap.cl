@@ -317,7 +317,7 @@ Punto de entrada HTTP para crear cotizaciones y ventas desde canales externos (W
 
 **Auth:** header `Authorization: Bearer <INTEGRATION_API_KEY>`
 
-**Confirmación de evento:** no hay endpoint. El cliente confirma en `/cotizar/{token}`.
+**Confirmación de evento:** el cliente puede confirmar en `/cotizar/{token}`. La API también acepta `confirmNow: true` en `POST /api/v1/quotes` (mismo flujo que el checkbox del wizard/admin). Exige celular E.164, dirección, hora de inicio y fecha de retiro (mismo día o día siguiente). Si no envías `pickupDate`, se asume retiro el mismo día del evento.
 
 ### `GET /api/v1/catalog` — Catálogo activo (lectura)
 
@@ -343,7 +343,7 @@ Devuelve productos activos con tamaños/precios (etiquetas `size` exactas para l
 }
 ```
 
-### `POST /api/v1/quotes` — Cotización evento (draft)
+### `POST /api/v1/quotes` — Cotización evento (draft) o reserva (`confirmNow`)
 
 ```json
 {
@@ -363,6 +363,34 @@ Devuelve productos activos con tamaños/precios (etiquetas `size` exactas para l
   "items": [{ "productId": "<uuid>", "size": "10L", "quantity": 2 }]
 }
 ```
+
+Reserva confirmada (mismo `createQuoteCore` + `confirmQuoteCore` que el wizard):
+
+```json
+{
+  "source": "whatsapp",
+  "confirmNow": true,
+  "client": {
+    "firstName": "Ana",
+    "lastName": "Pérez",
+    "email": "ana@email.com",
+    "phone": "+56912345678",
+    "comuna": "Providencia",
+    "address": "Av. Italia 1234",
+    "comments": ""
+  },
+  "event": {
+    "date": "2026-09-15",
+    "startTime": "19:00",
+    "pickupDate": "2026-09-15"
+  },
+  "consumption": { "guests": 50, "drinksPerPerson": 3 },
+  "dispenser": "portatil",
+  "items": [{ "productId": "<uuid>", "size": "10L", "quantity": 2 }]
+}
+```
+
+La respuesta incluye `status`: `draft` o `confirmed`.
 
 ### `POST /api/v1/direct-sales` — Venta desechable (confirmed)
 

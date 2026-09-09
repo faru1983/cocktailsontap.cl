@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { useState, useTransition } from 'react';
+import Link from 'next/link';
 import { 
     saveAdminSettings, 
     sendTestReviewEmail, 
@@ -11,11 +12,16 @@ import {
 } from '@/app/actions/admin/adminActions';
 import Modal from '@/components/admin/Modal';
 import CoverageSettings from '@/components/admin/CoverageSettings';
+import { adminTabHref, isUnmodifiedLeftClick, parseAdminTab, replaceAdminTab } from '@/lib/adminTabUrl';
 import { 
     Plus, Trash2, Edit2, Calendar, Layout, Cpu, 
     Mail, Star, Check, X, RefreshCw
 } from 'lucide-react';
 import { ICON_CATALOG, renderIconFromKey } from '@/lib/icons';
+
+type Tab = 'review' | 'events' | 'comunas' | 'system';
+const TAB_IDS = ['review', 'events', 'comunas', 'system'] as const;
+const DEFAULT_TAB: Tab = 'review';
 
 export default function SettingsClient({ 
     reviewMode, 
@@ -24,7 +30,8 @@ export default function SettingsClient({
     eventTypes: initialEventTypes, 
     regions,
     comunas,
-    siteSettings
+    siteSettings,
+    initialTab,
 }: { 
     reviewMode: string; 
     reviewTemplate: string; 
@@ -33,8 +40,13 @@ export default function SettingsClient({
     regions: any[];
     comunas: any[]; 
     siteSettings: any[];
+    initialTab?: string;
 }) {
-    const [tab, setTab] = useState<'review' | 'events' | 'comunas' | 'system'>('review');
+    const [tab, setTabState] = useState<Tab>(() => parseAdminTab(initialTab, TAB_IDS, DEFAULT_TAB));
+    const setTab = (next: Tab) => {
+        setTabState(next);
+        replaceAdminTab(next, DEFAULT_TAB);
+    };
     const [isPending, startTransition] = useTransition();
     const [saved, setSaved] = useState(false);
 
@@ -130,20 +142,27 @@ export default function SettingsClient({
             {/* Tabs matching the new standard */}
             <div className="flex gap-1.5 border-b border-white/5 mb-8 pb-3 overflow-x-auto scrollbar-none">
                 {[
-                    { id: 'review', label: 'Post-Venta' },
-                    { id: 'events', label: 'Eventos' },
-                    { id: 'system', label: 'Cerebro Central' },
-                    { id: 'comunas', label: 'Cobertura' },
-                ].map((t: any) => (
-                    <button
+                    { id: 'review' as const, label: 'Post-Venta' },
+                    { id: 'events' as const, label: 'Eventos' },
+                    { id: 'system' as const, label: 'Cerebro Central' },
+                    { id: 'comunas' as const, label: 'Cobertura' },
+                ].map((t) => (
+                    <Link
                         key={t.id}
-                        onClick={() => setTab(t.id)}
-                        className={`px-4 py-2 rounded-lg text-sm font-bold transition-all whitespace-nowrap cursor-pointer ${
+                        href={adminTabHref('/admin/settings', t.id, DEFAULT_TAB)}
+                        scroll={false}
+                        aria-current={tab === t.id ? 'page' : undefined}
+                        onClick={(e) => {
+                            if (!isUnmodifiedLeftClick(e)) return;
+                            e.preventDefault();
+                            setTab(t.id);
+                        }}
+                        className={`px-4 py-2 rounded-lg text-sm font-bold transition-all whitespace-nowrap cursor-pointer no-underline ${
                             tab === t.id ? 'bg-[#E2A049]/10 text-[#E2A049]' : 'text-slate-500 hover:text-slate-300'
                         }`}
                     >
                         {t.label}
-                    </button>
+                    </Link>
                 ))}
             </div>
 

@@ -2,8 +2,11 @@ import { createServerClient } from '@/lib/supabaseServer';
 import { requireAdmin } from '@/lib/adminAuth';
 import ProductsClient from './ProductsClient';
 
-export default async function ProductsPage() {
+type SearchParams = Promise<{ tab?: string }>;
+
+export default async function ProductsPage({ searchParams }: { searchParams: SearchParams }) {
     await requireAdmin();
+    const { tab } = await searchParams;
     const db = createServerClient();
     
     // Fetch categories
@@ -37,6 +40,7 @@ export default async function ProductsPage() {
                 products={products || []} 
                 categories={categories || []}
                 measurementUnits={units || []}
+                initialTab={tab}
             />
         </div>
     );

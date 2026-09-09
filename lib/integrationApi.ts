@@ -5,7 +5,12 @@ import { fetchAllProductData } from '@/lib/serverData';
 import { createQuoteCore } from '@/lib/services/createQuoteCore';
 import type { WizardState } from '@/lib/types';
 import type { QuoteSource } from '@/lib/quoteSource';
-import { applyContactRegionFromCatalog, validateItemsAgainstCatalog } from '@/lib/integrationMapper';
+import { validateConfirmNowState } from '@/lib/confirmNowValidation';
+import {
+    applyConfirmNowPickupDefault,
+    applyContactRegionFromCatalog,
+    validateItemsAgainstCatalog,
+} from '@/lib/integrationMapper';
 
 export function jsonError(status: number, error: string) {
     return NextResponse.json({ success: false, error }, { status });
@@ -14,7 +19,13 @@ export function jsonError(status: number, error: string) {
 export async function handleIntegrationCreate(opts: {
     request: Request;
     parseBody: (raw: unknown) =>
-        | { ok: true; state: WizardState; items: { productId: string; size: string; quantity: number }[]; source?: QuoteSource }
+        | {
+              ok: true;
+              state: WizardState;
+              items: { productId: string; size: string; quantity: number }[];
+              source?: QuoteSource;
+              confirmNow?: boolean;
+          }
         | { ok: false; error: string };
 }) {
     const auth = await verifyIntegrationAuth(opts.request);
@@ -42,11 +53,21 @@ export async function handleIntegrationCreate(opts: {
 
     applyContactRegionFromCatalog(parsed.state, comunas);
 
+    const confirmNow = parsed.confirmNow === true && parsed.state.serviceType === 'event';
+    if (confirmNow) {
+        applyConfirmNowPickupDefault(parsed.state);
+        const confirmErr = validateConfirmNowState(parsed.state);
+        if (confirmErr) {
+            return jsonError(400, confirmErr);
+        }
+    }
+
     const result = await createQuoteCore({
         state: parsed.state,
         cocktails,
         comunas,
         source: parsed.source ?? 'whatsapp',
+        confirmNow,
     });
 
     if (!result.success || !result.token) {

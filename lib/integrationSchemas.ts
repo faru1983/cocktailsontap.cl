@@ -33,9 +33,11 @@ const IntegrationItemSchema = z.object({
     quantity: z.coerce.number().int().min(1),
 });
 
-/** POST /api/v1/quotes — cotización evento (draft). */
+/** POST /api/v1/quotes — cotización evento (draft) o reserva confirmada (`confirmNow`). */
 export const IntegrationEventQuoteSchema = z.object({
     source: z.string().min(1).max(64).optional(),
+    /** Igual que el wizard/admin: true confirma la reserva en el mismo request. */
+    confirmNow: z.boolean().optional().default(false),
     client: IntegrationClientSchema,
     event: z.object({
         type: z.string().optional().default(''),

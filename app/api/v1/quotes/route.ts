@@ -21,6 +21,7 @@ export async function POST(request: Request) {
                     state: mapEventQuoteToWizardState(dto),
                     items: dto.items,
                     source: dto.source ? normalizeQuoteSource(dto.source) : 'whatsapp',
+                    confirmNow: dto.confirmNow === true,
                 };
             },
         });

@@ -9,8 +9,11 @@ export const metadata: Metadata = {
 
 export const dynamic = 'force-dynamic';
 
-export default async function RecetarioPage() {
+type SearchParams = Promise<{ tab?: string }>;
+
+export default async function RecetarioPage({ searchParams }: { searchParams: SearchParams }) {
     await requireAdmin();
+    const { tab } = await searchParams;
     const db = createServerClient();
 
     const [ingredientsRes, recipesRes, productsRes, categoriesRes] = await Promise.all([
@@ -49,6 +52,7 @@ export default async function RecetarioPage() {
                 recipes={recipesRes.data || []}
                 products={productsRes.data || []}
                 categories={categoriesRes.data || []}
+                initialTab={tab}
             />
         </div>
     );

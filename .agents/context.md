@@ -27,7 +27,7 @@
 - **Integraciones** (`/api/v1`): mismo dominio que la web; auth Bearer `INTEGRATION_API_KEY`.
   - `GET /catalog` — productos/precios/**todas** las comunas activas + regiones + Blue Express (lectura para WhatsApp).
   - `POST /contacts` — primer contacto / engagement phone-first; avanza `lifecycle_stage` + CAPI opcional.
-  - `POST /quotes` | `POST /direct-sales` — crear venta (también avanza stage). WhatsApp quotes siguen draft (sin `confirmNow`).
+  - `POST /quotes` | `POST /direct-sales` — crear venta (también avanza stage). `POST /quotes` con `confirmNow: true` confirma la reserva igual que wizard/admin (`confirmQuoteCore`). Sin el flag, WhatsApp sigue en draft.
   - Campo opcional `source` (`web` | `admin` | `whatsapp`) → columna `quotes.source`.
 - **Admin** = canal real (wizard manual / teléfono): misma creación vía `createQuoteCore` + CAPI.
 
@@ -40,6 +40,21 @@
 - **CAPI solo desde `advanceClientStage`** (web / whatsapp / admin): Contact (engaged), InitiateCheckout (quoted), Purchase (customer).
 
 ## Ultimos Cambios
+
+### 08-09-2026 (Sesión 120) — Pestañas admin con URL en todo el panel
+
+- Todas las secciones admin con pestañas persisten en `?tab=` al recargar (mismo patrón que Recetario).
+- **Nuevo**: Productos (`categories` / `units` / `gallery`) y Configuración (`events` / `system` / `comunas`).
+- **Alineado**: Gastos y Recordatorios usan el mismo helper (`lib/adminTabUrl.ts`): Link + `replaceState` (sin refetch al cambiar de pestaña).
+- Ya tenían URL: Recetario, Estadísticas, Clientes (`?stage=`), Cotizaciones (`?status=`).
+- Archivos: `lib/adminTabUrl.ts`, `app/admin/products/*`, `app/admin/settings/*`, `app/admin/gastos/*`, `app/admin/reminders/RemindersClient.tsx`, `app/admin/recetario/RecetarioClient.tsx`.
+
+### 08-09-2026 (Sesión 119) — Recetario: pestañas con URL persistente
+
+- Las pestañas de `/admin/recetario` (Producción, Recetas, Insumos) ahora viven en query `?tab=`.
+- Recargar o compartir deja en la misma pestaña: `/admin/recetario?tab=recetas`, `?tab=insumos`. Producción es el default (sin query).
+- Cambio de pestaña usa `history.replaceState` (sin refetch de insumos/recetas). El servidor lee `searchParams.tab` al cargar.
+- Archivos: `app/admin/recetario/page.tsx`, `app/admin/recetario/RecetarioClient.tsx`.
 
 ### 08-09-2026 (Sesión 118) — Subida de oferta desechables + quitar banner lanzamiento
 
@@ -63,19 +78,6 @@
 - El wizard público sigue exigiendo email para cotizar/confirmar; admin puede crear clientes solo con celular.
 - Archivo: `lib/services/googleSyncService.ts`.
 
-### 08-09-2026 (Sesión 115) — Fix venta directa admin sin email
-
-- Al buscar cliente existente en `/admin/quotes/new`, si el CRM no tiene email (`null`, ej. David Namias) el formulario precargaba `email: null` y `createDraftQuote` fallaba con `.trim()` → "Error inesperado".
-- Fix: optional chaining en `quoteService` / `googleSyncService`; búsqueda de cliente usa `c.email || ''`.
-- Archivos: `lib/services/quoteService.ts`, `lib/services/googleSyncService.ts`, `app/admin/quotes/new/CreateQuoteManualClient.tsx`.
-
-### 07-09-2026 (Sesión 114) — Productos ocultos del recetario
-
-- `products.hide_from_recipes`: extras de venta (hielo, decoración, bombillas) siguen en catálogo y no aparecen en Recetario como «sin receta».
-- UI Productos: botón ojo + checkbox en ficha. Recetario filtra esos productos al crear receta.
-- Ya marcados: **Hielo Cubo**, **Hielo Frappe**, **Decoracción Limón**, **Decoracción Naranja**, **Decoración Menta Fresca**, **Bombillas Largas**.
-- Migración `20260907183000_product_hide_from_recipes`.
-
 ---
 
-*Ultima actualizacion: 08-09-2026 (Sesión 118)*
+*Ultima actualizacion: 08-09-2026 (Sesión 120)*

@@ -136,6 +136,19 @@ export function mapDirectSaleToWizardState(dto: IntegrationDirectSaleInput): Wiz
 }
 
 /**
+ * applyConfirmNowPickupDefault: Si confirman ahora y no hay fecha de retiro,
+ * el wizard permite retiro el mismo día (sin hora). Usamos esa regla.
+ */
+export function applyConfirmNowPickupDefault(state: WizardState): void {
+    if (state.serviceType !== 'event') return;
+    const eventDate = (state.eventData.date || '').trim();
+    if (eventDate && !(state.eventData.pickupDate || '').trim()) {
+        state.eventData.pickupDate = eventDate;
+        state.eventData.pickupTime = '';
+    }
+}
+
+/**
  * Ajusta `contact.region` al código real de la comuna (nombres únicos a nivel país).
  * Si la comuna es "Otra" o no está en catálogo, usa la región enviada o RM.
  */

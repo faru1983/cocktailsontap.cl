@@ -148,6 +148,7 @@ export default async function GastosPage({ searchParams }: { searchParams: Searc
                     topCategoryAmount: topCategory?.[1] || 0,
                     categoryTotals
                 }}
+                initialTab={rawParams.tab}
             />
         </main>
     );

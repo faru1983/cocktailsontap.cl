@@ -2,6 +2,8 @@ import { createServerClient } from '@/lib/supabaseServer';
 import { requireAdmin } from '@/lib/adminAuth';
 import SettingsClient from './SettingsClient';
 
+type SearchParams = Promise<{ tab?: string }>;
+
 async function getSettings() {
     const db = createServerClient();
     const [settingsRes, eventRes, regionsRes, comunasRes, siteSettingsRes] = await Promise.all([
@@ -27,8 +29,9 @@ async function getSettings() {
     };
 }
 
-export default async function SettingsPage() {
+export default async function SettingsPage({ searchParams }: { searchParams: SearchParams }) {
     await requireAdmin();
+    const { tab } = await searchParams;
     const data = await getSettings();
-    return <SettingsClient {...data} />;
+    return <SettingsClient {...data} initialTab={tab} />;
 }

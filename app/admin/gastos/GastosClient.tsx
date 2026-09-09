@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useTransition, useMemo, useEffect } from 'react';
+import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { 
     CreditCard, Smartphone, Banknote, Trash2,
@@ -14,6 +15,7 @@ import {
     addExpenseSubcategory, updateExpenseSubcategory,
     addPaymentMethod, updatePaymentMethod
 } from '@/app/actions/admin/gastosActions';
+import { adminTabHref, isUnmodifiedLeftClick, parseAdminTab, replaceAdminTab } from '@/lib/adminTabUrl';
 
 interface Category { id: string; name: string; is_active: boolean; }
 interface Subcategory { id: string; category_id: string; name: string; is_active: boolean; }
@@ -62,12 +64,9 @@ const getPaymentIcon = (method: string) => {
 
 const formatCLP = (n: number) => new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0 }).format(n);
 type Tab = 'list' | 'cats' | 'pay';
+const TAB_IDS = ['list', 'cats', 'pay'] as const;
+const DEFAULT_TAB: Tab = 'list';
 type ActionResult = { success: boolean; error?: string };
-
-const parseTab = (value: string | null): Tab => {
-    if (value === 'cats' || value === 'pay') return value;
-    return 'list';
-};
 
 export default function GastosClient({ 
     categories, 
@@ -79,7 +78,8 @@ export default function GastosClient({
     monthLabel,
     previousMonth,
     nextMonth,
-    monthlyStats
+    monthlyStats,
+    initialTab,
 }: { 
     categories: Category[]; 
     subcategories: Subcategory[]; 
@@ -91,22 +91,17 @@ export default function GastosClient({
     previousMonth: string;
     nextMonth: string;
     monthlyStats: MonthlyStats;
+    initialTab?: string;
 }) {
     const router = useRouter();
     const searchParams = useSearchParams();
     const [isPending, startTransition] = useTransition();
 
-    const [tab, setTab] = useState<Tab>(parseTab(searchParams.get('tab')));
-
-    useEffect(() => {
-        const currentTab = searchParams.get('tab');
-        if (currentTab !== tab) {
-            const params = new URLSearchParams(searchParams);
-            params.set('tab', tab);
-            params.set('month', selectedMonth);
-            router.replace(`/admin/gastos?${params.toString()}`, { scroll: false });
-        }
-    }, [tab, router, searchParams, selectedMonth]);
+    const [tab, setTabState] = useState<Tab>(() => parseAdminTab(initialTab, TAB_IDS, DEFAULT_TAB));
+    const setTab = (next: Tab) => {
+        setTabState(next);
+        replaceAdminTab(next, DEFAULT_TAB);
+    };
 
     const [expenses, setExpenses] = useState(initialExpenses);
     const [filterCat, setFilterCat] = useState('');
@@ -175,7 +170,8 @@ export default function GastosClient({
         if (!month) return;
         const params = new URLSearchParams(searchParams);
         params.set('month', month);
-        params.set('tab', tab);
+        if (tab === DEFAULT_TAB) params.delete('tab');
+        else params.set('tab', tab);
         router.replace(`/admin/gastos?${params.toString()}`, { scroll: false });
     };
     const handleYearChange = (year: string) => navigateToMonth(`${year}-${selectedMonthNum}`);
@@ -370,9 +366,30 @@ export default function GastosClient({
             </div>
 
             <div className="flex flex-wrap sm:flex-nowrap gap-1.5 border-b border-white/5 mb-8 pb-3">
-                <button className={`flex-1 sm:flex-none text-center px-4 py-2 rounded-lg text-sm font-bold transition-all cursor-pointer ${tab === 'list' ? 'bg-[#E2A049]/10 text-[#E2A049]' : 'text-slate-500 hover:text-slate-300'}`} onClick={() => setTab('list')}>Gastos</button>
-                <button className={`flex-1 sm:flex-none text-center px-4 py-2 rounded-lg text-sm font-bold transition-all cursor-pointer ${tab === 'cats' ? 'bg-[#E2A049]/10 text-[#E2A049]' : 'text-slate-500 hover:text-slate-300'}`} onClick={() => setTab('cats')}>Categorías</button>
-                <button className={`flex-1 sm:flex-none text-center px-4 py-2 rounded-lg text-sm font-bold transition-all cursor-pointer ${tab === 'pay' ? 'bg-[#E2A049]/10 text-[#E2A049]' : 'text-slate-500 hover:text-slate-300'}`} onClick={() => setTab('pay')}>Pagos</button>
+                {(
+                    [
+                        { id: 'list' as const, label: 'Gastos' },
+                        { id: 'cats' as const, label: 'Categorías' },
+                        { id: 'pay' as const, label: 'Pagos' },
+                    ]
+                ).map((t) => (
+                    <Link
+                        key={t.id}
+                        href={adminTabHref('/admin/gastos', t.id, DEFAULT_TAB, { month: selectedMonth })}
+                        scroll={false}
+                        aria-current={tab === t.id ? 'page' : undefined}
+                        onClick={(e) => {
+                            if (!isUnmodifiedLeftClick(e)) return;
+                            e.preventDefault();
+                            setTab(t.id);
+                        }}
+                        className={`flex-1 sm:flex-none text-center px-4 py-2 rounded-lg text-sm font-bold transition-all cursor-pointer no-underline ${
+                            tab === t.id ? 'bg-[#E2A049]/10 text-[#E2A049]' : 'text-slate-500 hover:text-slate-300'
+                        }`}
+                    >
+                        {t.label}
+                    </Link>
+                ))}
             </div>
 
             {tab === 'list' && (

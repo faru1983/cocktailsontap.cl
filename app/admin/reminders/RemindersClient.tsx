@@ -19,6 +19,7 @@ import { toWhatsAppDigits } from '@/lib/phone';
 import PhoneInput from '@/components/ui/PhoneInput';
 import { formatDateCL, formatDateTimeCL, formatCurrency } from '@/lib/utils';
 import { applyReminderBoldMarkup } from '@/lib/reminderMarkup';
+import { adminTabHref, isUnmodifiedLeftClick, parseAdminTab, replaceAdminTab } from '@/lib/adminTabUrl';
 import {
     Mail,
     MessageSquare,
@@ -107,11 +108,8 @@ const emptyTemplate = (): Partial<Template> => ({
     days_before: 7,
 });
 
-const TAB_IDS: Tab[] = ['list', 'templates', 'monitor', 'suppress', 'automation'];
-
-function parseTab(value: string | null | undefined): Tab {
-    return TAB_IDS.includes(value as Tab) ? (value as Tab) : 'list';
-}
+const TAB_IDS = ['list', 'templates', 'monitor', 'suppress', 'automation'] as const;
+const DEFAULT_TAB: Tab = 'list';
 
 export default function RemindersClient({
     initialQuotes,
@@ -138,18 +136,14 @@ export default function RemindersClient({
     const [suppressions, setSuppressions] = useState(initialSuppressions);
     const [logs, setLogs] = useState(initialLogs);
     const [cron, setCron] = useState(initialCron);
-    const [tab, setTabState] = useState<Tab>(() => parseTab(initialTab));
+    const [tab, setTabState] = useState<Tab>(() => parseAdminTab(initialTab, TAB_IDS, DEFAULT_TAB));
     const [isPending, startTransition] = useTransition();
     const [isTesting, setIsTesting] = useState(false);
     const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
 
     const setTab = (next: Tab) => {
         setTabState(next);
-        if (typeof window === 'undefined') return;
-        const url = new URL(window.location.href);
-        if (next === 'list') url.searchParams.delete('tab');
-        else url.searchParams.set('tab', next);
-        window.history.replaceState({}, '', `${url.pathname}${url.search}`);
+        replaceAdminTab(next, DEFAULT_TAB);
     };
 
     const [filterType, setFilterType] = useState('this_month');
@@ -527,18 +521,24 @@ export default function RemindersClient({
 
             <div className="flex gap-1.5 border-b border-white/5 mb-8 pb-3 overflow-x-auto">
                 {tabs.map((t) => (
-                    <button
+                    <Link
                         key={t.id}
-                        type="button"
-                        className={`px-4 py-2 rounded-lg text-sm font-bold transition-all whitespace-nowrap cursor-pointer flex items-center gap-2 ${
+                        href={adminTabHref('/admin/reminders', t.id, DEFAULT_TAB)}
+                        scroll={false}
+                        aria-current={tab === t.id ? 'page' : undefined}
+                        onClick={(e) => {
+                            if (!isUnmodifiedLeftClick(e)) return;
+                            e.preventDefault();
+                            setTab(t.id);
+                        }}
+                        className={`px-4 py-2 rounded-lg text-sm font-bold transition-all whitespace-nowrap cursor-pointer flex items-center gap-2 no-underline ${
                             tab === t.id
                                 ? 'bg-[#E2A049]/10 text-[#E2A049]'
                                 : 'text-slate-500 hover:text-slate-300'
                         }`}
-                        onClick={() => setTab(t.id)}
                     >
                         {t.icon} {t.label}
-                    </button>
+                    </Link>
                 ))}
             </div>
 
