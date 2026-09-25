@@ -171,7 +171,7 @@ export async function updateQuoteItemsAdmin(
         await Promise.all(promises);
 
         // 3. Sync Calendar
-        const { data: quote } = await db.from('quotes').select('*, quote_items(*)').eq('id', quoteId).single();
+        const { data: quote } = await db.from('quotes').select('*, quote_items(*), event_types(name)').eq('id', quoteId).single();
         if (quote && (quote.google_event_id || quote.google_pickup_event_id)) {
             await GoogleSyncService.scheduleCalendarEvents(quote, {
                 updateEventId: quote.google_event_id,
@@ -239,7 +239,7 @@ export async function addQuotePayment(
         }
     } else if (quote.google_event_id || quote.google_pickup_event_id) {
         try {
-            const { data: fullQuote } = await db.from('quotes').select('*, quote_items(*)').eq('id', quoteId).single();
+            const { data: fullQuote } = await db.from('quotes').select('*, quote_items(*), event_types(name)').eq('id', quoteId).single();
             if (fullQuote) {
                 await GoogleSyncService.scheduleCalendarEvents(fullQuote, {
                     updateEventId: quote.google_event_id,
@@ -482,7 +482,7 @@ export async function updateQuoteAdmin(quoteId: string, data: Record<string, unk
 
     if (shouldSyncCalendar) {
         try {
-            const { data: fullQuote } = await db.from('quotes').select('*, quote_items(*)').eq('id', quoteId).single();
+            const { data: fullQuote } = await db.from('quotes').select('*, quote_items(*), event_types(name)').eq('id', quoteId).single();
             if (fullQuote) {
                 const { GoogleSyncService } = await import('@/lib/services/googleSyncService');
                 const result = await GoogleSyncService.scheduleCalendarEvents(fullQuote, {
@@ -1513,7 +1513,7 @@ export async function sendQuoteEmailAdmin(quoteId: string, emailType: 'draft' | 
 export async function syncQuoteToCalendarAdmin(quoteId: string): Promise<{ success: boolean; error?: string }> {
     await checkAuth();
     const db = createServerClient();
-    const { data: quote, error: fetchErr } = await db.from('quotes').select('*, quote_items(*)').eq('id', quoteId).single();
+    const { data: quote, error: fetchErr } = await db.from('quotes').select('*, quote_items(*), event_types(name)').eq('id', quoteId).single();
     
     if (fetchErr || !quote) return { success: false, error: 'Cotización no encontrada.' };
 

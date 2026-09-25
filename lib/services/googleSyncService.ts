@@ -29,7 +29,10 @@ function resolveContactPhone(raw?: string | null): string | undefined {
 
 function formatLiteral(dateStr: string, timeStr: string): string {
     const cleanTime = timeStr.replace(/[^0-9:]/g, '').trim();
-    return `${dateStr}T${cleanTime}:00-04:00`;
+    // No hardcodear -04:00 ni offsets fijos. Google Calendar API interpreta dateTime
+    // en conjunto con el campo timeZone ('America/Santiago'), adaptándose automáticamente al horario de invierno (-04:00) o verano (-03:00).
+    const timeWithSeconds = cleanTime.length === 5 ? `${cleanTime}:00` : cleanTime;
+    return `${dateStr}T${timeWithSeconds}`;
 }
 
 function getNextDay(dateStr: string): string {
@@ -206,7 +209,9 @@ export const GoogleSyncService = {
                 pickup_date: formatDate(quote.pickup_date || ''),
                 start_time: quote.start_time || 'Sin definir',
                 pickup_time: quote.pickup_time || 'Sin definir',
-                event_type: quote.event_type_id === 'Otro' ? quote.event_type_other : quote.event_type_id,
+                event_type: (quote.event_type_id === 'Otro' || !quote.event_type_id)
+                    ? (quote.event_type_other || quote.event_types?.name || quote.event_type_id || 'Sin definir')
+                    : (quote.event_types?.name || quote.event_type_id || quote.event_type_other || 'Sin definir'),
                 comuna: comunaStr || '',
                 address: streetAddress,
                 total_liters: quote.total_liters || '0',
@@ -250,8 +255,7 @@ export const GoogleSyncService = {
                 
                 // 1. Reserva de Evento: Duración 0 (Inicio y fin igual)
                 if (!isDirectSale && hasStartTime) {
-                    const cleanTime = (quote.start_time as string).replace(/[^0-9:]/g, '').trim();
-                    startISO = `${quote.event_date}T${cleanTime}:00-04:00`;
+                    startISO = formatLiteral(quote.event_date, quote.start_time as string);
                     endISO = startISO; // Duración 0
                     isAllDay = false;
                 } else {

@@ -8,7 +8,7 @@ import { createQuoteAdmin } from '@/app/actions/admin/createQuoteAdmin';
 import { getClientAddressesFromQuotes, type ClientQuoteAddress } from '@/app/actions/admin/adminActions';
 import type { Product, Comuna, Region, EventType, WizardState } from '@/lib/types';
 import { DEFAULT_REGION_CODE } from '@/lib/types';
-import { calculateSummaryData } from '@/lib/wizardLogic';
+import { calculateSummaryData, calculateMaxPickupDate } from '@/lib/wizardLogic';
 import { getDirectSaleDateFieldCopy } from '@/lib/blueExpress';
 import { validateConfirmNowState } from '@/lib/confirmNowValidation';
 import { SITE_URL, MURO_INSTALLATION_COST, PORTATIL_MIN_LITERS } from '@/lib/config';
@@ -566,7 +566,25 @@ export default function CreateQuoteManualClient({ allProducts, comunas, regions,
                             <SectionBox title="Logística y Horarios" icon={<span className="w-1.5 h-6 bg-slate-600 rounded-full" />}>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-8">
                                     <Field label="Fecha Evento">
-                                        <input type="date" value={eventData.date} onChange={e => setEventData(d => ({...d, date: e.target.value}))} className="admin-input" />
+                                        <input
+                                            type="date"
+                                            value={eventData.date}
+                                            onChange={e => {
+                                                const newDate = e.target.value;
+                                                setEventData(d => {
+                                                    const nextDay = newDate ? calculateMaxPickupDate(newDate) : '';
+                                                    const shouldAutoFillPickupDate = !d.pickupDate || (d.date && d.pickupDate === calculateMaxPickupDate(d.date));
+                                                    const shouldAutoFillPickupTime = !d.pickupTime || d.pickupTime === '12:00 a 14:00';
+                                                    return {
+                                                        ...d,
+                                                        date: newDate,
+                                                        pickupDate: shouldAutoFillPickupDate && nextDay ? nextDay : d.pickupDate,
+                                                        pickupTime: shouldAutoFillPickupTime && newDate ? '12:00 a 14:00' : d.pickupTime,
+                                                    };
+                                                });
+                                            }}
+                                            className="admin-input"
+                                        />
                                     </Field>
                                     <Field label="Hora Inicio (Evento)">
                                         <input type="time" value={eventData.startTime} onChange={e => setEventData(d => ({...d, startTime: e.target.value}))} className="admin-input" />

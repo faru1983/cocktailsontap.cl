@@ -309,6 +309,7 @@ export interface Quote {
     // Items y Relaciones
     client_id?: string | null;
     quote_items?: QuoteItem[];
+    event_types?: { name?: string | null } | null;
     payments?: { date: string; amount: number; note: string }[];
 
     /** Etiqueta de transporte personalizada desde admin (ej: 'Por Pagar'). Anula '¡Gratis!' en la vista pública. */

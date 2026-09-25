@@ -1,4 +1,4 @@
-﻿# Contexto de Negocio - Cocktails on Tap
+# Contexto de Negocio - Cocktails on Tap
 
 ## Reglas Criticas de Calendario (Google Calendar)
 
@@ -78,6 +78,13 @@
 - El wizard público sigue exigiendo email para cotizar/confirmar; admin puede crear clientes solo con celular.
 - Archivo: `lib/services/googleSyncService.ts`.
 
+### 25-09-2026 (Sesión 121) — Fixes Google Calendar (temática 'Otro' + horario Chile) y autofill retiro admin
+
+- **Google Calendar: Temática 'Otro'**: Al cotizar/confirmar con temática "Otro" (o ingresada manualmente), se guardaba `event_type_other` y `event_type_id = null`. En Google Calendar figuraba en `null` / vacío porque solo se leía `quote.event_type_id`. Ahora `variables.event_type` en [googleSyncService.ts](file:///d:/Webs/cocktailsontap.cl/lib/services/googleSyncService.ts) prioriza `quote.event_type_other` cuando `event_type_id` es null o 'Otro', o el nombre de `event_types(name)`. Además, se agregó `event_types(name)` a las consultas de admin para que las plantillas de Calendar muestren el nombre de la temática.
+- **Google Calendar: Horarios post cambio de hora Chile**: Los horarios de reserva y retiro se estaban enviando con el offset `-04:00` hardcodeado (`${date}T${time}:00-04:00`), lo que provocaba un desfase de 1 hora al entrar el horario de verano de Chile (`-03:00`). Ahora [googleSyncService.ts](file:///d:/Webs/cocktailsontap.cl/lib/services/googleSyncService.ts) genera `dateTime` local (`${date}T${time}:00`) sin offset hardcodeado, permitiendo a la API de Google Calendar usar el `timeZone: 'America/Santiago'`, respetando automáticamente el horario exacto configurado.
+- **Admin: Autollenado de fecha y horario de retiro**: En [CreateQuoteManualClient.tsx](file:///d:/Webs/cocktailsontap.cl/app/admin/quotes/new/CreateQuoteManualClient.tsx), al seleccionar o modificar la fecha del evento, se completan automáticamente la fecha de retiro al día siguiente (`calculateMaxPickupDate`) y el horario de retiro en `12:00 a 14:00`.
+- Archivos: `lib/services/googleSyncService.ts`, `lib/types.ts`, `app/actions/admin/adminActions.ts`, `app/admin/quotes/new/CreateQuoteManualClient.tsx`.
+
 ---
 
-*Ultima actualizacion: 08-09-2026 (Sesión 120)*
+*Ultima actualizacion: 25-09-2026 (Sesión 121)*
