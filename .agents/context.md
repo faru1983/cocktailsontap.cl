@@ -98,6 +98,16 @@
   - En `app/admin/gastos/GastosClient.tsx`, se reemplazó el inline text input por un modal de edición completo que permite renombrar la subcategoría y reasignar su categoría padre mediante un selector.
 - Archivos: `lib/types.ts`, `app/actions/admin/adminActions.ts`, `app/admin/quotes/[id]/QuoteDetailClient.tsx`, `app/admin/quotes/[id]/QuoteOperationalSummary.tsx`, `components/ui/RegionComunaFields.tsx`, `app/actions/admin/gastosActions.ts`, `app/admin/gastos/GastosClient.tsx`.
 
+### 01-10-2026 (Sesión 123) — Landing: Rediseño sección cócteles a formato Carta informativa
+
+- **Rama**: `feature/landing-carta-cocteles`.
+- **Enfoque informativo**: Se transformó `components/sections/CoctelesSection.tsx` en una "Carta" elegante y minimalista a 2 columnas, eliminando la duplicidad del flujo de compra (carrito, `useCart`, `ProductCatalog`, selector de tamaños y precios) de la landing `/`.
+- **Contenido y estilo**: Título "Nuestros Cócteles" para total consistencia con el navbar y enlaces del sitio. Copy enfocado en calidad artesanal, frescura de insumos y preparación sin esperas, con insignias de beneficios (100% Natural, Listos para servir, Calidad Premium).
+- **Filtro de categorías**: Se excluye la categoría `Otros` de la carta, ya que corresponde a complementos/insumos de compra desechable (hielos, vasos, etc.) y no a cócteles.
+- **Balanceo visual en PC**: Se estructuró la carta en dos columnas simétricas: columna izquierda para 'Cocktails' (13 variedades) y columna derecha para 'Combinados' (6 variedades) + 'Mocktails' (6 variedades), eliminando el espacio en blanco y logrando un balance 50/50 perfecto en PC.
+- **Llamados a la Acción (CTA)**: Tarjeta final que invita a celebrar con dos accesos directos hacia `/eventos` y `/barriles`.
+- Archivo: `components/sections/CoctelesSection.tsx`.
+
 ---
 
-*Ultima actualizacion: 01-10-2026 (Sesión 122)*
+*Ultima actualizacion: 01-10-2026 (Sesión 123)*
