@@ -12,6 +12,7 @@ import EventWizardConfig from './EventWizardConfig';
 import EventWizardCatalog from './EventWizardCatalog';
 import EventWizardCheckoutModal from './EventWizardCheckoutModal';
 import EventWizardSuccess from './EventWizardSuccess';
+import { getClientMetaAttribution } from '@/lib/attribution';
 
 interface Props {
     cocktails: CocktailForWizard[];
@@ -97,7 +98,13 @@ export default function EventWizardShell({ cocktails, eventTypes, comunas, regio
         setQuoteToken(null);
         setQuoteStatus(null);
 
-        const result = await createQuote({ state, confirmNow });
+        const attribution = getClientMetaAttribution();
+        const result = await createQuote({
+            state,
+            confirmNow,
+            fbc: attribution.fbc,
+            fbp: attribution.fbp,
+        });
 
         if (result.success && result.token) {
             setQuoteToken(result.token);

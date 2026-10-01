@@ -10,6 +10,7 @@ import {
   shouldTrackMetaPath,
   trackLandingViewContent,
 } from '@/lib/fpixel';
+import { initClientMetaAttribution } from '@/lib/attribution';
 
 /**
  * Pixel solo en producción (cocktailsontap.cl) y rutas públicas (no /admin).
@@ -22,8 +23,13 @@ export default function MetaPixel() {
   const initDoneRef = useRef(false);
 
   useEffect(() => {
+    initClientMetaAttribution();
     setHostOk(isMetaPixelHostAllowed());
   }, []);
+
+  useEffect(() => {
+    initClientMetaAttribution();
+  }, [pathname]);
 
   useEffect(() => {
     if (!hostOk || !pathOk) return;

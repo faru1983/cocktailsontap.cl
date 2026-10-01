@@ -108,6 +108,24 @@
 - **Llamados a la Acción (CTA)**: Tarjeta final que invita a celebrar con dos accesos directos hacia `/eventos` y `/barriles`.
 - Archivo: `components/sections/CoctelesSection.tsx`.
 
+### 01-10-2026 (Sesión 124) — Atribución Meta Ads CAPI 360° (Click ID fbc y fbp persistente)
+
+- **Captura Server-Side resistente a Safari ITP (`proxy.ts`)**:
+  - Se amplió el matcher del proxy para interceptar visitas a páginas públicas.
+  - Al recibir `?fbclid=...`, el proxy fija automáticamente la cookie HTTP oficial de primer dominio `_fbc = fb.1.<ts>.<fbclid>` (90 días, `SameSite=Lax`, Secure en prod) y fija `_fbp` si no existe.
+- **Captura y Respaldo Client-Side (`lib/attribution.ts` + `MetaPixel.tsx`)**:
+  - `initClientMetaAttribution`: captura `fbclid` de la URL, sincroniza cookies `_fbc` / `_fbp` y respalda en `localStorage` (`cot_meta_fbc`, `cot_meta_fbp`, `cot_meta_fbclid`).
+  - Se ejecuta en el montaje de `MetaPixel.tsx` y en cada cambio de ruta.
+- **Formularios y Server Actions (Eventos y Barriles)**:
+  - En `DirectWizardShell.tsx` (barriles) y `EventWizardShell.tsx` (eventos), `createQuote` recibe `fbc` y `fbp`.
+  - En `DirectQuoteView.tsx` y `EventQuoteView.tsx`, `confirmQuote` envía `fbc` y `fbp`.
+  - En `createQuoteCore.ts` y `confirmQuoteCore.ts`, se leen cookies/parámetros, se registra el touchpoint en la tabla `client_touchpoints` con `meta_fbc` / `meta_fbp` y se pasa a `advanceClientStage`.
+  - Herencia automática: confirmaciones días después rescatan el `meta_fbc` histórico de `client_touchpoints` para `Purchase` CAPI.
+- **API v1 (`/api/v1/quotes` y `/api/v1/direct-sales`)**:
+  - Se ampliaron `IntegrationEventQuoteSchema` e `IntegrationDirectSaleSchema` en `lib/integrationSchemas.ts` para aceptar `fbc`, `fbp` y `ctwaClid`.
+  - `lib/integrationApi.ts` y los routes HTTP reenvían estos parámetros a `createQuoteCore`.
+- Archivos: `lib/attribution.ts`, `proxy.ts`, `components/shared/MetaPixel.tsx`, `app/actions/createQuote.ts`, `lib/services/createQuoteCore.ts`, `lib/services/confirmQuoteCore.ts`, `lib/types.ts`, `lib/integrationSchemas.ts`, `lib/integrationApi.ts`, `app/api/v1/quotes/route.ts`, `app/api/v1/direct-sales/route.ts`, `components/wizard/direct/DirectWizardShell.tsx`, `components/wizard/events/EventWizardShell.tsx`, `components/quote/DirectQuoteView.tsx`, `components/quote/EventQuoteView.tsx`.
+
 ---
 
-*Ultima actualizacion: 01-10-2026 (Sesión 123)*
+*Ultima actualizacion: 01-10-2026 (Sesión 124)*

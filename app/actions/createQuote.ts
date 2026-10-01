@@ -9,6 +9,9 @@ import { enforceRateLimit, RATE_LIMIT_MESSAGE } from '@/lib/rateLimit';
 export interface PublicCreateQuoteInput {
     state: WizardState;
     confirmNow?: boolean;
+    fbc?: string | null;
+    fbp?: string | null;
+    ctwaClid?: string | null;
 }
 
 /** Server Action pública — catálogo y precios solo desde el servidor. */
@@ -24,5 +27,8 @@ export async function createQuote(input: PublicCreateQuoteInput): Promise<Create
         confirmNow: input.confirmNow,
         isAdmin: false,
         source: 'web',
+        fbc: input.fbc,
+        fbp: input.fbp,
+        ctwaClid: input.ctwaClid,
     });
 }

@@ -29,6 +29,9 @@ export interface CreateQuoteInput {
     /** Canal explícito; si falta, admin → admin y web → web. API WhatsApp pasa whatsapp. */
     source?: QuoteSource;
     overrides?: { shippingCost?: number; installationCost?: number; manualDiscount?: number; shippingLabel?: string | null };
+    fbc?: string | null;
+    fbp?: string | null;
+    ctwaClid?: string | null;
 }
 
 export interface CreateQuoteResult {
@@ -143,6 +146,34 @@ export async function createQuoteCore(input: CreateQuoteInput): Promise<CreateQu
         if (clientId) {
             try {
                 const { advanceClientStage } = await import('@/lib/services/clientLifecycleService');
+                const { readMetaBrowserCookies } = await import('@/lib/services/metaCapiService');
+                const cookies = source === 'web' ? await readMetaBrowserCookies() : {};
+                const effectiveFbc = input.fbc || cookies.fbc || null;
+                const effectiveFbp = input.fbp || cookies.fbp || null;
+                const effectiveCtwaClid = input.ctwaClid || null;
+
+                // Registrar touchpoint si hay parámetros de atribución Meta
+                if (effectiveFbc || effectiveFbp || effectiveCtwaClid) {
+                    try {
+                        const { recordTouchpoint } = await import('@/lib/services/clientService');
+                        await recordTouchpoint({
+                            clientId,
+                            channel: source,
+                            type: isDirect ? 'direct_sale' : 'quote_created',
+                            meta_fbc: effectiveFbc,
+                            meta_fbp: effectiveFbp,
+                            meta_ctwa_clid: effectiveCtwaClid,
+                            payload: {
+                                quoteId: createResult.quote.id,
+                                token: createResult.token,
+                                isDirect,
+                            },
+                        });
+                    } catch (tpErr) {
+                        console.error('Error guardando touchpoint Meta:', tpErr);
+                    }
+                }
+
                 const contentName = isDirect
                     ? source === 'whatsapp'
                         ? 'Venta Barriles WhatsApp'
@@ -172,6 +203,9 @@ export async function createQuoteCore(input: CreateQuoteInput): Promise<CreateQu
                     intent: isDirect ? 'direct' : 'event',
                     contents: createResult.quoteItems || [],
                     city: quoteCity,
+                    fbc: effectiveFbc,
+                    fbp: effectiveFbp,
+                    ctwaClid: effectiveCtwaClid,
                 });
             } catch (stageErr) {
                 console.error('CRM stage advance on quote create failed:', stageErr);
@@ -184,8 +218,13 @@ export async function createQuoteCore(input: CreateQuoteInput): Promise<CreateQu
             if (items.length === 0) {
                 return { success: false, error: 'No se pudieron guardar los productos de la cotización.' };
             }
+            const confirmPayload = {
+                ...buildConfirmPayload(state, createResult.token, items, comunas),
+                fbc: input.fbc || null,
+                fbp: input.fbp || null,
+            };
             const confirmRes = await confirmQuoteCore(
-                buildConfirmPayload(state, createResult.token, items, comunas),
+                confirmPayload,
                 {
                     skipEmail: Boolean(skipEmail),
                     allowAdminMinLitersOverride: Boolean(isAdmin),

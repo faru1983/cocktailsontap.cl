@@ -56,6 +56,9 @@ export const IntegrationEventQuoteSchema = z.object({
         .default({ guests: 0, drinksPerPerson: 0 }),
     dispenser: z.enum(['portatil', 'muro']),
     items: z.array(IntegrationItemSchema).min(1, 'Selecciona al menos un producto'),
+    ctwaClid: z.string().max(512).optional(),
+    fbc: z.string().max(512).optional(),
+    fbp: z.string().max(512).optional(),
 });
 
 /** POST /api/v1/direct-sales — venta desechable (confirmed). */
@@ -70,6 +73,9 @@ export const IntegrationDirectSaleSchema = z.object({
     }),
     items: z.array(IntegrationItemSchema).min(1, 'Selecciona al menos un producto'),
     comments: z.string().optional().default(''),
+    ctwaClid: z.string().max(512).optional(),
+    fbc: z.string().max(512).optional(),
+    fbp: z.string().max(512).optional(),
 });
 
 /** POST /api/v1/contacts — primer contacto / upsert persona (phone-first). */

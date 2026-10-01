@@ -14,6 +14,7 @@ import {
     Plus, Search, ChevronRight, Tag, Info, Copy, ExternalLink, FileText
 } from 'lucide-react';
 import * as fp from '@/lib/fpixel';
+import { getClientMetaAttribution } from '@/lib/attribution';
 import type { Quote, QuoteItem, Comuna, Region, CocktailForWizard, EventType, Product, ICart } from '@/lib/types';
 import { DEFAULT_REGION_CODE } from '@/lib/types';
 import RegionComunaFields from '@/components/ui/RegionComunaFields';
@@ -385,6 +386,7 @@ export default function DirectQuoteView({ quote, comunas, regions, availableCock
         if (!validateAllFields()) return;
         setIsConfirming(true);
         setConfirmError('');
+        const attribution = getClientMetaAttribution();
         const result = await confirmQuote({
             token: quote.token,
             client_phone: phone,
@@ -407,6 +409,8 @@ export default function DirectQuoteView({ quote, comunas, regions, availableCock
                 quantity: item.quantity,
             })),
             dispenser: 'desechable',
+            fbc: attribution.fbc,
+            fbp: attribution.fbp,
         });
         setIsConfirming(false);
         if (result.success) {

@@ -450,6 +450,8 @@ export const ConfirmQuoteSchema = z.object({
             })
         )
         .min(1, 'Debe haber al menos un producto'),
+    fbc: z.string().nullable().optional(),
+    fbp: z.string().nullable().optional(),
 });
 
 export const QuoteStatusSchema = z.enum([

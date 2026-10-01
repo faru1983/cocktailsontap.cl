@@ -12,6 +12,7 @@ import { formatCurrency } from '@/lib/utils';
 import DirectStep1Products from './DirectStep1Products';
 import DirectWizardCheckoutModal from './DirectWizardCheckoutModal';
 import DirectWizardSuccess from './DirectWizardSuccess';
+import { getClientMetaAttribution } from '@/lib/attribution';
 
 interface Props {
     cocktails: CocktailForWizard[];
@@ -93,8 +94,13 @@ export default function DirectWizardShell({ cocktails, comunas, regions, categor
         setSaveError('');
         setQuoteToken(null);
 
-        // Guardar en Supabase
-        const result = await createQuote({ state });
+        // Guardar en Supabase con atribución Meta
+        const attribution = getClientMetaAttribution();
+        const result = await createQuote({
+            state,
+            fbc: attribution.fbc,
+            fbp: attribution.fbp,
+        });
 
         if (result.success && result.token) {
             setQuoteToken(result.token);

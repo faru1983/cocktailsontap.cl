@@ -14,6 +14,7 @@ import {
     Plus, Search, ChevronRight, Tag, Info, Copy, ExternalLink, CreditCard, FileText, ArrowRight
 } from 'lucide-react';
 import * as fp from '@/lib/fpixel';
+import { getClientMetaAttribution } from '@/lib/attribution';
 import type { Quote, QuoteItem, Comuna, Region, CocktailForWizard, EventType, Product, ICart } from '@/lib/types';
 import { DEFAULT_REGION_CODE } from '@/lib/types';
 import ProductCatalog from '@/components/catalog/ProductCatalog';
@@ -457,6 +458,7 @@ export default function EventQuoteView({ quote, comunas, regions, availableCockt
 
         setIsConfirming(true);
         setConfirmError('');
+        const attribution = getClientMetaAttribution();
         const result = await confirmQuote({
             token: quote.token,
             client_phone: phone,
@@ -479,6 +481,8 @@ export default function EventQuoteView({ quote, comunas, regions, availableCockt
                 quantity: item.quantity,
             })),
             dispenser: dispenser,
+            fbc: attribution.fbc,
+            fbp: attribution.fbp,
         });
         setIsConfirming(false);
         if (result.success) {

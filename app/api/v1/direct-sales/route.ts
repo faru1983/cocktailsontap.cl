@@ -21,6 +21,9 @@ export async function POST(request: Request) {
                     state: mapDirectSaleToWizardState(dto),
                     items: dto.items,
                     source: dto.source ? normalizeQuoteSource(dto.source) : 'whatsapp',
+                    fbc: dto.fbc,
+                    fbp: dto.fbp,
+                    ctwaClid: dto.ctwaClid,
                 };
             },
         });

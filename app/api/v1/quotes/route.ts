@@ -22,6 +22,9 @@ export async function POST(request: Request) {
                     items: dto.items,
                     source: dto.source ? normalizeQuoteSource(dto.source) : 'whatsapp',
                     confirmNow: dto.confirmNow === true,
+                    fbc: dto.fbc,
+                    fbp: dto.fbp,
+                    ctwaClid: dto.ctwaClid,
                 };
             },
         });

@@ -25,6 +25,9 @@ export async function handleIntegrationCreate(opts: {
               items: { productId: string; size: string; quantity: number }[];
               source?: QuoteSource;
               confirmNow?: boolean;
+              fbc?: string;
+              fbp?: string;
+              ctwaClid?: string;
           }
         | { ok: false; error: string };
 }) {
@@ -68,6 +71,9 @@ export async function handleIntegrationCreate(opts: {
         comunas,
         source: parsed.source ?? 'whatsapp',
         confirmNow,
+        fbc: parsed.fbc,
+        fbp: parsed.fbp,
+        ctwaClid: parsed.ctwaClid,
     });
 
     if (!result.success || !result.token) {
