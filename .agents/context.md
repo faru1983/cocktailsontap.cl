@@ -85,6 +85,19 @@
 - **Admin: Autollenado de fecha y horario de retiro**: En [CreateQuoteManualClient.tsx](file:///d:/Webs/cocktailsontap.cl/app/admin/quotes/new/CreateQuoteManualClient.tsx), al seleccionar o modificar la fecha del evento, se completan automáticamente la fecha de retiro al día siguiente (`calculateMaxPickupDate`) y el horario de retiro en `12:00 a 14:00`.
 - Archivos: `lib/services/googleSyncService.ts`, `lib/types.ts`, `app/actions/admin/adminActions.ts`, `app/admin/quotes/new/CreateQuoteManualClient.tsx`.
 
+### 01-10-2026 (Sesión 122) — Fixes Admin: Horario de Retiro en Cotizaciones, Regiones Nacionales en Admin y Categoría Padre en Gastos
+
+- **Admin Cotizaciones: Edición de Horario de Retiro y "Todo el Día"**:
+  - Se corrigió el desborde horizontal (overflow) en PC en el campo de horario de retiro dentro de `QuoteOperationalSummary.tsx` ampliando el grid a `minmax(180px, 1fr)`, asignando `span 2` y `minWidth: 220px` al bloque de horario, e incorporando `min-w-0` a los inputs.
+  - Se corrigió la persistencia al editar cuando el retiro es "Todo el día" (mismo día o sin rango horario específico). Se normaliza a `'--:--'` en frontend y en el Server Action `updateQuoteAdmin`, y se actualizó `UpdateQuoteAdminSchema` en `lib/types.ts` para aceptar `pickup_time`, `pickup_date`, `event_date` y `dispenser` con transformaciones limpias a `null` si vienen vacíos.
+- **Admin Crear Cotización: Selección de todas las regiones de Chile**:
+  - En `RegionComunaFields.tsx`, cuando `variant === 'admin'`, se listan todas las regiones activas del país ordenadas por `display_order`, manteniendo a la Región Metropolitana como selección predeterminada.
+  - El wizard público del cliente (`/cotizar`) continúa filtrado estrictamente según la disponibilidad del servicio (`filterRegionsForService`).
+- **Admin Gastos: Modificación de categoría principal en subcategorías**:
+  - En `app/actions/admin/gastosActions.ts`, se actualizó `updateExpenseSubcategory` para permitir modificar `category_id`, actualizando a la vez los registros históricos en la tabla `expenses` (`WHERE subcategory_id = ...`) para mantener la integridad relacional.
+  - En `app/admin/gastos/GastosClient.tsx`, se reemplazó el inline text input por un modal de edición completo que permite renombrar la subcategoría y reasignar su categoría padre mediante un selector.
+- Archivos: `lib/types.ts`, `app/actions/admin/adminActions.ts`, `app/admin/quotes/[id]/QuoteDetailClient.tsx`, `app/admin/quotes/[id]/QuoteOperationalSummary.tsx`, `components/ui/RegionComunaFields.tsx`, `app/actions/admin/gastosActions.ts`, `app/admin/gastos/GastosClient.tsx`.
+
 ---
 
-*Ultima actualizacion: 25-09-2026 (Sesión 121)*
+*Ultima actualizacion: 01-10-2026 (Sesión 122)*

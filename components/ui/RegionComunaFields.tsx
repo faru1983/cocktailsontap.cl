@@ -60,10 +60,14 @@ export default function RegionComunaFields({
         ? ADMIN_SELECT
         : 'w-full p-2.5 border border-slate-200 rounded-xl focus:border-primary focus:ring-2 focus:ring-primary/10 outline-none text-sm';
 
-    const availableRegions = useMemo(
-        () => filterRegionsForService(regions, serviceType),
-        [regions, serviceType]
-    );
+    const availableRegions = useMemo(() => {
+        if (isAdmin) {
+            return regions
+                .filter((r) => r.isActive)
+                .sort((a, b) => a.displayOrder - b.displayOrder);
+        }
+        return filterRegionsForService(regions, serviceType);
+    }, [regions, serviceType, isAdmin]);
 
     const comunasInRegion = useMemo(
         () => filterComunasForRegion(comunas, regionCode),

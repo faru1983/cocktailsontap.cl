@@ -118,8 +118,9 @@ export default function GastosClient({
     const [editingCatId, setEditingCatId] = useState<string | null>(null);
     const [editingCatName, setEditingCatName] = useState('');
     
-    const [editingSubId, setEditingSubId] = useState<string | null>(null);
+    const [editingSub, setEditingSub] = useState<Subcategory | null>(null);
     const [editingSubName, setEditingSubName] = useState('');
+    const [editingSubCatId, setEditingSubCatId] = useState('');
 
     const [editingPayId, setEditingPayId] = useState<string | null>(null);
     const [editingPayName, setEditingPayName] = useState('');
@@ -263,15 +264,23 @@ export default function GastosClient({
     };
 
     const handleEditSub = (sub: Subcategory) => {
-        setEditingSubId(sub.id);
+        setEditingSub(sub);
         setEditingSubName(sub.name);
+        setEditingSubCatId(sub.category_id);
     };
 
-    const saveSubName = async (id: string) => {
-        if (!editingSubName) return setEditingSubId(null);
+    const handleSaveSubEdit = async (e?: React.FormEvent) => {
+        if (e) e.preventDefault();
+        if (!editingSub || !editingSubName.trim() || !editingSubCatId) return;
         startTransition(async () => {
-            const res = await updateExpenseSubcategory(id, { name: editingSubName });
-            if (res.success) { setEditingSubId(null); refreshData(); }
+            const res = await updateExpenseSubcategory(editingSub.id, {
+                name: editingSubName.trim(),
+                category_id: editingSubCatId
+            });
+            if (res.success) {
+                setEditingSub(null);
+                refreshData();
+            }
         });
     };
 
@@ -587,22 +596,12 @@ export default function GastosClient({
                                     </div>
                                     <div className="flex flex-wrap gap-2">
                                         {subcategories.filter(s => s.category_id === cat.id).map(sub => (
-                                            <div key={sub.id}>
-                                                {editingSubId === sub.id ? (
-                                                    <div className="flex items-center gap-2 bg-black/40 border border-sky-400 rounded-xl px-3 py-1.5 shadow-2xl">
-                                                        <input className="bg-transparent border-none outline-none text-xs text-white p-0 w-24" value={editingSubName} onChange={e => setEditingSubName(e.target.value)} autoFocus />
-                                                        <button onClick={() => saveSubName(sub.id)} className="text-emerald-400 p-0"><Check size={14}/></button>
-                                                        <button onClick={() => setEditingSubId(null)} className="text-rose-400 p-0"><X size={14}/></button>
-                                                    </div>
-                                                ) : (
-                                                    <div className={`flex items-center gap-3 px-4 py-2 rounded-xl transition-all border ${sub.is_active ? 'bg-white/5 border-white/5 text-slate-200 hover:border-sky-400/50 hover:bg-white/10' : 'bg-red-500/10 border-red-500/10 text-rose-400'}`}>
-                                                        <span className="text-xs font-bold leading-none">{sub.name}</span>
-                                                        <div className="flex items-center gap-2 border-l border-white/10 pl-2">
-                                                            <button onClick={() => handleEditSub(sub)} className="p-0.5 text-slate-500 hover:text-white transition-colors"><Pencil size={12} /></button>
-                                                            <button onClick={() => toggleSub(sub)} className={`p-0.5 transition-colors ${sub.is_active ? 'text-slate-600 hover:text-rose-400' : 'text-emerald-500 hover:text-emerald-400'}`}>{sub.is_active ? <X size={14} /> : <Check size={14} />}</button>
-                                                        </div>
-                                                    </div>
-                                                )}
+                                            <div key={sub.id} className={`flex items-center gap-3 px-4 py-2 rounded-xl transition-all border ${sub.is_active ? 'bg-white/5 border-white/5 text-slate-200 hover:border-sky-400/50 hover:bg-white/10' : 'bg-red-500/10 border-red-500/10 text-rose-400'}`}>
+                                                <span className="text-xs font-bold leading-none">{sub.name}</span>
+                                                <div className="flex items-center gap-2 border-l border-white/10 pl-2">
+                                                    <button type="button" onClick={() => handleEditSub(sub)} title="Editar ítem y categoría" className="p-0.5 text-slate-500 hover:text-white transition-colors cursor-pointer"><Pencil size={12} /></button>
+                                                    <button type="button" onClick={() => toggleSub(sub)} title={sub.is_active ? "Desactivar" : "Reactivar"} className={`p-0.5 transition-colors cursor-pointer ${sub.is_active ? 'text-slate-600 hover:text-rose-400' : 'text-emerald-500 hover:text-emerald-400'}`}>{sub.is_active ? <X size={14} /> : <Check size={14} />}</button>
+                                                </div>
                                             </div>
                                         ))}
                                     </div>
@@ -754,6 +753,50 @@ export default function GastosClient({
                             <div className="flex gap-3">
                                 <button type="button" onClick={() => setIsCreateSubOpen(false)} className="flex-1 bg-white/5 text-white py-3 rounded-xl font-bold text-sm active:scale-95 transition-transform">Cancelar</button>
                                 <button type="submit" disabled={isPending || !newSubName || !selectedCatForSub} className="flex-1 bg-sky-500 text-white py-3 rounded-xl font-black text-sm active:scale-95 transition-transform disabled:opacity-50">Guardar</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            )}
+
+            {editingSub && (
+                <div className="fixed inset-0 z-100 flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-black/80 backdrop-blur-md transition-opacity" onClick={() => setEditingSub(null)}></div>
+                    <form className="relative w-full max-w-md bg-[#161b27] border border-white/10 rounded-3xl p-8 shadow-2xl animate-in zoom-in-95 duration-200" onSubmit={handleSaveSubEdit}>
+                        <div className="flex justify-between items-center mb-6 pb-4 border-b border-white/5">
+                            <h2 className="text-white text-lg font-black flex items-center gap-3"><List className="text-sky-400" size={20}/> Editar Ítem / Subcategoría</h2>
+                            <button type="button" onClick={() => setEditingSub(null)} className="text-slate-500 hover:text-white transition-colors p-2 rounded-full hover:bg-white/5"><X size={18}/></button>
+                        </div>
+                        <div className="space-y-6">
+                            <div>
+                                <label className="block text-slate-500 text-[10px] font-black uppercase tracking-[2px] mb-2 px-1">Familia / Categoría Principal</label>
+                                <select 
+                                    className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-sky-400 transition-colors text-sm" 
+                                    value={editingSubCatId} 
+                                    onChange={e => setEditingSubCatId(e.target.value)} 
+                                    required
+                                >
+                                    {categories.map(c => (
+                                        <option key={c.id} value={c.id}>
+                                            {c.name} {!c.is_active ? '(Inactiva)' : ''}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-slate-500 text-[10px] font-black uppercase tracking-[2px] mb-2 px-1">Nombre del Ítem</label>
+                                <input 
+                                    className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-sky-400 transition-colors" 
+                                    placeholder="Nombre del ítem..." 
+                                    value={editingSubName} 
+                                    onChange={e => setEditingSubName(e.target.value)} 
+                                    required 
+                                    autoFocus
+                                />
+                            </div>
+                            <div className="flex gap-3">
+                                <button type="button" onClick={() => setEditingSub(null)} className="flex-1 bg-white/5 text-white py-3 rounded-xl font-bold text-sm active:scale-95 transition-transform">Cancelar</button>
+                                <button type="submit" disabled={isPending || !editingSubName.trim() || !editingSubCatId} className="flex-1 bg-sky-500 text-white py-3 rounded-xl font-black text-sm active:scale-95 transition-transform disabled:opacity-50">Guardar Cambios</button>
                             </div>
                         </div>
                     </form>

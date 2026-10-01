@@ -473,14 +473,14 @@ export const UpdateQuoteAdminSchema = z
         region_name: z.string().max(120).nullable().optional(),
         event_type_id: z.string().nullable().optional(),
         event_type_other: z.string().max(120).nullable().optional(),
-        event_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
-        start_time: z.string().max(20).nullable().optional(),
-        pickup_date: z.string().nullable().optional(),
-        pickup_time: z.string().max(20).nullable().optional(),
+        event_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional().or(z.literal('').transform(() => null)),
+        start_time: z.string().max(20).nullable().optional().or(z.literal('').transform(() => null)),
+        pickup_date: z.string().nullable().optional().or(z.literal('').transform(() => null)),
+        pickup_time: z.string().max(20).nullable().optional().or(z.literal('').transform(() => null)),
         guests: z.coerce.number().min(0).optional(),
         drinks_per_person: z.coerce.number().min(0).optional(),
         comments: z.string().max(2000).nullable().optional(),
-        dispenser: z.enum(['portatil', 'muro', 'desechable']).optional(),
+        dispenser: z.enum(['portatil', 'muro', 'desechable']).nullable().optional(),
     })
     .strip();
 

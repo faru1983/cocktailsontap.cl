@@ -418,6 +418,16 @@ export async function updateQuoteAdmin(quoteId: string, data: Record<string, unk
     const { data: quote, error: fetchErr } = await db.from('quotes').select('client_id, google_event_id, google_pickup_event_id, status').eq('id', quoteId).single();
     if (fetchErr || !quote) return { success: false, error: 'Cotización no encontrada.' };
 
+    // Normalizar horarios y fechas de retiro para 'Todo el día'
+    if (quoteFields.pickup_date && quoteFields.event_date && quoteFields.pickup_date === quoteFields.event_date) {
+        quoteFields.pickup_time = '--:--';
+    } else if (quoteFields.pickup_time === '') {
+        quoteFields.pickup_time = null;
+    }
+    if (quoteFields.pickup_date === '') {
+        quoteFields.pickup_date = null;
+    }
+
     // Update quote
     const { error } = await db.from('quotes').update(quoteFields).eq('id', quoteId);
     if (error) return { success: false, error: error.message };

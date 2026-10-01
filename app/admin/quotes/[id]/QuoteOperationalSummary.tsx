@@ -51,9 +51,9 @@ function formatTimeCL(time: string | null | undefined): string | null {
     return time;
 }
 
-function formatPickupLabel(pickupTime: string | null | undefined): string {
-    if (!pickupTime) return '—';
-    if (pickupTime === '--:--') return 'Todo el día';
+function formatPickupLabel(pickupTime: string | null | undefined, isSameDay?: boolean): string {
+    if (isSameDay) return 'Todo el día';
+    if (!pickupTime || pickupTime === '--:--') return 'Todo el día';
     return pickupTime;
 }
 
@@ -282,9 +282,9 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
     );
 }
 
-function EditField({ label, children }: { label: string; children: ReactNode }) {
+function EditField({ label, children, style, className }: { label: string; children: ReactNode; style?: React.CSSProperties; className?: string }) {
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', minWidth: 0 }}>
+        <div className={className} style={{ display: 'flex', flexDirection: 'column', gap: '4px', minWidth: 0, ...style }}>
             <label style={labelStyle}>{label}</label>
             {children}
         </div>
@@ -353,29 +353,52 @@ function CostRow({
 function PickupTimeEditor({
     value,
     onChange,
+    isSameDay,
 }: {
     value: string;
     onChange: (v: string) => void;
+    isSameDay?: boolean;
 }) {
-    const isAllDay = value === '--:--';
+    const isAllDay = Boolean(isSameDay || value === '--:--');
     const isRange = value.includes(' a ');
     const startVal = isRange ? value.split(' a ')[0] : isAllDay ? '' : value;
     const endVal = isRange ? value.split(' a ')[1] : '';
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', color: TEXT, cursor: 'pointer' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', minWidth: 0, width: '100%' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: TEXT, cursor: isSameDay ? 'default' : 'pointer' }}>
                 <input
                     type="checkbox"
                     checked={isAllDay}
-                    onChange={(e) => onChange(e.target.checked ? '--:--' : '')}
+                    disabled={isSameDay}
+                    onChange={(e) => {
+                        if (isSameDay) return;
+                        if (e.target.checked) {
+                            onChange('--:--');
+                        } else {
+                            onChange('12:00 a 14:00');
+                        }
+                    }}
                 />
-                Todo el día
+                Todo el día {isSameDay ? '(mismo día)' : ''}
             </label>
-            {!isAllDay && (
-                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                    <div style={{ flex: 1 }}>
-                        <span style={{ fontSize: '10px', color: MUTED, fontWeight: 600 }}>Inicio</span>
+            {isAllDay ? (
+                <div style={{
+                    padding: '8px 10px',
+                    borderRadius: '8px',
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    textAlign: 'center',
+                    background: 'rgba(52, 211, 153, 0.08)',
+                    border: '1px solid rgba(52, 211, 153, 0.2)',
+                    color: '#34d399',
+                }}>
+                    TODO EL DÍA
+                </div>
+            ) : (
+                <div style={{ display: 'flex', gap: '6px', alignItems: 'center', width: '100%', minWidth: 0 }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                        <span style={{ fontSize: '10px', color: MUTED, fontWeight: 600, display: 'block' }}>Inicio</span>
                         <input
                             type="time"
                             value={startVal}
@@ -385,12 +408,12 @@ function PickupTimeEditor({
                                 if (ev && s && ev < s) ev = s;
                                 onChange(s && ev ? `${s} a ${ev}` : s || ev || '');
                             }}
-                            style={inputStyle}
+                            style={{ ...inputStyle, padding: '7px 8px', fontSize: '12px', boxSizing: 'border-box' }}
                         />
                     </div>
-                    <span style={{ color: MUTED, paddingTop: '16px' }}>-</span>
-                    <div style={{ flex: 1 }}>
-                        <span style={{ fontSize: '10px', color: MUTED, fontWeight: 600 }}>Fin</span>
+                    <span style={{ color: MUTED, paddingTop: '14px', flexShrink: 0 }}>-</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                        <span style={{ fontSize: '10px', color: MUTED, fontWeight: 600, display: 'block' }}>Fin</span>
                         <input
                             type="time"
                             value={endVal}
@@ -401,7 +424,7 @@ function PickupTimeEditor({
                                 if (ev && s && ev < s) ev = s;
                                 onChange(s && ev ? `${s} a ${ev}` : ev || s || '');
                             }}
-                            style={inputStyle}
+                            style={{ ...inputStyle, padding: '7px 8px', fontSize: '12px', boxSizing: 'border-box' }}
                         />
                     </div>
                 </div>
@@ -687,7 +710,7 @@ export default function QuoteOperationalSummary({
                             <div
                                 style={{
                                     display: 'grid',
-                                    gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+                                    gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
                                     gap: '12px',
                                 }}
                             >
@@ -695,7 +718,17 @@ export default function QuoteOperationalSummary({
                                     <input
                                         type="date"
                                         value={String(editInfo.event_date || '')}
-                                        onChange={(e) => setEditInfo((p) => ({ ...p, event_date: e.target.value }))}
+                                        onChange={(e) => {
+                                            const newDate = e.target.value;
+                                            setEditInfo((p) => {
+                                                const sameDay = Boolean(newDate && p.pickup_date && newDate === p.pickup_date);
+                                                return {
+                                                    ...p,
+                                                    event_date: newDate,
+                                                    ...(sameDay ? { pickup_time: '--:--' } : {})
+                                                };
+                                            });
+                                        }}
                                         style={inputStyle}
                                     />
                                 </EditField>
@@ -713,13 +746,24 @@ export default function QuoteOperationalSummary({
                                             <input
                                                 type="date"
                                                 value={String(editInfo.pickup_date || '')}
-                                                onChange={(e) => setEditInfo((p) => ({ ...p, pickup_date: e.target.value }))}
+                                                onChange={(e) => {
+                                                    const newPickup = e.target.value;
+                                                    setEditInfo((p) => {
+                                                        const sameDay = Boolean(newPickup && p.event_date && newPickup === p.event_date);
+                                                        return {
+                                                            ...p,
+                                                            pickup_date: newPickup,
+                                                            ...(sameDay ? { pickup_time: '--:--' } : {})
+                                                        };
+                                                    });
+                                                }}
                                                 style={inputStyle}
                                             />
                                         </EditField>
-                                        <EditField label="Horario retiro">
+                                        <EditField label="Horario retiro" style={{ minWidth: '220px', gridColumn: 'span 2' }}>
                                             <PickupTimeEditor
                                                 value={String(editInfo.pickup_time || '')}
+                                                isSameDay={Boolean(editInfo.pickup_date && editInfo.event_date && editInfo.pickup_date === editInfo.event_date)}
                                                 onChange={(v) => setEditInfo((p) => ({ ...p, pickup_time: v }))}
                                             />
                                         </EditField>
@@ -787,12 +831,15 @@ export default function QuoteOperationalSummary({
                                                 <>
                                                     {q.pickup_date ? formatDateCL(q.pickup_date) : '—'}
                                                     <span style={{ color: SOFT, marginLeft: '8px' }}>
-                                                        {formatPickupLabel(q.pickup_time)}
+                                                        {formatPickupLabel(
+                                                            q.pickup_time,
+                                                            Boolean(q.pickup_date && q.event_date && q.pickup_date === q.event_date)
+                                                        )}
                                                     </span>
                                                 </>
                                             ) : (
-                                                '—'
-                                            )}
+                                                 '—'
+                                             )}
                                         </Field>
                                         <Field label="Temática">{formatTheme(q)}</Field>
                                         <Field label="Invitados">{q.guests ?? '—'}</Field>

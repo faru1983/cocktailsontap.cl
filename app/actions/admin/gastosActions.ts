@@ -117,11 +117,17 @@ export async function addExpenseSubcategory(categoryId: string, name: string) {
     return { success: true };
 }
 
-export async function updateExpenseSubcategory(id: string, data: { name?: string; is_active?: boolean }) {
+export async function updateExpenseSubcategory(id: string, data: { name?: string; is_active?: boolean; category_id?: string }) {
     await checkAuth();
     const db = createServerClient();
     const { error } = await db.from('expense_subcategories').update(data).eq('id', id);
     if (error) return { success: false, error: 'Error al actualizar ítem' };
+
+    if (data.category_id) {
+        await db.from('expenses').update({ category_id: data.category_id }).eq('subcategory_id', id);
+        revalidatePath('/admin/estadisticas');
+    }
+
     revalidatePath('/admin/gastos');
     return { success: true };
 }

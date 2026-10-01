@@ -358,6 +358,11 @@ export default function QuoteDetailClient({
         const info = { ...quote };
         if (!info.event_type_id && info.event_type_other) info.event_type_id = 'Otro';
         if (!info.comuna_name && info.comuna_other) info.comuna_name = 'Otra';
+        if (info.pickup_date && info.event_date && info.pickup_date === info.event_date) {
+            info.pickup_time = '--:--';
+        } else if (info.pickup_date && !info.pickup_time) {
+            info.pickup_time = '--:--';
+        }
         setEditInfo(info);
         setEditItems([...((quote.quote_items as QuoteItem[]) || [])]);
         setEditCosts({
@@ -385,6 +390,9 @@ export default function QuoteDetailClient({
             const infoToSave = { ...editInfo };
             if (infoToSave.event_type_id !== 'Otro') infoToSave.event_type_other = null;
             if (infoToSave.comuna_name !== 'Otra') infoToSave.comuna_other = null;
+            if (infoToSave.pickup_date && infoToSave.event_date && infoToSave.pickup_date === infoToSave.event_date) {
+                infoToSave.pickup_time = '--:--';
+            }
 
             const infoRes = await updateQuoteAdmin(String(quote.id), infoToSave);
             if (!infoRes.success) {
