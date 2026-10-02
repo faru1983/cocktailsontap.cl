@@ -7,7 +7,7 @@ interface Props {
     guests: number;
     currentDrinks: number;
     onSelectDrinks: (drinks: number) => void;
-    onNext: () => void;
+    onNext: (drinks?: number) => void;
     onBack: () => void;
 }
 
@@ -26,8 +26,8 @@ export default function EventStepDrinks({
         setIsCustom(false);
         onSelectDrinks(drinks);
         setTimeout(() => {
-            onNext();
-        }, 220);
+            onNext(drinks);
+        }, 180);
     };
 
     const handleSelectCustom = (val: number) => {
@@ -199,7 +199,7 @@ export default function EventStepDrinks({
 
                 <button
                     type="button"
-                    onClick={onNext}
+                    onClick={() => onNext(isCustom ? customValue : currentDrinks)}
                     className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-primary text-white font-black text-sm hover:bg-primary-dark transition-all shadow-[0_4px_15px_rgba(226,160,73,0.3)] cursor-pointer"
                 >
                     <span>Ver propuesta y estimado</span>

@@ -71,23 +71,29 @@ export default function EventWizardShell({ cocktails, eventTypes, comunas, regio
     }, [state.consumption.guests, state.consumption.drinksPerPerson]);
 
     // Handlers de avance de pasos
-    const handleNextFromGuests = () => {
-        const res = wizard.validateStep(1);
-        if (!res.valid) {
-            setValidationError(res.message ?? '');
+    const handleNextFromGuests = (guestsOverride?: number) => {
+        const guests = guestsOverride !== undefined ? guestsOverride : state.consumption.guests;
+        if (guests < 1) {
+            setValidationError('Indica la cantidad de invitados para tu evento.');
             window.scrollTo({ top: 0, behavior: 'smooth' });
             return;
+        }
+        if (guestsOverride !== undefined) {
+            updateConsumption('guests', guestsOverride);
         }
         setValidationError('');
         goToStep(2);
     };
 
-    const handleNextFromDrinks = () => {
-        const res = wizard.validateStep(2);
-        if (!res.valid) {
-            setValidationError(res.message ?? '');
+    const handleNextFromDrinks = (drinksOverride?: number) => {
+        const drinks = drinksOverride !== undefined ? drinksOverride : state.consumption.drinksPerPerson;
+        if (drinks < 1) {
+            setValidationError('Indica la cantidad de cócteles por persona.');
             window.scrollTo({ top: 0, behavior: 'smooth' });
             return;
+        }
+        if (drinksOverride !== undefined) {
+            updateConsumption('drinksPerPerson', drinksOverride);
         }
         setValidationError('');
         goToStep(3);
@@ -98,12 +104,15 @@ export default function EventWizardShell({ cocktails, eventTypes, comunas, regio
         goToStep(4);
     };
 
-    const handleNextFromDispenser = () => {
-        const res = wizard.validateStep(4);
-        if (!res.valid) {
-            setValidationError(res.message ?? '');
+    const handleNextFromDispenser = (dispenserOverride?: 'portatil' | 'muro') => {
+        const disp = dispenserOverride ?? state.dispenser;
+        if (!disp) {
+            setValidationError('Selecciona un formato de dispensador.');
             window.scrollTo({ top: 0, behavior: 'smooth' });
             return;
+        }
+        if (dispenserOverride) {
+            updateDispenser(dispenserOverride);
         }
         setValidationError('');
         goToStep(5);

@@ -6,7 +6,7 @@ import { Users, ArrowRight, UserPlus, Sparkles } from 'lucide-react';
 interface Props {
     currentGuests: number;
     onSelectGuests: (guests: number) => void;
-    onNext: () => void;
+    onNext: (guests?: number) => void;
 }
 
 const PRESET_GUESTS = [30, 50, 80, 100, 150];
@@ -19,10 +19,10 @@ export default function EventStepGuests({ currentGuests, onSelectGuests, onNext 
     const handleSelectPreset = (val: number) => {
         setIsCustom(false);
         onSelectGuests(val);
-        // Pequeño retardo de 220ms para feedback visual antes de avanzar
+        // Pequeño retardo para feedback visual antes de avanzar
         setTimeout(() => {
-            onNext();
-        }, 220);
+            onNext(val);
+        }, 180);
     };
 
     const handleCustomChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -41,7 +41,7 @@ export default function EventStepGuests({ currentGuests, onSelectGuests, onNext 
         const parsed = parseInt(customValue, 10);
         if (parsed > 0) {
             onSelectGuests(parsed);
-            onNext();
+            onNext(parsed);
         }
     };
 
