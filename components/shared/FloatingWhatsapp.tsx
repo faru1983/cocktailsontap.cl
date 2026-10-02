@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { usePathname } from 'next/navigation';
 import { WhatsappIcon } from './icons';
 import { WHATSAPP_URL } from '@/lib/config';
 
@@ -30,13 +31,16 @@ function clampPosition(x: number, y: number): Position {
 function getDefaultPosition(): Position {
     if (typeof window === 'undefined') return { x: EDGE_PADDING, y: 0 };
     return clampPosition(
-        EDGE_PADDING,
+        window.innerWidth - BUTTON_SIZE - EDGE_PADDING,
         window.innerHeight - BUTTON_SIZE - 96,
     );
 }
 
 export default function FloatingWhatsapp({ message = DEFAULT_MESSAGE }: FloatingWhatsappProps) {
+    const pathname = usePathname();
+    const isWizard = pathname?.startsWith('/eventos') || pathname?.startsWith('/barriles');
     const [visible, setVisible] = useState(false);
+    const [hiddenOnScroll, setHiddenOnScroll] = useState(false);
     const [position, setPosition] = useState<Position | null>(null);
     const positionRef = useRef<Position | null>(null);
     const dragRef = useRef({
@@ -81,6 +85,31 @@ export default function FloatingWhatsapp({ message = DEFAULT_MESSAGE }: Floating
         window.addEventListener('resize', onResize);
         return () => window.removeEventListener('resize', onResize);
     }, []);
+
+    useEffect(() => {
+        if (!isWizard) {
+            setHiddenOnScroll(false);
+            return;
+        }
+
+        let lastScrollY = window.scrollY;
+
+        const onScroll = () => {
+            if (dragRef.current.active) return;
+            const currentScrollY = window.scrollY;
+            if (currentScrollY <= 30) {
+                setHiddenOnScroll(false);
+            } else if (currentScrollY > lastScrollY + 8) {
+                setHiddenOnScroll(true);
+            } else if (currentScrollY < lastScrollY - 8) {
+                setHiddenOnScroll(false);
+            }
+            lastScrollY = currentScrollY;
+        };
+
+        window.addEventListener('scroll', onScroll, { passive: true });
+        return () => window.removeEventListener('scroll', onScroll);
+    }, [isWizard]);
 
     const persistPosition = useCallback((pos: Position) => {
         try {
@@ -138,13 +167,16 @@ export default function FloatingWhatsapp({ message = DEFAULT_MESSAGE }: Floating
     if (!position) return null;
 
     const whatsappUrl = `${WHATSAPP_URL}?text=${encodeURIComponent(message)}`;
+    const shouldHide = isWizard && hiddenOnScroll;
 
     return (
         <div
             id="floating-whatsapp"
             style={{ left: position.x, top: position.y }}
-            className={`fixed z-[90] touch-none transition-opacity duration-500 ${
-                visible ? 'opacity-100 visible' : 'opacity-0 invisible'
+            className={`fixed z-[90] touch-none transition-all duration-300 ease-in-out ${
+                visible && !shouldHide
+                    ? 'opacity-100 scale-100 visible pointer-events-auto'
+                    : 'opacity-0 scale-75 invisible pointer-events-none'
             }`}
         >
             <a

@@ -27,28 +27,54 @@ export default function Navbar() {
     const pathname = usePathname();
     const [open, setOpen] = useState(false);
     const [scrolled, setScrolled] = useState(false);
+    const [hiddenOnScroll, setHiddenOnScroll] = useState(false);
 
     if (pathname?.startsWith('/admin')) return null;
 
+    const isWizard = pathname?.startsWith('/eventos') || pathname?.startsWith('/barriles');
+
     useEffect(() => {
         let timeoutId: ReturnType<typeof setTimeout>;
+        let lastScrollY = window.scrollY;
+
         const onScroll = () => {
+            const currentScrollY = window.scrollY;
             setScrolled(true);
             clearTimeout(timeoutId);
             timeoutId = setTimeout(() => setScrolled(false), 300);
+
+            if (isWizard) {
+                if (currentScrollY <= 30) {
+                    setHiddenOnScroll(false);
+                } else if (currentScrollY > lastScrollY + 8) {
+                    // Scroll down -> hide
+                    setHiddenOnScroll(true);
+                } else if (currentScrollY < lastScrollY - 8) {
+                    // Scroll up -> show
+                    setHiddenOnScroll(false);
+                }
+            } else {
+                setHiddenOnScroll(false);
+            }
+            lastScrollY = currentScrollY;
         };
+
         window.addEventListener('scroll', onScroll, { passive: true });
         return () => {
             window.removeEventListener('scroll', onScroll);
             clearTimeout(timeoutId);
         };
-    }, []);
+    }, [isWizard]);
+
+    const shouldHide = isWizard && hiddenOnScroll && !open;
 
     return (
         <>
             {/* Botón hamburguesa — siempre flotante */}
             <button
-                className={`fixed top-[4.5rem] left-4 z-[200] flex items-center justify-center w-11 h-11 text-white rounded-full text-[1.1rem] transition-all duration-300 hover:scale-105 ${scrolled
+                className={`fixed top-[4.5rem] left-4 z-[200] flex items-center justify-center w-11 h-11 text-white rounded-full text-[1.1rem] transition-all duration-300 hover:scale-105 ${
+                    shouldHide ? '-translate-y-24 opacity-0 pointer-events-none' : 'translate-y-0 opacity-100 pointer-events-auto'
+                } ${scrolled
                     ? 'bg-primary/55 backdrop-blur-md shadow-[0_4px_20px_rgba(0,0,0,0.15)] hover:bg-[#c17c28]/75'
                     : 'bg-primary shadow-[0_4px_15px_rgba(226,160,73,0.4)] hover:bg-primary-dark'
                     }`}
@@ -56,7 +82,6 @@ export default function Navbar() {
                 onClick={() => setOpen((o) => !o)}
             >
                 {open ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-
             </button>
 
             {/* Overlay semitransparente */}
