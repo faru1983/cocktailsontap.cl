@@ -25,7 +25,7 @@ const INITIAL_STATE: WizardState = {
     },
     consumption: {
         guests: 0,
-        drinksPerPerson: 3,
+        drinksPerPerson: 0,
     },
     contact: {
         firstName: '',

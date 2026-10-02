@@ -17,7 +17,7 @@ export default function EventStepDrinks({
     onSelectDrinks,
     onNext,
 }: Props) {
-    const isCustomInitial = currentDrinks !== 2 && currentDrinks !== 3;
+    const isCustomInitial = currentDrinks >= 4;
     const [isCustom, setIsCustom] = useState(isCustomInitial);
     const [customValue, setCustomValue] = useState<number>(isCustomInitial ? currentDrinks : 4);
 
@@ -99,7 +99,7 @@ export default function EventStepDrinks({
                     className={`relative rounded-3xl p-6 border-2 transition-all duration-200 cursor-pointer shadow-md hover:shadow-lg flex flex-col ${
                         !isCustom && currentDrinks === 3
                             ? 'border-primary ring-2 ring-primary/30 bg-primary/10'
-                            : 'border-primary/50 bg-white hover:border-primary'
+                            : 'border-brand-border bg-white hover:border-primary/40'
                     }`}
                 >
                     <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3.5 py-1 rounded-full bg-gradient-to-r from-primary to-[#f4a261] text-white text-xs font-black tracking-wide shadow-sm flex items-center gap-1">
@@ -134,12 +134,12 @@ export default function EventStepDrinks({
                 <div
                     onClick={() => handleSelectCustom(customValue)}
                     className={`relative rounded-3xl p-6 border-2 transition-all duration-200 cursor-pointer shadow-sm hover:shadow-md flex flex-col ${
-                        isCustom
+                        isCustom && currentDrinks >= 4
                             ? 'border-primary ring-2 ring-primary/20 bg-primary/5'
                             : 'border-brand-border bg-white hover:border-primary/40'
                     }`}
                 >
-                    {isCustom && (
+                    {isCustom && currentDrinks >= 4 && (
                         <div className="absolute top-4 right-4 text-primary bg-primary/10 p-1.5 rounded-full">
                             <Check className="w-4 h-4" />
                         </div>
@@ -152,37 +152,35 @@ export default function EventStepDrinks({
                         Personalizado
                     </h3>
                     <div className="text-2xl font-black text-primary mb-3">
-                        {isCustom ? `${customValue} tragos` : 'Otra cantidad'} <span className="text-sm font-bold text-brand-text-muted">p/p</span>
+                        {currentDrinks >= 4 ? `${currentDrinks} tragos` : 'Otra cantidad'} <span className="text-sm font-bold text-brand-text-muted">p/p</span>
                     </div>
                     <p className="text-xs sm:text-sm text-brand-text-muted leading-relaxed mb-4 flex-1">
                         Para eventos de larga duración o barra principal exclusiva (4, 5 o más cócteles por invitado).
                     </p>
 
-                    {/* Selector de cantidad personalizada si está activa */}
-                    {isCustom && (
-                        <div className="flex items-center justify-between gap-1.5 pt-2 pb-1 border-t border-brand-border/60">
-                            {[4, 5, 6, 7].map((num) => (
-                                <button
-                                    key={num}
-                                    type="button"
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleSelectCustom(num);
-                                    }}
-                                    className={`flex-1 py-1.5 rounded-lg text-xs font-black transition-all ${
-                                        customValue === num
-                                            ? 'bg-primary text-white shadow-sm'
-                                            : 'bg-slate-100 text-brand-text hover:bg-slate-200'
-                                    }`}
-                                >
-                                    {num}
-                                </button>
-                            ))}
-                        </div>
-                    )}
-                    {guests > 0 && isCustom && (
+                    {/* Selector de cantidad personalizada */}
+                    <div className="flex items-center justify-between gap-1.5 pt-2 pb-1 border-t border-brand-border/60">
+                        {[4, 5, 6, 7].map((num) => (
+                            <button
+                                key={num}
+                                type="button"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleSelectCustom(num);
+                                }}
+                                className={`flex-1 py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer ${
+                                    isCustom && currentDrinks === num
+                                        ? 'bg-primary text-white shadow-sm'
+                                        : 'bg-slate-100 text-brand-text hover:bg-slate-200'
+                                }`}
+                            >
+                                {num}
+                            </button>
+                        ))}
+                    </div>
+                    {guests > 0 && isCustom && currentDrinks >= 4 && (
                         <div className="pt-2 text-xs font-bold text-brand-text">
-                            Total para tu fiesta: <span className="text-primary font-black">~{guests * customValue} cócteles</span>
+                            Total para tu fiesta: <span className="text-primary font-black">~{guests * currentDrinks} cócteles</span>
                         </div>
                     )}
                 </div>
