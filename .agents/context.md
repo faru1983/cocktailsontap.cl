@@ -55,6 +55,8 @@
 - **Navegación en Shell**:
   - "Reiniciar" en esquina superior derecha restablece y lleva a `/eventos`.
   - "Volver al inicio" en paso 1 lleva a `/cotizar`.
+- **Ocultamiento en scroll**:
+  - Menú sándwich (`Navbar.tsx`) y botón flotante de WhatsApp (`FloatingWhatsapp.tsx`) ahora se ocultan suavemente al hacer scroll hacia abajo y reaparecen al subir o al llegar al tope (aplicado exclusivamente en `/eventos` y `/barriles`). Default de WhatsApp ajustado al borde derecho.
 
 
 - Todas las secciones admin con pestañas persisten en `?tab=` al recargar (mismo patrón que Recetario).
