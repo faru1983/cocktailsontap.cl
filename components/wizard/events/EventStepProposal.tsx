@@ -15,7 +15,6 @@ import {
     Martini, 
     Infinity, 
     ArrowRight, 
-    ArrowLeft, 
     Info, 
     Check, 
     X,
@@ -27,7 +26,7 @@ interface Props {
     drinksPerPerson: number;
     cocktails: CocktailForWizard[];
     onNext: () => void;
-    onBack: () => void;
+    onBack?: () => void;
 }
 
 const INCLUYE_ITEMS = [
@@ -43,7 +42,6 @@ export default function EventStepProposal({
     drinksPerPerson,
     cocktails,
     onNext,
-    onBack,
 }: Props) {
     const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
 
@@ -173,31 +171,12 @@ export default function EventStepProposal({
                 </div>
             </div>
 
-            {/* Calming Disclaimer Banner */}
-            <div className="w-full bg-primary/5 border border-primary/20 rounded-2xl p-4 sm:p-5 mb-8 text-center sm:text-left flex flex-col sm:flex-row items-center gap-3.5">
-                <div className="p-2.5 bg-primary/10 rounded-xl text-primary shrink-0">
-                    <Sparkles className="w-5 h-5" />
-                </div>
-                <p className="text-xs sm:text-sm text-brand-text font-medium leading-relaxed flex-1">
-                    <strong className="font-black text-brand-text">Esta es una propuesta sugerida:</strong> En el siguiente paso podrás elegir tu tipo de dispensador y luego seleccionar o cambiar libremente los cócteles y tamaños de barriles según tu gusto.
-                </p>
-            </div>
-
-            {/* Navigation Buttons */}
-            <div className="flex items-center justify-between w-full max-w-xl mx-auto gap-4">
-                <button
-                    type="button"
-                    onClick={onBack}
-                    className="inline-flex items-center gap-2 px-5 py-3 rounded-xl border border-brand-border text-brand-text-muted hover:text-brand-text hover:bg-slate-50 font-bold text-sm transition-all cursor-pointer"
-                >
-                    <ArrowLeft className="w-4 h-4" />
-                    <span>Modificar tragos</span>
-                </button>
-
+            {/* Botón Central Siguiente */}
+            <div className="flex justify-center w-full mt-2">
                 <button
                     type="button"
                     onClick={onNext}
-                    className="inline-flex items-center gap-2 px-6 py-3.5 rounded-xl bg-primary text-white font-black text-sm sm:text-base hover:bg-primary-dark transition-all shadow-[0_4px_15px_rgba(226,160,73,0.3)] cursor-pointer"
+                    className="inline-flex items-center justify-center gap-2 px-8 py-4 rounded-xl bg-primary text-white font-black text-base hover:bg-primary-dark transition-all shadow-[0_4px_20px_rgba(226,160,73,0.3)] cursor-pointer hover:scale-105 active:scale-95"
                 >
                     <span>Elegir formato de dispensador</span>
                     <ArrowRight className="w-5 h-5" />

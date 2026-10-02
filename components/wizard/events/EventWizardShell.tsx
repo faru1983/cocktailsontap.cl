@@ -174,6 +174,16 @@ export default function EventWizardShell({ cocktails, eventTypes, comunas, regio
         window.location.href = '/cotizar';
     };
 
+    const handleRestartEventos = () => {
+        setSendStatus('idle');
+        setQuoteToken(null);
+        setQuoteStatus(null);
+        setValidationError('');
+        setIsModalOpen(false);
+        wizard.reset();
+        window.location.href = '/eventos';
+    };
+
     const handleBackStep = () => {
         if (currentStep > 1) {
             goToStep(currentStep - 1);
@@ -206,7 +216,7 @@ export default function EventWizardShell({ cocktails, eventTypes, comunas, regio
                 {currentStep > 1 && (
                     <button
                         type="button"
-                        onClick={handleReset}
+                        onClick={handleRestartEventos}
                         className="inline-flex items-center gap-1.5 text-xs font-semibold text-brand-text-muted hover:text-brand-text transition-colors cursor-pointer bg-transparent border-none p-0"
                     >
                         <RotateCcw className="w-3.5 h-3.5" />

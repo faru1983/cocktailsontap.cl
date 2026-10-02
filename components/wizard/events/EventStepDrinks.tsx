@@ -1,14 +1,14 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Wine, Sparkles, SlidersHorizontal, ArrowRight, ArrowLeft, Check } from 'lucide-react';
+import { Wine, Sparkles, SlidersHorizontal, Check } from 'lucide-react';
 
 interface Props {
     guests: number;
     currentDrinks: number;
     onSelectDrinks: (drinks: number) => void;
     onNext: (drinks?: number) => void;
-    onBack: () => void;
+    onBack?: () => void;
 }
 
 export default function EventStepDrinks({
@@ -16,7 +16,6 @@ export default function EventStepDrinks({
     currentDrinks,
     onSelectDrinks,
     onNext,
-    onBack,
 }: Props) {
     const isCustomInitial = currentDrinks !== 2 && currentDrinks !== 3;
     const [isCustom, setIsCustom] = useState(isCustomInitial);
@@ -34,6 +33,9 @@ export default function EventStepDrinks({
         setIsCustom(true);
         setCustomValue(val);
         onSelectDrinks(val);
+        setTimeout(() => {
+            onNext(val);
+        }, 180);
     };
 
     return (
@@ -184,27 +186,6 @@ export default function EventStepDrinks({
                         </div>
                     )}
                 </div>
-            </div>
-
-            {/* Navigation Buttons */}
-            <div className="flex items-center justify-between w-full max-w-xl mx-auto gap-4 pt-4">
-                <button
-                    type="button"
-                    onClick={onBack}
-                    className="inline-flex items-center gap-2 px-5 py-3 rounded-xl border border-brand-border text-brand-text-muted hover:text-brand-text hover:bg-slate-50 font-bold text-sm transition-all cursor-pointer"
-                >
-                    <ArrowLeft className="w-4 h-4" />
-                    <span>Cambiar invitados</span>
-                </button>
-
-                <button
-                    type="button"
-                    onClick={() => onNext(isCustom ? customValue : currentDrinks)}
-                    className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-primary text-white font-black text-sm hover:bg-primary-dark transition-all shadow-[0_4px_15px_rgba(226,160,73,0.3)] cursor-pointer"
-                >
-                    <span>Ver propuesta y estimado</span>
-                    <ArrowRight className="w-4 h-4" />
-                </button>
             </div>
         </div>
     );

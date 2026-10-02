@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import Image from 'next/image';
-import { Box, Layout, Check, ArrowRight, ArrowLeft, X, Sparkles, AlertCircle } from 'lucide-react';
+import { Box, Layout, Check, X, Sparkles, AlertCircle } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import { MURO_MIN_LITERS, PORTATIL_MIN_LITERS, MURO_INSTALLATION_COST } from '@/lib/config';
 
@@ -11,7 +11,7 @@ interface Props {
     onSelectDispenser: (disp: 'portatil' | 'muro') => void;
     suggestedLiters: number;
     onNext: (disp?: 'portatil' | 'muro') => void;
-    onBack: () => void;
+    onBack?: () => void;
 }
 
 export default function EventStepDispenser({
@@ -19,7 +19,6 @@ export default function EventStepDispenser({
     onSelectDispenser,
     suggestedLiters,
     onNext,
-    onBack,
 }: Props) {
     const [modalDispenser, setModalDispenser] = useState<'portatil' | 'muro' | null>(null);
 
@@ -176,28 +175,6 @@ export default function EventStepDispenser({
                         </div>
                     );
                 })}
-            </div>
-
-            {/* Navigation Buttons */}
-            <div className="flex items-center justify-between w-full max-w-xl mx-auto gap-4">
-                <button
-                    type="button"
-                    onClick={onBack}
-                    className="inline-flex items-center gap-2 px-5 py-3 rounded-xl border border-brand-border text-brand-text-muted hover:text-brand-text hover:bg-slate-50 font-bold text-sm transition-all cursor-pointer"
-                >
-                    <ArrowLeft className="w-4 h-4" />
-                    <span>Ver propuesta</span>
-                </button>
-
-                <button
-                    type="button"
-                    onClick={() => onNext(selectedDispenser === 'muro' ? 'muro' : 'portatil')}
-                    disabled={!selectedDispenser}
-                    className="inline-flex items-center gap-2 px-6 py-3.5 rounded-xl bg-primary text-white font-black text-sm sm:text-base hover:bg-primary-dark transition-all shadow-[0_4px_15px_rgba(226,160,73,0.3)] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                >
-                    <span>Ver y elegir cócteles</span>
-                    <ArrowRight className="w-5 h-5" />
-                </button>
             </div>
 
             {/* Modal de Detalle de Dispensador */}
