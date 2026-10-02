@@ -2,7 +2,7 @@
 
 import React, { useMemo, useState } from 'react';
 import type { useWizard } from '@/hooks/useWizard';
-import type { Comuna, Region } from '@/lib/types';
+import type { Comuna, Region, EventType } from '@/lib/types';
 import { formatCurrency } from '@/lib/utils';
 import PhoneInput from '@/components/ui/PhoneInput';
 import RegionComunaFields from '@/components/ui/RegionComunaFields';
@@ -11,12 +11,13 @@ import CheckoutCartSection from '@/components/quote/CheckoutCartSection';
 import QuoteSummaryTotals from '@/components/quote/QuoteSummaryTotals';
 import { PORTATIL_MIN_LITERS, MURO_MIN_LITERS } from '@/lib/config';
 import { validateConfirmNowState } from '@/lib/confirmNowValidation';
-import { calculateMaxPickupDate, EVENT_NEXT_DAY_PICKUP_SLOTS } from '@/lib/wizardLogic';
+import { calculateMaxPickupDate, EVENT_NEXT_DAY_PICKUP_SLOTS, getMinDateString } from '@/lib/wizardLogic';
 
 interface Props {
     wizard: ReturnType<typeof useWizard>;
     comunas: Comuna[];
     regions: Region[];
+    eventTypes: EventType[];
     onClose: () => void;
     onConfirm: (opts: { confirmNow: boolean }) => void;
     sendStatus: 'idle' | 'saving' | 'saved' | 'error';
@@ -26,6 +27,7 @@ export default function EventWizardCheckoutModal({
     wizard,
     comunas,
     regions,
+    eventTypes,
     onClose,
     onConfirm,
     sendStatus,
@@ -58,6 +60,25 @@ export default function EventWizardCheckoutModal({
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         setLocalError('');
+        
+        // Validaciones del evento
+        if (!state.eventData.date.trim()) {
+            setLocalError('Por favor indica la fecha tentativa de tu evento.');
+            return;
+        }
+        if (state.eventData.date < getMinDateString(1)) {
+            setLocalError('La fecha del evento debe ser desde mañana en adelante.');
+            return;
+        }
+        if (!state.eventData.type.trim()) {
+            setLocalError('Por favor selecciona la temática de tu evento.');
+            return;
+        }
+        if (state.eventData.type === 'Otro' && !state.eventData.otherType?.trim()) {
+            setLocalError('Por favor especifica la temática de tu evento.');
+            return;
+        }
+
         if (confirmNow) {
             const err = validateConfirmNowState(state);
             if (err) {
@@ -146,7 +167,7 @@ export default function EventWizardCheckoutModal({
                             Resumen de Cotización
                         </h3>
                         <p className="text-brand-text-muted text-xs sm:text-[0.9rem] leading-tight">
-                            Revisa los detalles y completa tus datos para enviar.
+                            Indica la fecha y datos de contacto para enviarte el presupuesto formal.
                         </p>
                     </div>
                     <button
@@ -161,27 +182,21 @@ export default function EventWizardCheckoutModal({
                 <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 xl:p-8 pt-3.5">
                     <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5 bg-primary/5 text-primary rounded-xl px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold border border-primary/10 mb-4 text-center">
                         <div className="flex items-center gap-1.5">
-                            <Calendar className="w-3.5 h-3.5" />
+                            <Users className="w-3.5 h-3.5" />
                             <span>
-                                Fecha:{' '}
-                                <strong className="font-extrabold">
-                                    {state.eventData.date
-                                        ? state.eventData.date.split('-').reverse().join('-')
-                                        : 'No definida'}
-                                </strong>
+                                Invitados: <strong className="font-extrabold">{state.consumption.guests} personas</strong>
                             </span>
                         </div>
                         <span className="text-primary/20 hidden sm:inline">•</span>
                         <div className="flex items-center gap-1.5">
-                            <Users className="w-3.5 h-3.5" />
                             <span>
-                                Evento:{' '}
-                                <strong className="font-extrabold">
-                                    {state.eventData.type === 'Otro'
-                                        ? state.eventData.otherType || 'Otra'
-                                        : state.eventData.type || 'Evento'}{' '}
-                                    ({state.consumption.guests} pers.)
-                                </strong>
+                                Formato: <strong className="font-extrabold">{state.dispenser === 'muro' ? 'Muro de Coctelería' : 'Dispensador Portátil'}</strong>
+                            </span>
+                        </div>
+                        <span className="text-primary/20 hidden sm:inline">•</span>
+                        <div className="flex items-center gap-1.5">
+                            <span>
+                                Volumen: <strong className="font-extrabold">{summaryForView.totalLiters}L ({summaryForView.totalCocktails} cócteles)</strong>
                             </span>
                         </div>
                     </div>
@@ -200,10 +215,64 @@ export default function EventWizardCheckoutModal({
                         <div className="w-full lg:col-span-5 xl:col-span-6 flex flex-col order-1 lg:order-2">
                             <div className="bg-white rounded-2xl p-4 sm:p-5 shadow-[0_4px_20px_rgba(0,0,0,0.05)] border border-brand-border flex flex-col">
                                 <h3 className="font-extrabold text-brand-text text-base sm:text-lg mb-3">
-                                    Tus Datos
+                                    Detalles y Contacto
                                 </h3>
 
                                 <form id={formId} className="flex flex-col gap-3.5" onSubmit={handleSubmit}>
+                                    {/* 1. Datos del Evento */}
+                                    <div className="bg-slate-50 p-3.5 rounded-xl border border-brand-border">
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                            <div>
+                                                <label className="block font-bold mb-1 text-brand-text text-[0.8rem]">
+                                                    Fecha del Evento <span className="text-primary">*</span>
+                                                </label>
+                                                <input
+                                                    type="date"
+                                                    required
+                                                    min={getMinDateString(1)}
+                                                    className="w-full p-2.5 border border-slate-200 rounded-xl focus:border-primary focus:ring-2 focus:ring-primary/10 outline-none text-sm bg-white"
+                                                    value={state.eventData.date}
+                                                    onChange={(e) => updateEventData('date', e.target.value)}
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block font-bold mb-1 text-brand-text text-[0.8rem]">
+                                                    Temática <span className="text-primary">*</span>
+                                                </label>
+                                                <select
+                                                    required
+                                                    className="w-full p-2.5 border border-slate-200 rounded-xl focus:border-primary focus:ring-2 focus:ring-primary/10 outline-none text-sm bg-white cursor-pointer"
+                                                    value={state.eventData.type}
+                                                    onChange={(e) => updateEventData('type', e.target.value)}
+                                                >
+                                                    <option value="">Selecciona temática...</option>
+                                                    {eventTypes.map((t) => (
+                                                        <option key={t.id} value={t.name}>
+                                                            {t.name}
+                                                        </option>
+                                                    ))}
+                                                    <option value="Otro">Otro...</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        {state.eventData.type === 'Otro' && (
+                                            <div className="mt-3 animate-slide-up">
+                                                <label className="block font-bold mb-1 text-brand-text text-[0.8rem]">
+                                                    Especificar Temática <span className="text-primary">*</span>
+                                                </label>
+                                                <input
+                                                    type="text"
+                                                    required
+                                                    placeholder="Ej: Aniversario, Graduación..."
+                                                    className="w-full p-2.5 border border-slate-200 rounded-xl focus:border-primary focus:ring-2 focus:ring-primary/10 outline-none text-sm bg-white"
+                                                    value={state.eventData.otherType || ''}
+                                                    onChange={(e) => updateEventData('otherType', e.target.value)}
+                                                />
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* 2. Datos de Contacto */}
                                     <div className="grid grid-cols-2 gap-3">
                                         <div>
                                             <label className="block font-bold mb-1 text-brand-text text-[0.8rem]">

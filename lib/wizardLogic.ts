@@ -374,7 +374,61 @@ export function calculateSmartConfig(guests: number, avgDrinks: number, isDirect
     return {
         config: parts.length > 1 ? parts.join(' + ') : parts[0] || '1 Barril de 10L',
         liters: finalLiters,
-        totalDrinks: finalLiters * 5 // Regla de negocio conservadora para visualización: 1L = 5 cócteles
+        totalDrinks: finalLiters * 5, // Regla de negocio conservadora para visualización: 1L = 5 cócteles
+        varietiesCount: best.variedad,
+        counts: best.counts as { 5: number; 10: number; 20: number; 30: number },
+    };
+}
+
+/**
+ * Calcula el presupuesto estimado de una propuesta sugerida para eventos
+ * basándose en los precios de oferta reales del catálogo.
+ */
+export function calculateEstimatedProposal(
+    guests: number,
+    drinksPerPerson: number,
+    cocktails: CocktailForWizard[] = []
+) {
+    const config = calculateSmartConfig(guests, drinksPerPerson, false);
+    
+    // Obtener cócteles activos de eventos (excluyendo complementos como Otros)
+    const eventCocktails = cocktails.filter(c => c.category !== 'Otros');
+    
+    const getAvgPriceForSize = (sizeLiters: number): number => {
+        const prices: number[] = [];
+        for (const c of eventCocktails) {
+            for (const [, p] of Object.entries(c.prices || {})) {
+                if (p.sizeValue === sizeLiters && !p.isDisposable && p.unit === 'L' && p.offerPrice > 0) {
+                    prices.push(p.offerPrice);
+                }
+            }
+        }
+        if (prices.length === 0) {
+            if (sizeLiters === 5) return 45000;
+            if (sizeLiters === 10) return 80000;
+            if (sizeLiters === 20) return 150000;
+            if (sizeLiters === 30) return 210000;
+            return sizeLiters * 7500;
+        }
+        return prices.reduce((a, b) => a + b, 0) / prices.length;
+    };
+
+    const avg5 = getAvgPriceForSize(5);
+    const avg10 = getAvgPriceForSize(10);
+    const avg20 = getAvgPriceForSize(20);
+    const avg30 = getAvgPriceForSize(30);
+
+    const counts = config.counts || { 5: 0, 10: 0, 20: 0, 30: 0 };
+    const rawTotal = (counts[5] * avg5) + (counts[10] * avg10) + (counts[20] * avg20) + (counts[30] * avg30);
+    
+    const estimatedTotal = Math.round(rawTotal / 1000) * 1000;
+    const totalDrinks = config.totalDrinks || 1;
+    const estimatedPricePerDrink = Math.round(estimatedTotal / totalDrinks);
+
+    return {
+        ...config,
+        estimatedTotal,
+        estimatedPricePerDrink,
     };
 }
 

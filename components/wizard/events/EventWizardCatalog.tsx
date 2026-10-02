@@ -99,7 +99,7 @@ export default function EventWizardCatalog({ wizard, cocktails, categories, onOp
         <div className="flex flex-col pb-32">
             {/* Header Title */}
             <div className="mb-8 text-center md:text-left">
-                <p className="text-primary font-black tracking-widest uppercase text-sm mb-2">Paso 2</p>
+                <p className="text-primary font-black tracking-widest uppercase text-sm mb-2">Paso 5 de 5 · Catálogo</p>
                 <h2 className="text-3xl md:text-4xl font-black text-brand-text">Selecciona tus Cócteles</h2>
             </div>
 

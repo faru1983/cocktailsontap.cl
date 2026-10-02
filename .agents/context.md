@@ -126,6 +126,25 @@
   - `lib/integrationApi.ts` y los routes HTTP reenvían estos parámetros a `createQuoteCore`.
 - Archivos: `lib/attribution.ts`, `proxy.ts`, `components/shared/MetaPixel.tsx`, `app/actions/createQuote.ts`, `lib/services/createQuoteCore.ts`, `lib/services/confirmQuoteCore.ts`, `lib/types.ts`, `lib/integrationSchemas.ts`, `lib/integrationApi.ts`, `app/api/v1/quotes/route.ts`, `app/api/v1/direct-sales/route.ts`, `components/wizard/direct/DirectWizardShell.tsx`, `components/wizard/events/EventWizardShell.tsx`, `components/quote/DirectQuoteView.tsx`, `components/quote/EventQuoteView.tsx`.
 
+### 02-10-2026 (Sesión 125) — Rediseño sin fricción del Wizard de Eventos (/eventos)
+
+- **Rama**: `feat/event-wizard-redesign`.
+- **Objetivo**: Eliminar la sobrecarga cognitiva inicial del primer paso de `/eventos`, postergando fecha y temática para el checkout y ofreciendo un cálculo de propuesta y presupuesto estimado transparente e instantáneo.
+- **Flujo de 5 Pasos**:
+  1. **Paso 1: Invitados (`EventStepGuests.tsx`)**: Chips táctiles rápidos de un toque (`[30] [50] [80] [100] [150] [Personalizado]`) con avance automático suave o selector numérico.
+  2. **Paso 2: Tragos p/p (`EventStepDrinks.tsx`)**: Tarjetas de elección guiada (Barra Complemento 2 tr/p, Recomendado Estándar 3 tr/p con badge dorada, Personalizado 4+ tr/p) con cálculo en vivo de cócteles totales.
+  3. **Paso 3: Propuesta Sugerida (`EventStepProposal.tsx`)**: Cálculo automático de cobertura (cócteles totales, litros sugeridos y variedades recomendadas), presupuesto estimado ($ total y por cóctel) usando promedios reales del catálogo (`calculateEstimatedProposal`), y cuadrícula de beneficios/inclusiones a costo $0 con modal descriptivo.
+  4. **Paso 4: Dispensador (`EventStepDispenser.tsx`)**: Comparativa visual entre Dispensador Portátil ($0 instalación) y Muro de Coctelería ($50.000 instalación) con imágenes, características, modal ampliado y advertencia amigable si la sugerencia es <30L.
+  5. **Paso 5: Catálogo de Cócteles (`EventWizardCatalog.tsx`)**: Selección de cócteles del catálogo con barra de progreso de litros sugeridos.
+  6. **Checkout Modal (`EventWizardCheckoutModal.tsx`)**: Los datos del evento removidos del paso 1 (Fecha tentativa y Temática) se integraron en el formulario final junto a Nombre, Apellido, Email, WhatsApp, Región y Comuna.
+- **Lógica y Hooks (`lib/wizardLogic.ts`, `hooks/useWizard.ts`)**:
+  - `calculateSmartConfig`: ahora retorna `varietiesCount` y `counts` de barriles.
+  - `calculateEstimatedProposal`: nueva función para estimar presupuestos de eventos de forma dinámica con precios del catálogo.
+  - `useWizard`: se adaptó la guarda de refresco para eventos y se actualizó `validateStep` para soportar las reglas de los 5 pasos y el formulario final.
+- **Archivos creados/modificados**:
+  - Creados: `components/wizard/events/EventStepGuests.tsx`, `components/wizard/events/EventStepDrinks.tsx`, `components/wizard/events/EventStepProposal.tsx`, `components/wizard/events/EventStepDispenser.tsx`.
+  - Modificados: `components/wizard/events/EventWizardShell.tsx`, `components/wizard/events/EventWizardCatalog.tsx`, `components/wizard/events/EventWizardCheckoutModal.tsx`, `lib/wizardLogic.ts`, `hooks/useWizard.ts`.
+
 ---
 
-*Ultima actualizacion: 01-10-2026 (Sesión 124)*
+*Ultima actualizacion: 02-10-2026 (Sesión 125)*

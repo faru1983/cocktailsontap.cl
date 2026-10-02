@@ -65,10 +65,9 @@ export function useWizard(cocktails: CocktailForWizard[], comunas: Comuna[], cat
     // Seguridad: Si se refresca la página en un paso > 1, pero no hay datos (estado inicial), volver al paso 1
     useEffect(() => {
         if (state.step > 1) {
-            const hasDate = state.eventData.date.trim() !== '';
             const isMissingCriticalData = state.serviceType === 'event' 
-                ? (!hasDate || state.consumption.guests === 0)
-                : !hasDate;
+                ? state.consumption.guests === 0
+                : !state.eventData.date.trim();
 
             if (isMissingCriticalData) {
                 // Forzar redirección al paso 1
@@ -184,25 +183,57 @@ export function useWizard(cocktails: CocktailForWizard[], comunas: Comuna[], cat
             if (!state.serviceType) return { valid: false, message: 'Selecciona una modalidad para continuar.' };
         }
         if (step === 1) {
-            const e = state.eventData;
-            const minAllowedDate = getMinDateString(1);
-            
-            // 1. Fecha
-            if (!e.date.trim()) return { valid: false, message: state.serviceType === 'direct' ? 'Indica la fecha de entrega.' : 'Indica la fecha del evento.' };
-            if (state.serviceType === 'event' && e.date < minAllowedDate) {
-                return { valid: false, message: 'La fecha del evento debe ser desde mañana en adelante.' };
-            }
-
             if (state.serviceType === 'event') {
-                // 2. Temática
-                if (!e.type.trim()) return { valid: false, message: 'Selecciona la temática del evento.' };
-                if (e.type === 'Otro' && !e.otherType.trim()) return { valid: false, message: 'Especifica la temática del evento.' };
-                
-                // 3. Invitados
-                if (state.consumption.guests < 1) return { valid: false, message: 'La cantidad de invitados debe ser al menos 1.' };
+                if (state.consumption.guests < 1) return { valid: false, message: 'Indica la cantidad de invitados para tu evento.' };
+            } else {
+                const e = state.eventData;
+                if (!e.date.trim()) return { valid: false, message: 'Indica la fecha de entrega.' };
+            }
+        }
+        if (step === 2) {
+            if (state.serviceType === 'event') {
+                if (state.consumption.drinksPerPerson < 1) return { valid: false, message: 'Indica la cantidad de cócteles por persona.' };
+            }
+        }
+        if (step === 3) {
+            // Propuesta sugerida (pantalla informativa)
+            return { valid: true };
+        }
+        if (step === 4) {
+            if (state.serviceType === 'event' && !state.dispenser) {
+                return { valid: false, message: 'Selecciona un formato de dispensador.' };
             }
         }
         if (step === 5) {
+            // Catálogo: validar mínimo de litros en evento
+            if (state.serviceType === 'event') {
+                const totalLiters = state.selections.reduce((sum, sel) => {
+                    const product = cocktails.find(p => p.id === sel.id);
+                    const selectedPrice = product?.prices?.[sel.size];
+                    const sizeValue = selectedPrice?.sizeValue ?? 0;
+                    return sum + (sizeValue > 0 ? sizeValue * sel.quantity : 0);
+                }, 0);
+
+                if (totalLiters < 10) {
+                    return {
+                        valid: false,
+                        message: 'El pedido mínimo es de 10 litros para contratar nuestros servicios.'
+                    };
+                }
+            }
+        }
+        if (step === 6 || step === 50) {
+            // Formulario final de Checkout (Datos de contacto + Fecha y Temática para eventos)
+            if (state.serviceType === 'event') {
+                const e = state.eventData;
+                const minAllowedDate = getMinDateString(1);
+                if (!e.date.trim()) return { valid: false, message: 'Indica la fecha de tu evento.' };
+                if (e.date < minAllowedDate) {
+                    return { valid: false, message: 'La fecha del evento debe ser desde mañana en adelante.' };
+                }
+                if (!e.type.trim()) return { valid: false, message: 'Selecciona la temática del evento.' };
+                if (e.type === 'Otro' && !e.otherType.trim()) return { valid: false, message: 'Especifica la temática del evento.' };
+            }
             const c = state.contact;
             if (!c.firstName.trim()) return { valid: false, message: 'El nombre es obligatorio.' };
             if (!c.lastName.trim()) return { valid: false, message: 'El apellido es obligatorio.' };
@@ -214,24 +245,6 @@ export function useWizard(cocktails: CocktailForWizard[], comunas: Comuna[], cat
                 return { valid: false, message: 'Ingresa un celular válido (ej: +56 9 1234 5678).' };
             }
             if (!c.comuna.trim()) return { valid: false, message: 'Selecciona la comuna.' };
-        }
-        if (step === 3) {
-            const totalLiters = state.selections.reduce((sum, sel) => {
-                const product = cocktails.find(p => p.id === sel.id);
-                const selectedPrice = product?.prices?.[sel.size];
-                const sizeValue = selectedPrice?.sizeValue ?? 0;
-                return sum + (sizeValue > 0 ? sizeValue * sel.quantity : 0);
-            }, 0);
-
-            if (totalLiters < 10) {
-                return {
-                    valid: false,
-                    message: 'El pedido mínimo es de 10 litros para contratar nuestros servicios.'
-                };
-            }
-        }
-        if (step === 4) {
-            if (!state.dispenser) return { valid: false, message: 'Selecciona un sistema de dispensación.' };
         }
         return { valid: true };
     }
