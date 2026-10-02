@@ -41,7 +41,21 @@
 
 ## Ultimos Cambios
 
-### 08-09-2026 (Sesión 120) — Pestañas admin con URL en todo el panel
+### 02-10-2026 (Rama feat/event-wizard-redesign) — Rediseño del Wizard de Eventos (/eventos)
+
+- **Flujo interactivo de 5 pasos**:
+  1. Invitados (chips 30, 50, 80, 100, 150, personalizado con auto-avance).
+  2. Intensidad de barra (2, 3 o 4+ tragos/persona sin selección por defecto; auto-avance).
+  3. Propuesta sugerida con total de tragos, litros recomendados, variedades sugeridas y presupuesto estimado calculado con catálogo en vivo; inclusiones en $0; botón central "Elegir formato de dispensador".
+  4. Formato de dispensador (Portátil o Muro de Coctelería con auto-avance sin barra inferior).
+  5. Catálogo de cócteles interactivo con medidor de litros sugeridos vs seleccionados y botón de cotización.
+- **Modal de checkout ("Resumen de Cotización")**:
+  - Incorpora Fecha del Evento y Temática directamente en el formulario (sin tarjeta contenedora redundante).
+  - Deduplicación de temática "Otro" (filtrado de duplicados y opción única al final con campo condicional para especificar temática).
+- **Navegación en Shell**:
+  - "Reiniciar" en esquina superior derecha restablece y lleva a `/eventos`.
+  - "Volver al inicio" en paso 1 lleva a `/cotizar`.
+
 
 - Todas las secciones admin con pestañas persisten en `?tab=` al recargar (mismo patrón que Recetario).
 - **Nuevo**: Productos (`categories` / `units` / `gallery`) y Configuración (`events` / `system` / `comunas`).
