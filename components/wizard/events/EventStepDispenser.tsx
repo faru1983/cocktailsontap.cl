@@ -10,7 +10,7 @@ interface Props {
     selectedDispenser: 'portatil' | 'muro' | 'desechable' | '';
     onSelectDispenser: (disp: 'portatil' | 'muro') => void;
     suggestedLiters: number;
-    onNext: () => void;
+    onNext: (disp?: 'portatil' | 'muro') => void;
     onBack: () => void;
 }
 
@@ -50,6 +50,9 @@ export default function EventStepDispenser({
 
     const handleCardClick = (id: 'portatil' | 'muro') => {
         onSelectDispenser(id);
+        setTimeout(() => {
+            onNext(id);
+        }, 180);
     };
 
     return (
@@ -188,7 +191,7 @@ export default function EventStepDispenser({
 
                 <button
                     type="button"
-                    onClick={onNext}
+                    onClick={() => onNext(selectedDispenser === 'muro' ? 'muro' : 'portatil')}
                     disabled={!selectedDispenser}
                     className="inline-flex items-center gap-2 px-6 py-3.5 rounded-xl bg-primary text-white font-black text-sm sm:text-base hover:bg-primary-dark transition-all shadow-[0_4px_15px_rgba(226,160,73,0.3)] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                 >
@@ -247,8 +250,14 @@ export default function EventStepDispenser({
                                 <button
                                     type="button"
                                     onClick={() => {
-                                        onSelectDispenser(modalDispenser);
-                                        setModalDispenser(null);
+                                        if (modalDispenser) {
+                                            const chosen = modalDispenser;
+                                            onSelectDispenser(chosen);
+                                            setModalDispenser(null);
+                                            setTimeout(() => {
+                                                onNext(chosen);
+                                            }, 180);
+                                        }
                                     }}
                                     className="w-full py-3.5 rounded-2xl bg-primary text-white font-black text-base transition-all hover:bg-primary-dark shadow-[0_4px_20px_rgba(226,160,73,0.3)] cursor-pointer"
                                 >
