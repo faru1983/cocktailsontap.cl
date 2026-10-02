@@ -112,7 +112,7 @@ export default function EventStepProposal({
                     </div>
 
                     <div className="pt-4 border-t border-primary/20 flex items-center justify-between text-xs text-brand-text-muted">
-                        <span className="font-medium">Basado en promedio del catálogo</span>
+                        <span className="font-medium">Calculado desde cócteles base</span>
                         <span className="font-bold text-emerald-600 flex items-center gap-1">
                             <BadgeCheck className="w-4 h-4" /> Valores netos
                         </span>

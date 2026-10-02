@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Wine, Sparkles, SlidersHorizontal, Check } from 'lucide-react';
+import { Wine, Sparkles, SlidersHorizontal, Check, ArrowRight } from 'lucide-react';
 
 interface Props {
     guests: number;
@@ -17,9 +17,9 @@ export default function EventStepDrinks({
     onSelectDrinks,
     onNext,
 }: Props) {
-    const isCustomInitial = currentDrinks >= 4;
+    const isCustomInitial = currentDrinks > 0 && currentDrinks !== 2 && currentDrinks !== 3;
     const [isCustom, setIsCustom] = useState(isCustomInitial);
-    const [customValue, setCustomValue] = useState<number>(isCustomInitial ? currentDrinks : 4);
+    const [customValue, setCustomValue] = useState<string>(isCustomInitial ? String(currentDrinks) : '');
 
     const handleSelectStandard = (drinks: number) => {
         setIsCustom(false);
@@ -29,13 +29,24 @@ export default function EventStepDrinks({
         }, 180);
     };
 
-    const handleSelectCustom = (val: number) => {
-        setIsCustom(true);
-        setCustomValue(val);
-        onSelectDrinks(val);
-        setTimeout(() => {
-            onNext(val);
-        }, 180);
+    const handleCustomChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const valStr = e.target.value;
+        setCustomValue(valStr);
+        const parsed = parseInt(valStr, 10);
+        if (!isNaN(parsed) && parsed > 0) {
+            onSelectDrinks(parsed);
+        } else {
+            onSelectDrinks(0);
+        }
+    };
+
+    const handleCustomSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        const parsed = parseInt(customValue, 10);
+        if (parsed > 0) {
+            onSelectDrinks(parsed);
+            onNext(parsed);
+        }
     };
 
     return (
@@ -132,14 +143,19 @@ export default function EventStepDrinks({
 
                 {/* 3. Personalizado */}
                 <div
-                    onClick={() => handleSelectCustom(customValue)}
+                    onClick={() => {
+                        setIsCustom(true);
+                        if (currentDrinks > 0 && currentDrinks !== 2 && currentDrinks !== 3) {
+                            setCustomValue(String(currentDrinks));
+                        }
+                    }}
                     className={`relative rounded-3xl p-6 border-2 transition-all duration-200 cursor-pointer shadow-sm hover:shadow-md flex flex-col ${
-                        isCustom && currentDrinks >= 4
+                        isCustom
                             ? 'border-primary ring-2 ring-primary/20 bg-primary/5'
                             : 'border-brand-border bg-white hover:border-primary/40'
                     }`}
                 >
-                    {isCustom && currentDrinks >= 4 && (
+                    {isCustom && (
                         <div className="absolute top-4 right-4 text-primary bg-primary/10 p-1.5 rounded-full">
                             <Check className="w-4 h-4" />
                         </div>
@@ -152,39 +168,60 @@ export default function EventStepDrinks({
                         Personalizado
                     </h3>
                     <div className="text-2xl font-black text-primary mb-3">
-                        {currentDrinks >= 4 ? `${currentDrinks} tragos` : 'Otra cantidad'} <span className="text-sm font-bold text-brand-text-muted">p/p</span>
+                        {isCustom && parseInt(customValue, 10) > 0 ? (
+                            <>{customValue} {parseInt(customValue, 10) === 1 ? 'trago' : 'tragos'} <span className="text-sm font-bold text-brand-text-muted">p/p</span></>
+                        ) : (
+                            <>Otra cantidad <span className="text-sm font-bold text-brand-text-muted">p/p</span></>
+                        )}
                     </div>
                     <p className="text-xs sm:text-sm text-brand-text-muted leading-relaxed mb-4 flex-1">
-                        Para eventos de larga duración o barra principal exclusiva (4, 5 o más cócteles por invitado).
+                        Para eventos especiales (1 trago de bienvenida, o 4, 5 o más cócteles por invitado).
                     </p>
 
-                    {/* Selector de cantidad personalizada */}
-                    <div className="flex items-center justify-between gap-1.5 pt-2 pb-1 border-t border-brand-border/60">
-                        {[4, 5, 6, 7].map((num) => (
-                            <button
-                                key={num}
-                                type="button"
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleSelectCustom(num);
-                                }}
-                                className={`flex-1 py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer ${
-                                    isCustom && currentDrinks === num
-                                        ? 'bg-primary text-white shadow-sm'
-                                        : 'bg-slate-100 text-brand-text hover:bg-slate-200'
-                                }`}
-                            >
-                                {num}
-                            </button>
-                        ))}
+                    <div className="pt-3 border-t border-brand-border/60 text-xs font-bold text-primary flex items-center justify-between">
+                        <span>Ingresar manualmente</span>
+                        <ArrowRight className="w-4 h-4" />
                     </div>
-                    {guests > 0 && isCustom && currentDrinks >= 4 && (
-                        <div className="pt-2 text-xs font-bold text-brand-text">
-                            Total para tu fiesta: <span className="text-primary font-black">~{guests * currentDrinks} cócteles</span>
-                        </div>
-                    )}
                 </div>
             </div>
+
+            {/* Custom Input Drawer / Form */}
+            {isCustom && (
+                <form 
+                    onSubmit={handleCustomSubmit}
+                    className="w-full max-w-md bg-white rounded-2xl p-6 border-2 border-primary/30 shadow-lg animate-slide-up mb-8 flex flex-col items-center"
+                >
+                    <label htmlFor="custom-drinks-input" className="block text-sm font-bold text-brand-text mb-3">
+                        Ingresa la cantidad de cócteles por persona:
+                    </label>
+                    <div className="relative w-full mb-3">
+                        <input
+                            id="custom-drinks-input"
+                            type="number"
+                            min="1"
+                            max="20"
+                            autoFocus
+                            placeholder="Ej: 4"
+                            value={customValue}
+                            onChange={handleCustomChange}
+                            className="w-full text-center text-3xl sm:text-4xl font-black text-primary p-3 bg-slate-50 border-2 border-brand-border rounded-xl focus:border-primary focus:bg-white focus:outline-none transition-all"
+                        />
+                    </div>
+                    {guests > 0 && parseInt(customValue, 10) > 0 && (
+                        <p className="text-xs font-bold text-brand-text-muted mb-4">
+                            Total para tu fiesta: <strong className="text-primary font-black">~{guests * parseInt(customValue, 10)} cócteles</strong>
+                        </p>
+                    )}
+                    <button
+                        type="submit"
+                        disabled={!parseInt(customValue, 10) || parseInt(customValue, 10) < 1}
+                        className="w-full py-3.5 px-6 rounded-xl bg-primary text-white font-black text-base flex items-center justify-center gap-2 hover:bg-primary-dark transition-all shadow-[0_4px_15px_rgba(226,160,73,0.3)] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                    >
+                        <span>Continuar con {parseInt(customValue, 10) > 0 ? `${customValue} tragos p/p` : 'esta cantidad'}</span>
+                        <ArrowRight className="w-5 h-5" />
+                    </button>
+                </form>
+            )}
         </div>
     );
 }

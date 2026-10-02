@@ -277,22 +277,18 @@ export function formatEventDate(dateStr: string | null | undefined): string {
  * ─────────────────────────────────────────────────────────────────────────────
  * Determina automáticamente el tamaño de barril más eficiente basado en:
  * - Cantidad de invitados.
- * - Promedio de tragos por persona (determina la variedad necesaria).
+ * - Promedio de tragos por persona (determina la variedad sugerida).
+ * - Regla oficial de negocio: 1 Litro = 5 Cócteles (vaso estándar 200ml).
  */
 export function calculateSmartConfig(guests: number, avgDrinks: number, isDirect: boolean = false) {
     const totalRequired = Math.ceil(guests * avgDrinks);
     
-    /**
-     * REGLA DE NEGOCIO - RENDIMIENTOS
-     * Para planificación (interno): 1L = 6 cócteles (30, 60, 120, 180)
-     * Para visualización (cliente): 1L = 5 cócteles (25, 50, 100, 150)
-     */
-    
-    // Si es Directo, mantenemos la lógica de barriles desechables de 5L mas simple
+    // Si es Directo, se calcula en base a barriles desechables de 5L (5L * 5 = 25 cócteles c/u)
     if (isDirect) {
-        const numBarrels = Math.ceil(totalRequired / 30); // Usamos 30 para planificación
+        const drinksPerBarrel = 5 * COCKTAILS_PER_LITER; // 25 cócteles
+        const numBarrels = Math.ceil(totalRequired / drinksPerBarrel);
         const totalLiters = numBarrels * 5;
-        const totalDrinks = totalLiters * 5; // Mostramos 5 para el cliente
+        const totalDrinks = totalLiters * COCKTAILS_PER_LITER;
         const labelText = numBarrels === 1 ? '1 Barril Desechable' : `${numBarrels} Barriles Desechables`;
         
         return {
@@ -310,27 +306,31 @@ export function calculateSmartConfig(guests: number, avgDrinks: number, isDirect
 
     interface Combination {
         counts: { [key: number]: number };
-        totalYield: number; // Basado en 1L = 6
+        totalYield: number; // Basado en 1L = 5 cócteles
         variedad: number;
         exceso: number;
+        distinctSizes: number;
     }
 
     const combinations: Combination[] = [];
 
-    // Generamos combinaciones usando rendimiento de planificación 1L = 6
-    for (let c30 = 0; c30 <= 3; c30++) {
-        for (let c20 = 0; c20 <= 4; c20++) {
+    // Generamos combinaciones usando rendimiento real: 1L = 5 cócteles (COCKTAILS_PER_LITER)
+    for (let c30 = 0; c30 <= 10; c30++) {
+        for (let c20 = 0; c20 <= 6; c20++) {
             for (let c10 = 0; c10 <= 6; c10++) {
-                for (let c5 = 0; c5 <= 10; c5++) {
-                    const yieldTotal = (c30 * 180) + (c20 * 120) + (c10 * 60) + (c5 * 30);
+                for (let c5 = 0; c5 <= 6; c5++) {
+                    const totalLiters = (c30 * 30) + (c20 * 20) + (c10 * 10) + (c5 * 5);
+                    const yieldTotal = totalLiters * COCKTAILS_PER_LITER;
                     const totalBarrels = c30 + c20 + c10 + c5;
                     
                     if (totalBarrels > 0 && totalBarrels <= 12 && yieldTotal >= totalRequired) {
+                        const distinctSizes = (c30 > 0 ? 1 : 0) + (c20 > 0 ? 1 : 0) + (c10 > 0 ? 1 : 0) + (c5 > 0 ? 1 : 0);
                         combinations.push({
                             counts: { 5: c5, 10: c10, 20: c20, 30: c30 },
                             totalYield: yieldTotal,
                             variedad: totalBarrels,
-                            exceso: yieldTotal - totalRequired
+                            exceso: yieldTotal - totalRequired,
+                            distinctSizes,
                         });
                     }
                 }
@@ -338,28 +338,34 @@ export function calculateSmartConfig(guests: number, avgDrinks: number, isDirect
         }
     }
 
-    // SISTEMA DE SCORING (Basado en variedad ideal y eficiencia)
+    // SISTEMA DE SCORING (Basado en variedad ideal, eficiencia y balance)
     combinations.sort((a, b) => {
         // 1. Cercanía a la variedad ideal (sabores = tragos por persona)
         const aDiff = Math.abs(a.variedad - targetVariedad);
         const bDiff = Math.abs(b.variedad - targetVariedad);
         if (aDiff !== bDiff) return aDiff - bDiff;
 
-        // 2. Si empatan en variedad, preferir el que tenga MENOR exceso de litros (eficiencia)
+        // 2. Si empatan en variedad, preferir el que tenga MENOR exceso de cócteles (eficiencia)
         if (a.exceso !== b.exceso) return a.exceso - b.exceso;
 
-        // 3. Si empatan en exceso, preferir menos barriles físicos
+        // 3. Si empatan en variedad y exceso, preferir tamaños homogéneos (ej: dos de 20L antes que 30L + 10L)
+        if (a.distinctSizes !== b.distinctSizes) return a.distinctSizes - b.distinctSizes;
+
+        // 4. Si empatan en lo anterior, preferir menos barriles físicos
         return a.variedad - b.variedad;
     });
 
+    const fallbackDrinksPerBarrel30 = 30 * COCKTAILS_PER_LITER;
+    const fallbackBarrels30 = Math.ceil(totalRequired / fallbackDrinksPerBarrel30);
     const best = combinations[0] || { 
-        counts: { 30: Math.ceil(totalRequired / 180) }, 
-        totalYield: Math.ceil(totalRequired / 180) * 180, 
-        variedad: Math.ceil(totalRequired / 180), 
-        exceso: (Math.ceil(totalRequired / 180) * 180) - totalRequired 
+        counts: { 5: 0, 10: 0, 20: 0, 30: fallbackBarrels30 }, 
+        totalYield: fallbackBarrels30 * fallbackDrinksPerBarrel30, 
+        variedad: fallbackBarrels30, 
+        exceso: (fallbackBarrels30 * fallbackDrinksPerBarrel30) - totalRequired,
+        distinctSizes: 1,
     };
 
-    // Formatear el label llamativo (ej: "2 Barriles de 5L + 1 Barril de 20L")
+    // Formatear el label llamativo (ej: "2 Barriles de 20L")
     const parts: string[] = [];
     [30, 20, 10, 5].forEach(size => {
         const count = best.counts[size];
@@ -374,7 +380,7 @@ export function calculateSmartConfig(guests: number, avgDrinks: number, isDirect
     return {
         config: parts.length > 1 ? parts.join(' + ') : parts[0] || '1 Barril de 10L',
         liters: finalLiters,
-        totalDrinks: finalLiters * 5, // Regla de negocio conservadora para visualización: 1L = 5 cócteles
+        totalDrinks: finalLiters * COCKTAILS_PER_LITER,
         varietiesCount: best.variedad,
         counts: best.counts as { 5: number; 10: number; 20: number; 30: number },
     };
@@ -382,7 +388,7 @@ export function calculateSmartConfig(guests: number, avgDrinks: number, isDirect
 
 /**
  * Calcula el presupuesto estimado de una propuesta sugerida para eventos
- * basándose en los precios de oferta reales del catálogo.
+ * basándose en los precios de oferta reales más convenientes de la categoría Cocktails.
  */
 export function calculateEstimatedProposal(
     guests: number,
@@ -391,12 +397,13 @@ export function calculateEstimatedProposal(
 ) {
     const config = calculateSmartConfig(guests, drinksPerPerson, false);
     
-    // Obtener cócteles activos de eventos (excluyendo complementos como Otros)
-    const eventCocktails = cocktails.filter(c => c.category !== 'Otros');
+    // Priorizar cócteles base de la categoría 'Cocktails' (excluyendo complementos como Otros)
+    const baseCocktails = cocktails.filter(c => c.category?.toLowerCase() === 'cocktails');
+    const targetCocktails = baseCocktails.length > 0 ? baseCocktails : cocktails.filter(c => c.category !== 'Otros');
     
-    const getAvgPriceForSize = (sizeLiters: number): number => {
+    const getMinPriceForSize = (sizeLiters: number): number => {
         const prices: number[] = [];
-        for (const c of eventCocktails) {
+        for (const c of targetCocktails) {
             for (const [, p] of Object.entries(c.prices || {})) {
                 if (p.sizeValue === sizeLiters && !p.isDisposable && p.unit === 'L' && p.offerPrice > 0) {
                     prices.push(p.offerPrice);
@@ -404,24 +411,25 @@ export function calculateEstimatedProposal(
             }
         }
         if (prices.length === 0) {
-            if (sizeLiters === 5) return 45000;
-            if (sizeLiters === 10) return 80000;
-            if (sizeLiters === 20) return 150000;
-            if (sizeLiters === 30) return 210000;
-            return sizeLiters * 7500;
+            if (sizeLiters === 5) return 69990;
+            if (sizeLiters === 10) return 109990;
+            if (sizeLiters === 20) return 169900;
+            if (sizeLiters === 30) return 239990;
+            return sizeLiters * 8000;
         }
-        return prices.reduce((a, b) => a + b, 0) / prices.length;
+        return Math.min(...prices);
     };
 
-    const avg5 = getAvgPriceForSize(5);
-    const avg10 = getAvgPriceForSize(10);
-    const avg20 = getAvgPriceForSize(20);
-    const avg30 = getAvgPriceForSize(30);
+    const min5 = getMinPriceForSize(5);
+    const min10 = getMinPriceForSize(10);
+    const min20 = getMinPriceForSize(20);
+    const min30 = getMinPriceForSize(30);
 
     const counts = config.counts || { 5: 0, 10: 0, 20: 0, 30: 0 };
-    const rawTotal = (counts[5] * avg5) + (counts[10] * avg10) + (counts[20] * avg20) + (counts[30] * avg30);
+    const rawTotal = (counts[5] * min5) + (counts[10] * min10) + (counts[20] * min20) + (counts[30] * min30);
     
-    const estimatedTotal = Math.round(rawTotal / 1000) * 1000;
+    // Valor real de catálogo
+    const estimatedTotal = rawTotal;
     const totalDrinks = config.totalDrinks || 1;
     const estimatedPricePerDrink = Math.round(estimatedTotal / totalDrinks);
 

@@ -155,12 +155,32 @@
   6. **Checkout Modal (`EventWizardCheckoutModal.tsx`)**: Los datos del evento removidos del paso 1 (Fecha tentativa y Temática) se integraron en el formulario final junto a Nombre, Apellido, Email, WhatsApp, Región y Comuna.
 - **Lógica y Hooks (`lib/wizardLogic.ts`, `hooks/useWizard.ts`)**:
   - `calculateSmartConfig`: ahora retorna `varietiesCount` y `counts` de barriles.
-  - `calculateEstimatedProposal`: nueva función para estimar presupuestos de eventos de forma dinámica con precios del catálogo.
+  - `calculateEstimatedProposal`: estima el presupuesto de la propuesta de eventos basándose en el precio de oferta mínimo real por tamaño de la categoría `Cocktails` (evitando promedios inflados con cócteles premium o combinados/mocktails) y entregando el valor exacto de catálogo (Opción A).
   - `useWizard`: se adaptó la guarda de refresco para eventos y se actualizó `validateStep` para soportar las reglas de los 5 pasos y el formulario final.
 - **Archivos creados/modificados**:
   - Creados: `components/wizard/events/EventStepGuests.tsx`, `components/wizard/events/EventStepDrinks.tsx`, `components/wizard/events/EventStepProposal.tsx`, `components/wizard/events/EventStepDispenser.tsx`.
   - Modificados: `components/wizard/events/EventWizardShell.tsx`, `components/wizard/events/EventWizardCatalog.tsx`, `components/wizard/events/EventWizardCheckoutModal.tsx`, `lib/wizardLogic.ts`, `hooks/useWizard.ts`.
 
+### 02-10-2026 (Sesión 126) — Optimización del Presupuesto Sugerido y Rendimiento de Barriles (/eventos?step=3)
+
+- **Unificación de Rendimiento en `calculateSmartConfig` (`lib/wizardLogic.ts`)**:
+  - Se eliminó la regla histórica dividida y obsoleta de $1\text{L} = 6\text{ cócteles}$ internos vs $1\text{L} = 5\text{ cócteles}$ cliente.
+  - Ahora todo el motor de cálculo y visualización utiliza de forma consistente la constante oficial `COCKTAILS_PER_LITER = 5` (vaso de 200ml: 5L = 25, 10L = 50, 20L = 100, 30L = 150 cócteles).
+  - Se corrigió también la venta directa (`isDirect`), calculando barriles desechables de 5L a razón de 25 cócteles por barril en vez de 30.
+  - Se amplió el espacio de búsqueda de combinaciones y se agregó criterio de desempate por homogeneidad de tamaños (`distinctSizes`), prefiriendo por ejemplo dos barriles simétricos de 20L antes que mezclar 30L + 10L.
+  - Resultados:
+    - 100 personas x 2 tragos (200 cócteles) $\rightarrow$ **2 Barriles de 20L** (40L = 200 cócteles exactos, 2 variedades).
+    - 150 personas x 2 tragos (300 cócteles) $\rightarrow$ **2 Barriles de 30L** (60L = 300 cócteles exactos, 2 variedades).
+    - 50 personas x 2 tragos (100 cócteles) $\rightarrow$ **2 Barriles de 10L** (20L = 100 cócteles exactos, 2 variedades).
+    - 50 personas x 3 tragos (150 cócteles) $\rightarrow$ **3 Barriles de 10L** (30L = 150 cócteles exactos, 3 variedades).
+    - 25 personas x 1 trago (25 cócteles) $\rightarrow$ **1 Barril de 5L** (5L = 25 cócteles exactos, 1 variedad).
+- **Ajuste en `calculateEstimatedProposal` (`lib/wizardLogic.ts`)**:
+  - Filtra específicamente por la categoría `Cocktails` (`category.toLowerCase() === 'cocktails'`) y toma el **precio de oferta mínimo real** por tamaño de barril (`min(offerPrice)` en formato arriendo `!isDisposable && unit === 'L'`).
+  - Opción A: valor real de catálogo sin redondeo a miles.
+- **UI (`EventStepProposal.tsx` y `EventStepDrinks.tsx`)**:
+  - En `EventStepProposal.tsx`: Se actualizó la leyenda inferior de la tarjeta de presupuesto estimado de *"Basado en promedio del catálogo"* a *"Calculado desde cócteles base"*.
+  - En `EventStepDrinks.tsx` (Paso 2): Se reemplazaron los botones fijos `[4, 5, 6, 7]` de la tarjeta "Personalizado" por un drawer desplegable idéntico al del Paso 1, permitiendo al usuario **escribir manualmente la cantidad exacta de cócteles por persona** con cálculo de total de cócteles en vivo y botón de confirmación.
+
 ---
 
-*Ultima actualizacion: 02-10-2026 (Sesión 125)*
+*Ultima actualizacion: 02-10-2026 (Sesión 126)*
