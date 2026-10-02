@@ -93,6 +93,10 @@ export default function EventWizardCheckoutModal({
         onConfirm({ confirmNow });
     };
 
+    const regularEventTypes = useMemo(() => {
+        return eventTypes.filter((t) => t.id !== 'Otro' && t.name.toLowerCase() !== 'otro');
+    }, [eventTypes]);
+
     const formId = 'event-checkout-form';
     const hasComuna = Boolean(state.contact.comuna);
     const summaryForView = {
@@ -219,58 +223,56 @@ export default function EventWizardCheckoutModal({
                                 </h3>
 
                                 <form id={formId} className="flex flex-col gap-3.5" onSubmit={handleSubmit}>
-                                    {/* 1. Datos del Evento */}
-                                    <div className="bg-slate-50 p-3.5 rounded-xl border border-brand-border">
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                            <div>
-                                                <label className="block font-bold mb-1 text-brand-text text-[0.8rem]">
-                                                    Fecha del Evento <span className="text-primary">*</span>
-                                                </label>
-                                                <input
-                                                    type="date"
-                                                    required
-                                                    min={getMinDateString(1)}
-                                                    className="w-full p-2.5 border border-slate-200 rounded-xl focus:border-primary focus:ring-2 focus:ring-primary/10 outline-none text-sm bg-white"
-                                                    value={state.eventData.date}
-                                                    onChange={(e) => updateEventData('date', e.target.value)}
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="block font-bold mb-1 text-brand-text text-[0.8rem]">
-                                                    Temática <span className="text-primary">*</span>
-                                                </label>
-                                                <select
-                                                    required
-                                                    className="w-full p-2.5 border border-slate-200 rounded-xl focus:border-primary focus:ring-2 focus:ring-primary/10 outline-none text-sm bg-white cursor-pointer"
-                                                    value={state.eventData.type}
-                                                    onChange={(e) => updateEventData('type', e.target.value)}
-                                                >
-                                                    <option value="">Selecciona temática...</option>
-                                                    {eventTypes.map((t) => (
-                                                        <option key={t.id} value={t.name}>
-                                                            {t.name}
-                                                        </option>
-                                                    ))}
-                                                    <option value="Otro">Otro...</option>
-                                                </select>
-                                            </div>
+                                    {/* 1. Datos del Evento (Fecha y Temática) */}
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                        <div>
+                                            <label className="block font-bold mb-1 text-brand-text text-[0.8rem]">
+                                                Fecha del Evento <span className="text-primary">*</span>
+                                            </label>
+                                            <input
+                                                type="date"
+                                                required
+                                                min={getMinDateString(1)}
+                                                className="w-full p-2.5 border border-slate-200 rounded-xl focus:border-primary focus:ring-2 focus:ring-primary/10 outline-none text-sm bg-white"
+                                                value={state.eventData.date}
+                                                onChange={(e) => updateEventData('date', e.target.value)}
+                                            />
                                         </div>
-                                        {state.eventData.type === 'Otro' && (
-                                            <div className="mt-3 animate-slide-up">
-                                                <label className="block font-bold mb-1 text-brand-text text-[0.8rem]">
-                                                    Especificar Temática <span className="text-primary">*</span>
-                                                </label>
-                                                <input
-                                                    type="text"
-                                                    required
-                                                    placeholder="Ej: Aniversario, Graduación..."
-                                                    className="w-full p-2.5 border border-slate-200 rounded-xl focus:border-primary focus:ring-2 focus:ring-primary/10 outline-none text-sm bg-white"
-                                                    value={state.eventData.otherType || ''}
-                                                    onChange={(e) => updateEventData('otherType', e.target.value)}
-                                                />
-                                            </div>
-                                        )}
+                                        <div>
+                                            <label className="block font-bold mb-1 text-brand-text text-[0.8rem]">
+                                                Temática <span className="text-primary">*</span>
+                                            </label>
+                                            <select
+                                                required
+                                                className="w-full p-2.5 border border-slate-200 rounded-xl focus:border-primary focus:ring-2 focus:ring-primary/10 outline-none text-sm bg-white cursor-pointer"
+                                                value={state.eventData.type}
+                                                onChange={(e) => updateEventData('type', e.target.value)}
+                                            >
+                                                <option value="">Selecciona temática...</option>
+                                                {regularEventTypes.map((t) => (
+                                                    <option key={t.id} value={t.id}>
+                                                        {t.name}
+                                                    </option>
+                                                ))}
+                                                <option value="Otro">Otro</option>
+                                            </select>
+                                        </div>
                                     </div>
+                                    {state.eventData.type === 'Otro' && (
+                                        <div className="animate-slide-up">
+                                            <label className="block font-bold mb-1 text-brand-text text-[0.8rem]">
+                                                Especificar Temática <span className="text-primary">*</span>
+                                            </label>
+                                            <input
+                                                type="text"
+                                                required
+                                                placeholder="Ej: Aniversario, Graduación..."
+                                                className="w-full p-2.5 border border-slate-200 rounded-xl focus:border-primary focus:ring-2 focus:ring-primary/10 outline-none text-sm bg-white"
+                                                value={state.eventData.otherType || ''}
+                                                onChange={(e) => updateEventData('otherType', e.target.value)}
+                                            />
+                                        </div>
+                                    )}
 
                                     {/* 2. Datos de Contacto */}
                                     <div className="grid grid-cols-2 gap-3">
