@@ -6,12 +6,14 @@ import type { Comuna, Region, EventType } from '@/lib/types';
 import { formatCurrency } from '@/lib/utils';
 import PhoneInput from '@/components/ui/PhoneInput';
 import RegionComunaFields from '@/components/ui/RegionComunaFields';
+import ShippingDatePicker from '@/components/ui/ShippingDatePicker';
 import { X, Loader2, Calendar, Users, CheckCircle, FileText } from 'lucide-react';
 import CheckoutCartSection from '@/components/quote/CheckoutCartSection';
 import QuoteSummaryTotals from '@/components/quote/QuoteSummaryTotals';
 import { PORTATIL_MIN_LITERS, MURO_MIN_LITERS } from '@/lib/config';
 import { validateConfirmNowState } from '@/lib/confirmNowValidation';
 import { calculateMaxPickupDate, EVENT_NEXT_DAY_PICKUP_SLOTS, getMinDateString } from '@/lib/wizardLogic';
+import { getMinSelectableDate, validateShippingDate } from '@/lib/shippingMethods';
 
 interface Props {
     wizard: ReturnType<typeof useWizard>;
@@ -38,6 +40,9 @@ export default function EventWizardCheckoutModal({
     const [localError, setLocalError] = useState('');
     const [showComments, setShowComments] = useState(Boolean(state.contact.comments));
 
+    const eventMethodConfig = comunas[0]?.shippingMethodsConfig?.own_events;
+    const minEventDate = getMinSelectableDate(eventMethodConfig, 5);
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
     const summaryData = useMemo(
         () => wizard.calculateSummaryData(),
@@ -63,11 +68,12 @@ export default function EventWizardCheckoutModal({
         
         // Validaciones del evento
         if (!state.eventData.date.trim()) {
-            setLocalError('Por favor indica la fecha tentativa de tu evento.');
+            setLocalError('Por favor indica la fecha de tu evento.');
             return;
         }
-        if (state.eventData.date < getMinDateString(1)) {
-            setLocalError('La fecha del evento debe ser desde mañana en adelante.');
+        const shippingDateErr = validateShippingDate(state.eventData.date, eventMethodConfig, 5);
+        if (shippingDateErr) {
+            setLocalError(shippingDateErr);
             return;
         }
         if (!state.eventData.type.trim()) {
@@ -225,19 +231,23 @@ export default function EventWizardCheckoutModal({
                                 <form id={formId} className="flex flex-col gap-3.5" onSubmit={handleSubmit}>
                                     {/* 1. Datos del Evento (Fecha y Temática) */}
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                        <div>
-                                            <label className="block font-bold mb-1 text-brand-text text-[0.8rem]">
-                                                Fecha del Evento <span className="text-primary">*</span>
-                                            </label>
-                                            <input
-                                                type="date"
-                                                required
-                                                min={getMinDateString(1)}
-                                                className="w-full p-2.5 border border-slate-200 rounded-xl focus:border-primary focus:ring-2 focus:ring-primary/10 outline-none text-sm bg-white"
-                                                value={state.eventData.date}
-                                                onChange={(e) => updateEventData('date', e.target.value)}
-                                            />
-                                        </div>
+                                        <ShippingDatePicker
+                                            id="event-date-picker"
+                                            label="Fecha del Evento"
+                                            required
+                                            value={state.eventData.date}
+                                            onChange={(val) => {
+                                                updateEventData('date', val);
+                                                setLocalError('');
+                                            }}
+                                            methodConfig={eventMethodConfig}
+                                            fallbackOffsetDays={5}
+                                            helperText={
+                                                eventMethodConfig?.minOffsetDays
+                                                    ? `Reserva con mín. ${eventMethodConfig.minOffsetDays} días de anticipación.`
+                                                    : undefined
+                                            }
+                                        />
                                         <div>
                                             <label className="block font-bold mb-1 text-brand-text text-[0.8rem]">
                                                 Temática <span className="text-primary">*</span>

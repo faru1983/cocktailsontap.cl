@@ -1324,6 +1324,45 @@ export async function saveBlueExpressRates(rates: {
     return { success: true };
 }
 
+export async function saveShippingMethodsSettings(config: any) {
+    await checkAuth();
+    const { parseShippingMethodsConfig, SHIPPING_METHODS_SETTING_KEY } = await import('@/lib/shippingMethods');
+    const parsed = parseShippingMethodsConfig(config);
+    const db = createServerClient();
+    const { error } = await db.from('site_settings').upsert(
+        {
+            key: SHIPPING_METHODS_SETTING_KEY,
+            category: 'shipping',
+            value: JSON.stringify(parsed),
+            is_active: true,
+            description: 'Configuración de métodos de envío: Transporte Propio (Desechables y Eventos), Blue Express, días hábiles, anticipación y fechas bloqueadas.',
+        },
+        { onConflict: 'key' }
+    );
+    if (error) throw new Error(error.message);
+    revalidateCoveragePaths();
+    return { success: true };
+}
+
+export async function bulkApplyRegionComunaRate(params: {
+    regionId: string;
+    target: 'direct' | 'event';
+    rate: number | null;
+}) {
+    await checkAuth();
+    const { regionId, target, rate } = params;
+    if (!regionId) throw new Error('ID de región requerido');
+    const db = createServerClient();
+    const updateField = target === 'direct' ? 'direct_sale_delivery_cost' : 'cost';
+    const { error } = await db
+        .from('comunas')
+        .update({ [updateField]: rate })
+        .eq('region_id', regionId);
+    if (error) throw new Error(error.message);
+    revalidateCoveragePaths();
+    return { success: true };
+}
+
 // ── Bulk Actions ────────────────────────────────────────────────────────
 export async function bulkUpdateQuoteStatus(ids: string[], status: string) {
     await checkAuth();

@@ -181,6 +181,38 @@
   - En `EventStepProposal.tsx`: Se actualizó la leyenda inferior de la tarjeta de presupuesto estimado de *"Basado en promedio del catálogo"* a *"Calculado desde cócteles base"*.
   - En `EventStepDrinks.tsx` (Paso 2): Se reemplazaron los botones fijos `[4, 5, 6, 7]` de la tarjeta "Personalizado" por un drawer desplegable idéntico al del Paso 1, permitiendo al usuario **escribir manualmente la cantidad exacta de cócteles por persona** con cálculo de total de cócteles en vivo y botón de confirmación.
 
+### 11-10-2026 (Sesión 127) — Refactorización Módulo de Cobertura y Métodos de Envío (Admin + Checkout)
+
+- **Separación de Vistas en Cobertura y Despacho (`admin/settings?tab=cobertura`)**:
+  - Sub-pestañas: `[ 🚚 Métodos de Envío ]` y `[ 🗺️ Matriz de Comunas y Cobertura ]`.
+  - **Métodos de Envío (`ShippingMethodsCards.tsx`)**:
+    - **Transporte Propio (Desechables)**: Días de operación (ej: Lun-Vie), días de anticipación (lead time), bloqueo de fechas calendario (blackout dates), ventana de entrega ("todo el día"), umbral de envío gratis opcional por monto o litros, y herramienta de copia masiva de tarifas base ("Copiar tarifa a todas las comunas de una región").
+    - **Transporte y Montaje (Eventos)**: Configurable independientemente (Lun-Dom, 5 días de anticipación, bloqueo de fechas por alta demanda, regla de envío gratis por litros o monto, copia masiva de flete base).
+    - **Blue Express (Courier Nacional)**: Gestión de tarifas por bulto M/L (misma zona, centro, extremo), días de despacho a courier, anticipación y bloqueo de fechas.
+    - **+ Agregar Nuevo Método**: Soporte extensible para nuevos couriers de reparto en Santiago o regiones.
+  - **Matriz de Comunas (`CoverageSettings.tsx`)**:
+    - Mantiene la tabla geográfica por región y comuna con búsqueda rápida, edición directa de tarifas, carrier preferido (`own` vs `blue_express`), zona Blue Express, y botón para aplicar tarifas masivas por región.
+- **Validación de Fechas en Wizard y Checkout**:
+  - `lib/shippingMethods.ts`: Funciones `validateShippingDate`, `isDateBlocked`, `isWeekdayAllowed`, `getMinSelectableDate` y `isFreeShippingApplicable`.
+  - En venta directa (`DirectWizardCheckoutModal.tsx` y `DirectQuoteView.tsx`): selector de fecha con `min` dinámico y validación de anticipación, días de entrega y fechas bloqueadas.
+  - En eventos (`EventWizardCheckoutModal.tsx` y `EventQuoteView.tsx`): selector con `min` dinámico (5 días por defecto o configurado) y validación de días permitidos y fechas bloqueadas.
+  - En backend (`createQuoteCore.ts` y `confirmQuoteCore.ts`): validación Zero Trust server-side de fechas y carrier activo antes de persistir la cotización o reserva.
+- **Nuevo Selector de Fecha Interactivo (`components/ui/ShippingDatePicker.tsx`)**:
+  - Reemplazó los `<input type="date">` nativos del navegador (los cuales no soportan deshabilitar fechas individuales arbitrarias en su menú desplegable nativo).
+  - Despliega un calendario flotante con navegación de meses, días de la semana y estados claros:
+    - Fechas bloqueadas (`blockedDates`): estilizadas en fondo rojo suave, tachadas, con icono de candado e imposibles de cliquear (`cursor-not-allowed`, `pointer-events-none`).
+    - Días fuera de anticipación o días no operativos de la semana: deshabilitados en gris suave.
+    - Fechas disponibles: resaltadas con interacción suave.
+    - Tipografía refinada: alineada con Outfit, sin negritas agresivas, formato en español natural ("Jueves, 15 de octubre de 2026"), días circulares orgánicos e icono chevron sutil idéntico a los selects de la plataforma.
+    - **Posicionamiento inteligente (Auto-flip)**: Detección dinámica de colisiones y espacio disponible (`updatePlacement`). Calcula el espacio inferior y superior tanto respecto a la ventana del navegador (`viewport`) como al contenedor con scroll del modal (`.overflow-y-auto`). Si el espacio inferior es insuficiente (< 340px) y hay más espacio arriba, el calendario se despliega automáticamente hacia arriba (`bottom-full mb-1.5`), evitando que quede cortado u oculto por el borde del modal. Sincronizado reactivamente ante eventos de resize y scroll (capture phase).
+  - Integrado en todos los flujos: `EventWizardCheckoutModal.tsx`, `DirectWizardCheckoutModal.tsx`, `EventQuoteView.tsx` y `DirectQuoteView.tsx`.
+- **Persistencia**:
+  - Guardado en `site_settings` bajo la clave `shipping_methods_config` (`category: 'shipping'`).
+  - Cache invalidado con `revalidateCoveragePaths` y re-fetch en catálogo vía `serverData.ts`.
+- **Archivos creados/modificados**:
+  - Creados: `lib/shippingMethods.ts`, `components/admin/ShippingMethodsCards.tsx`, `components/ui/ShippingDatePicker.tsx`.
+  - Modificados: `app/actions/admin/adminActions.ts`, `app/admin/settings/SettingsClient.tsx`, `components/admin/CoverageSettings.tsx`, `components/quote/DirectQuoteView.tsx`, `components/quote/EventQuoteView.tsx`, `components/wizard/direct/DirectWizardCheckoutModal.tsx`, `components/wizard/events/EventWizardCheckoutModal.tsx`, `lib/serverData.ts`, `lib/services/confirmQuoteCore.ts`, `lib/services/createQuoteCore.ts`, `lib/types.ts`, `lib/wizardLogic.ts`.
+
 ---
 
-*Ultima actualizacion: 02-10-2026 (Sesión 126)*
+*Ultima actualizacion: 11-10-2026 (Sesión 127)*

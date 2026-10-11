@@ -16,7 +16,8 @@ import { resolveQuoteSource, type QuoteSource } from '@/lib/quoteSource';
 import { confirmQuoteCore } from '@/lib/services/confirmQuoteCore';
 import { validateConfirmNowState } from '@/lib/confirmNowValidation';
 import { stripClientPricing } from '@/lib/catalogPricing';
-import { resolveRegionShortName, validateDirectSaleDate } from '@/lib/wizardLogic';
+import { resolveRegionShortName, validateDirectSaleDate, resolveDirectSaleCarrier } from '@/lib/wizardLogic';
+import { validateShippingDate } from '@/lib/shippingMethods';
 
 export interface CreateQuoteInput {
     state: WizardState;
@@ -121,9 +122,19 @@ export async function createQuoteCore(input: CreateQuoteInput): Promise<CreateQu
             }
         }
 
-        if (state.serviceType === 'direct' && !isAdmin) {
-            const dateErr = validateDirectSaleDate(state.eventData.date);
-            if (dateErr) return { success: false, error: dateErr };
+        if (!isAdmin) {
+            if (state.serviceType === 'direct') {
+                const carrier = resolveDirectSaleCarrier(state.contact.comuna, state.contact.region, comunas);
+                const directConfig = carrier === 'blue_express'
+                    ? comunas[0]?.shippingMethodsConfig?.blue_express
+                    : comunas[0]?.shippingMethodsConfig?.own_direct;
+                const dateErr = validateDirectSaleDate(state.eventData.date, directConfig);
+                if (dateErr) return { success: false, error: dateErr };
+            } else if (state.serviceType === 'event') {
+                const eventConfig = comunas[0]?.shippingMethodsConfig?.own_events;
+                const dateErr = validateShippingDate(state.eventData.date, eventConfig, 5);
+                if (dateErr) return { success: false, error: dateErr };
+            }
         }
 
         const clientId = await QuoteService.upsertClient(state, source);

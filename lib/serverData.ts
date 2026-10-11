@@ -11,6 +11,7 @@ import type {
     MeasurementUnit,
 } from './types';
 import { isBlueExpressZone, parseBlueExpressRates, type BlueExpressHomeRates } from './blueExpress';
+import { parseShippingMethodsConfig, SHIPPING_METHODS_SETTING_KEY, type ShippingMethodsSettings } from './shippingMethods';
 
 // ─── Helpers de transformación ───────────────────────────────────────────────
 
@@ -43,6 +44,7 @@ export const fetchAllProductData = unstable_cache(
         comunas: Comuna[];
         measurementUnits: MeasurementUnit[];
         blueExpressRates: BlueExpressHomeRates;
+        shippingMethodsConfig: ShippingMethodsSettings;
     }> => {
         const db = createServerClient();
         const [
@@ -53,6 +55,7 @@ export const fetchAllProductData = unstable_cache(
             { data: productsData, error: productsError },
             { data: unitsData, error: unitsError },
             { data: beRatesRow },
+            { data: shippingMethodsRow },
         ] = await Promise.all([
             supabase.from('categories').select('name').eq('is_active', true).order('display_order', { ascending: true }),
             supabase.from('event_types').select('id, name, icon').order('display_order', { ascending: true }),
@@ -84,6 +87,7 @@ export const fetchAllProductData = unstable_cache(
                 .order('display_order', { foreignTable: 'product_prices', ascending: true }),
             supabase.from('measurement_units').select('*').eq('is_active', true).order('display_order', { ascending: true }),
             db.from('site_settings').select('value').eq('key', 'blue_express_home_rates').maybeSingle(),
+            db.from('site_settings').select('value').eq('key', SHIPPING_METHODS_SETTING_KEY).maybeSingle(),
         ]);
 
         if (catError) throw new Error(`categories: ${catError.message}`);
@@ -113,9 +117,10 @@ export const fetchAllProductData = unstable_cache(
 
         const regionsById = new Map(regions.map((r) => [r.id, r]));
         const blueExpressRates = parseBlueExpressRates(beRatesRow?.value);
+        const shippingMethodsConfig = parseShippingMethodsConfig(shippingMethodsRow?.value);
 
-        const comunas: Comuna[] = ((comunasData ?? []) as any[])
-            .map((c) => {
+        const comunas: Comuna[] = (((comunasData ?? []) as any[])
+            .map((c): Comuna | null => {
                 const region = regionsById.get(c.region_id);
                 if (!region || !region.isActive) return null;
                 return {
@@ -139,9 +144,10 @@ export const fetchAllProductData = unstable_cache(
                             : null,
                     blueExpressZone: isBlueExpressZone(c.blue_express_zone) ? c.blue_express_zone : null,
                     blueExpressRates,
-                } satisfies Comuna;
+                    shippingMethodsConfig,
+                };
             })
-            .filter((c): c is Comuna => c !== null)
+            .filter((c): c is Comuna => c !== null))
             .sort((a, b) => {
                 if (a.regionCode !== b.regionCode) {
                     const ra = regionsById.get(a.regionId)?.displayOrder ?? 0;
@@ -217,9 +223,10 @@ export const fetchAllProductData = unstable_cache(
             comunas,
             measurementUnits: unitsData ?? [],
             blueExpressRates,
+            shippingMethodsConfig,
         };
     },
-    ['product-data-v5-be-rates'],
+    ['product-data-v6-shipping-methods'],
     { revalidate: 300, tags: ['product-data'] }
 );
 

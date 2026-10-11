@@ -6,6 +6,7 @@ import { formatCurrency, copyToClipboard } from '@/lib/utils';
 import { isValidPhoneE164, normalizePhoneE164 } from '@/lib/phone';
 import PhoneInput from '@/components/ui/PhoneInput';
 import { formatEventDate, getTodayString, getMinDateString, getSizeLiters, resolveShipping, DIRECT_SALE_MIN_DISPATCH_OFFSET_DAYS, validateDirectSaleDate } from '@/lib/wizardLogic';
+import { getMinSelectableDate } from '@/lib/shippingMethods';
 import { getDirectSaleDateFieldCopy } from '@/lib/blueExpress';
 import { confirmQuote } from '@/app/actions/confirmQuote';
 import {
@@ -18,6 +19,7 @@ import { getClientMetaAttribution } from '@/lib/attribution';
 import type { Quote, QuoteItem, Comuna, Region, CocktailForWizard, EventType, Product, ICart } from '@/lib/types';
 import { DEFAULT_REGION_CODE } from '@/lib/types';
 import RegionComunaFields from '@/components/ui/RegionComunaFields';
+import ShippingDatePicker from '@/components/ui/ShippingDatePicker';
 import { formatQuoteAddress } from '@/lib/geo';
 import ProductCatalog from '@/components/catalog/ProductCatalog';
 import QuoteSummaryProducts, { QuoteSummaryData } from '@/components/quote/QuoteSummaryProducts';
@@ -190,6 +192,10 @@ export default function DirectQuoteView({ quote, comunas, regions, availableCock
 
     const totals = calculateTotals();
     const dateCopy = getDirectSaleDateFieldCopy(totals.shippingCarrier);
+    const methodsConfig = comunas[0]?.shippingMethodsConfig;
+    const activeMethodConfig = totals.shippingCarrier === 'blue_express'
+        ? methodsConfig?.blue_express
+        : methodsConfig?.own_direct;
     const totalPaid = (quote.payments || []).reduce((sum: number, p: any) => sum + (Number(p.amount) || 0), 0);
     const advanceAmount = totals.totalFinal; // Siempre 100%
     const advancePercentText = '100%';
@@ -204,7 +210,7 @@ export default function DirectQuoteView({ quote, comunas, regions, availableCock
         if (comuna === 'Otra' && !comunaOther.trim()) errors.comunaOther = true;
         if (!eventDate) errors.eventDate = true;
         else {
-            const dateErr = validateDirectSaleDate(eventDate);
+            const dateErr = validateDirectSaleDate(eventDate, activeMethodConfig);
             if (dateErr) {
                 errors.eventDate = true;
                 setDateError(dateErr);
@@ -752,26 +758,22 @@ export default function DirectQuoteView({ quote, comunas, regions, availableCock
                                 <label className="text-[0.65rem] font-black text-brand-text-muted flex items-center gap-1.5 uppercase"><MapPin className="w-3 h-3" /> Dirección <span className="text-red-500">*</span></label>
                                 <input id="field-address" type="text" value={address} onChange={(e) => { setAddress(e.target.value); setValidationErrors(prev => ({ ...prev, address: false })); }} placeholder="Calle, Número, Depto..." className={`w-full px-3 py-2.5 bg-slate-50 border rounded-xl text-[0.95rem] font-bold focus:outline-none focus:border-primary shadow-sm ${validationErrors.address ? 'border-red-500 bg-red-50/30' : 'border-brand-border'}`} />
                             </div>
-                            <div className="flex flex-col gap-1">
-                                <label className="text-[0.65rem] font-black text-brand-text-muted flex items-center gap-1.5 uppercase">
-                                    <Calendar className="w-3 h-3" /> {dateCopy.label} <span className="text-red-500">*</span>
-                                </label>
-                                <input
+                            <div className="flex flex-col">
+                                <ShippingDatePicker
                                     id="field-eventDate"
-                                    type="date"
+                                    label={dateCopy.label}
+                                    required
                                     value={eventDate}
-                                    min={getMinDateString(DIRECT_SALE_MIN_DISPATCH_OFFSET_DAYS)}
-                                    onChange={(e) => {
-                                        setEventDate(e.target.value);
+                                    onChange={(val) => {
+                                        setEventDate(val);
                                         setValidationErrors((prev) => ({ ...prev, eventDate: false }));
                                         setDateError(null);
                                     }}
-                                    className={`w-full px-3 py-2.5 bg-slate-50 border rounded-xl text-[0.95rem] font-bold focus:outline-none focus:border-primary shadow-sm ${validationErrors.eventDate ? 'border-red-500 bg-red-50/30' : 'border-brand-border'}`}
+                                    methodConfig={activeMethodConfig}
+                                    fallbackOffsetDays={DIRECT_SALE_MIN_DISPATCH_OFFSET_DAYS}
+                                    helperText={activeMethodConfig?.deliveryWindow || dateCopy.hint}
+                                    onErrorChange={setDateError}
                                 />
-                                <p className="text-brand-text-muted text-[0.7rem] leading-snug">{dateCopy.hint}</p>
-                                {dateError && (
-                                    <p className="text-red-600 text-[0.75rem] font-semibold">{dateError}</p>
-                                )}
                             </div>
                         </div>
                     </div>

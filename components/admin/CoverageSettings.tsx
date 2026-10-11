@@ -6,7 +6,14 @@ import {
     updateQuickRegionField,
     saveBlueExpressRates,
     updateComunasCarrier,
+    saveShippingMethodsSettings,
+    bulkApplyRegionComunaRate,
 } from '@/app/actions/admin/adminActions';
+import ShippingMethodsCards from './ShippingMethodsCards';
+import {
+    parseShippingMethodsConfig,
+    type ShippingMethodsSettings,
+} from '@/lib/shippingMethods';
 import {
     Beer,
     CalendarDays,
@@ -116,6 +123,7 @@ interface Props {
     regions: AdminRegionRow[];
     comunas: AdminComunaRow[];
     blueExpressRates?: BlueExpressHomeRates | string | null;
+    shippingMethodsConfig?: ShippingMethodsSettings | string | null;
 }
 
 function parseNullableInt(value: string): number | null {
@@ -187,9 +195,17 @@ export default function CoverageSettings({
     regions: initialRegions,
     comunas: initialComunas,
     blueExpressRates: initialBlueExpressRates,
+    shippingMethodsConfig: initialShippingMethodsConfig,
 }: Props) {
     const [regions, setRegions] = useState(initialRegions);
     const [comunas, setComunas] = useState(initialComunas);
+    const [activeSubTab, setActiveSubTab] = useState<'methods' | 'matrix'>('methods');
+    const [methodsConfig, setMethodsConfig] = useState<ShippingMethodsSettings>(() =>
+        parseShippingMethodsConfig(initialShippingMethodsConfig)
+    );
+    const [savingMethods, setSavingMethods] = useState(false);
+    const [hasSavedMethods, setHasSavedMethods] = useState(false);
+
     const [beRates, setBeRates] = useState<BlueExpressHomeRates>(() =>
         parseBlueExpressRates(initialBlueExpressRates)
     );
@@ -200,6 +216,27 @@ export default function CoverageSettings({
     const [searchQuery, setSearchQuery] = useState('');
     const [highlightComunaId, setHighlightComunaId] = useState<string | null>(null);
     const [savingId, setSavingId] = useState<string | null>(null);
+
+    const handleSaveMethodsConfig = async () => {
+        setSavingMethods(true);
+        try {
+            await saveShippingMethodsSettings(methodsConfig);
+            setHasSavedMethods(true);
+            setTimeout(() => setHasSavedMethods(false), 3000);
+        } catch (err: any) {
+            alert('Error al guardar métodos de envío: ' + err.message);
+        } finally {
+            setSavingMethods(false);
+        }
+    };
+
+    const handleBulkApplyRate = async (regionId: string, target: 'direct' | 'event', rate: number) => {
+        await bulkApplyRegionComunaRate({ regionId, target, rate });
+        const updateField = target === 'direct' ? 'direct_sale_delivery_cost' : 'cost';
+        setComunas((prev) =>
+            prev.map((c) => (c.region_id === regionId ? { ...c, [updateField]: rate } : c))
+        );
+    };
 
     const sortedRegions = useMemo(
         () => [...regions].sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0)),
@@ -464,88 +501,89 @@ export default function CoverageSettings({
 
     return (
         <div className="flex flex-col gap-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-white/5">
                 <div>
-                    <h2 className="text-white text-lg font-black flex items-center gap-2">
-                        <MapPin size={20} className="text-[#E2A049]" />
+                    <h2 className="text-white text-xl font-black flex items-center gap-2.5">
+                        <Truck size={22} className="text-[#E2A049]" />
                         Cobertura y Despacho
                     </h2>
-                    <p className="text-slate-500 text-sm mt-1">
-                        Tarifas por región y overrides por comuna. Vacío = sin configurar (hereda región).
+                    <p className="text-slate-400 text-xs mt-1">
+                        Gestiona las reglas operativas de tus métodos de envío y administra la cobertura por comuna.
                     </p>
                 </div>
-                <div className="relative w-full sm:w-72">
-                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
-                    <input
-                        type="text"
-                        value={searchQuery}
-                        onChange={(e) => handleSearch(e.target.value)}
-                        placeholder="Buscar comuna..."
-                        className="w-full bg-black/30 border border-white/10 rounded-xl pl-9 pr-4 py-2.5 text-white text-sm outline-none focus:border-[#E2A049] transition-colors"
-                    />
-                </div>
-            </div>
-
-            <div className="bg-[#1e2433] rounded-2xl border border-white/5 p-5 shadow-xl">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
-                    <div>
-                        <h3 className="text-white text-sm font-black flex items-center gap-2">
-                            <Truck size={16} className="text-violet-300" />
-                            Tarifas Blue Express
-                        </h3>
-                        <p className="text-slate-500 text-xs mt-1">
-                            Domicilio. M = 1 barril (hasta 6 kg), L = 2 a 4 barriles (hasta 20 kg).
-                        </p>
-                    </div>
+                {/* Selector de Vistas / Sub-tabs */}
+                <div className="flex items-center gap-1.5 p-1 bg-black/40 rounded-2xl border border-white/10 self-start sm:self-auto shadow-inner">
                     <button
                         type="button"
-                        onClick={() => void handleSaveBlueExpressRates()}
-                        disabled={savingRates}
-                        className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-[#E2A049]/15 border border-[#E2A049]/30 text-[#E2A049] text-xs font-black uppercase tracking-wider hover:bg-[#E2A049]/25 disabled:opacity-50"
+                        onClick={() => setActiveSubTab('methods')}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
+                            activeSubTab === 'methods'
+                                ? 'bg-[#E2A049] text-black shadow-lg shadow-[#E2A049]/20'
+                                : 'text-slate-400 hover:text-white'
+                        }`}
                     >
-                        {savingRates ? <RefreshCw size={14} className="animate-spin" /> : null}
-                        Guardar configuración
+                        <Truck size={14} />
+                        Métodos de Envío
                     </button>
-                </div>
-                <div className="grid grid-cols-2 lg:grid-cols-6 gap-3">
-                    {(
-                        [
-                            ['misma_zona', 'M', 'Misma zona · M'],
-                            ['misma_zona', 'L', 'Misma zona · L'],
-                            ['centro', 'M', 'Centro · M'],
-                            ['centro', 'L', 'Centro · L'],
-                            ['extremo', 'M', 'Extremo · M'],
-                            ['extremo', 'L', 'Extremo · L'],
-                        ] as const
-                    ).map(([zone, size, label]) => (
-                        <div key={`${zone}-${size}`}>
-                            <label className="block text-slate-500 text-[10px] font-black uppercase tracking-widest mb-2">
-                                {label}
-                            </label>
-                            <div className="flex items-center gap-1 bg-black/30 border border-white/10 rounded-xl px-3 py-2.5">
-                                <span className="text-slate-500 text-xs font-bold">$</span>
-                                <input
-                                    type="number"
-                                    min={0}
-                                    step={1}
-                                    value={beRates[zone][size]}
-                                    onChange={(e) => {
-                                        const n = parseNullableInt(e.target.value);
-                                        if (n === null) return;
-                                        setBeRates((prev) => ({
-                                            ...prev,
-                                            [zone]: { ...prev[zone], [size]: n },
-                                        }));
-                                    }}
-                                    className="bg-transparent border-none p-0 w-full text-sky-400 text-sm font-black focus:ring-0 outline-none"
-                                />
-                            </div>
-                        </div>
-                    ))}
+                    <button
+                        type="button"
+                        onClick={() => setActiveSubTab('matrix')}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
+                            activeSubTab === 'matrix'
+                                ? 'bg-[#E2A049] text-black shadow-lg shadow-[#E2A049]/20'
+                                : 'text-slate-400 hover:text-white'
+                        }`}
+                    >
+                        <MapPin size={14} />
+                        Matriz de Comunas
+                    </button>
                 </div>
             </div>
 
-            <div className="flex flex-col lg:flex-row lg:items-start gap-5 min-h-[520px]">
+            {/* ─── VISTA 1: MÉTODOS DE ENVÍO ─── */}
+            {activeSubTab === 'methods' && (
+                <ShippingMethodsCards
+                    config={methodsConfig}
+                    onChangeConfig={setMethodsConfig}
+                    onSaveConfig={handleSaveMethodsConfig}
+                    isSavingConfig={savingMethods}
+                    hasSavedConfig={hasSavedMethods}
+                    regions={regions}
+                    comunas={comunas}
+                    onBulkApplyRate={handleBulkApplyRate}
+                    beRates={beRates}
+                    onChangeBeRates={setBeRates}
+                    onSaveBeRates={handleSaveBlueExpressRates}
+                    isSavingBeRates={savingRates}
+                />
+            )}
+
+            {/* ─── VISTA 2: MATRIZ DE COMUNAS Y COBERTURA ─── */}
+            {activeSubTab === 'matrix' && (
+                <div className="space-y-6 animate-in fade-in duration-300">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-2xl bg-[#1e2433] border border-white/5">
+                        <div>
+                            <h3 className="text-white text-sm font-black flex items-center gap-2">
+                                <MapPin size={16} className="text-[#E2A049]" />
+                                Matriz Geográfica por Comuna
+                            </h3>
+                            <p className="text-slate-400 text-xs mt-0.5">
+                                Consulta o personaliza el transporte asignado y las tarifas particulares de cada comuna.
+                            </p>
+                        </div>
+                        <div className="relative w-full sm:w-72">
+                            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                            <input
+                                type="text"
+                                value={searchQuery}
+                                onChange={(e) => handleSearch(e.target.value)}
+                                placeholder="Buscar comuna..."
+                                className="w-full bg-black/30 border border-white/10 rounded-xl pl-9 pr-4 py-2.5 text-white text-sm outline-none focus:border-[#E2A049] transition-colors"
+                            />
+                        </div>
+                    </div>
+
+                    <div className="flex flex-col lg:flex-row lg:items-start gap-5 min-h-[520px]">
                 {/* Region list */}
                 <div className="lg:w-56 w-full shrink-0 bg-[#1e2433] rounded-2xl border border-white/5 overflow-hidden shadow-xl">
                     <div className="px-4 py-3 border-b border-white/5">
@@ -983,5 +1021,7 @@ export default function CoverageSettings({
                 </div>
             </div>
         </div>
+        )}
+    </div>
     );
 }

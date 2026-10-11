@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { normalizePhoneE164, isValidPhoneE164 } from '@/lib/phone';
 import type { BlueExpressHomeRates } from './blueExpress';
+import type { ShippingMethodsSettings } from './shippingMethods';
 
 /** Celular opcional: vacío OK; si hay valor debe ser E.164 válido (CL/CO/PE/VE). */
 const OptionalPhoneSchema = z.preprocess(
@@ -144,6 +145,8 @@ export interface Comuna {
     blueExpressZone: 'misma_zona' | 'centro' | 'extremo' | null;
     /** Tarifas BE vigentes (misma tabla para todas las comunas; viene de site_settings). */
     blueExpressRates: BlueExpressHomeRates;
+    /** Configuración dinámica de métodos de envío (reglas, anticipación, fechas bloqueadas). */
+    shippingMethodsConfig?: ShippingMethodsSettings;
 }
 
 /** Código por defecto del select de región (Metropolitana). */

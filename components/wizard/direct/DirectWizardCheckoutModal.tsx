@@ -6,10 +6,12 @@ import type { Comuna, Region } from '@/lib/types';
 import { formatCurrency } from '@/lib/utils';
 import PhoneInput from '@/components/ui/PhoneInput';
 import RegionComunaFields from '@/components/ui/RegionComunaFields';
+import ShippingDatePicker from '@/components/ui/ShippingDatePicker';
 import { X, Loader2 } from 'lucide-react';
 import CheckoutCartSection from '@/components/quote/CheckoutCartSection';
 import QuoteSummaryTotals from '@/components/quote/QuoteSummaryTotals';
-import { getMinDateString, DIRECT_SALE_MIN_DISPATCH_OFFSET_DAYS, validateDirectSaleDate } from '@/lib/wizardLogic';
+import { DIRECT_SALE_MIN_DISPATCH_OFFSET_DAYS, validateDirectSaleDate } from '@/lib/wizardLogic';
+import { getMinSelectableDate } from '@/lib/shippingMethods';
 import { getDirectSaleDateFieldCopy } from '@/lib/blueExpress';
 
 interface Props {
@@ -30,7 +32,12 @@ export default function DirectWizardCheckoutModal({ wizard, comunas, regions, on
     const summaryData = useMemo(() => wizard.calculateSummaryData(), [state.selections, state.contact.comuna, state.contact.region]);
 
     const hasComuna = Boolean(state.contact.comuna);
-    const minDate = getMinDateString(DIRECT_SALE_MIN_DISPATCH_OFFSET_DAYS);
+    const methodsConfig = comunas[0]?.shippingMethodsConfig;
+    const activeMethodConfig = summaryData.shippingCarrier === 'blue_express'
+        ? methodsConfig?.blue_express
+        : methodsConfig?.own_direct;
+
+    const minDate = getMinSelectableDate(activeMethodConfig, DIRECT_SALE_MIN_DISPATCH_OFFSET_DAYS);
     const dateCopy = getDirectSaleDateFieldCopy(summaryData.shippingCarrier);
 
     const hasMainProduct = useMemo(() => {
@@ -44,7 +51,7 @@ export default function DirectWizardCheckoutModal({ wizard, comunas, regions, on
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        const err = validateDirectSaleDate(state.eventData.date);
+        const err = validateDirectSaleDate(state.eventData.date, activeMethodConfig);
         if (err) {
             setDateError(err);
             return;
@@ -206,29 +213,20 @@ export default function DirectWizardCheckoutModal({ wizard, comunas, regions, on
                                         />
                                     </div>
 
-                                    <div>
-                                        <label className="block font-bold mb-1 text-brand-text text-[0.8rem]">
-                                            {dateCopy.label} <span className="text-primary">*</span>
-                                        </label>
-                                        <input
-                                            type="date"
-                                            required
-                                            min={minDate}
-                                            className={`w-full p-2.5 border rounded-xl focus:border-primary focus:ring-2 focus:ring-primary/10 outline-none text-sm bg-white ${
-                                                dateError ? 'border-red-400' : 'border-slate-200'
-                                            }`}
-                                            value={state.eventData.date}
-                                            onChange={(e) => {
-                                                updateEventData('date', e.target.value);
-                                                setDateError(null);
-                                            }}
-                                            onClick={(e) => e.currentTarget.showPicker?.()}
-                                        />
-                                        <p className="text-brand-text-muted text-[0.7rem] mt-1.5 leading-snug">{dateCopy.hint}</p>
-                                        {dateError && (
-                                            <p className="text-red-600 text-[0.75rem] font-semibold mt-1.5">{dateError}</p>
-                                        )}
-                                    </div>
+                                    <ShippingDatePicker
+                                        id="direct-delivery-date"
+                                        label={dateCopy.label}
+                                        required
+                                        value={state.eventData.date}
+                                        onChange={(val) => {
+                                            updateEventData('date', val);
+                                            setDateError(null);
+                                        }}
+                                        methodConfig={activeMethodConfig}
+                                        fallbackOffsetDays={2}
+                                        helperText={activeMethodConfig?.deliveryWindow || dateCopy.hint}
+                                        onErrorChange={setDateError}
+                                    />
 
                                     {showComments ? (
                                         <div>

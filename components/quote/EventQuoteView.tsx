@@ -8,6 +8,7 @@ import PhoneInput from '@/components/ui/PhoneInput';
 import { formatEventDate, calculateMaxPickupDate, isAllowedEventPickupDate, EVENT_NEXT_DAY_PICKUP_SLOTS, getTodayString, resolveShipping, isEventBarrelSizeLabelCompatible } from '@/lib/wizardLogic';
 import { confirmQuote } from '@/app/actions/confirmQuote';
 import { MURO_INSTALLATION_COST, PORTATIL_MIN_LITERS, MURO_MIN_LITERS } from '@/lib/config';
+import { getMinSelectableDate, validateShippingDate } from '@/lib/shippingMethods';
 import {
     CheckCircle, Clock, XCircle, AlertCircle, ShoppingCart,
     Calendar, Users, MapPin, User, Mail, Phone, MessageSquare, Loader2, Lock,
@@ -22,6 +23,7 @@ import QuoteSummaryProducts, { QuoteSummaryData } from '@/components/quote/Quote
 import QuoteSummaryReservation, { QuoteSummaryReservationData } from '@/components/quote/QuoteSummaryReservation';
 import BankTransferCard from '@/components/quote/BankTransferCard';
 import RegionComunaFields from '@/components/ui/RegionComunaFields';
+import ShippingDatePicker from '@/components/ui/ShippingDatePicker';
 import { formatQuoteAddress } from '@/lib/geo';
 import { buildWhatsAppMessageFromQuote, getWhatsAppUrl } from '@/lib/wizardLogic';
 import { WHATSAPP_URL } from '@/lib/config';
@@ -256,7 +258,16 @@ export default function EventQuoteView({ quote, comunas, regions, availableCockt
         if (address.trim().length < 5) errors.address = true;
         if (!comuna || comuna === '...') errors.comuna = true;
         if (comuna === 'Otra' && !comunaOther.trim()) errors.comunaOther = true;
-        if (!eventDate) errors.eventDate = true;
+        const eventMethodConfig = comunas[0]?.shippingMethodsConfig?.own_events;
+        if (!eventDate) {
+            errors.eventDate = true;
+        } else {
+            const dateErr = validateShippingDate(eventDate, eventMethodConfig, 5);
+            if (dateErr) {
+                errors.eventDate = true;
+                setConfirmError(dateErr);
+            }
+        }
         if (!startTime) errors.startTime = true;
         if (!pickupDate) errors.pickupDate = true;
         if (pickupDate && eventDate && !isAllowedEventPickupDate(eventDate, pickupDate)) {
@@ -929,20 +940,24 @@ export default function EventQuoteView({ quote, comunas, regions, availableCockt
                             )}
 
                             <div className="grid grid-cols-2 gap-4">
-                                <div className="flex flex-col gap-1">
-                                    <label className="text-[0.65rem] font-black text-brand-text-muted flex items-center gap-1.5 uppercase">
-                                        <Calendar className="w-3 h-3" /> Fecha del Evento<span className="text-red-500">*</span>
-                                    </label>
-                                    <input
+                                <div className="flex flex-col">
+                                    <ShippingDatePicker
                                         id="field-eventDate"
-                                        type="date"
+                                        label="Fecha del Evento"
+                                        required
                                         value={eventDate}
-                                        min={getTodayString()}
-                                        onChange={(e) => {
-                                            setEventDate(e.target.value);
+                                        onChange={(val) => {
+                                            setEventDate(val);
                                             setValidationErrors(prev => ({ ...prev, eventDate: false }));
+                                            setConfirmError('');
                                         }}
-                                        className={`w-full px-3 py-2.5 bg-slate-50 border rounded-xl text-[0.95rem] font-bold focus:outline-none focus:border-primary focus:bg-white transition-all shadow-sm ${validationErrors.eventDate ? 'border-red-500 bg-red-50/30' : 'border-brand-border'}`}
+                                        methodConfig={comunas[0]?.shippingMethodsConfig?.own_events}
+                                        fallbackOffsetDays={5}
+                                        helperText={
+                                            comunas[0]?.shippingMethodsConfig?.own_events?.minOffsetDays
+                                                ? `Mín. ${comunas[0]?.shippingMethodsConfig?.own_events.minOffsetDays} días de anticipación.`
+                                                : undefined
+                                        }
                                     />
                                 </div>
                                 <div className="flex flex-col gap-1">

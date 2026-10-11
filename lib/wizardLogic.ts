@@ -7,6 +7,13 @@ import {
     quoteBlueExpressHome,
     type ShippingCarrier,
 } from './blueExpress';
+import {
+    isFreeShippingApplicable,
+    validateShippingDate,
+    getMinSelectableDate,
+    type ShippingMethodConfig,
+    type ShippingMethodsSettings,
+} from './shippingMethods';
 
 export type ShippingResolution = {
     shippingCost: number;
@@ -35,8 +42,10 @@ export function resolveShipping(opts: {
     comunaName: string;
     totalLiters: number;
     comunas: Comuna[];
+    subtotal?: number;
+    shippingMethodsConfig?: ShippingMethodsSettings;
 }): ShippingResolution {
-    const { serviceType, regionCode, comunaName, totalLiters, comunas } = opts;
+    const { serviceType, regionCode, comunaName, totalLiters, comunas, subtotal = 0, shippingMethodsConfig } = opts;
     const pending = (label: string, carrier: ShippingCarrier = 'own'): ShippingResolution => ({
         shippingCost: 0,
         shippingLabel: label,
@@ -61,8 +70,8 @@ export function resolveShipping(opts: {
         return pending('Por confirmar');
     }
 
-    const carrier: ShippingCarrier =
-        selected.shippingCarrier || selected.regionShippingCarrier || 'own';
+    const effectiveMethodsConfig = shippingMethodsConfig || selected.shippingMethodsConfig || comunas[0]?.shippingMethodsConfig;
+    const carrier: ShippingCarrier = selected.shippingCarrier || selected.regionShippingCarrier || 'own';
 
     // Eventos: siempre traslado propio. Blue Express solo aplica a desechables.
     if (serviceType !== 'direct') {
@@ -73,6 +82,17 @@ export function resolveShipping(opts: {
             return pending('Por confirmar', 'own');
         }
 
+        // Envío gratis según método configurable (por monto o litros)
+        if (isFreeShippingApplicable(effectiveMethodsConfig?.own_events, subtotal, totalLiters)) {
+            return {
+                shippingCost: 0,
+                shippingLabel: '¡Gratis!',
+                isPending: false,
+                shippingCarrier: 'own',
+            };
+        }
+
+        // Fallback por umbral de comuna/región
         if (eventFreeFrom !== null && totalLiters >= eventFreeFrom) {
             return {
                 shippingCost: 0,
@@ -87,6 +107,20 @@ export function resolveShipping(opts: {
             shippingLabel: formatCurrency(eventCost),
             isPending: false,
             shippingCarrier: 'own',
+        };
+    }
+
+    // Barriles desechables: verificar si aplica envío gratis configurable
+    const directMethodConfig = carrier === 'blue_express'
+        ? effectiveMethodsConfig?.blue_express
+        : effectiveMethodsConfig?.own_direct;
+
+    if (isFreeShippingApplicable(directMethodConfig, subtotal, totalLiters)) {
+        return {
+            shippingCost: 0,
+            shippingLabel: '¡Gratis!',
+            isPending: false,
+            shippingCarrier: carrier,
         };
     }
 
@@ -185,14 +219,8 @@ export function getMinDateString(offsetDays: number = 0): string {
 /** Mínimo de días de anticipación para fecha de entrega en venta directa. */
 export const DIRECT_SALE_MIN_DISPATCH_OFFSET_DAYS = 2;
 
-export function validateDirectSaleDate(date: string): string | null {
-    if (!date?.trim()) {
-        return 'Indica la fecha de entrega.';
-    }
-    if (date < getMinDateString(DIRECT_SALE_MIN_DISPATCH_OFFSET_DAYS)) {
-        return `La fecha debe ser al menos ${DIRECT_SALE_MIN_DISPATCH_OFFSET_DAYS} días desde hoy.`;
-    }
-    return null;
+export function validateDirectSaleDate(date: string, methodConfig?: ShippingMethodConfig | null): string | null {
+    return validateShippingDate(date, methodConfig, DIRECT_SALE_MIN_DISPATCH_OFFSET_DAYS);
 }
 
 /**
@@ -531,6 +559,7 @@ export function calculateSummaryData(
         comunaName: state.contact.comuna,
         totalLiters,
         comunas,
+        subtotal: totalOfferPrice,
     });
 
     const eventTypeDisplay = state.eventData.type === 'Otro' ? state.eventData.otherType : state.eventData.type;

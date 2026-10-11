@@ -19,8 +19,8 @@ import {
 } from 'lucide-react';
 import { ICON_CATALOG, renderIconFromKey } from '@/lib/icons';
 
-type Tab = 'review' | 'events' | 'comunas' | 'system';
-const TAB_IDS = ['review', 'events', 'comunas', 'system'] as const;
+type Tab = 'review' | 'events' | 'cobertura' | 'system';
+const TAB_IDS = ['review', 'events', 'cobertura', 'system'] as const;
 const DEFAULT_TAB: Tab = 'review';
 
 export default function SettingsClient({ 
@@ -42,7 +42,10 @@ export default function SettingsClient({
     siteSettings: any[];
     initialTab?: string;
 }) {
-    const [tab, setTabState] = useState<Tab>(() => parseAdminTab(initialTab, TAB_IDS, DEFAULT_TAB));
+    const [tab, setTabState] = useState<Tab>(() => {
+        const normalized = initialTab === 'comunas' ? 'cobertura' : initialTab;
+        return parseAdminTab(normalized, TAB_IDS, DEFAULT_TAB);
+    });
     const setTab = (next: Tab) => {
         setTabState(next);
         replaceAdminTab(next, DEFAULT_TAB);
@@ -145,7 +148,7 @@ export default function SettingsClient({
                     { id: 'review' as const, label: 'Post-Venta' },
                     { id: 'events' as const, label: 'Eventos' },
                     { id: 'system' as const, label: 'Cerebro Central' },
-                    { id: 'comunas' as const, label: 'Cobertura' },
+                    { id: 'cobertura' as const, label: 'Cobertura' },
                 ].map((t) => (
                     <Link
                         key={t.id}
@@ -295,13 +298,16 @@ export default function SettingsClient({
                     </div>
                 )}
 
-                {/* ─── TAB: COMUNAS ──────────────────────────────────────────────────── */}
-                {tab === 'comunas' && (
+                {/* ─── TAB: COBERTURA ────────────────────────────────────────────────── */}
+                {tab === 'cobertura' && (
                     <CoverageSettings
                         regions={regions}
                         comunas={comunas}
                         blueExpressRates={
                             siteSettings.find((s: { key: string }) => s.key === 'blue_express_home_rates')?.value
+                        }
+                        shippingMethodsConfig={
+                            siteSettings.find((s: { key: string }) => s.key === 'shipping_methods_config')?.value
                         }
                     />
                 )}

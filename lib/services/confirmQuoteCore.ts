@@ -18,6 +18,7 @@ import {
     resolveRegionCode,
     resolveRegionShortName,
     validateDirectSaleDate,
+    resolveDirectSaleCarrier,
 } from '@/lib/wizardLogic';
 import { ADMIN_EMAIL, FROM_EMAIL, PORTATIL_MIN_LITERS, MURO_MIN_LITERS } from '@/lib/config';
 import { normalizePhoneE164 } from '@/lib/phone';
@@ -139,7 +140,12 @@ export async function confirmQuoteCore(
         }
 
         if (isDirectSale) {
-            const dateErr = validateDirectSaleDate(data.event_date);
+            const regionCode = resolveRegionCode(data.region_name || quote.region_name || '', catalogRes.comunas);
+            const carrier = resolveDirectSaleCarrier(data.comuna_name, regionCode, catalogRes.comunas);
+            const directConfig = carrier === 'blue_express'
+                ? catalogRes.comunas[0]?.shippingMethodsConfig?.blue_express
+                : catalogRes.comunas[0]?.shippingMethodsConfig?.own_direct;
+            const dateErr = validateDirectSaleDate(data.event_date, directConfig);
             if (dateErr) return { success: false, error: dateErr };
         }
 
