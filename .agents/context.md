@@ -41,6 +41,15 @@
 
 ## Ultimos Cambios
 
+### 12-10-2026 — Mejora de Sticky Bottom Bar en Catálogo de Eventos (`EventWizardCatalog.tsx`)
+
+- **Paridad de UX con `/barriles`**:
+  - **Aparición condicional**: La barra fija inferior ahora solo se muestra cuando se agrega al menos un barril (`totalItems > 0`), manteniendo el catálogo despejado y limpio al ingresar al Paso 4. Animada con `animate-slide-up`.
+  - **Eliminación de redundancias**: Se removió el botón "Atrás" de la barra fija (ya existe en la cabecera del wizard) y el contador `xx Inv / x Tragos`.
+  - **Subtotal en tiempo real**: Se incorporó el subtotal monetario con formato de moneda (`text-primary`), visible en desktop al lado de los litros y en mobile alineado a la derecha junto al botón "Cotizar".
+  - **Métricas de Litros**: Se conservó el indicador `Sugerido: currentLiters/recommendedLiters` con retroalimentación visual de colores según el cumplimiento de metas y mínimos de dispensador.
+- **Archivos**: `components/wizard/events/EventWizardCatalog.tsx`.
+
 ### 11-10-2026 — Refactor UX Wizard Eventos: Flujo simplificado a 4 pasos
 
 - **Integración de selección de dispensador en Paso 3 (`EventStepProposal.tsx`)**:

@@ -1,10 +1,11 @@
 'use client';
 
 import React, { useRef, useMemo } from 'react';
-import { ShoppingCart, ArrowLeft } from 'lucide-react';
+import { ShoppingCart } from 'lucide-react';
 import type { useWizard } from '@/hooks/useWizard';
 import { calculateLiveQuoterSuggestion, isEventBarrelCompatibleWithDispenser, isEventBarrelSizeLabelCompatible } from '@/lib/wizardLogic';
 import type { Product, CocktailForWizard, ICart } from '@/lib/types';
+import { formatCurrency } from '@/lib/utils';
 import ProductCatalog from '@/components/catalog/ProductCatalog';
 import CategoryTabs from '@/components/ui/CategoryTabs';
 import { MURO_MIN_LITERS, PORTATIL_MIN_LITERS } from '@/lib/config';
@@ -14,7 +15,7 @@ interface Props {
     cocktails: CocktailForWizard[];
     categories: string[];
     onOpenCheckout: () => void;
-    onBack: () => void;
+    onBack?: () => void;
 }
 
 export default function EventWizardCatalog({ wizard, cocktails, categories, onOpenCheckout, onBack }: Props) {
@@ -156,32 +157,18 @@ export default function EventWizardCatalog({ wizard, cocktails, categories, onOp
             </div>
 
             {/* Bottom Bar Fija */}
-            <div className="fixed bottom-0 left-0 right-0 z-40 p-3 sm:p-4 pointer-events-none">
-                <div className="max-w-[1400px] mx-auto">
-                    <div className="bg-white/90 backdrop-blur-md border border-brand-border rounded-2xl p-3 flex items-center justify-between gap-2 shadow-[0_-5px_30px_rgba(0,0,0,0.1)] pointer-events-auto">
-                        
-                        <button
-                            type="button"
-                            onClick={onBack}
-                            className="group shrink-0 inline-flex items-center justify-center p-2.5 rounded-xl border-2 border-brand-border text-brand-text-muted transition-all hover:text-primary hover:border-primary/50 bg-white"
-                        >
-                            <ArrowLeft className="w-5 h-5 transition-transform group-hover:-translate-x-1" />
-                        </button>
-
-                        <div className="flex items-center justify-end flex-1 px-2 sm:px-4">
-                            <div className="flex items-center gap-3 sm:gap-5 w-full max-w-lg">
-                                <div className="flex flex-col justify-center flex-1 text-right border-r border-brand-border/60 pr-2 sm:pr-5">
-                                    <span className="text-[0.65rem] sm:text-[0.7rem] font-bold text-brand-text-muted uppercase tracking-wider leading-none">
-                                        {guests} Inv / {drinks} Tragos
-                                    </span>
-                                </div>
-
-                                <div className="flex flex-col justify-center shrink-0 w-[55px] sm:w-[90px] text-left">
-                                    <span className="text-[0.6rem] sm:text-[0.7rem] font-bold text-brand-text-muted uppercase tracking-wider leading-none mb-1">
+            {totalItems > 0 && (
+                <div className="fixed bottom-0 left-0 right-0 z-40 p-3 sm:p-4 pointer-events-none animate-slide-up">
+                    <div className="max-w-[1400px] mx-auto">
+                        <div className="bg-white/90 backdrop-blur-md border border-brand-border rounded-2xl p-3 flex items-center justify-between gap-2 shadow-[0_-5px_30px_rgba(0,0,0,0.1)] pointer-events-auto">
+                            
+                            <div className="flex items-center gap-4 sm:gap-6 pl-1 sm:pl-2">
+                                <div className="flex flex-col">
+                                    <span className="text-[0.65rem] sm:text-[0.7rem] font-bold text-brand-text-muted uppercase tracking-wider leading-none mb-1">
                                         Sugerido
                                     </span>
                                     <div className="flex items-baseline gap-1">
-                                        <span className={`text-[1.05rem] sm:text-[1.3rem] font-black leading-none ${minLitersMet ? (isGoalMet ? 'text-[#25D366]' : 'text-brand-text') : 'text-red-500'}`}>
+                                        <span className={`text-[1.1rem] sm:text-xl font-black leading-tight ${minLitersMet ? (isGoalMet ? 'text-[#25D366]' : 'text-brand-text') : 'text-red-500'}`}>
                                             {currentLiters}
                                         </span>
                                         <span className="text-[0.8rem] sm:text-[0.95rem] font-bold text-brand-text-muted leading-none">
@@ -189,27 +176,48 @@ export default function EventWizardCatalog({ wizard, cocktails, categories, onOp
                                         </span>
                                     </div>
                                 </div>
-                            </div>
-                        </div>
 
-                        <div className="cart-button-target shrink-0 flex">
-                            <button
-                                type="button"
-                                onClick={onOpenCheckout}
-                                className="group relative shrink-0 inline-flex items-center justify-center gap-1.5 px-3 py-2 sm:gap-2 sm:px-5 sm:py-2.5 rounded-xl bg-primary text-white font-black text-[0.85rem] sm:text-[1rem] transition-all hover:bg-primary-dark shadow-[0_4px_15px_rgba(226,160,73,0.3)]"
-                            >
-                                <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5 transition-transform group-hover:scale-110" />
-                                <span>Cotizar</span>
-                                {totalItems > 0 && (
-                                    <span className="absolute -top-2 -right-2 bg-brand-text text-white rounded-full min-w-[22px] h-[22px] px-1.5 flex items-center justify-center text-[0.7rem] font-extrabold border-2 border-white shadow-sm">
-                                        {totalItems}
+                                <div className="flex flex-col hidden sm:flex">
+                                    <span className="text-[0.65rem] sm:text-[0.7rem] font-bold text-brand-text-muted uppercase tracking-wider leading-none mb-1">
+                                        Subtotal
                                     </span>
-                                )}
-                            </button>
+                                    <span className="text-[1.1rem] sm:text-xl font-black text-primary leading-tight">
+                                        {formatCurrency(summaryData.totalOfferPrice)}
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div className="shrink-0 flex items-center gap-2.5 sm:gap-3">
+                                <div className="text-right sm:hidden flex flex-col justify-center pr-1">
+                                    <span className="text-[0.6rem] font-bold text-brand-text-muted uppercase tracking-wider leading-none mb-0.5">
+                                        Subtotal
+                                    </span>
+                                    <span className="text-sm font-black text-primary leading-none">
+                                        {formatCurrency(summaryData.totalOfferPrice)}
+                                    </span>
+                                </div>
+
+                                <div className="cart-button-target shrink-0 flex">
+                                    <button
+                                        type="button"
+                                        onClick={onOpenCheckout}
+                                        className="group relative shrink-0 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 sm:gap-2 sm:px-6 sm:py-3 rounded-xl bg-primary text-white font-black text-[0.9rem] sm:text-[1.05rem] transition-all hover:bg-primary-dark shadow-[0_4px_15px_rgba(226,160,73,0.3)] hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
+                                    >
+                                        <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5 transition-transform group-hover:scale-110" />
+                                        <span>Cotizar</span>
+                                        {totalItems > 0 && (
+                                            <span className="absolute -top-2 -right-2 bg-brand-text text-white rounded-full min-w-[22px] h-[22px] px-1.5 flex items-center justify-center text-[0.7rem] font-extrabold border-2 border-white shadow-sm">
+                                                {totalItems}
+                                            </span>
+                                        )}
+                                    </button>
+                                </div>
+                            </div>
+
                         </div>
                     </div>
                 </div>
-            </div>
+            )}
 
         </div>
     );
