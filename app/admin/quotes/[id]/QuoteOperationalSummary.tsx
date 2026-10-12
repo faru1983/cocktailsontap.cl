@@ -168,6 +168,7 @@ export type QuoteOperationalSummaryProps = {
     onUpdateItem: (idx: number, field: keyof QuoteItem, val: unknown) => void;
     onRegisterPayment: () => void;
     onQuickFullPayment: () => void;
+    onQuickPartialPayment?: () => void;
     onDeletePayment: (idx: number) => void;
 };
 
@@ -461,6 +462,7 @@ export default function QuoteOperationalSummary({
     onUpdateItem,
     onRegisterPayment,
     onQuickFullPayment,
+    onQuickPartialPayment,
     onDeletePayment,
 }: QuoteOperationalSummaryProps) {
     const q = quote as {
@@ -1279,13 +1281,22 @@ export default function QuoteOperationalSummary({
                                     borderTop: '1px solid rgba(255,255,255,0.06)',
                                 }}
                             >
-                                {isDirectSale && balance > 0 && (
+                                {balance > 0 && (
                                     <button
                                         type="button"
                                         onClick={onQuickFullPayment}
                                         style={chipLinkStyle('#1a1a2e', GOLD, GOLD)}
                                     >
                                         Transferencia total ({formatCLP(balance)})
+                                    </button>
+                                )}
+                                {!isDirectSale && balance > 0 && payments.length === 0 && onQuickPartialPayment && (
+                                    <button
+                                        type="button"
+                                        onClick={onQuickPartialPayment}
+                                        style={chipLinkStyle('#1a1a2e', '#60a5fa', '#60a5fa')}
+                                    >
+                                        Abono 50% ({formatCLP(Math.round(balance / 2))})
                                     </button>
                                 )}
                                 <button

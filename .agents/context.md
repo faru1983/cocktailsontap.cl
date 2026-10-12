@@ -41,6 +41,22 @@
 
 ## Ultimos Cambios
 
+### 12-10-2026 — Paridad en Registro de Pagos y Email de Confirmación de Pago para Eventos (`/admin`)
+
+- **Problema resuelto**: En el panel de administración (`/admin/quotes/[id]`), los eventos no contaban con el botón rápido de registro de total como en venta directa (estaba condicionado a `isDirectSale`), y el Server Action `addQuotePayment` solo enviaba el email de confirmación de pago si la cotización era de venta directa, dejando a los clientes de eventos sin correo de comprobante a pesar de que el toast del frontend indicaba "email enviado".
+- **Botones rápidos de pago unificados (`QuoteOperationalSummary.tsx` & `QuoteDetailClient.tsx`)**:
+  - Habilitado el botón de **"Transferencia total ($Saldo)"** para cualquier cotización (eventos y ventas directas) con saldo pendiente (`balance > 0`).
+  - Agregado botón de acceso rápido **"Abonar 50% ($Mitad)"** exclusivo para eventos cuando no existen pagos previos (`payments.length === 0`).
+  - En el modal de registro manual de pago, el placeholder del monto sugiere automáticamente el saldo pendiente.
+- **Capa de Servicios y Email Dinámico (`paymentEmailService.ts` & `PaymentRegisteredEmail.tsx`)**:
+  - Creado `lib/services/paymentEmailService.ts` (`sendPaymentRegisteredEmail`) que unifica el despacho de correo vía Resend tanto para eventos como para venta directa.
+  - `PaymentRegisteredEmail.tsx` adapta sus copys inteligentemente:
+    - Eventos: saludo *"para tu evento del {fecha}"*, mensaje de 100% *"Tu evento está pagado en su totalidad. ¡Tenemos todo agendado y listo para tu celebración!"*, o saldo de abono *"el saldo pendiente puede abonarse según lo coordinado o a más tardar el día del evento"*, y botón *"Ver detalle de tu reserva →"*.
+    - Venta directa: mantiene terminología de *"pedido"*, despacho y encomienda.
+    - Asuntos diferenciados para pago total y abono parcial.
+  - `app/actions/admin/adminActions.ts` (`addQuotePayment`): ahora despacha el email para todo tipo de cotización con cliente que posea email, y devuelve advertencia precisa (`Sin email de cliente`) cuando no tiene correo para evitar falsos positivos en la UI.
+- **Archivos**: `components/emails/PaymentRegisteredEmail.tsx`, `lib/services/paymentEmailService.ts`, `lib/services/directSaleEmailService.ts`, `app/actions/admin/adminActions.ts`, `app/admin/quotes/[id]/QuoteDetailClient.tsx`, `app/admin/quotes/[id]/QuoteOperationalSummary.tsx`.
+
 ### 12-10-2026 — Validación en Tiempo Real y Guía Visual en Modales de Checkout (`/eventos` y `/barriles`)
 
 - **Problema resuelto**: Anteriormente, si un usuario ingresaba datos incompletos o con formato incorrecto (ej: celular sin los 9 dígitos, email inválido o comuna sin seleccionar), el botón de envío no respondía o los errores se mostraban detrás del modal (`z-50`) en la página principal, dejando al usuario sin retroalimentación clara de qué corregir.

@@ -302,8 +302,28 @@ export default function QuoteDetailClient({
             if (res.success) {
                 const updatedPayments: QuotePayment[] = [...(quote.payments || []), p];
                 setQuote((q) => ({ ...q, payments: updatedPayments }));
-                if (res.emailWarning) showToast(`Pago registrado (email: ${res.emailWarning})`, false);
+                if (res.emailWarning) showToast(`Pago registrado (${res.emailWarning})`, false);
                 else showToast('Transferencia total registrada y email enviado');
+            } else showToast(res.error || 'Error', false);
+        });
+    };
+
+    const handleQuickPartialPayment = () => {
+        if (balance <= 0) return;
+        const halfAmount = Math.round(balance / 2);
+        if (!confirm(`¿Registrar abono del 50% por ${formatCLP(halfAmount)} y enviar email al cliente?`)) return;
+        const p = {
+            date: new Date().toISOString().split('T')[0],
+            amount: halfAmount,
+            note: PAYMENT_NOTE_PARTIAL,
+        };
+        startTransition(async () => {
+            const res = await addQuotePayment(String(quote.id), p);
+            if (res.success) {
+                const updatedPayments: QuotePayment[] = [...(quote.payments || []), p];
+                setQuote((q) => ({ ...q, payments: updatedPayments }));
+                if (res.emailWarning) showToast(`Abono registrado (${res.emailWarning})`, false);
+                else showToast('Abono del 50% registrado y email enviado');
             } else showToast(res.error || 'Error', false);
         });
     };
@@ -827,6 +847,7 @@ export default function QuoteDetailClient({
                 onUpdateItem={updateItem}
                 onRegisterPayment={() => setShowPayModal(true)}
                 onQuickFullPayment={handleQuickFullPayment}
+                onQuickPartialPayment={handleQuickPartialPayment}
                 onDeletePayment={handleDeletePayment}
             />
 
@@ -837,7 +858,14 @@ export default function QuoteDetailClient({
                         <h2 style={{ color: '#f1f5f9', fontSize: '18px', margin: '0 0 20px' }}>Registrar pago</h2>
                         <div className="q-form-group">
                             <label className="q-label">Monto (CLP)</label>
-                            <input name="amount" type="number" required className="q-input" placeholder="Ej: 50000" autoFocus />
+                            <input
+                                name="amount"
+                                type="number"
+                                required
+                                className="q-input"
+                                placeholder={`Ej: ${balance > 0 ? balance : 50000}`}
+                                autoFocus
+                            />
                         </div>
                         <div className="q-form-group">
                             <label className="q-label">Fecha</label>

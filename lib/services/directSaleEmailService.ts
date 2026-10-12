@@ -23,37 +23,8 @@ async function sendResend(to: string, subject: string, html: string): Promise<{ 
     return { ok: true };
 }
 
-export async function sendDirectSalePaymentRegisteredEmail(
-    quote: Quote,
-    paymentAmount: number,
-    balanceAfter: number
-): Promise<{ ok: boolean; error?: string }> {
-    const email = quote.client_email?.trim();
-    if (!email) return { ok: false, error: 'Sin email de cliente' };
-
-    const eventDate = quote.event_date
-        ? new Date(quote.event_date + 'T12:00:00').toLocaleDateString('es-CL', {
-              day: '2-digit',
-              month: 'long',
-              year: 'numeric',
-          })
-        : '';
-
-    const html = await render(
-        React.createElement(PaymentRegisteredEmail, {
-            quote,
-            paymentAmount,
-            balanceAfter,
-        })
-    );
-
-    const subject =
-        balanceAfter <= 0
-            ? `✅ Pago registrado – pedido pagado (${eventDate})`
-            : `✅ Pago registrado – ${eventDate}`;
-
-    return sendResend(email, subject, html);
-}
+import { sendPaymentRegisteredEmail } from './paymentEmailService';
+export const sendDirectSalePaymentRegisteredEmail = sendPaymentRegisteredEmail;
 
 export async function sendDirectSaleDispatchEmail(quote: Quote): Promise<{ ok: boolean; error?: string }> {
     const email = quote.client_email?.trim();

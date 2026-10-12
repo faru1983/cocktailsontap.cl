@@ -212,31 +212,12 @@ export async function addQuotePayment(
     const isDirect = quote.service_type === 'direct' || quote.dispenser === 'desechable';
     let emailWarning: string | undefined;
 
+    // 1. Sincronización de Calendar
     if (isDirect) {
-        const { syncDirectSaleCalendarAfterPayment, sendDirectSalePaymentRegisteredEmail } = await import(
+        const { syncDirectSaleCalendarAfterPayment } = await import(
             '@/lib/services/directSaleEmailService'
         );
-        const { getQuoteBalance } = await import('@/lib/directSaleFulfillment');
-
         await syncDirectSaleCalendarAfterPayment(quoteId, db);
-
-        const balanceAfter = getQuoteBalance({
-            payments: newPayments,
-            total_price: quote.total_price,
-        });
-
-        const { data: fullForEmail } = await db.from('quotes').select('*').eq('id', quoteId).single();
-        if (fullForEmail?.client_email) {
-            const emailRes = await sendDirectSalePaymentRegisteredEmail(
-                fullForEmail as Quote,
-                payment.amount,
-                balanceAfter
-            );
-            if (!emailRes.ok) {
-                emailWarning = emailRes.error || 'No se pudo enviar el email de pago';
-                console.error('Payment registered email failed:', emailWarning);
-            }
-        }
     } else if (quote.google_event_id || quote.google_pickup_event_id) {
         try {
             const { data: fullQuote } = await db.from('quotes').select('*, quote_items(*), event_types(name)').eq('id', quoteId).single();
@@ -249,6 +230,30 @@ export async function addQuotePayment(
         } catch (e) {
             console.error('Error syncing calendar after payment', e);
         }
+    }
+
+    // 2. Envío de Email de confirmación de pago (Eventos y Venta Directa)
+    const { getQuoteBalance } = await import('@/lib/directSaleFulfillment');
+    const { sendPaymentRegisteredEmail } = await import('@/lib/services/paymentEmailService');
+
+    const balanceAfter = getQuoteBalance({
+        payments: newPayments,
+        total_price: quote.total_price,
+    });
+
+    const { data: fullForEmail } = await db.from('quotes').select('*').eq('id', quoteId).single();
+    if (fullForEmail?.client_email) {
+        const emailRes = await sendPaymentRegisteredEmail(
+            fullForEmail as Quote,
+            payment.amount,
+            balanceAfter
+        );
+        if (!emailRes.ok) {
+            emailWarning = emailRes.error || 'No se pudo enviar el email de pago';
+            console.error('Payment registered email failed:', emailWarning);
+        }
+    } else {
+        emailWarning = 'Sin email de cliente';
     }
 
     revalidatePath(`/admin/quotes/${quoteId}`);

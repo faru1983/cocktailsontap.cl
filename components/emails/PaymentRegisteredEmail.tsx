@@ -34,19 +34,21 @@ export const PaymentRegisteredEmail: React.FC<Readonly<PaymentRegisteredEmailPro
           })
         : '';
 
+    const isDirect = quote.service_type === 'direct' || quote.dispenser === 'desechable';
     const paidInFull = balanceAfter <= 0;
+    const concept = isDirect ? 'pedido' : 'evento';
 
     return (
         <BaseLayout
-            preview={`Pago registrado – ${clientName}`}
+            preview={`${paidInFull ? 'Pago recibido' : 'Abono registrado'} – ${clientName}`}
             accentColor={greenColor}
         >
             <h2 style={{ color: greenColor, margin: '0 0 8px', fontSize: '22px', lineHeight: '1.3' }}>
-                Pago registrado
+                {paidInFull ? '✅ Pago registrado' : '✅ Abono registrado'}
             </h2>
             <Text style={{ color: gray, margin: '0 0 24px', fontSize: '15px', lineHeight: '1.6' }}>
                 Hola <strong>{clientName}</strong>, registramos tu pago de{' '}
-                <strong>{formatCurrency(paymentAmount)}</strong> para tu pedido del{' '}
+                <strong>{formatCurrency(paymentAmount)}</strong> para tu {concept} del{' '}
                 <strong>{eventDate}</strong>.
             </Text>
             {paidInFull ? (
@@ -62,14 +64,33 @@ export const PaymentRegisteredEmail: React.FC<Readonly<PaymentRegisteredEmailPro
                         border: '1px solid #86efac',
                     }}
                 >
-                    Tu pedido está <strong>pagado en su totalidad</strong>. Pronto coordinaremos el despacho.
+                    {isDirect ? (
+                        <>Tu pedido está <strong>pagado en su totalidad</strong>. Pronto coordinaremos el despacho.</>
+                    ) : (
+                        <>Tu evento está <strong>pagado en su totalidad</strong>. ¡Tenemos todo agendado y listo para tu celebración!</>
+                    )}
                 </Text>
             ) : (
-                <Text style={{ color: gray, margin: '0 0 20px', fontSize: '14px', lineHeight: '1.6' }}>
-                    Saldo pendiente: <strong>{formatCurrency(balanceAfter)}</strong>
-                </Text>
+                <div
+                    style={{
+                        backgroundColor: '#f8fafc',
+                        border: '1px solid #e2e8f0',
+                        borderRadius: '12px',
+                        padding: '16px',
+                        margin: '0 0 20px',
+                    }}
+                >
+                    <Text style={{ color: '#0f172a', margin: '0 0 6px', fontSize: '15px', lineHeight: '1.4', fontWeight: 600 }}>
+                        Saldo pendiente: <strong style={{ color: '#E2A049' }}>{formatCurrency(balanceAfter)}</strong>
+                    </Text>
+                    <Text style={{ color: gray, margin: 0, fontSize: '13px', lineHeight: '1.5' }}>
+                        {isDirect
+                            ? 'Recuerda que el saldo pendiente debe estar pagado antes de despachar tu pedido.'
+                            : 'Recuerda que el saldo pendiente puede abonarse según lo coordinado o a más tardar el día del evento.'}
+                    </Text>
+                </div>
             )}
-            <QuoteButton url={quoteUrl} label="Ver detalle de tu pedido →" bg={brandDark} />
+            <QuoteButton url={quoteUrl} label={`Ver detalle de tu ${isDirect ? 'pedido' : 'reserva'} →`} bg={brandDark} />
             <ContactNote />
         </BaseLayout>
     );
