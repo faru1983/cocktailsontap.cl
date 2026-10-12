@@ -772,16 +772,12 @@ Los subjects de los emails son configurables dinámicamente desde `site_settings
 ### Tamaños de Barriles Disponibles
 Determinados por `product_prices` en la DB: **5L, 10L, 20L, 30L**
 
-### Muro de Coctelería
-El "Muro" es una estación de coctelería premium con grifo de pared. Reglas:
+### Dispensadores en Eventos (Muro y Portátil)
 
-| Regla | Valor | Constante |
-|-------|-------|-----------|
-| Volumen mínimo | 30 Litros | `MURO_MIN_LITERS` |
-| Tamaños compatibles | 10, 20, 30L | `MURO_COMPATIBLE_SIZES` |
-| Costo instalación | $50.000 CLP | `MURO_INSTALLATION_COST` |
-
-Si el pedido incluye un barril de **5L**, el Muro se deshabilita automáticamente y se fuerza "Portátil".
+| Formato | Volumen Mínimo | Tamaños Compatibles | Costo Instalación | Constantes |
+|---------|----------------|---------------------|-------------------|------------|
+| **Muro de Coctelería** | 40 Litros | 20L, 30L | $50.000 CLP | `MURO_MIN_LITERS`, `MURO_COMPATIBLE_SIZES`, `MURO_INSTALLATION_COST` |
+| **Dispensador Portátil** | 10 Litros | 5L, 10L | $0 CLP | `PORTATIL_MIN_LITERS`, `PORTATIL_COMPATIBLE_SIZES` |
 
 ### Envíos Dinámicos por Comuna
 Cada comuna en la DB tiene:

@@ -7,6 +7,7 @@ import { DEFAULT_REGION_CODE } from '@/lib/types';
 import { calculateSmartConfig, calculateSummaryData, buildWhatsAppMessage, getWhatsAppUrl, isEventBarrelSizeLabelCompatible } from '@/lib/wizardLogic';
 import { getMinDateString } from '@/lib/wizardLogic';
 import { isValidPhoneE164 } from '@/lib/phone';
+import { MURO_MIN_LITERS, PORTATIL_MIN_LITERS } from '@/lib/config';
 
 export { calculateSmartConfig };
 
@@ -214,10 +215,11 @@ export function useWizard(cocktails: CocktailForWizard[], comunas: Comuna[], cat
                     return sum + (sizeValue > 0 ? sizeValue * sel.quantity : 0);
                 }, 0);
 
-                if (totalLiters < 10) {
+                const minRequired = state.dispenser === 'muro' ? MURO_MIN_LITERS : PORTATIL_MIN_LITERS;
+                if (totalLiters < minRequired) {
                     return {
                         valid: false,
-                        message: 'El pedido mínimo es de 10 litros para contratar nuestros servicios.'
+                        message: `El pedido mínimo es de ${minRequired} litros para ${state.dispenser === 'muro' ? 'el Muro de Coctelería' : 'el Dispensador Portátil'}.`
                     };
                 }
             }

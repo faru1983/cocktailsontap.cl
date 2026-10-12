@@ -43,7 +43,7 @@ export default function EventStepDispenser({
             price: MURO_INSTALLATION_COST,
             icon: Layout,
             minLiters: MURO_MIN_LITERS,
-            features: ['Estructura estilo barra de madera', 'Iluminación LED decorativa', 'Ideal para fotos y alto impacto visual'],
+            features: ['Estructura estilo barra con canillas', 'Iluminación LED decorativa', 'Ideal para fotos y alto impacto visual'],
         },
     ];
 
@@ -74,7 +74,7 @@ export default function EventStepDispenser({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full mb-8">
                 {dispensers.map((disp) => {
                     const isSelected = selectedDispenser === disp.id;
-                    const requiresMoreLiters = disp.id === 'muro' && suggestedLiters > 0 && suggestedLiters < MURO_MIN_LITERS;
+                    const requiresMoreLiters = suggestedLiters > 0 && suggestedLiters < disp.minLiters;
 
                     return (
                         <div
@@ -141,7 +141,7 @@ export default function EventStepDispenser({
                                         <div className="mb-4 p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs font-semibold flex items-start gap-2">
                                             <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
                                             <span>
-                                                Tu sugerencia actual es de {suggestedLiters}L. Si eliges el Muro, podrás sumar los {MURO_MIN_LITERS - suggestedLiters}L faltantes al seleccionar tus cócteles.
+                                                Tu sugerencia actual es de {suggestedLiters}L. Este formato requiere un pedido mínimo de {disp.minLiters}L, por lo que podrás sumar los {disp.minLiters - suggestedLiters}L faltantes al seleccionar tus cócteles.
                                             </span>
                                         </div>
                                     )}

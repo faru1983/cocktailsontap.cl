@@ -12,7 +12,6 @@ import { calculateLiveQuoterSuggestion } from '@/lib/wizardLogic';
 import EventStepGuests from './EventStepGuests';
 import EventStepDrinks from './EventStepDrinks';
 import EventStepProposal from './EventStepProposal';
-import EventStepDispenser from './EventStepDispenser';
 import EventWizardCatalog from './EventWizardCatalog';
 import EventWizardCheckoutModal from './EventWizardCheckoutModal';
 import EventWizardSuccess from './EventWizardSuccess';
@@ -46,14 +45,13 @@ export default function EventWizardShell({ cocktails, eventTypes, comunas, regio
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [categories]);
 
-    // Flujo de 5 pasos:
+    // Flujo de 4 pasos:
     // 1: Invitados
     // 2: Tragos p/p
-    // 3: Propuesta Estimada
-    // 4: Formato Dispensador
-    // 5: Catálogo de Cócteles
-    const currentStep = Math.min(5, Math.max(1, state.step));
-    const progress = (currentStep / 5) * 100;
+    // 3: Propuesta Sugerida + Formato Dispensador
+    // 4: Catálogo de Cócteles
+    const currentStep = Math.min(4, Math.max(1, state.step));
+    const progress = (currentStep / 4) * 100;
 
     useEffect(() => {
         setValidationError('');
@@ -64,7 +62,7 @@ export default function EventWizardShell({ cocktails, eventTypes, comunas, regio
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [currentStep, state.selections, isModalOpen]);
 
-    // Litros sugeridos para pasar al paso de dispensador
+    // Litros sugeridos para estimación
     const suggestedLiters = useMemo(() => {
         const res = calculateLiveQuoterSuggestion(state.consumption.guests, state.consumption.drinksPerPerson);
         return res.recommendedLiters;
@@ -100,22 +98,12 @@ export default function EventWizardShell({ cocktails, eventTypes, comunas, regio
     };
 
     const handleNextFromProposal = () => {
+        if (!state.dispenser || state.dispenser === 'desechable') {
+            const defaultDisp = suggestedLiters >= 40 ? 'muro' : 'portatil';
+            updateDispenser(defaultDisp);
+        }
         setValidationError('');
         goToStep(4);
-    };
-
-    const handleNextFromDispenser = (dispenserOverride?: 'portatil' | 'muro') => {
-        const disp = dispenserOverride ?? state.dispenser;
-        if (!disp) {
-            setValidationError('Selecciona un formato de dispensador.');
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-            return;
-        }
-        if (dispenserOverride) {
-            updateDispenser(dispenserOverride);
-        }
-        setValidationError('');
-        goToStep(5);
     };
 
     const handleOpenCheckout = () => {
@@ -208,8 +196,7 @@ export default function EventWizardShell({ cocktails, eventTypes, comunas, regio
                         {currentStep === 1 && 'Volver al inicio'}
                         {currentStep === 2 && 'Cambiar invitados'}
                         {currentStep === 3 && 'Cambiar tragos p/p'}
-                        {currentStep === 4 && 'Ver propuesta'}
-                        {currentStep === 5 && 'Cambiar dispensador'}
+                        {currentStep === 4 && 'Volver a propuesta'}
                     </span>
                 </button>
 
@@ -297,28 +284,20 @@ export default function EventWizardShell({ cocktails, eventTypes, comunas, regio
                                     guests={state.consumption.guests}
                                     drinksPerPerson={state.consumption.drinksPerPerson}
                                     cocktails={cocktails}
+                                    selectedDispenser={state.dispenser}
+                                    onSelectDispenser={(disp) => updateDispenser(disp)}
                                     onNext={handleNextFromProposal}
                                     onBack={() => goToStep(2)}
                                 />
                             )}
 
                             {currentStep === 4 && (
-                                <EventStepDispenser
-                                    selectedDispenser={state.dispenser}
-                                    onSelectDispenser={(disp) => updateDispenser(disp)}
-                                    suggestedLiters={suggestedLiters}
-                                    onNext={handleNextFromDispenser}
-                                    onBack={() => goToStep(3)}
-                                />
-                            )}
-
-                            {currentStep === 5 && (
                                 <EventWizardCatalog
                                     wizard={wizard}
                                     cocktails={cocktails}
                                     categories={categories}
                                     onOpenCheckout={handleOpenCheckout}
-                                    onBack={() => goToStep(4)}
+                                    onBack={() => goToStep(3)}
                                 />
                             )}
                         </>

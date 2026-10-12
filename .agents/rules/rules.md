@@ -25,7 +25,8 @@ Define la arquitectura, reglas irrompibles, convenciones de código, esquema de 
 | 8 | **Celulares E.164** | Pedir celular con `PhoneInput` (`components/ui/PhoneInput.tsx`). Guardar siempre E.164 con `+` (ej. `+56912345678`) vía `lib/phone.ts`. UI: al focus prefijo `+56` (sin inyectar el 9); máscara/placeholder `+56 9 1234 5678`; validación Chile `+569` + 8 dígitos (acepta CO/PE/VE). WhatsApp: `toWhatsAppDigits()`. |
 | 9 | **Iconografía Única** | Prohibido usar emojis o SVGs inline en la UI del dashboard administrativo. Usar exclusivamente **lucide-react** para iconos. Los emojis solo son aceptables en emails y asuntos de correo. **Excepción:** gráficos SVG de **Recharts** en Dashboard/Estadísticas (visualización de datos, no iconografía de UI). |
 | 10 | **Dos Clientes Supabase** | `lib/supabase.ts` (anon key, lectura pública con caché). `lib/supabaseServer.ts` (service_role, solo Server Actions/Components). Nunca importar el server client en código client-side. |
-| 11 | **Contexto AI Actualizado** | Al finalizar cada sesión de trabajo, **actualizar `.agents/context.md`** con un resumen de los cambios realizados. Ver sección "Protocolo de Contexto AI" al final. |
+| 11 | **Contexto AI Actualizado** | Al finalizar cambios relevantes (features, flujos, DB, lógica), **actualizar `.agents/context.md`**. Omitir en cambios menores de copy, textos o ajustes puramente estéticos. Ver sección "Protocolo de Contexto AI". |
+| 12 | **Verificación Pragmática (Cero Rebuild en Cambios Menores)** | Prohibido ejecutar `npm run build` o esperas de compilación pesadas para cambios triviales, estéticos o de texto (copys, clases Tailwind simples, comentarios, markdown). Reservar la verificación de compilación o typecheck (`npx tsc --noEmit` / `npm run build`) exclusivamente para cambios en contratos TypeScript, Server Actions, APIs, esquemas Zod o lógica financiera/de negocio con riesgo real de regresión. |
 
 ---
 
@@ -164,14 +165,14 @@ Define la arquitectura, reglas irrompibles, convenciones de código, esquema de 
 - Tamaños disponibles: **5L, 10L, 20L, 30L** (determinados por `product_prices`)
 
 ### Muro de Coctelería
-- Requiere volumen total **≥ 30L** (`MURO_MIN_LITERS`)
-- **Incompatible** con barriles de 5L (`MURO_COMPATIBLE_SIZES = [10, 20, 30]`)
-- Costo de instalación: **$50.000 CLP** (`MURO_INSTALLATION_COST`)
-- Si no cumple requisitos, se fuerza automáticamente a "Dispensador Portátil"
+- **Pedido mínimo**: volumen total **≥ 40L** (`MURO_MIN_LITERS = 40`).
+- **Formatos compatibles**: exclusivamente barriles de **20L y 30L** (`MURO_COMPATIBLE_SIZES = [20, 30]`). Los barriles de 5L y 10L quedan excluidos del Muro.
+- **Costo de instalación**: **$50.000 CLP** (`MURO_INSTALLATION_COST`).
 
 ### Dispensador Portátil
-- Requiere volumen total **≥ 10L** (`PORTATIL_MIN_LITERS`)
-- **Solo compatible** con barriles de 5L y 10L (`PORTATIL_COMPATIBLE_SIZES = [5, 10]`)
+- **Pedido mínimo**: volumen total **≥ 10L** (`PORTATIL_MIN_LITERS = 10`).
+- **Formatos compatibles**: exclusivamente barriles de **5L y 10L** (`PORTATIL_COMPATIBLE_SIZES = [5, 10]`). Los barriles de 20L y 30L quedan excluidos del Dispensador Portátil.
+- **Costo de instalación**: **$0 CLP** (Gratis).
 
 ### Envíos Dinámicos
 - **Carrier:** región por defecto; **override por comuna** (`shipping_carrier` / `blue_express_zone` null = hereda). RM: provincia Santiago = propio; resto RM = Blue Express `misma_zona`.
@@ -310,14 +311,16 @@ Define la arquitectura, reglas irrompibles, convenciones de código, esquema de 
 
 ## 📝 Protocolo de Contexto AI
 
-Para mantener la eficiencia en sesiones con agentes de IA:
+Para mantener la eficiencia y agilidad en sesiones con agentes de IA:
 
 1. **Al inicio** de cada sesión, leer `.agents/context.md` para obtener el estado actual.
-2. **Al final** de cada sesión, actualizar `.agents/context.md` con:
+2. **Al final** de sesiones con **cambios relevantes** (features, lógica de negocio, arquitectura, flujos o DB), actualizar `.agents/context.md` con:
    - Fecha de la sesión
    - Resumen breve de los cambios realizados
    - Archivos modificados/creados
    - Issues conocidos pendientes
+   *(Omitir actualización de `.agents/context.md` para cambios triviales de textos, copys, estilos menores o respuestas a consultas).*
 3. Mantener la sección "Últimos Cambios" limitada a las **últimas 5 sesiones**.
+4. **Verificación Pragmática**: No correr builds pesados (`npm run build`) para cambios obvios o cosméticos que no alteren la funcionalidad.
 
-*Última actualización: 14-08-2026 (Sesión 80)*
+*Última actualización: 11-10-2026*

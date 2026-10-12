@@ -41,6 +41,41 @@
 
 ## Ultimos Cambios
 
+### 11-10-2026 — Refactor UX Wizard Eventos: Flujo simplificado a 4 pasos
+
+- **Integración de selección de dispensador en Paso 3 (`EventStepProposal.tsx`)**:
+  - Se eliminó el paso independiente de selección de dispensador (anterior Paso 4), fusionándolo directamente dentro del Paso 3 (Propuesta Sugerida).
+  - El wizard de eventos `/eventos` ahora cuenta con un flujo directo y fluido de **4 pasos**:
+    1. Invitados (`EventStepGuests.tsx`)
+    2. Tragos por persona / Intensidad de barra (`EventStepDrinks.tsx`)
+    3. Propuesta Sugerida + Selección de Formato de Dispensador (`EventStepProposal.tsx`)
+    4. Catálogo de Cócteles compatibles (`EventWizardCatalog.tsx`)
+    - Modal: Checkout y datos de contacto / fecha (`EventWizardCheckoutModal.tsx`).
+  - **Refinamiento de UX en Paso 3**:
+    - **Orden de valor primero**: El bloque de "Insumos y Cristalería Incluidos ($0)" se ubicó justo después del presupuesto y antes de los dispensadores, reforzando la confianza y percepción de valor antes de la decisión de formato.
+    - **Avance en 1 solo clic (sin botón continuar al fondo)**: Pinchar sobre la tarjeta del dispensador deseado (Portátil o Muro) selecciona el formato y avanza inmediatamente al catálogo de cócteles tras una micro-animación de feedback (180ms).
+    - **Badge inteligente 'Recomendado para tu evento'**: Se eliminó el texto de advertencia/fricción ("Tu sugerencia es de XL, te faltan YL para el Muro...") y se reemplazó por un badge positivo que destaca la opción ideal según el volumen sugerido (<40L: Dispensador Portátil; ≥40L: Muro de Coctelería).
+    - Enlace de fotos independiente: "Ver fotos y detalles" abre el modal con `stopPropagation` para no avanzar involuntariamente si el cliente solo quiere mirar.
+  - Al avanzar al Paso 4, el catálogo filtra exclusivamente los tamaños compatibles (5L/10L para portátil o 20L/30L para muro).
+- **Archivos**: `components/wizard/events/EventStepProposal.tsx`, `components/wizard/events/EventWizardShell.tsx`, `components/wizard/events/EventWizardCatalog.tsx`.
+
+### 11-10-2026 — Nueva regla de negocio: Muro de Coctelería (Mínimo 40L, solo 20L y 30L)
+
+- **Regla de negocio**:
+  - **Muro de Coctelería**: solo barriles de **20L y 30L** y pedido mínimo de **40L** (`MURO_MIN_LITERS = 40`, `MURO_COMPATIBLE_SIZES = [20, 30]`).
+  - **Dispensador Portátil**: continúa con barriles de **5L y 10L** y pedido mínimo de **10L** (`PORTATIL_MIN_LITERS = 10`, `PORTATIL_COMPATIBLE_SIZES = [5, 10]`).
+- **Lógica de cotizador y catálogo (`lib/wizardLogic.ts`, `EventWizardCatalog.tsx`)**:
+  - `isEventBarrelCompatibleWithDispenser`: filtra dinámicamente en catálogo según el dispensador elegido (Muro: 20L y 30L; Portátil: 5L y 10L).
+  - Medidor de avance y alertas de pedido mínimo en catálogo y checkout evalúan dinámicamente `minRequiredLiters` (40L para Muro, 10L para Portátil).
+  - Alertas en `EventStepDispenser.tsx` avisan de litros faltantes al seleccionar el Muro si la propuesta calculada es menor a 40L.
+  - Validación server-side en `confirmQuoteCore.ts` y wizard step 5 (`hooks/useWizard.ts`) diferenciada por formato.
+- Archivos: `lib/config.ts`, `lib/wizardLogic.ts`, `hooks/useWizard.ts`, `components/wizard/events/EventWizardCatalog.tsx`, `components/wizard/events/EventStepDispenser.tsx`, `lib/services/confirmQuoteCore.ts`, `app/admin/quotes/new/CreateQuoteManualClient.tsx`, `.agents/rules/rules.md`.
+
+### 11-10-2026 — Actualización de texto superior en /barriles
+
+- **Texto informativo en `DirectStep1Products.tsx`**: Se actualizó el texto descriptivo del banner superior de barriles desechables de 5L destacando rendimiento de aprox. 25 cócteles de 200 ml, conservación de hasta 3 semanas refrigerados gracias a su envasado especial, y recomendación de pedido con anticipación.
+- Archivo: `components/wizard/direct/DirectStep1Products.tsx`.
+
 ### 02-10-2026 (Rama feat/event-wizard-redesign) — Rediseño del Wizard de Eventos (/eventos)
 
 - **Flujo interactivo de 5 pasos**:

@@ -100,8 +100,15 @@ export default function DirectStep1Products({ wizard, cocktails, categories }: P
                         <Box className="w-5 h-5 text-primary" />
                     </div>
                     <div className="text-[0.95rem] text-brand-text-muted leading-relaxed">
-                        <p className="mb-2">Nuestros barriles desechables de 5L rinden <strong className="text-primary font-bold">25 cócteles (aprox)</strong> cada uno.</p>
-                        <p>Son de un solo uso, <strong className="text-brand-text">no requieren retorno ni máquina dispensadora</strong>, incluyen una válvula dosificadora (solo enfría y sirve).</p>
+                        <p className="mb-2">
+                            Nuestros barriles desechables de 5L rinden{' '}
+                            <strong className="text-primary font-bold">25 cócteles de 200 ml</strong>. Su envasado especial reduce el oxígeno, conservándolos hasta{' '}
+                            <strong className="text-brand-text font-bold">3 semanas refrigerados</strong>. Puedes servir, volver a refrigerar y seguir disfrutando. 🍹
+                        </p>
+                        <p>
+                            <strong className="text-brand-text font-bold">Te recomendamos pedirlo con unos días de anticipación</strong>{' '}
+                            para tenerlo listo el día de tu celebración. ¡Enviamos a todo Chile!
+                        </p>
                     </div>
                 </div>
             )}

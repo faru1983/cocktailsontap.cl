@@ -7,6 +7,7 @@ import { calculateLiveQuoterSuggestion, isEventBarrelCompatibleWithDispenser, is
 import type { Product, CocktailForWizard, ICart } from '@/lib/types';
 import ProductCatalog from '@/components/catalog/ProductCatalog';
 import CategoryTabs from '@/components/ui/CategoryTabs';
+import { MURO_MIN_LITERS, PORTATIL_MIN_LITERS } from '@/lib/config';
 
 interface Props {
     wizard: ReturnType<typeof useWizard>;
@@ -93,13 +94,14 @@ export default function EventWizardCatalog({ wizard, cocktails, categories, onOp
     // Calcula el porcentaje de avance respecto a la meta (max 100%)
     const fillPercentage = recommendedLiters > 0 ? Math.min(100, (currentLiters / recommendedLiters) * 100) : 0;
     const isGoalMet = currentLiters >= recommendedLiters && recommendedLiters > 0;
-    const minLitersMet = currentLiters >= 10;
+    const minRequiredLiters = state.dispenser === 'muro' ? MURO_MIN_LITERS : PORTATIL_MIN_LITERS;
+    const minLitersMet = currentLiters >= minRequiredLiters;
 
     return (
         <div className="flex flex-col pb-32">
             {/* Header Title */}
             <div className="mb-8 text-center md:text-left">
-                <p className="text-primary font-black tracking-widest uppercase text-sm mb-2">Paso 5 de 5 · Catálogo</p>
+                <p className="text-primary font-black tracking-widest uppercase text-sm mb-2">Paso 4 de 4 · Catálogo</p>
                 <h2 className="text-3xl md:text-4xl font-black text-brand-text">Selecciona tus Cócteles</h2>
             </div>
 

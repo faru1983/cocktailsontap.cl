@@ -31,13 +31,16 @@ export const WHATSAPP_LABEL = `+56 9 ${waLocal8.slice(0, 4)} ${waLocal8.slice(4)
 export const MURO_INSTALLATION_COST = 50_000;
 
 /** Litros mínimos para poder elegir el Muro de Coctelería */
-export const MURO_MIN_LITERS = 30;
+export const MURO_MIN_LITERS = 40;
 
 /** Litros mínimos para poder elegir el Dispensador Portátil */
 export const PORTATIL_MIN_LITERS = 10;
 
-/** Tamaños compatibles con el Muro (en litros). El 5L no es compatible. */
-export const MURO_COMPATIBLE_SIZES = [10, 20, 30];
+/** Litros mínimos generales para eventos (determinado por el dispensador portátil) */
+export const EVENT_MIN_LITERS = 10;
+
+/** Tamaños compatibles con el Muro (en litros). Solo 20L y 30L. */
+export const MURO_COMPATIBLE_SIZES = [20, 30];
 
 /** Tamaños compatibles con el Dispensador Portátil (en litros). Solo 5L y 10L. */
 export const PORTATIL_COMPATIBLE_SIZES = [5, 10];

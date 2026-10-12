@@ -128,13 +128,13 @@ export async function confirmQuoteCore(
             if (data.dispenser === 'muro' && !summary.canHaveMuro) {
                 return {
                     success: false,
-                    error: 'El Muro de Coctelería requiere al menos 30L y solo barriles de 10L, 20L o 30L.',
+                    error: `El Muro de Coctelería requiere al menos ${MURO_MIN_LITERS}L y solo barriles de 20L o 30L.`,
                 };
             }
             if (data.dispenser === 'portatil' && !summary.canHavePortatil) {
                 return {
                     success: false,
-                    error: 'El Dispensador Portátil solo es compatible con barriles de 5L y 10L.',
+                    error: `El Dispensador Portátil requiere al menos ${PORTATIL_MIN_LITERS}L y solo barriles de 5L o 10L.`,
                 };
             }
         }

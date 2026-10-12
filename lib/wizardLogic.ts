@@ -1,6 +1,6 @@
 import type { CocktailForWizard, Comuna, WizardState, WizardSelection, Quote, QuoteItem } from './types';
 import { formatCurrency } from './utils';
-import { SITE_URL, WHATSAPP_URL, MURO_INSTALLATION_COST, MURO_COMPATIBLE_SIZES, MURO_MIN_LITERS, PORTATIL_COMPATIBLE_SIZES, PROJECT_TIMEZONE, COCKTAILS_PER_LITER } from './config';
+import { SITE_URL, WHATSAPP_URL, MURO_INSTALLATION_COST, MURO_COMPATIBLE_SIZES, MURO_MIN_LITERS, PORTATIL_COMPATIBLE_SIZES, PORTATIL_MIN_LITERS, PROJECT_TIMEZONE, COCKTAILS_PER_LITER } from './config';
 import {
     barrelsFromLiters,
     isBlueExpressZone,
@@ -248,6 +248,7 @@ export function isEventBarrelCompatibleWithDispenser(
     if (!sizeLiters) return true;
     if (dispenser === 'muro') return MURO_COMPATIBLE_SIZES.includes(sizeLiters);
     if (dispenser === 'portatil') return PORTATIL_COMPATIBLE_SIZES.includes(sizeLiters);
+    if (dispenser === 'desechable') return sizeLiters === 5;
     return true;
 }
 
@@ -579,7 +580,7 @@ export function calculateSummaryData(
         return !PORTATIL_COMPATIBLE_SIZES.includes(pd.sizeValue);
     });
     const canHaveMuro = !hasMuroIncompatibleSize && totalLiters >= MURO_MIN_LITERS;
-    const canHavePortatil = !hasPortatilIncompatibleSize;
+    const canHavePortatil = !hasPortatilIncompatibleSize && totalLiters >= PORTATIL_MIN_LITERS;
     
     let dispenserLabel = 'Dispensador Portátil';
     if (state.dispenser === 'muro') dispenserLabel = 'Muro de Coctelería';
