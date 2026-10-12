@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
+import { AlertCircle } from 'lucide-react';
 import type { Comuna, Region } from '@/lib/types';
 import { filterComunasForRegion, filterRegionsForService } from '@/lib/geo';
 
@@ -28,6 +29,8 @@ interface Props {
     variant?: 'public' | 'admin';
     labelClassName?: string;
     selectClassName?: string;
+    comunaError?: string;
+    comunaId?: string;
 }
 
 /**
@@ -51,6 +54,8 @@ export default function RegionComunaFields({
     variant = 'public',
     labelClassName,
     selectClassName,
+    comunaError,
+    comunaId,
 }: Props) {
     const selectedComuna = comuna ?? comunaName ?? '';
     const isAdmin = variant === 'admin';
@@ -59,6 +64,10 @@ export default function RegionComunaFields({
     const inputCls = isAdmin
         ? ADMIN_SELECT
         : 'w-full p-2.5 border border-slate-200 rounded-xl focus:border-primary focus:ring-2 focus:ring-primary/10 outline-none text-sm';
+
+    const comunaSelectCls = comunaError
+        ? `${selectCls} border-red-400 bg-red-50/20 focus:border-red-500 focus:ring-red-100`
+        : selectCls;
 
     const availableRegions = useMemo(() => {
         if (isAdmin) {
@@ -108,8 +117,9 @@ export default function RegionComunaFields({
                     Comuna {required && <span className={isAdmin ? 'text-[#E2A049]' : 'text-primary'}>*</span>}
                 </label>
                 <select
+                    id={comunaId || 'field-comuna'}
                     required={required}
-                    className={selectCls}
+                    className={comunaSelectCls}
                     value={selectedComuna}
                     onChange={(e) => {
                         onComunaChange(e.target.value);
@@ -123,6 +133,12 @@ export default function RegionComunaFields({
                         </option>
                     ))}
                 </select>
+                {comunaError && (
+                    <p className="mt-1 text-xs text-red-500 flex items-center gap-1 font-semibold animate-fade-in">
+                        <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                        <span>{comunaError}</span>
+                    </p>
+                )}
             </div>
         </>
     );
@@ -138,10 +154,11 @@ export default function RegionComunaFields({
                         {required && <span className={isAdmin ? 'text-[#E2A049]' : 'text-primary'}>*</span>}
                     </label>
                     <input
+                        id={comunaId ? `${comunaId}-other` : 'field-comuna-other'}
                         type="text"
                         required={required}
                         placeholder="Ej: Curacaví"
-                        className={inputCls}
+                        className={comunaError && !otherComuna ? `${inputCls} border-red-400 bg-red-50/20 focus:border-red-500 focus:ring-red-100` : inputCls}
                         value={otherComuna}
                         onChange={(e) => onOtherComunaChange(e.target.value)}
                     />

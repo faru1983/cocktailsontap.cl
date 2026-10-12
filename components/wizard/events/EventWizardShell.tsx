@@ -315,6 +315,7 @@ export default function EventWizardShell({ cocktails, eventTypes, comunas, regio
                     onClose={() => setIsModalOpen(false)} 
                     onConfirm={handleCotizar}
                     sendStatus={sendStatus}
+                    saveError={saveError || validationError}
                 />
             )}
         </div>

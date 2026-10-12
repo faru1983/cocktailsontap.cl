@@ -41,6 +41,26 @@
 
 ## Ultimos Cambios
 
+### 12-10-2026 — Validación en Tiempo Real y Guía Visual en Modales de Checkout (`/eventos` y `/barriles`)
+
+- **Problema resuelto**: Anteriormente, si un usuario ingresaba datos incompletos o con formato incorrecto (ej: celular sin los 9 dígitos, email inválido o comuna sin seleccionar), el botón de envío no respondía o los errores se mostraban detrás del modal (`z-50`) en la página principal, dejando al usuario sin retroalimentación clara de qué corregir.
+- **Validación inline y guía visual clara**:
+  - Bordes destacados en rojo (`border-red-400 bg-red-50/20 focus:border-red-500 focus:ring-red-100`) para cada input con error.
+  - Mensajes de ayuda contextuales debajo de cada campo con icono `AlertCircle` indicando exactamente qué falta (ej: *"Ingresa tu celular de 9 dígitos (ej: +56 9 1234 5678)"*, *"Ingresa un email válido"*, *"Selecciona tu comuna"*).
+  - Validación inmediata al desenfocar (`onBlur`) para Email y WhatsApp, y al escribir (`onChange`) para limpiar el error una vez corregido.
+  - **Auto-scroll y foco automático**: Al presionar enviar con errores, la pantalla hace scroll suave y enfoca automáticamente el primer campo con error.
+  - **Banner de error visible en el footer del modal**: Alerta clara dentro del modal destacando que deben revisarse los campos en rojo, mostrando además cualquier error devuelto por el servidor (`saveError`).
+  - **Paridad total entre flujos**: Implementado tanto en `EventWizardCheckoutModal` (`/eventos`) como en `DirectWizardCheckoutModal` (`/barriles`), con soporte extendido en `RegionComunaFields`.
+- **Archivos**: `components/ui/RegionComunaFields.tsx`, `components/wizard/events/EventWizardCheckoutModal.tsx`, `components/wizard/events/EventWizardShell.tsx`, `components/wizard/direct/DirectWizardCheckoutModal.tsx`, `components/wizard/direct/DirectWizardShell.tsx`.
+
+### 12-10-2026 — Reorganización de Bloques en Modal de Cotización de Eventos (`EventWizardCheckoutModal.tsx`)
+
+- **Estructura lógica de 2 bloques**:
+  - **Bloque 1: Datos Personales y Contacto**: Se trasladaron al inicio los campos de Nombre, Apellido, Email, WhatsApp y Región/Comuna, facilitando la captura de datos básica y alineando el orden con `/barriles`.
+  - **Bloque 2: Detalles del Evento**: Agrupa Fecha del Evento y Temática junto con el toggle "Confirmar reserva ahora" (y su despliegue de Dirección, Horarios y Retiro) y los comentarios opcionales. Esto unifica la agenda y logística del evento en una sola sección continua.
+  - **Validación en orden visual**: La validación en `handleSubmit` ahora verifica primero datos de contacto y luego datos del evento.
+- **Archivos**: `components/wizard/events/EventWizardCheckoutModal.tsx`.
+
 ### 12-10-2026 — Mejora de Sticky Bottom Bar en Catálogo de Eventos (`EventWizardCatalog.tsx`)
 
 - **Paridad de UX con `/barriles`**:

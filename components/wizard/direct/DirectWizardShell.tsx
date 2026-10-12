@@ -244,6 +244,7 @@ export default function DirectWizardShell({ cocktails, comunas, regions, categor
                     onClose={() => setIsModalOpen(false)} 
                     onConfirm={handleCotizar}
                     sendStatus={sendStatus}
+                    saveError={saveError || validationError}
                 />
             )}
         </div>
