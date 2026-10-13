@@ -4,6 +4,8 @@
  * Presentación: máscara legible (ej: +56 9 1234 5678).
  */
 
+import { z } from 'zod';
+
 const CHILE_MOBILE_RE = /^\+569\d{8}$/;
 const OTHER_MOBILE_RE = /^\+(57|51|58)\d{8,12}$/;
 
@@ -125,3 +127,26 @@ export function toWhatsAppDigits(input: string): string {
 export const PHONE_PLACEHOLDER = '+56 9 1234 5678';
 /** Prefijo país Chile al enfocar el input (sin el 9 móvil; el usuario lo escribe). */
 export const CHILE_COUNTRY_PREFIX_E164 = '+56';
+
+/** Celular opcional: vacío OK; si hay valor debe ser E.164 válido (CL/CO/PE/VE). */
+export const OptionalPhoneSchema = z.preprocess(
+    (v) => {
+        if (v == null || v === '') return '';
+        return normalizePhoneE164(String(v)) ?? '';
+    },
+    z.union([
+        z.literal(''),
+        z.string().refine(isValidPhoneE164, {
+            message: 'Celular inválido. Usa formato +56 9 1234 5678',
+        }),
+    ])
+);
+
+/** Celular obligatorio en E.164. */
+export const RequiredPhoneSchema = z.preprocess(
+    (v) => normalizePhoneE164(String(v ?? '')) ?? '',
+    z.string().refine(isValidPhoneE164, {
+        message: 'Celular inválido. Usa formato +56 9 1234 5678',
+    })
+);
+

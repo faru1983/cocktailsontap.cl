@@ -45,12 +45,23 @@ export function rateLimit(key: string, opts: RateLimitOptions): RateLimitResult 
     return { ok: true };
 }
 
-/** IP aproximada desde headers de Vercel/proxy. */
+/** IP del cliente priorizando headers confiables de Vercel/reverse proxy para prevenir IP spoofing. */
 export async function getClientIp(): Promise<string> {
     const h = await headers();
+    const realIp = h.get('x-real-ip');
+    if (realIp) return realIp.trim();
+
+    const vercelIp = h.get('x-vercel-ip');
+    if (vercelIp) return vercelIp.trim();
+
     const forwarded = h.get('x-forwarded-for');
-    if (forwarded) return forwarded.split(',')[0]?.trim() || 'unknown';
-    return h.get('x-real-ip') || 'unknown';
+    if (forwarded) {
+        // En proxies/Vercel, si hay múltiples IPs, la IP del cliente real agregada por el edge confiable es la última
+        const parts = forwarded.split(',').map((p) => p.trim()).filter(Boolean);
+        return parts[parts.length - 1] || 'unknown';
+    }
+
+    return 'unknown';
 }
 
 export async function enforceRateLimit(

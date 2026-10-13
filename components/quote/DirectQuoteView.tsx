@@ -27,8 +27,9 @@ import QuoteSummaryReservation, { QuoteSummaryReservationData } from '@/componen
 import BankTransferCard from '@/components/quote/BankTransferCard';
 import { buildWhatsAppMessageFromQuote, getWhatsAppUrl } from '@/lib/wizardLogic';
 import { WHATSAPP_URL } from '@/lib/config';
-import { resolveDispatchTrackingUrl } from '@/lib/directSaleFulfillment';
+import { resolveDispatchTrackingUrl, sumQuotePayments } from '@/lib/directSaleFulfillment';
 import { WhatsappIcon } from '@/components/shared/icons';
+import { STATUS_CONFIG } from './quoteStatusConfig';
 
 interface Props {
     quote: Quote & { quote_items: QuoteItem[] };
@@ -39,14 +40,6 @@ interface Props {
     eventTypes: EventType[];
     isNew?: boolean;
 }
-
-const STATUS_CONFIG = {
-    draft: { label: 'Borrador', color: 'bg-amber-100 text-amber-800 border-amber-200', icon: Clock },
-    confirmed: { label: 'Confirmada', color: 'bg-green-100 text-green-800 border-green-200', icon: CheckCircle },
-    in_delivery: { label: 'En reparto', color: 'bg-sky-100 text-sky-800 border-sky-200', icon: ShoppingCart },
-    cancelled: { label: 'Cancelada', color: 'bg-red-100 text-red-800 border-red-200', icon: XCircle },
-    completed: { label: 'Completada', color: 'bg-blue-100 text-blue-800 border-blue-200', icon: CheckCircle },
-};
 
 export default function DirectQuoteView({ quote, comunas, regions, availableCocktails, categories, eventTypes, isNew }: Props) {
     const initialRegionCode = (() => {
@@ -196,7 +189,7 @@ export default function DirectQuoteView({ quote, comunas, regions, availableCock
     const activeMethodConfig = totals.shippingCarrier === 'blue_express'
         ? methodsConfig?.blue_express
         : methodsConfig?.own_direct;
-    const totalPaid = (quote.payments || []).reduce((sum: number, p: any) => sum + (Number(p.amount) || 0), 0);
+    const totalPaid = sumQuotePayments(quote);
     const advanceAmount = totals.totalFinal; // Siempre 100%
     const advancePercentText = '100%';
 

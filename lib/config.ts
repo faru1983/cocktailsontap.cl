@@ -70,10 +70,10 @@ export const META_PIXEL_ID = process.env.NEXT_PUBLIC_META_PIXEL_ID ?? '173954725
 /** Campo parseado de datos bancarios (etiqueta + valor). */
 export type BankTransferField = { label: string; value: string };
 
-const DEFAULT_BANK_TRANSFER_BLOCK = `Banco: Mercado Pago
-Cuenta Vista: 1098081647
-Nombre: Felipe Ramírez
-RUT: 15.332.189-2
+const DEFAULT_BANK_TRANSFER_BLOCK = `Banco: Banco de Chile
+Cuenta Corriente: 00-000-00000-00
+Nombre: Cocktails on Tap SpA
+RUT: 77.000.000-0
 E-mail: contacto@cocktailsontap.cl`;
 
 function parseBankTransferBlock(raw: string): BankTransferField[] {

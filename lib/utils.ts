@@ -96,9 +96,6 @@ export function getAvatarInitial(name: string | null | undefined): string {
     return '?';
 }
 
-/** @deprecated Preferir formatPhoneDisplay / phoneInputToE164 desde `@/lib/phone`. */
-export { formatPhoneDisplay as formatPhoneNumber, phoneInputToE164, toWhatsAppDigits } from '@/lib/phone';
-
 export function copyToClipboard(text: string): Promise<boolean> {
     if (typeof window === 'undefined') return Promise.resolve(false);
     if (navigator.clipboard?.writeText) {
@@ -137,4 +134,13 @@ function copyFallback(text: string): boolean {
     }
     document.body.removeChild(textArea);
     return success;
+}
+
+/**
+ * Sanitiza términos de búsqueda para filtros PostgREST (.or / .ilike).
+ * Remueve caracteres especiales de sintaxis que podrían romper la consulta o inyectar filtros.
+ */
+export function sanitizePostgrestSearch(term: string | null | undefined): string {
+    if (!term || typeof term !== 'string') return '';
+    return term.replace(/[,().:\"'\\%_]/g, ' ').replace(/\s+/g, ' ').trim();
 }

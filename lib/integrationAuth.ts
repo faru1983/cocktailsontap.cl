@@ -10,7 +10,7 @@ function safeEqual(a: string, b: string): boolean {
 
 export type IntegrationAuthResult =
     | { ok: true }
-    | { ok: false; status: 401 | 503; error: string };
+    | { ok: false; status: 401 | 429 | 503; error: string };
 
 /**
  * Valida Authorization: Bearer <INTEGRATION_API_KEY>.
@@ -18,7 +18,7 @@ export type IntegrationAuthResult =
 export async function verifyIntegrationAuth(request: Request): Promise<IntegrationAuthResult> {
     const rl = await enforceRateLimit('apiV1', { limit: 60, windowMs: 60 * 1000 });
     if (!rl.ok) {
-        return { ok: false, status: 401, error: RATE_LIMIT_MESSAGE };
+        return { ok: false, status: 429, error: RATE_LIMIT_MESSAGE };
     }
 
     const expected = process.env.INTEGRATION_API_KEY?.trim();

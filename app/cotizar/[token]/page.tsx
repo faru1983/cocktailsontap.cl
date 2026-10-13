@@ -32,11 +32,24 @@ export default async function QuoteTokenPage({ params, searchParams }: Props) {
     
     const db = createServerClient();
 
+    const PUBLIC_QUOTE_SELECT = `
+        id, token, status, service_type, dispenser, source,
+        client_name, client_lastname, client_email, client_phone, client_address,
+        region_name, comuna_name, comuna_other,
+        event_date, start_time, pickup_date, pickup_time,
+        guests, drinks_per_person, event_type_id, event_type_other,
+        total_normal_price, total_offer_price, shipping_cost, installation_cost, manual_discount, total_price, total_liters,
+        shipping_label, comments, payments, created_at, updated_at,
+        quote_items (
+            id, quote_id, product_id, product_name, size, size_value, unit_id, is_disposable, quantity, price_at_time, offer_price_at_time
+        )
+    `;
+
     const [
         { data, error },
         { cocktails, comunas, regions, categories, eventTypes }
     ] = await Promise.all([
-        db.from('quotes').select('*, quote_items(*)').eq('token', token).single(),
+        db.from('quotes').select(PUBLIC_QUOTE_SELECT).eq('token', token).single(),
         fetchAllProductData()
     ]);
 

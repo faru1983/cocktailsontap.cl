@@ -1,29 +1,9 @@
 import { z } from 'zod';
-import { normalizePhoneE164, isValidPhoneE164 } from '@/lib/phone';
+import { OptionalPhoneSchema, RequiredPhoneSchema } from '@/lib/phone';
 import type { BlueExpressHomeRates } from './blueExpress';
 import type { ShippingMethodsSettings } from './shippingMethods';
 
-/** Celular opcional: vacío OK; si hay valor debe ser E.164 válido (CL/CO/PE/VE). */
-const OptionalPhoneSchema = z.preprocess(
-    (v) => {
-        if (v == null || v === '') return '';
-        return normalizePhoneE164(String(v)) ?? '';
-    },
-    z.union([
-        z.literal(''),
-        z.string().refine(isValidPhoneE164, {
-            message: 'Celular inválido. Usa formato +56 9 1234 5678',
-        }),
-    ])
-);
-
-/** Celular obligatorio en E.164. */
-export const RequiredPhoneSchema = z.preprocess(
-    (v) => normalizePhoneE164(String(v ?? '')) ?? '',
-    z.string().refine(isValidPhoneE164, {
-        message: 'Celular inválido. Usa formato +56 9 1234 5678',
-    })
-);
+export { OptionalPhoneSchema, RequiredPhoneSchema };
 
 export interface MeasurementUnit {
     id: string;
@@ -190,18 +170,6 @@ export interface WizardState {
     dispenser: 'portatil' | 'muro' | 'desechable' | '';
     expandedCocktailId: string | null;
     expandedCategoryId: string;
-}
-
-export interface CartItem {
-    productId: string;
-    productName: string;
-    size: string;
-    sizeValue: number;
-    unitId: string | null;
-    isDisposable: boolean;
-    price: number;
-    offerPrice: number;
-    quantity: number;
 }
 
 export interface ICart {

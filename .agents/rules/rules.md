@@ -78,14 +78,12 @@ Define la arquitectura, reglas irrompibles, convenciones de código, esquema de 
 │   ├── ui/                   # Componentes atómicos reutilizables
 │   └── wizard/               # Componentes del wizard de cotización (Steps 1-6, Success)
 ├── hooks/
-│   ├── useWizard.ts          # Estado global del wizard (useState + callbacks)
-│   └── useCart.ts            # Lógica del carrito
+│   └── useWizard.ts          # Estado global del wizard (useState + callbacks)
 ├── lib/
 │   ├── config.ts             # Constantes centralizadas (SITE_URL, WHATSAPP, MURO_*)
 │   ├── types.ts              # Interfaces TypeScript + Schemas Zod
 │   ├── wizardLogic.ts        # Lógica pura de negocio (cálculos, precios, rendimientos)
 │   ├── serverData.ts         # Fetch con unstable_cache (catálogo, comunas, eventos)
-│   ├── emails.ts             # Generadores de HTML para emails (legacy, HTML puro)
 │   ├── googleSync.ts         # Capa base de Google APIs (OAuth2, People, Calendar)
 │   ├── adminAuth.ts          # Autenticación admin (SHA-256, cookies)
 │   ├── supabase.ts           # Cliente público (anon key)

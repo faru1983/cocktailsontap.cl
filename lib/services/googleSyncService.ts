@@ -15,6 +15,7 @@ import { formatQuoteAddress, resolveComunaDisplay, stripTrailingComuna } from '@
 import { createServerClient } from '@/lib/supabaseServer';
 import { SettingsService } from './settingsService';
 import { isChilePrefixOnly, normalizePhoneE164 } from '@/lib/phone';
+import { sumQuotePayments, getQuoteBalance } from '@/lib/directSaleFulfillment';
 
 function resolveContactEmail(raw?: string | null): string | undefined {
     const v = (raw || '').trim().toLowerCase();
@@ -178,8 +179,8 @@ export const GoogleSyncService = {
 
             // Resumen de pagos
             const payments = quote.payments || [];
-            const totalPaid = payments.reduce((sum, p) => sum + (p.amount || 0), 0);
-            const totalPending = (quote.total_price || 0) - totalPaid;
+            const totalPaid = sumQuotePayments(quote);
+            const totalPending = getQuoteBalance(quote);
 
             const paymentsSummary = payments.length > 0 
                 ? `\nREGISTRO DE PAGOS:\n` + 

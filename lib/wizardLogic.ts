@@ -733,7 +733,7 @@ export function calculateLiveQuoterSuggestion(guests: number, drinks: number) {
     if (guests === 0 || drinks === 0) return { recommendedLiters: 0 };
 
     const totalDrinks = guests * drinks;
-    const exactLiters = totalDrinks / 5;
+    const exactLiters = totalDrinks / COCKTAILS_PER_LITER;
 
     let recommendedLiters = 0;
     if (exactLiters <= 5) {

@@ -3,7 +3,7 @@ import { requireAdmin } from '@/lib/adminAuth';
 import Link from 'next/link';
 import SortSelect from '@/components/admin/SortSelect';
 import { formatPhoneDisplay } from '@/lib/phone';
-import { formatDateCL, getAvatarInitial } from '@/lib/utils';
+import { formatDateCL, getAvatarInitial, sanitizePostgrestSearch } from '@/lib/utils';
 import { STAGE_LABELS, type ClientLifecycleStage } from '@/lib/services/clientLifecycleService';
 
 const ITEMS_PER_PAGE = 30;
@@ -49,9 +49,10 @@ async function getClients(
         )
         .is('merged_into_id', null);
 
-    if (search) {
+    const cleanSearch = sanitizePostgrestSearch(search);
+    if (cleanSearch) {
         query = query.or(
-            `first_name.ilike.%${search}%,email.ilike.%${search}%,last_name.ilike.%${search}%,phone.ilike.%${search}%`
+            `first_name.ilike.%${cleanSearch}%,email.ilike.%${cleanSearch}%,last_name.ilike.%${cleanSearch}%,phone.ilike.%${cleanSearch}%`
         );
     }
     if (stage && stage !== 'all') {

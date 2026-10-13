@@ -1,5 +1,6 @@
 import { createServerClient } from '@/lib/supabaseServer';
 import { requireAdmin } from '@/lib/adminAuth';
+import { sanitizePostgrestSearch } from '@/lib/utils';
 import QuotesListClient from './QuotesListClient';
 
 type SearchParams = Promise<{
@@ -42,7 +43,10 @@ async function getQuotes(
         query = query.eq('service_type', 'event');
     }
 
-    if (search) query = query.or(`client_name.ilike.%${search}%,client_email.ilike.%${search}%,client_lastname.ilike.%${search}%`);
+    const cleanSearch = sanitizePostgrestSearch(search);
+    if (cleanSearch) {
+        query = query.or(`client_name.ilike.%${cleanSearch}%,client_email.ilike.%${cleanSearch}%,client_lastname.ilike.%${cleanSearch}%`);
+    }
     
     query = query.order(sort, { ascending: order === 'asc' });
     query = query.range(from, to);

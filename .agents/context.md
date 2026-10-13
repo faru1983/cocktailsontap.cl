@@ -41,6 +41,50 @@
 
 ## Ultimos Cambios
 
+### 13-10-2026 — Limpieza de Código Muerto, Eliminación de Redundancias y Unificación de Helpers
+
+- **Eliminación de archivos huérfanos y componentes obsoletos**:
+  - Eliminados componentes y hooks en desuso procedentes del antiguo wizard de 6 pasos y carritos de compra (`hooks/useCart.ts`, `components/catalog/CartModal.tsx`, `components/wizard/events/EventStepDispenser.tsx`, `components/wizard/events/EventWizardConfig.tsx`, `components/ui/OptionCard.tsx`, `components/ui/SelectField.tsx`, `components/ui/InfoTooltip.tsx`).
+  - Eliminados SVGs iniciales de plantilla de Next.js (`public/file.svg`, `public/globe.svg`, `public/next.svg`, `public/vercel.svg`, `public/window.svg`) y archivos temporales (`temp_flyer.svg`, `scripts/_mcp_args.json`).
+- **Remoción de código muerto**:
+  - Eliminada la función sin invocadores `syncClientToGoogle` en `app/actions/admin/adminActions.ts`.
+  - Eliminado helper deprecado `formatPhoneNumber` en `lib/utils.ts` (reemplazado por `formatPhoneDisplay` de `lib/phone.ts`).
+  - Eliminada la interfaz no utilizada `CartItem` en `lib/types.ts`.
+- **Deduplicación y unificación de esquemas de teléfono**:
+  - Esquemas Zod `OptionalPhoneSchema` y `RequiredPhoneSchema` centralizados en `lib/phone.ts`, importados y re-exportados consistentemente en `lib/types.ts` y consumidos en `lib/integrationSchemas.ts`.
+- **Centralización de estados e insignias de cotización**:
+  - Extraído `STATUS_CONFIG` a `components/quote/quoteStatusConfig.ts`, deduplicando los mapeos de estados, colores e iconos Lucide entre `EventQuoteView.tsx` y `DirectQuoteView.tsx`.
+- **Unificación de cálculo de pagos**:
+  - Reemplazadas reducciones inline de pagos (`payments.reduce`) en `EventQuoteView.tsx`, `DirectQuoteView.tsx` y `lib/services/googleSyncService.ts` por los helpers existentes `sumQuotePayments(quote)` y `getQuoteBalance(quote)`.
+- **Eliminación de números mágicos**:
+  - Reemplazado `/ 5` por la constante `COCKTAILS_PER_LITER` en `calculateLiveQuoterSuggestion()` (`lib/wizardLogic.ts`).
+- **Limpieza de documentación y reglas**:
+  - Actualizado el árbol de directorios en `.agents/rules/rules.md` eliminando referencias a archivos borrados (`useCart.ts` y `lib/emails.ts`).
+- **Verificación**:
+  - Typecheck completo verificado con `npx tsc --noEmit` resultando en 0 errores.
+
+### 13-10-2026 — Endurecimiento Integral de Seguridad (BD, Storage, APIs y Over-fetching)
+
+- **Supabase Storage protegido (`product-images`)**:
+  - Restringidas las políticas de `INSERT`, `UPDATE` y `DELETE` en `storage.objects` exclusivamente al rol `service_role`. Ningún cliente público anónimo puede borrar, sobreescribir o inyectar imágenes en el bucket.
+  - Limitado el bucket a cuota de **2 MB** por archivo y lista blanca de tipos MIME autorizados (`image/webp`, `image/jpeg`, `image/png`, `image/gif`).
+- **PostgreSQL / RLS sellado**:
+  - Reasignadas las políticas de `site_settings` y `expense_payment_methods` a `service_role`. Acceso anónimo denegado por defecto vía PostgREST, previniendo fuga de configuraciones internas, plantillas, logs de cron y métodos de pago de gastos.
+  - Limpieza de política redundante en `product_prices` (mantenida solo una política limpia de lectura para `public`).
+  - Creada migración rastreable en `supabase/migrations/20261013180000_security_hardening.sql`.
+- **Prevención de Over-fetching en `/cotizar/[token]`**:
+  - La página pública de confirmación (`app/cotizar/[token]/page.tsx`) ahora proyecta explícitamente los campos necesarios para la UI y el wizard de confirmación, excluyendo del payload RSC datos internos como `client_id` (UUID CRM), `google_event_id` y `google_pickup_event_id`.
+- **Mitigación de IP Spoofing en Rate Limiting**:
+  - `lib/rateLimit.ts` (`getClientIp`): Prioriza cabeceras confiables inmutables de proxy (`x-real-ip` y `x-vercel-ip`) por sobre `x-forwarded-for` para evitar que peticiones maliciosas con IPs arbitrarias en el encabezado reinicien contadores y eludan los límites.
+- **Sanitización de búsquedas PostgREST**:
+  - Creado `sanitizePostgrestSearch()` en `lib/utils.ts` y aplicado en los listados del admin (`app/admin/quotes/page.tsx` y `app/admin/clients/page.tsx`) para eliminar caracteres de control de PostgREST (`[,().:\"'\\%_]`), previniendo errores 400 y roturas de sintaxis en filtros `.or()`.
+- **Status HTTP estándar en API v1**:
+  - `lib/integrationAuth.ts`: Devuelve código HTTP `429 Too Many Requests` (antes 401) cuando se excede la tasa de peticiones en `/api/v1/*`.
+- **Saneamiento de fallbacks de configuración**:
+  - `lib/config.ts`: Eliminados datos bancarios personales en el string de fallback estático del código fuente, reemplazándolos por marcadores genéricos de empresa (los datos reales residen exclusivamente en `.env.local` / Vercel).
+- **Parches de dependencias**:
+  - Ejecutado `npm audit fix` reduciendo vulnerabilidades transitivas de paquetes de 22 a 8. Verificado typecheck estricto (`tsc --noEmit`) con 0 errores.
+
 ### 12-10-2026 — Paridad en Registro de Pagos y Email de Confirmación de Pago para Eventos (`/admin`)
 
 - **Problema resuelto**: En el panel de administración (`/admin/quotes/[id]`), los eventos no contaban con el botón rápido de registro de total como en venta directa (estaba condicionado a `isDirectSale`), y el Server Action `addQuotePayment` solo enviaba el email de confirmación de pago si la cotización era de venta directa, dejando a los clientes de eventos sin correo de comprobante a pesar de que el toast del frontend indicaba "email enviado".

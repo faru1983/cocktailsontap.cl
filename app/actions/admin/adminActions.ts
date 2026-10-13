@@ -1007,28 +1007,6 @@ export async function saveAdminSettings(formData: FormData): Promise<{ success: 
     return { success: true };
 }
 
-// ── Sync Client to Google ─────────────────────────────────────────────────
-export async function syncClientToGoogle(clientId: string): Promise<{ success: boolean; error?: string }> {
-    await checkAuth();
-    const db = createServerClient();
-    const { data: client } = await db.from('clients').select('*').eq('id', clientId).single();
-    if (!client) return { success: false, error: 'Cliente no encontrado.' };
-    // Minimal state to re-sync
-    try {
-        const { syncGoogleContact } = await import('@/lib/googleSync');
-        await syncGoogleContact({
-            resourceName: client.google_contact_id || undefined,
-            firstName: client.first_name,
-            lastName: client.last_name || '',
-            email: client.email,
-            phone: client.phone || '',
-        });
-        return { success: true };
-    } catch (e: any) {
-        return { success: false, error: e.message };
-    }
-}
-
 // ── Reminder Templates CRUD ──────────────────────────────────────────
 export async function saveReminderTemplate(data: {
     id?: string;

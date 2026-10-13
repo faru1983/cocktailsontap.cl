@@ -1,18 +1,5 @@
 import { z } from 'zod';
-import { normalizePhoneE164, isValidPhoneE164 } from '@/lib/phone';
-
-const OptionalPhoneSchema = z.preprocess(
-    (v) => {
-        if (v == null || v === '') return '';
-        return normalizePhoneE164(String(v)) ?? '';
-    },
-    z.union([
-        z.literal(''),
-        z.string().refine(isValidPhoneE164, {
-            message: 'Celular inválido. Usa formato +56 9 1234 5678',
-        }),
-    ])
-);
+import { OptionalPhoneSchema, RequiredPhoneSchema } from '@/lib/phone';
 
 const IntegrationClientSchema = z.object({
     firstName: z.string().min(2, 'Nombre muy corto'),
@@ -80,12 +67,7 @@ export const IntegrationDirectSaleSchema = z.object({
 
 /** POST /api/v1/contacts — primer contacto / upsert persona (phone-first). */
 export const IntegrationContactSchema = z.object({
-    phone: z.preprocess(
-        (v) => normalizePhoneE164(String(v ?? '')) ?? '',
-        z.string().refine(isValidPhoneE164, {
-            message: 'Celular inválido. Usa formato +56 9 1234 5678',
-        })
-    ),
+    phone: RequiredPhoneSchema,
     firstName: z.string().min(1).max(120).optional(),
     lastName: z.string().max(120).optional().default(''),
     email: z.preprocess(
