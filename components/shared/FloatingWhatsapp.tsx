@@ -1,14 +1,14 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { usePathname } from 'next/navigation';
 import { WhatsappIcon } from './icons';
 import { WHATSAPP_URL } from '@/lib/config';
 
 const DEFAULT_MESSAGE = 'Hola, estoy cotizando desde la pagina web y tengo algunas dudas.';
-const STORAGE_KEY = 'cot-floating-whatsapp-pos';
+const LEGACY_STORAGE_KEY = 'cot-floating-whatsapp-pos';
 const BUTTON_SIZE = 48;
-const EDGE_PADDING = 12;
+const EDGE_PADDING = 16;
 
 interface FloatingWhatsappProps {
     /** Mensaje prearmado al abrir WhatsApp */
@@ -26,14 +26,6 @@ function clampPosition(x: number, y: number): Position {
         x: Math.max(EDGE_PADDING, Math.min(window.innerWidth - BUTTON_SIZE - EDGE_PADDING, x)),
         y: Math.max(EDGE_PADDING, Math.min(window.innerHeight - BUTTON_SIZE - EDGE_PADDING, y)),
     };
-}
-
-function getDefaultPosition(): Position {
-    if (typeof window === 'undefined') return { x: EDGE_PADDING, y: 0 };
-    return clampPosition(
-        window.innerWidth - BUTTON_SIZE - EDGE_PADDING,
-        window.innerHeight - BUTTON_SIZE - 96,
-    );
 }
 
 export default function FloatingWhatsapp({ message = DEFAULT_MESSAGE }: FloatingWhatsappProps) {
@@ -58,20 +50,13 @@ export default function FloatingWhatsapp({ message = DEFAULT_MESSAGE }: Floating
         return () => clearTimeout(timer);
     }, []);
 
+    // Limpiar residuos antiguos de localStorage que forzaban la posición al lado izquierdo
     useEffect(() => {
         try {
-            const saved = localStorage.getItem(STORAGE_KEY);
-            if (saved) {
-                const parsed = JSON.parse(saved) as Position;
-                if (typeof parsed.x === 'number' && typeof parsed.y === 'number') {
-                    setPosition(clampPosition(parsed.x, parsed.y));
-                    return;
-                }
-            }
+            localStorage.removeItem(LEGACY_STORAGE_KEY);
         } catch {
-            /* ignore corrupt storage */
+            /* ignore */
         }
-        setPosition(getDefaultPosition());
     }, []);
 
     useEffect(() => {
@@ -80,7 +65,7 @@ export default function FloatingWhatsapp({ message = DEFAULT_MESSAGE }: Floating
 
     useEffect(() => {
         const onResize = () => {
-            setPosition((prev) => (prev ? clampPosition(prev.x, prev.y) : getDefaultPosition()));
+            setPosition((prev) => (prev ? clampPosition(prev.x, prev.y) : null));
         };
         window.addEventListener('resize', onResize);
         return () => window.removeEventListener('resize', onResize);
@@ -111,25 +96,17 @@ export default function FloatingWhatsapp({ message = DEFAULT_MESSAGE }: Floating
         return () => window.removeEventListener('scroll', onScroll);
     }, [isWizard]);
 
-    const persistPosition = useCallback((pos: Position) => {
-        try {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(pos));
-        } catch {
-            /* ignore quota errors */
-        }
-    }, []);
-
     const handlePointerDown = (event: React.PointerEvent<HTMLAnchorElement>) => {
-        if (!position) return;
         const target = event.currentTarget;
+        const rect = target.getBoundingClientRect();
         dragRef.current = {
             active: true,
             moved: false,
             pointerId: event.pointerId,
             startX: event.clientX,
             startY: event.clientY,
-            originX: position.x,
-            originY: position.y,
+            originX: positionRef.current?.x ?? rect.left,
+            originY: positionRef.current?.y ?? rect.top,
         };
         target.setPointerCapture(event.pointerId);
     };
@@ -140,11 +117,15 @@ export default function FloatingWhatsapp({ message = DEFAULT_MESSAGE }: Floating
 
         const dx = event.clientX - drag.startX;
         const dy = event.clientY - drag.startY;
-        if (Math.abs(dx) > 4 || Math.abs(dy) > 4) drag.moved = true;
+        if (Math.abs(dx) > 4 || Math.abs(dy) > 4) {
+            drag.moved = true;
+        }
 
-        const next = clampPosition(drag.originX + dx, drag.originY + dy);
-        positionRef.current = next;
-        setPosition(next);
+        if (drag.moved) {
+            const next = clampPosition(drag.originX + dx, drag.originY + dy);
+            positionRef.current = next;
+            setPosition(next);
+        }
     };
 
     const finishDrag = (event: React.PointerEvent<HTMLAnchorElement>) => {
@@ -153,8 +134,6 @@ export default function FloatingWhatsapp({ message = DEFAULT_MESSAGE }: Floating
 
         drag.active = false;
         event.currentTarget.releasePointerCapture(event.pointerId);
-
-        if (positionRef.current) persistPosition(positionRef.current);
     };
 
     const handleClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
@@ -164,16 +143,16 @@ export default function FloatingWhatsapp({ message = DEFAULT_MESSAGE }: Floating
         }
     };
 
-    if (!position) return null;
-
     const whatsappUrl = `${WHATSAPP_URL}?text=${encodeURIComponent(message)}`;
     const shouldHide = isWizard && hiddenOnScroll;
 
     return (
         <div
             id="floating-whatsapp"
-            style={{ left: position.x, top: position.y }}
-            className={`fixed z-[90] touch-none transition-all duration-300 ease-in-out ${
+            style={position ? { left: position.x, top: position.y } : undefined}
+            className={`fixed z-[90] touch-none transition-[opacity,transform] duration-300 ease-in-out ${
+                !position ? 'left-4 sm:left-6 bottom-24' : ''
+            } ${
                 visible && !shouldHide
                     ? 'opacity-100 scale-100 visible pointer-events-auto'
                     : 'opacity-0 scale-75 invisible pointer-events-none'
