@@ -121,6 +121,10 @@ export function useWizard(cocktails: CocktailForWizard[], comunas: Comuna[], cat
         });
     }, []);
 
+    const setSelections = useCallback((selections: WizardSelection[]) => {
+        setState((prev) => ({ ...prev, selections }));
+    }, []);
+
     const toggleCocktail = useCallback((id: string) => {
         setState((prev) => ({ ...prev, expandedCocktailId: prev.expandedCocktailId === id ? null : id }));
     }, []);
@@ -266,7 +270,7 @@ export function useWizard(cocktails: CocktailForWizard[], comunas: Comuna[], cat
 
     return {
         state, updateEventData, updateConsumption, updateContact,
-        updateQuantity, toggleCocktail, toggleCategory, goToStep, reset,
+        updateQuantity, setSelections, toggleCocktail, toggleCategory, goToStep, reset,
         validateStep, calculateSummaryData: calculateSummaryDataBound, calculateSmartConfig, getWhatsAppQuoteUrl,
         initCategory, updateDispenser, updateServiceType
     };

@@ -1,15 +1,19 @@
 'use client';
 
 import Image from 'next/image';
+import Link from 'next/link';
 import { useState } from 'react';
 import type { Product, ICart } from '@/lib/types';
 import { formatCurrency } from '@/lib/utils';
 import { getDrinkYieldInfo } from '@/lib/wizardLogic';
+import { slugifyProductName } from '@/lib/productDetails';
+import { trackProductAddToCart } from '@/lib/fpixel';
 import QuantitySelector from '@/components/ui/QuantitySelector';
 
 interface ProductCardProps {
     product: Product;
     cart: ICart;
+    allowDetailLink?: boolean;
 }
 
 interface Particle {
@@ -20,7 +24,7 @@ interface Particle {
     ty: number;
 }
 
-export default function ProductCard({ product, cart }: ProductCardProps) {
+export default function ProductCard({ product, cart, allowDetailLink = false }: ProductCardProps) {
     const [selectedSize, setSelectedSize] = useState(product.selectedSize || product.sizes[0]?.size || '');
     const [particles, setParticles] = useState<Particle[]>([]);
 
@@ -51,6 +55,15 @@ export default function ProductCard({ product, cart }: ProductCardProps) {
             sizeInfo.isDisposable,
             displayImage
         );
+
+        // Meta Pixel AddToCart
+        trackProductAddToCart({
+            id: product.id,
+            name: product.name,
+            price: sizeInfo.offerPrice,
+            category: product.category,
+            quantity: 1,
+        });
 
         // 2. Animación Fly to Cart (React + Tailwind v4)
         const btn = e.currentTarget;
@@ -109,29 +122,61 @@ export default function ProductCard({ product, cart }: ProductCardProps) {
                 </div>
             ))}
 
-            <div className="aspect-square overflow-hidden bg-[#f8fafc] relative">
-                <Image
-                    src={displayImage}
-                    alt={product.name}
-                    fill
-                    key={displayImage} // Force re-animation on swap
-                    className="object-cover transition-all duration-700 ease-in-out group-hover:scale-110 animate-fade-in"
-                    sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 20vw"
-                />
-            </div>
+            {allowDetailLink && product.category !== 'Otros' ? (
+                <Link
+                    href={`/barriles/${slugifyProductName(product.name)}`}
+                    className="aspect-square overflow-hidden bg-[#f8fafc] relative block group/img cursor-pointer"
+                    title={`Ver detalles de ${product.name}`}
+                >
+                    <Image
+                        src={displayImage}
+                        alt={product.name}
+                        fill
+                        key={displayImage}
+                        className="object-cover transition-all duration-700 ease-in-out group-hover:scale-105 animate-fade-in"
+                        sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 20vw"
+                    />
+                    <div className="absolute inset-0 bg-black/0 group-hover/img:bg-black/25 transition-colors duration-300 flex items-end justify-center pb-3 opacity-0 group-hover/img:opacity-100">
+                        <span className="bg-white/95 backdrop-blur-md text-brand-text text-[0.72rem] font-bold px-3 py-1 rounded-full shadow-md border border-white/40">
+                            Ver detalles →
+                        </span>
+                    </div>
+                </Link>
+            ) : (
+                <div className="aspect-square overflow-hidden bg-[#f8fafc] relative">
+                    <Image
+                        src={displayImage}
+                        alt={product.name}
+                        fill
+                        key={displayImage}
+                        className="object-cover transition-all duration-700 ease-in-out group-hover:scale-105 animate-fade-in"
+                        sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 20vw"
+                    />
+                </div>
+            )}
             <div className="px-5 py-6 flex flex-col flex-1">
-                <h3 className="text-[1.2rem] font-bold text-brand-text leading-[1.3] mb-1.5">{product.name}</h3>
+                {allowDetailLink && product.category !== 'Otros' ? (
+                    <Link href={`/barriles/${slugifyProductName(product.name)}`} className="no-underline group/title block">
+                        <h3 className="text-[1.2rem] font-bold text-brand-text leading-[1.3] mb-1.5 group-hover/title:text-primary transition-colors">
+                            {product.name}
+                        </h3>
+                    </Link>
+                ) : (
+                    <h3 className="text-[1.2rem] font-bold text-brand-text leading-[1.3] mb-1.5">{product.name}</h3>
+                )}
                 <p className="text-brand-text-muted text-[0.85rem] leading-[1.5] mb-4 flex-1">{product.description}</p>
 
-                <select
-                    className="w-full p-3 rounded-xl border border-brand-border bg-white text-[0.9rem] font-medium text-brand-text mb-5 outline-none transition-colors duration-200 cursor-pointer appearance-none bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20width%3D%2224%22%20height%3D%2224%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cpath%20d%3D%22M7%2010L12%2015L17%2010%22%20stroke%3D%22%231e293b%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%2F%3E%3C%2Fsvg%3E')] bg-no-repeat bg-[position:calc(100%-1rem)_center] pr-10 hover:border-primary focus:border-primary focus:ring-1 focus:ring-primary"
-                    value={selectedSize}
-                    onChange={(e) => handleSizeChange(e.target.value)}
-                >
-                    {product.sizes.map((s) => (
-                        <option key={s.size} value={s.size}>{s.size}</option>
-                    ))}
-                </select>
+                {product.sizes.length > 1 && (
+                    <select
+                        className="w-full p-3 rounded-xl border border-brand-border bg-white text-[0.9rem] font-medium text-brand-text mb-5 outline-none transition-colors duration-200 cursor-pointer appearance-none bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20width%3D%2224%22%20height%3D%2224%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cpath%20d%3D%22M7%2010L12%2015L17%2010%22%20stroke%3D%22%231e293b%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%2F%3E%3C%2Fsvg%3E')] bg-no-repeat bg-[position:calc(100%-1rem)_center] pr-10 hover:border-primary focus:border-primary focus:ring-1 focus:ring-primary"
+                        value={selectedSize}
+                        onChange={(e) => handleSizeChange(e.target.value)}
+                    >
+                        {product.sizes.map((s) => (
+                            <option key={s.size} value={s.size}>{s.size}</option>
+                        ))}
+                    </select>
+                )}
 
                 <div className={`flex flex-row items-baseline justify-center gap-2 font-extrabold text-[#059669] text-[1.3rem] min-h-[2rem] leading-none ${drinkYield ? 'mb-1' : 'mb-4'}`}>
                     {quantity > 0 ? (

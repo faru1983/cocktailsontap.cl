@@ -9,15 +9,16 @@ interface ProductCatalogProps {
     categories?: string[];
     activeCategory: string;
     cart: ICart;
+    allowDetailLink?: boolean;
 }
 
-export default function ProductCatalog({ products, activeCategory, cart }: ProductCatalogProps) {
+export default function ProductCatalog({ products, activeCategory, cart, allowDetailLink = false }: ProductCatalogProps) {
     const filtered = products.filter((p) => p.category === activeCategory);
 
     return (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 md:gap-8 items-start w-full mt-4">
             {filtered.map((product) => (
-                <ProductCard key={product.id} product={product} cart={cart} />
+                <ProductCard key={product.id} product={product} cart={cart} allowDetailLink={allowDetailLink} />
             ))}
         </div>
     );

@@ -17,6 +17,7 @@ export interface SupabaseProduct {
     name: string;
     description: string;
     image_url: string | null;
+    pdp_metadata?: PdpMetadata | null;
     categories: { name: string } | null;
     product_prices: {
         size: string;
@@ -47,6 +48,23 @@ export interface ProductPrice {
     image?: string;
 }
 
+export interface PdpMetadata {
+    headline?: string;
+    commercial_desc?: string;
+    abv?: string;
+    serving_temperature?: string;
+    glassware?: string;
+    garnish?: string;
+    flavor_profile?: {
+        sweetness?: number; // 1-5
+        acidity?: number;   // 1-5
+        intensity?: number; // 1-5
+        freshness?: number; // 1-5
+    };
+    recommended_addon_ids?: string[];
+    related_product_ids?: string[];
+}
+
 export interface Product {
     id: string;
     name: string;
@@ -55,6 +73,7 @@ export interface Product {
     category: string;
     sizes: ProductPrice[];
     selectedSize?: string;
+    pdp_metadata?: PdpMetadata | null;
 }
 
 export interface CocktailForWizard {
@@ -477,6 +496,23 @@ export const ProductPriceSaveSchema = z.object({
     image_url: z.string().max(500).nullable().optional(),
 });
 
+export const PdpMetadataSchema = z.object({
+    headline: z.string().max(250).optional().nullable(),
+    commercial_desc: z.string().max(3000).optional().nullable(),
+    abv: z.string().max(50).optional().nullable(),
+    serving_temperature: z.string().max(60).optional().nullable(),
+    glassware: z.string().max(100).optional().nullable(),
+    garnish: z.string().max(150).optional().nullable(),
+    flavor_profile: z.object({
+        sweetness: z.coerce.number().min(1).max(5).optional(),
+        acidity: z.coerce.number().min(1).max(5).optional(),
+        intensity: z.coerce.number().min(1).max(5).optional(),
+        freshness: z.coerce.number().min(1).max(5).optional(),
+    }).optional().nullable(),
+    recommended_addon_ids: z.array(z.string().uuid()).optional().nullable(),
+    related_product_ids: z.array(z.string().uuid()).optional().nullable(),
+}).optional().nullable();
+
 export const ProductSaveSchema = z.object({
     id: z.string().uuid().optional().nullable(),
     name: z.string().min(1).max(120),
@@ -486,6 +522,7 @@ export const ProductSaveSchema = z.object({
     is_active: z.boolean().optional(),
     hide_from_recipes: z.boolean().optional(),
     image_url: z.string().max(500).nullable().optional(),
+    pdp_metadata: PdpMetadataSchema,
 });
 
 /** Recetario — insumos y recetas */

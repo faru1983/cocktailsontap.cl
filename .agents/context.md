@@ -41,6 +41,38 @@
 
 ## Ultimos Cambios
 
+### 14-10-2026 — Páginas Únicas de Producto (`/barriles/[slug]`), SEO Rich Snippets, Cross-selling y Meta CAPI/Pixel Granular
+
+- **Páginas de Detalle de Producto (PDP) para Barriles 5L (`/barriles/[slug]`)**:
+  - Implementada la ruta dinámica Server Component `app/barriles/[slug]/page.tsx` para las 25 variedades de cócteles, combinados y mocktails.
+  - Creado `lib/productDetails.ts` con slugs SEO canónicos y catálogo enriquecido de datos comerciales: notas de cata, maridaje, perfil de sabor visual (dulzor, acidez, intensidad, refrescancia 1-5), graduación alcohólica (ABV), temperatura de servicio y cristalería recomendada.
+  - Generación de metadatos dinámicos (`generateMetadata`) con OpenGraph optimizado para WhatsApp y redes sociales (fotos de alta resolución, títulos y precios).
+  - Schema.org JSON-LD de tipo `Product` con moneda CLP, precio oferta, disponibilidad en stock y marca para rich snippets en Google Search y Google Shopping orgánico.
+- **Componente de Ficha de Producto (`components/products/ProductDetailView.tsx`)**:
+  - Vista responsiva con galería visual, badges de formato (Party Keg 5L, 25 Cócteles de 200 ml), cálculo comparativo de ahorro frente a barra tradicional (\$1.800/trago vs \$6.500 en bar), e infografía educativa en 3 pasos sobre el funcionamiento del barril con grifo integrado sin devolución de equipos.
+  - **Cross-selling interactivo (Perfect Serve)**: Checkboxes opcionales para sumar en 1 clic hielo (cubo/frappe), decoraciones (menta fresca, rodajas de limón o naranja deshidratada) y bombillas ecológicas de la categoría `Otros`.
+  - Botones duales de llamada a la acción: "Agregar al Pedido" y "Comprar Ahora" (con redirección directa al checkout con modal auto-abierto vía `?checkout=open`), más botón de consulta rápida por WhatsApp pre-rellenado con el cóctel.
+- **Optimización y Navegación en Catálogo (`ProductCard.tsx` & `DirectWizardShell.tsx`)**:
+  - Eliminado el selector desplegable redundante de 5L cuando los productos tienen un solo tamaño disponible, dejando la tarjeta más limpia y compacta.
+  - **Aislamiento de links por contexto (`allowDetailLink`)**: El enlace hacia la ficha de producto `/barriles/[slug]` queda **exclusivo para `/barriles`** (`DirectStep1Products.tsx`). En el wizard de eventos (`EventWizardCatalog.tsx`), `EventQuoteView.tsx` y `DirectQuoteView.tsx`, `allowDetailLink = false`, manteniendo el catálogo de eventos 100% enfocado en armar la barra sin enlaces que desvíen al usuario fuera del embudo de cotización.
+  - **Corrección de Imagen Desechable**: En `ProductDetailView.tsx` y `app/barriles/[slug]/page.tsx`, la selección de imagen y precio ahora prioriza estrictamente `isDisposable === true`, garantizando que se muestre la foto real del barril Party Keg desechable (en lugar del barril Inox de arriendo) tanto en la web como en OpenGraph y Schema.org.
+  - El botón "Agregar" y los selectores de cantidad `+` / `-` se mantuvieron 100% operativos en el catálogo para compras rápidas.
+  - **Sincronización de Carrito**: Persistencia cruzada de selecciones en `localStorage` (`cot_direct_selections`) para compartir ítems entre la PDP y el catálogo principal, con limpieza automática al completar la compra o reiniciar el wizard.
+- **Tracking Granular de Meta Pixel**:
+  - Nuevas funciones `trackProductViewContent` y `trackProductAddToCart` en `lib/fpixel.ts`.
+  - Disparo de `ViewContent` por producto con `content_ids` (UUID Supabase), valor, moneda y categoría al ingresar a la ficha, habilitando retargeting dinámico (DPA) y campañas de catálogo Advantage+.
+  - Disparo de `AddToCart` al pulsar "Agregar" tanto en la tarjeta de catálogo como en la PDP.
+- **Persistencia Dinámica en Base de Datos y Panel Admin (`pdp_metadata` JSONB)**:
+  - Añadida columna `pdp_metadata JSONB DEFAULT '{}'::jsonb` a la tabla `products` (`supabase/migrations/20261014140000_product_pdp_metadata.sql`).
+  - Sembrados metadatos comerciales completos para los 27 productos del catálogo (`scripts/seedPdpMetadata.ts`): subtítulo, descripción técnica, ABV, temperatura de servicio, cristalería, garnish, perfil de sabor (dulzor, acidez, intensidad, frescura 1-5), complementos recomendados específicos y cócteles relacionados.
+  - Tipado en `lib/types.ts` (`PdpMetadata`, `PdpMetadataSchema`, `Product.pdp_metadata`) y mapeado con caché en `lib/serverData.ts`.
+  - En `/admin/products` (`ProductsClient.tsx`), incorporada sección desplegable "Ficha E-commerce / Barriles 5L (PDP)" para editar en tiempo real subtítulos, descripciones comerciales, notas de cata, sliders de perfil de sabor (1 a 5), selección de complementos recomendados (categoría 'Otros') y selección de cócteles relacionados ("También te podría gustar"). Modal ampliado a `maxWidth="840px"`.
+  - En `ProductDetailView.tsx`:
+    - Conectado a `product.pdp_metadata` con fallback transparente a `ENRICHED_CATALOG`.
+    - **Complementos dinámicos y cantidades múltiples**: Solo se muestran los complementos recomendados configurados para el cóctel (ej. Mojito -> Hielo Frappe, Menta, Limón, Bombillas). Reemplazado el toggle binario por selector interactivo de cantidad `[-] qty [+]` que permite pedir múltiples bolsas de hielo, paquetes de menta o cítricos y sumarlos al carrito compartido.
+    - **Recomendaciones dinámicas**: "También te podría gustar" prioriza los cócteles configurados en `pdp_metadata.related_product_ids`.
+- **Archivos**: `lib/types.ts`, `lib/serverData.ts`, `app/actions/admin/productActions.ts`, `app/admin/products/ProductsClient.tsx`, `components/admin/Modal.tsx`, `components/products/ProductDetailView.tsx`, `app/barriles/[slug]/page.tsx`, `supabase/migrations/20261014140000_product_pdp_metadata.sql`, `scripts/seedPdpMetadata.ts`.
+
 ### 13-10-2026 — Limpieza de Código Muerto, Eliminación de Redundancias y Unificación de Helpers
 
 - **Eliminación de archivos huérfanos y componentes obsoletos**:
@@ -180,7 +212,7 @@
   - "Reiniciar" en esquina superior derecha restablece y lleva a `/eventos`.
   - "Volver al inicio" en paso 1 lleva a `/cotizar`.
 - **Ocultamiento en scroll**:
-  - Menú sándwich (`Navbar.tsx`) y botón flotante de WhatsApp (`FloatingWhatsapp.tsx`) ahora se ocultan suavemente al hacer scroll hacia abajo y reaparecen al subir o al llegar al tope (aplicado exclusivamente en `/eventos` y `/barriles`). Default de WhatsApp ajustado al borde derecho.
+  - Menú sándwich (`Navbar.tsx`) y botón flotante de WhatsApp (`FloatingWhatsapp.tsx`) ahora se ocultan suavemente al hacer scroll hacia abajo y reaparecen al subir o al llegar al tope (aplicado exclusivamente en `/eventos` y `/barriles`). Default de WhatsApp ajustado al borde izquierdo.
 
 
 - Todas las secciones admin con pestañas persisten en `?tab=` al recargar (mismo patrón que Recetario).

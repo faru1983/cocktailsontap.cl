@@ -74,7 +74,7 @@ export const fetchAllProductData = unstable_cache(
                 .from('products')
                 .select(
                     `
-                id, name, description, image_url,
+                id, name, description, image_url, pdp_metadata,
                 categories ( name ),
                 product_prices ( 
                     size, size_value, unit_id, is_disposable, price, offer_price, display_order, is_active, image_url,
@@ -188,6 +188,7 @@ export const fetchAllProductData = unstable_cache(
                 category: p.categories?.name ?? 'Uncategorized',
                 sizes,
                 selectedSize: sizes[0]?.size ?? '',
+                pdp_metadata: p.pdp_metadata || null,
             };
         });
 

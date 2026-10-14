@@ -98,6 +98,7 @@ export async function saveProduct(product: unknown, prices: unknown[]) {
     }
     revalidatePath('/admin/products');
     revalidatePath('/admin/recetario');
+    revalidatePath('/barriles');
     revalidateTag('product-data', 'max');
 }
 

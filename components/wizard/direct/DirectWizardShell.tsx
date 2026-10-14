@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, useMemo, useRef } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useWizard } from '@/hooks/useWizard';
 import { AlertCircle, ArrowLeft, ShoppingCart } from 'lucide-react';
 import type { CocktailForWizard, Comuna, Region } from '@/lib/types';
@@ -26,6 +26,7 @@ type SendStatus = 'idle' | 'saving' | 'saved' | 'error';
 
 export default function DirectWizardShell({ cocktails, comunas, regions, categories, initialServiceType }: Props) {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const wizard = useWizard(cocktails, comunas, categories, initialServiceType);
     const { state } = wizard;
 
@@ -34,6 +35,45 @@ export default function DirectWizardShell({ cocktails, comunas, regions, categor
     const [quoteToken, setQuoteToken] = useState<string | null>(null);
     const [saveError, setSaveError] = useState('');
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const isCartInitializedRef = useRef(false);
+
+    // 1. Sincronizar carrito desde localStorage al montar
+    useEffect(() => {
+        if (isCartInitializedRef.current) return;
+        isCartInitializedRef.current = true;
+        try {
+            const saved = localStorage.getItem('cot_direct_selections');
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                    wizard.setSelections(parsed);
+                }
+            }
+        } catch {
+            // Ignorar errores
+        }
+    }, [wizard]);
+
+    // 2. Persistir selecciones de Direct en localStorage cuando cambian
+    useEffect(() => {
+        if (!isCartInitializedRef.current) return;
+        try {
+            if (state.selections.length > 0) {
+                localStorage.setItem('cot_direct_selections', JSON.stringify(state.selections));
+            } else {
+                localStorage.removeItem('cot_direct_selections');
+            }
+        } catch {
+            // Ignorar errores
+        }
+    }, [state.selections]);
+
+    // 3. Auto-abrir modal si la URL trae ?checkout=open
+    useEffect(() => {
+        if (searchParams.get('checkout') === 'open' && state.selections.length > 0) {
+            setIsModalOpen(true);
+        }
+    }, [searchParams, state.selections.length]);
 
     useEffect(() => {
         wizard.initCategory(categories);
@@ -103,6 +143,9 @@ export default function DirectWizardShell({ cocktails, comunas, regions, categor
         });
 
         if (result.success && result.token) {
+            try {
+                localStorage.removeItem('cot_direct_selections');
+            } catch {}
             setQuoteToken(result.token);
             setSendStatus('saved');
             setIsModalOpen(false);
@@ -118,6 +161,9 @@ export default function DirectWizardShell({ cocktails, comunas, regions, categor
         setQuoteToken(null);
         setValidationError('');
         setIsModalOpen(false);
+        try {
+            localStorage.removeItem('cot_direct_selections');
+        } catch {}
         wizard.reset();
         window.location.href = '/cotizar';
     };

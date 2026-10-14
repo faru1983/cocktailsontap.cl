@@ -129,6 +129,7 @@ export default function DirectStep1Products({ wizard, cocktails, categories }: P
                     products={mappedProducts}
                     activeCategory={currentCategory}
                     cart={wizardCart}
+                    allowDetailLink={true}
                 />
             </div>
         </div>

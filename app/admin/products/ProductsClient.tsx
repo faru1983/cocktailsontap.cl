@@ -21,7 +21,10 @@ import {
     Tag,
     Layers,
     Package,
-    PlusCircle
+    PlusCircle,
+    ChevronDown,
+    ChevronUp,
+    Sparkles
 } from 'lucide-react';
 
 type Tab = 'products' | 'categories' | 'gallery' | 'units';
@@ -154,6 +157,7 @@ export default function ProductsClient({
     // ─── Modal States ────────────────────────────────────────────────────────
     const [modalCategory, setModalCategory] = useState<{ isOpen: boolean; data: any }>({ isOpen: false, data: null });
     const [modalProduct, setModalProduct] = useState<{ isOpen: boolean; data: any; prices: any[] }>({ isOpen: false, data: null, prices: [] });
+    const [pdpSectionOpen, setPdpSectionOpen] = useState(false);
     const [modalUnit, setModalUnit] = useState<{ isOpen: boolean; data: any }>({ isOpen: false, data: null });
     const [modalGallery, setModalGallery] = useState<{ isOpen: boolean; onSelect?: (url: string) => void }>({ isOpen: false });
     const [galleryTarget, setGalleryTarget] = useState<{ index: number | 'product' | null }>({ index: null });
@@ -216,9 +220,36 @@ export default function ProductsClient({
     }
 
     const openProductModal = (prod: any = null) => {
+        const rawPdp = prod?.pdp_metadata || {};
+        const pdp_metadata = {
+            headline: rawPdp.headline ?? '',
+            commercial_desc: rawPdp.commercial_desc ?? '',
+            abv: rawPdp.abv ?? '',
+            serving_temperature: rawPdp.serving_temperature ?? '',
+            glassware: rawPdp.glassware ?? '',
+            garnish: rawPdp.garnish ?? '',
+            flavor_profile: {
+                sweetness: rawPdp.flavor_profile?.sweetness ?? 3,
+                acidity: rawPdp.flavor_profile?.acidity ?? 3,
+                intensity: rawPdp.flavor_profile?.intensity ?? 3,
+                freshness: rawPdp.flavor_profile?.freshness ?? 3,
+            },
+            recommended_addon_ids: Array.isArray(rawPdp.recommended_addon_ids) ? rawPdp.recommended_addon_ids : [],
+            related_product_ids: Array.isArray(rawPdp.related_product_ids) ? rawPdp.related_product_ids : [],
+        };
+
         setModalProduct({ 
             isOpen: true, 
-            data: prod || { name: '', description: '', image_url: '', display_order: 0, category_id: categories[0]?.id || '', is_active: true, hide_from_recipes: false },
+            data: prod ? { ...prod, pdp_metadata } : { 
+                name: '', 
+                description: '', 
+                image_url: '', 
+                display_order: 0, 
+                category_id: categories[0]?.id || '', 
+                is_active: true, 
+                hide_from_recipes: false,
+                pdp_metadata
+            },
             prices: prod ? p_normalize(prod.product_prices) : [{ size: '', size_value: 0, unit_id: measurementUnits.find(u => u.abbreviation === 'L')?.id || '', is_disposable: false, price: 0, offer_price: null }]
         });
     }
@@ -360,6 +391,13 @@ export default function ProductsClient({
     };
 
     const formatPrice = (n: number) => new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'Clp', minimumFractionDigits: 0 }).format(n);
+
+    const otrosCategory = categories.find(c => c.name.toLowerCase() === 'otros');
+    const addonsAvailable = indexedProducts.filter(p => p.categories?.name?.toLowerCase() === 'otros' || p.category_id === otrosCategory?.id);
+    const otherCocktailsAvailable = indexedProducts.filter(p => 
+        (p.categories?.name?.toLowerCase() !== 'otros' && p.category_id !== otrosCategory?.id) &&
+        p.id !== modalProduct.data?.id
+    );
 
     return (
         <div className="pb-16 w-full">
@@ -614,7 +652,7 @@ export default function ProductsClient({
                 </form>
             </Modal>
 
-            <Modal isOpen={modalProduct.isOpen} onClose={() => setModalProduct({ isOpen: false, data: null, prices: [] })} title={modalProduct.data?.id ? 'Ficha de Producto' : 'Nuevo Producto'}>
+            <Modal isOpen={modalProduct.isOpen} onClose={() => setModalProduct({ isOpen: false, data: null, prices: [] })} title={modalProduct.data?.id ? 'Ficha de Producto' : 'Nuevo Producto'} maxWidth="840px">
                 <form onSubmit={submitProduct} className="space-y-6 max-h-[70vh] overflow-y-auto px-1 pr-3 scrollbar-thin scrollbar-thumb-white/10">
                     <div className="grid grid-cols-2 gap-4">
                         <div className="col-span-2 sm:col-span-1">
@@ -648,7 +686,7 @@ export default function ProductsClient({
                     </div>
 
                     <div>
-                        <label className="block text-slate-500 text-[10px] font-black uppercase tracking-widest mb-2">Descripción Detallada</label>
+                        <label className="block text-slate-500 text-[10px] font-black uppercase tracking-widest mb-2">Descripción Detallada (Ingredientes)</label>
                         <textarea className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white text-sm outline-none focus:border-[#E2A049] resize-none h-24" value={modalProduct.data?.description || ''} onChange={e => setModalProduct({ ...modalProduct, data: { ...modalProduct.data, description: e.target.value } })} />
                     </div>
 
@@ -671,6 +709,251 @@ export default function ProductsClient({
                             </span>
                         </span>
                     </label>
+
+                    {/* Sección PDP E-commerce / Barril 5L */}
+                    <div className="pt-4 border-t border-white/5">
+                        <button
+                            type="button"
+                            onClick={() => setPdpSectionOpen(prev => !prev)}
+                            className="w-full flex items-center justify-between p-3.5 bg-black/25 hover:bg-black/40 border border-white/10 rounded-xl text-left transition-colors cursor-pointer group"
+                        >
+                            <div className="flex items-center gap-2.5">
+                                <div className="p-1.5 rounded-lg bg-[#E2A049]/10 text-[#E2A049]">
+                                    <Sparkles size={16} />
+                                </div>
+                                <div>
+                                    <span className="text-white text-xs font-black uppercase tracking-wider block">
+                                        Ficha E-commerce / Barriles 5L (Página de Detalle)
+                                    </span>
+                                    <span className="text-[11px] text-slate-400 block mt-0.5">
+                                        Subtítulo comercial, notas de cata, maridaje y complementos recomendados
+                                    </span>
+                                </div>
+                            </div>
+                            <div className="text-slate-400 group-hover:text-white transition-colors">
+                                {pdpSectionOpen ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                            </div>
+                        </button>
+
+                        {pdpSectionOpen && (
+                            <div className="mt-4 space-y-4 p-4 bg-black/20 rounded-2xl border border-white/5">
+                                {/* Subtítulo / Headline */}
+                                <div>
+                                    <label className="block text-slate-400 text-[10px] font-black uppercase tracking-widest mb-1.5">
+                                        Subtítulo / Headline Comercial
+                                    </label>
+                                    <input
+                                        type="text"
+                                        className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2.5 text-white text-xs outline-none focus:border-[#E2A049]"
+                                        placeholder="Ej: El cóctel cubano por excelencia con menta fresca, ron blanco y limón sutil."
+                                        value={modalProduct.data?.pdp_metadata?.headline || ''}
+                                        onChange={e => {
+                                            const pdp = { ...(modalProduct.data?.pdp_metadata || {}), headline: e.target.value };
+                                            setModalProduct({ ...modalProduct, data: { ...modalProduct.data, pdp_metadata: pdp } });
+                                        }}
+                                    />
+                                </div>
+
+                                {/* Descripción Comercial Extensa */}
+                                <div>
+                                    <label className="block text-slate-400 text-[10px] font-black uppercase tracking-widest mb-1.5">
+                                        Descripción Comercial y Notas de Cata
+                                    </label>
+                                    <textarea
+                                        className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2.5 text-white text-xs outline-none focus:border-[#E2A049] resize-none h-24"
+                                        placeholder="Descripción seductora para la ficha técnica del cóctel..."
+                                        value={modalProduct.data?.pdp_metadata?.commercial_desc || ''}
+                                        onChange={e => {
+                                            const pdp = { ...(modalProduct.data?.pdp_metadata || {}), commercial_desc: e.target.value };
+                                            setModalProduct({ ...modalProduct, data: { ...modalProduct.data, pdp_metadata: pdp } });
+                                        }}
+                                    />
+                                </div>
+
+                                {/* Grid 4 especificaciones técnicas */}
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    <div>
+                                        <label className="block text-slate-400 text-[10px] font-black uppercase tracking-widest mb-1">
+                                            Graduación Alcohólica (ABV)
+                                        </label>
+                                        <input
+                                            type="text"
+                                            className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-white text-xs outline-none focus:border-[#E2A049]"
+                                            placeholder="Ej: 12.5% Vol."
+                                            value={modalProduct.data?.pdp_metadata?.abv || ''}
+                                            onChange={e => {
+                                                const pdp = { ...(modalProduct.data?.pdp_metadata || {}), abv: e.target.value };
+                                                setModalProduct({ ...modalProduct, data: { ...modalProduct.data, pdp_metadata: pdp } });
+                                            }}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-slate-400 text-[10px] font-black uppercase tracking-widest mb-1">
+                                            Temperatura de Servicio
+                                        </label>
+                                        <input
+                                            type="text"
+                                            className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-white text-xs outline-none focus:border-[#E2A049]"
+                                            placeholder="Ej: 2°C a 4°C"
+                                            value={modalProduct.data?.pdp_metadata?.serving_temperature || ''}
+                                            onChange={e => {
+                                                const pdp = { ...(modalProduct.data?.pdp_metadata || {}), serving_temperature: e.target.value };
+                                                setModalProduct({ ...modalProduct, data: { ...modalProduct.data, pdp_metadata: pdp } });
+                                            }}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-slate-400 text-[10px] font-black uppercase tracking-widest mb-1">
+                                            Vaso & Cristalería Recomendada
+                                        </label>
+                                        <input
+                                            type="text"
+                                            className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-white text-xs outline-none focus:border-[#E2A049]"
+                                            placeholder="Ej: Vaso largo (Highball / Collins)"
+                                            value={modalProduct.data?.pdp_metadata?.glassware || ''}
+                                            onChange={e => {
+                                                const pdp = { ...(modalProduct.data?.pdp_metadata || {}), glassware: e.target.value };
+                                                setModalProduct({ ...modalProduct, data: { ...modalProduct.data, pdp_metadata: pdp } });
+                                            }}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-slate-400 text-[10px] font-black uppercase tracking-widest mb-1">
+                                            Decoración / Garnish Sugerido
+                                        </label>
+                                        <input
+                                            type="text"
+                                            className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-white text-xs outline-none focus:border-[#E2A049]"
+                                            placeholder="Ej: Penacho de menta y rodaja de limón"
+                                            value={modalProduct.data?.pdp_metadata?.garnish || ''}
+                                            onChange={e => {
+                                                const pdp = { ...(modalProduct.data?.pdp_metadata || {}), garnish: e.target.value };
+                                                setModalProduct({ ...modalProduct, data: { ...modalProduct.data, pdp_metadata: pdp } });
+                                            }}
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Perfil de Sabor (Sliders 1-5) */}
+                                <div className="pt-2">
+                                    <label className="block text-slate-400 text-[10px] font-black uppercase tracking-widest mb-2.5">
+                                        Perfil de Sabor (Escala 1 a 5)
+                                    </label>
+                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-black/30 p-3 rounded-xl border border-white/5">
+                                        {([
+                                            { key: 'sweetness', label: 'Dulzor' },
+                                            { key: 'acidity', label: 'Acidez / Cítrico' },
+                                            { key: 'intensity', label: 'Alcohol / Intensidad' },
+                                            { key: 'freshness', label: 'Frescura' },
+                                        ] as const).map(({ key, label }) => {
+                                            const val = modalProduct.data?.pdp_metadata?.flavor_profile?.[key] ?? 3;
+                                            return (
+                                                <div key={key} className="space-y-1">
+                                                    <div className="flex justify-between items-center text-[10px]">
+                                                        <span className="text-slate-400 font-bold">{label}</span>
+                                                        <span className="text-[#E2A049] font-black">{val}/5</span>
+                                                    </div>
+                                                    <input
+                                                        type="range"
+                                                        min="1"
+                                                        max="5"
+                                                        step="1"
+                                                        value={val}
+                                                        className="w-full accent-[#E2A049] cursor-pointer"
+                                                        onChange={e => {
+                                                            const num = parseInt(e.target.value, 10);
+                                                            const currentFp = modalProduct.data?.pdp_metadata?.flavor_profile || {};
+                                                            const pdp = {
+                                                                ...(modalProduct.data?.pdp_metadata || {}),
+                                                                flavor_profile: { ...currentFp, [key]: num }
+                                                            };
+                                                            setModalProduct({ ...modalProduct, data: { ...modalProduct.data, pdp_metadata: pdp } });
+                                                        }}
+                                                    />
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+
+                                {/* Complementos Recomendados (Categoría 'Otros') */}
+                                <div className="pt-2">
+                                    <label className="block text-slate-400 text-[10px] font-black uppercase tracking-widest mb-1.5">
+                                        Complementos Recomendados (Arma tu experiencia completa)
+                                    </label>
+                                    <p className="text-[11px] text-slate-500 mb-2.5">
+                                        Selecciona los hielos, decoraciones o bombillas que se sugerirán al cliente para este cóctel:
+                                    </p>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-40 overflow-y-auto p-2 bg-black/30 rounded-xl border border-white/5">
+                                        {addonsAvailable.map(addon => {
+                                            const currentAddonIds: string[] = modalProduct.data?.pdp_metadata?.recommended_addon_ids || [];
+                                            const isChecked = currentAddonIds.includes(addon.id);
+                                            return (
+                                                <label
+                                                    key={addon.id}
+                                                    className={`flex items-center gap-2.5 p-2 rounded-lg cursor-pointer text-xs transition-colors ${
+                                                        isChecked ? 'bg-[#E2A049]/15 text-white font-bold' : 'text-slate-400 hover:bg-white/5'
+                                                    }`}
+                                                >
+                                                    <input
+                                                        type="checkbox"
+                                                        className="accent-[#E2A049]"
+                                                        checked={isChecked}
+                                                        onChange={e => {
+                                                            const next = e.target.checked
+                                                                ? [...currentAddonIds, addon.id]
+                                                                : currentAddonIds.filter((id: string) => id !== addon.id);
+                                                            const pdp = { ...(modalProduct.data?.pdp_metadata || {}), recommended_addon_ids: next };
+                                                            setModalProduct({ ...modalProduct, data: { ...modalProduct.data, pdp_metadata: pdp } });
+                                                        }}
+                                                    />
+                                                    <span className="truncate">{addon.name}</span>
+                                                </label>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+
+                                {/* Cócteles Relacionados ('También te podría gustar') */}
+                                <div className="pt-2">
+                                    <label className="block text-slate-400 text-[10px] font-black uppercase tracking-widest mb-1.5">
+                                        Cócteles Relacionados (También te podría gustar)
+                                    </label>
+                                    <p className="text-[11px] text-slate-500 mb-2.5">
+                                        Elige qué otros cócteles destacar al pie de la página de este producto:
+                                    </p>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-44 overflow-y-auto p-2 bg-black/30 rounded-xl border border-white/5">
+                                        {otherCocktailsAvailable.map(cocktail => {
+                                            const currentRelIds: string[] = modalProduct.data?.pdp_metadata?.related_product_ids || [];
+                                            const isChecked = currentRelIds.includes(cocktail.id);
+                                            return (
+                                                <label
+                                                    key={cocktail.id}
+                                                    className={`flex items-center gap-2.5 p-2 rounded-lg cursor-pointer text-xs transition-colors ${
+                                                        isChecked ? 'bg-[#E2A049]/15 text-white font-bold' : 'text-slate-400 hover:bg-white/5'
+                                                    }`}
+                                                >
+                                                    <input
+                                                        type="checkbox"
+                                                        className="accent-[#E2A049]"
+                                                        checked={isChecked}
+                                                        onChange={e => {
+                                                            const next = e.target.checked
+                                                                ? [...currentRelIds, cocktail.id]
+                                                                : currentRelIds.filter((id: string) => id !== cocktail.id);
+                                                            const pdp = { ...(modalProduct.data?.pdp_metadata || {}), related_product_ids: next };
+                                                            setModalProduct({ ...modalProduct, data: { ...modalProduct.data, pdp_metadata: pdp } });
+                                                        }}
+                                                    />
+                                                    <span className="truncate">{cocktail.name}</span>
+                                                </label>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
 
                     <div className="pt-4 border-t border-white/5">
                         <div className="flex justify-between items-center mb-4 px-1">

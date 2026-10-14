@@ -215,3 +215,45 @@ export const trackOnce = (
   }
   event(name, options, userData, onceKey);
 };
+
+/**
+ * Trackea ViewContent granular para una ficha de producto única (/barriles/[slug]).
+ */
+export function trackProductViewContent(product: {
+  id: string;
+  name: string;
+  price: number;
+  category?: string;
+}) {
+  trackOnce(`viewContent_prod_${product.id}`, 'ViewContent', {
+    content_name: `${product.name} 5L`,
+    content_type: 'product',
+    content_ids: [product.id],
+    content_category: product.category || 'Barriles',
+    value: product.price,
+    currency: 'CLP',
+    service: 'barriles',
+  });
+}
+
+/**
+ * Trackea AddToCart cuando el usuario agrega un producto al pedido.
+ */
+export function trackProductAddToCart(product: {
+  id: string;
+  name: string;
+  price: number;
+  category?: string;
+  quantity?: number;
+}) {
+  event('AddToCart', {
+    content_name: product.name,
+    content_type: 'product',
+    content_ids: [product.id],
+    content_category: product.category || 'Barriles',
+    value: product.price * (product.quantity || 1),
+    currency: 'CLP',
+    num_items: product.quantity || 1,
+    service: 'barriles',
+  });
+}
