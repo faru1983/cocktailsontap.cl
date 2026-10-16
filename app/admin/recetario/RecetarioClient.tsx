@@ -554,7 +554,7 @@ export default function RecetarioClient({
     const [quoteRange, setQuoteRange] = useState<QuoteRange>('week');
     const [quotes, setQuotes] = useState<ProductionQuoteRow[]>([]);
     const [quoteRangeLabel, setQuoteRangeLabel] = useState({ from: '', to: '' });
-    const [selectedQuoteIds, setSelectedQuoteIds] = useState<Set<string>>(new Set());
+    const [selectedQuoteItemKeys, setSelectedQuoteItemKeys] = useState<Set<string>>(new Set());
     const [loadingQuotes, setLoadingQuotes] = useState(false);
     const [result, setResult] = useState<ProductionResult | null>(null);
     const [skippedNotice, setSkippedNotice] = useState<string[]>([]);
@@ -694,7 +694,7 @@ export default function RecetarioClient({
             if (res.success && res.quotes) {
                 setQuotes(res.quotes);
                 setQuoteRangeLabel({ from: res.from || '', to: res.to || '' });
-                setSelectedQuoteIds(new Set());
+                setSelectedQuoteItemKeys(new Set());
                 setResult(null);
             } else {
                 alert(res.error || 'Error al cargar cotizaciones');
@@ -869,20 +869,80 @@ export default function RecetarioClient({
         setSkippedNotice([]);
     };
 
+    const getQuoteItemKey = (quoteId: string, item: { id?: string }, idx: number) =>
+        item.id || `${quoteId}:${idx}`;
+
+    const toggleQuoteAllItems = (q: ProductionQuoteRow) => {
+        const keys = (q.quote_items || []).map((item, idx) => getQuoteItemKey(q.id, item, idx));
+        if (keys.length === 0) return;
+        setSelectedQuoteItemKeys((prev) => {
+            const next = new Set(prev);
+            const allChecked = keys.every((k) => next.has(k));
+            if (allChecked) {
+                keys.forEach((k) => next.delete(k));
+            } else {
+                keys.forEach((k) => next.add(k));
+            }
+            return next;
+        });
+    };
+
+    const toggleQuoteSingleItem = (key: string) => {
+        setSelectedQuoteItemKeys((prev) => {
+            const next = new Set(prev);
+            if (next.has(key)) next.delete(key);
+            else next.add(key);
+            return next;
+        });
+    };
+
+    const allRangeItemKeys = useMemo(
+        () =>
+            quotes.flatMap((q) =>
+                (q.quote_items || []).map((item, idx) => getQuoteItemKey(q.id, item, idx))
+            ),
+        [quotes]
+    );
+
+    const allRangeSelected =
+        allRangeItemKeys.length > 0 && allRangeItemKeys.every((k) => selectedQuoteItemKeys.has(k));
+
+    const toggleSelectAllQuotesInRange = () => {
+        if (allRangeItemKeys.length === 0) return;
+        setSelectedQuoteItemKeys((prev) => {
+            const everySelected = allRangeItemKeys.every((k) => prev.has(k));
+            if (everySelected) return new Set();
+            return new Set(allRangeItemKeys);
+        });
+    };
+
+    const selectedQuotesCount = useMemo(
+        () =>
+            quotes.filter((q) =>
+                (q.quote_items || []).some((item, idx) =>
+                    selectedQuoteItemKeys.has(getQuoteItemKey(q.id, item, idx))
+                )
+            ).length,
+        [quotes, selectedQuoteItemKeys]
+    );
+
     const calculateFromQuotes = () => {
-        const selected = quotes.filter((q) => selectedQuoteIds.has(q.id));
-        if (selected.length === 0) {
-            alert('Selecciona al menos una cotización.');
+        const selectedItems = quotes.flatMap((q) =>
+            (q.quote_items || []).filter((item, idx) =>
+                selectedQuoteItemKeys.has(getQuoteItemKey(q.id, item, idx))
+            )
+        );
+        if (selectedItems.length === 0) {
+            alert('Selecciona al menos un pedido o cóctel.');
             return;
         }
-        const allItems = selected.flatMap((q) => q.quote_items || []);
         const recipeIds = new Set(recipes.filter((r) => r.is_active).map((r) => r.product_id));
         const { litersByProductId, sizeBreakdownByProductId, scopedLitersByProductId, skipped } =
-            aggregateFromQuotes(allItems, recipeIds);
+            aggregateFromQuotes(selectedItems, recipeIds);
         if (Object.keys(litersByProductId).length === 0) {
             setResult(null);
             setSkippedNotice(skipped);
-            alert('No hay cócteles con receta en las cotizaciones seleccionadas.');
+            alert('No hay cócteles con receta en la selección actual.');
             return;
         }
         const scaled = scaleProduction(
@@ -898,7 +958,7 @@ export default function RecetarioClient({
     const clearProduction = () => {
         setManualLiters({});
         setSelectedManualProductIds([]);
-        setSelectedQuoteIds(new Set());
+        setSelectedQuoteItemKeys(new Set());
         setResult(null);
         setSkippedNotice([]);
     };
@@ -2165,67 +2225,127 @@ export default function RecetarioClient({
                                     </button>
                                 ))}
                             </div>
-                            {quoteRangeLabel.from && (
-                                <p className="text-xs text-slate-500 mb-4">
-                                    {quoteRangeLabel.from} → {quoteRangeLabel.to}
-                                    {loadingQuotes ? ' · Cargando…' : ` · ${quotes.length} pedidos`}
-                                </p>
-                            )}
+                            <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+                                {quoteRangeLabel.from ? (
+                                    <p className="text-xs text-slate-500">
+                                        {quoteRangeLabel.from} → {quoteRangeLabel.to}
+                                        {loadingQuotes ? ' · Cargando…' : ` · ${quotes.length} pedidos`}
+                                    </p>
+                                ) : (
+                                    <span />
+                                )}
+                                {quotes.length > 0 && !loadingQuotes && (
+                                    <button
+                                        type="button"
+                                        onClick={toggleSelectAllQuotesInRange}
+                                        className="text-xs font-bold text-[#E2A049] hover:text-[#e8b064] bg-transparent border-none cursor-pointer"
+                                    >
+                                        {allRangeSelected ? 'Deseleccionar todos' : 'Seleccionar todos'}
+                                    </button>
+                                )}
+                            </div>
 
-                            <div className="max-h-[360px] overflow-y-auto rounded-xl border border-white/5 mb-4">
+                            <div className="max-h-[420px] overflow-y-auto rounded-xl border border-white/5 mb-4">
                                 {quotes.length === 0 && !loadingQuotes && (
                                     <p className="p-6 text-slate-500 text-sm text-center">
                                         No hay cotizaciones confirmadas en este rango.
                                     </p>
                                 )}
                                 {quotes.map((q) => {
-                                    const checked = selectedQuoteIds.has(q.id);
+                                    const items = q.quote_items || [];
+                                    const itemKeys = items.map((item, idx) => getQuoteItemKey(q.id, item, idx));
+                                    const selectedCount = itemKeys.filter((k) => selectedQuoteItemKeys.has(k)).length;
+                                    const allChecked = itemKeys.length > 0 && selectedCount === itemKeys.length;
+                                    const someChecked = selectedCount > 0 && !allChecked;
                                     const name = [q.client_name, q.client_lastname].filter(Boolean).join(' ');
                                     return (
-                                        <label
+                                        <div
                                             key={q.id}
-                                            className={`flex items-start gap-3 px-4 py-3 border-b border-white/5 cursor-pointer ${
-                                                checked ? 'bg-[#E2A049]/5' : 'hover:bg-white/[0.02]'
+                                            className={`px-4 py-3 border-b border-white/5 transition-colors ${
+                                                selectedCount > 0 ? 'bg-[#E2A049]/5' : 'hover:bg-white/[0.02]'
                                             }`}
                                         >
-                                            <input
-                                                type="checkbox"
-                                                checked={checked}
-                                                onChange={() => {
-                                                    setSelectedQuoteIds((prev) => {
-                                                        const next = new Set(prev);
-                                                        if (next.has(q.id)) next.delete(q.id);
-                                                        else next.add(q.id);
-                                                        return next;
-                                                    });
-                                                }}
-                                                className="mt-1 accent-[#E2A049]"
-                                            />
-                                            <div className="flex-1 min-w-0">
-                                                <div className="text-sm font-bold text-white truncate">{name}</div>
-                                                <div className="text-xs text-slate-500">
-                                                    {q.event_date}
-                                                    {q.total_liters != null ? ` · ${q.total_liters} L` : ''}
+                                            <label className="flex items-start gap-3 cursor-pointer">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={allChecked}
+                                                    ref={(el) => {
+                                                        if (el) el.indeterminate = someChecked;
+                                                    }}
+                                                    onChange={() => toggleQuoteAllItems(q)}
+                                                    className="mt-1 accent-[#E2A049] cursor-pointer"
+                                                />
+                                                <div className="flex-1 min-w-0 flex flex-wrap items-center justify-between gap-2">
+                                                    <div className="min-w-0">
+                                                        <div className="text-sm font-bold text-white truncate">
+                                                            {name}
+                                                        </div>
+                                                        <div className="text-xs text-slate-500">
+                                                            {q.event_date}
+                                                            {q.total_liters != null ? ` · ${q.total_liters} L` : ''}
+                                                        </div>
+                                                    </div>
+                                                    {someChecked && (
+                                                        <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-[#E2A049]/15 text-[#E2A049]">
+                                                            {selectedCount} de {items.length} seleccionados
+                                                        </span>
+                                                    )}
                                                 </div>
-                                                <div className="text-[11px] text-slate-600 mt-1">
-                                                    {(q.quote_items || [])
-                                                        .map((i) => `${i.quantity}× ${i.product_name} (${i.size})`)
-                                                        .join(' · ')}
+                                            </label>
+
+                                            {items.length > 0 && (
+                                                <div className="flex flex-wrap gap-1.5 mt-2.5 pl-7">
+                                                    {items.map((item, idx) => {
+                                                        const key = getQuoteItemKey(q.id, item, idx);
+                                                        const itemSelected = selectedQuoteItemKeys.has(key);
+                                                        return (
+                                                            <button
+                                                                key={key}
+                                                                type="button"
+                                                                onClick={() => toggleQuoteSingleItem(key)}
+                                                                title={
+                                                                    itemSelected
+                                                                        ? 'Quitar este cóctel de la selección'
+                                                                        : 'Incluir solo este cóctel en la producción'
+                                                                }
+                                                                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${
+                                                                    itemSelected
+                                                                        ? 'bg-[#E2A049]/15 border-[#E2A049]/40 text-[#E2A049]'
+                                                                        : 'bg-[#0d1117]/60 border-white/10 text-slate-400 hover:border-white/25 hover:text-slate-200'
+                                                                }`}
+                                                            >
+                                                                <span
+                                                                    className={`w-3.5 h-3.5 rounded flex items-center justify-center border ${
+                                                                        itemSelected
+                                                                            ? 'bg-[#E2A049] border-[#E2A049] text-black'
+                                                                            : 'border-white/20 bg-transparent'
+                                                                    }`}
+                                                                >
+                                                                    {itemSelected && <Check size={10} strokeWidth={3} />}
+                                                                </span>
+                                                                <span>
+                                                                    {item.quantity}× {item.product_name} ({item.size})
+                                                                </span>
+                                                            </button>
+                                                        );
+                                                    })}
                                                 </div>
-                                            </div>
-                                        </label>
+                                            )}
+                                        </div>
                                     );
                                 })}
                             </div>
 
-                            <div className="flex flex-wrap gap-3">
+                            <div className="flex flex-wrap items-center gap-3">
                                 <button
                                     type="button"
                                     onClick={calculateFromQuotes}
-                                    disabled={selectedQuoteIds.size === 0}
+                                    disabled={selectedQuoteItemKeys.size === 0}
                                     className="bg-[#E2A049] text-black px-5 py-2.5 rounded-xl font-black text-sm border-none cursor-pointer disabled:opacity-40"
                                 >
-                                    Calcular ({selectedQuoteIds.size})
+                                    Calcular ({selectedQuotesCount}{' '}
+                                    {selectedQuotesCount === 1 ? 'pedido' : 'pedidos'} · {selectedQuoteItemKeys.size}{' '}
+                                    {selectedQuoteItemKeys.size === 1 ? 'ítem' : 'ítems'})
                                 </button>
                                 <button
                                     type="button"

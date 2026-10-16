@@ -439,12 +439,16 @@ export default function QuoteDetailClient({
     };
 
     const handleAddItem = (p: Product, size: string, price: number, offer: number) => {
+        const sizeMeta = p.sizes.find((s) => s.size === size);
         setEditItems((prev) => [
             ...prev,
             {
                 product_id: p.id,
                 product_name: p.name,
                 size,
+                size_value: sizeMeta?.sizeValue ?? null,
+                unit_id: sizeMeta?.unitId ?? null,
+                is_disposable: sizeMeta?.isDisposable ?? /desechable/i.test(size),
                 quantity: 1,
                 price_at_time: price,
                 offer_price_at_time: offer,

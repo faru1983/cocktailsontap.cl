@@ -271,6 +271,15 @@ export function rangeFor(range: QuoteRange, timeZone: string, now = new Date()):
     return getWeekRange(timeZone, now);
 }
 
+export function resolveQuoteItemSizeValue(
+    item: Pick<QuoteItemForProduction, 'size_value' | 'size'>
+): number {
+    const direct = Number(item.size_value) || 0;
+    if (direct > 0) return direct;
+    const match = String(item.size || '').match(/(\d+(?:\.\d+)?)/);
+    return match ? Number(match[1]) || 0 : 0;
+}
+
 /**
  * Agrega litros por product_id desde items de cotización.
  * Solo suma si product_id está en recipeProductIds y size_value > 0.
@@ -292,7 +301,7 @@ export function aggregateFromQuotes(
     const skippedSet = new Set<string>();
 
     for (const item of items) {
-        const sizeVal = Number(item.size_value) || 0;
+        const sizeVal = resolveQuoteItemSizeValue(item);
         const qty = Number(item.quantity) || 0;
         if (!item.product_id || sizeVal <= 0 || qty <= 0) {
             const label = item.product_name || 'Item sin nombre';

@@ -99,6 +99,9 @@ export async function updateQuoteItemsAdmin(
             product_id: string | null;
             product_name: string;
             size: string;
+            size_value?: number | null;
+            unit_id?: string | null;
+            is_disposable?: boolean | null;
             quantity: number;
             price_at_time: number;
             offer_price_at_time: number;
@@ -149,9 +152,19 @@ export async function updateQuoteItemsAdmin(
 
         // Upserts (Inserts/Updates)
         data.items.forEach(item => {
+            const cocktail = cocktails.find(c => c.id === item.product_id);
+            const priceData = cocktail?.prices[item.size];
+            const parsedSizeMatch = String(item.size || '').match(/(\d+(?:\.\d+)?)/);
+            const fallbackSizeVal = parsedSizeMatch ? Number(parsedSizeMatch[1]) || null : null;
             const itemData = {
                 ...item,
                 quote_id: quoteId,
+                size_value: priceData?.sizeValue ?? item.size_value ?? fallbackSizeVal,
+                unit_id: priceData?.unitId ?? item.unit_id ?? null,
+                is_disposable:
+                    priceData?.isDisposable ??
+                    item.is_disposable ??
+                    /desechable/i.test(String(item.size || '')),
             };
             promises.push(db.from('quote_items').upsert(itemData) as any);
         });

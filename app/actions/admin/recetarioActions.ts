@@ -317,6 +317,7 @@ export type ProductionQuoteRow = {
     event_date: string;
     total_liters: number | null;
     quote_items: {
+        id: string;
         product_id: string | null;
         product_name: string;
         quantity: number;
@@ -346,6 +347,7 @@ export async function getConfirmedQuotesForProduction(range: QuoteRange = 'week'
             event_date,
             total_liters,
             quote_items (
+                id,
                 product_id,
                 product_name,
                 quantity,

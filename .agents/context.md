@@ -41,6 +41,22 @@
 
 ## Ultimos Cambios
 
+### 16-10-2026 — Recetario / Producción: Corrección de cócteles omitidos (`size_value` nulo) y selección granular de cócteles por pedido
+
+- **Causa raíz de cócteles omitidos en Producción ("Sin receta o no líquidos: Caipiriña / Pisco Sour")**:
+  - Al editar una cotización desde `/admin/quotes/[id]` y agregar nuevos productos (`handleAddItem` en `QuoteDetailClient.tsx` + `updateQuoteItemsAdmin` en `app/actions/admin/adminActions.ts`), los ítems se guardaban en `quote_items` con `size_value = null`, `unit_id = null` e `is_disposable = false`.
+  - Cuando `aggregateFromQuotes` (`lib/services/productionService.ts`) procesaba las cotizaciones confirmadas, evaluaba `Number(item.size_value) || 0` → `0`, omitiendo esos barriles del cálculo de litros y mostrándolos en la alerta de *"Sin receta o no líquidos (omitidos)"* aunque el cóctel sí tuviera receta activa (y aunque otros pedidos del mismo mes sí sumaran ese mismo cóctel).
+- **Solución integral**:
+  - **Backfill en BD**: Actualizadas las 544 filas históricas de `quote_items` que tenían `size_value IS NULL` cruzándolas contra `product_prices` (`size_value`, `unit_id`, `is_disposable`).
+  - **Persistencia completa al editar en Admin**: `handleAddItem` (`QuoteDetailClient.tsx`) y `updateQuoteItemsAdmin` (`app/actions/admin/adminActions.ts`) ahora resuelven y persisten siempre `size_value`, `unit_id` e `is_disposable` desde el catálogo del servidor (con fallback al parseo numérico de `size`).
+  - **Resiliencia en `aggregateFromQuotes` (`lib/services/productionService.ts`)**: Añadido `resolveQuoteItemSizeValue(item)` que extrae el volumen desde `item.size` (ej. `"5L"`, `"10L"`, `"5L - Desechable"`) si `size_value` llegara vacío.
+- **Selección por cliente o por cóctel individual en Producción (`RecetarioClient.tsx`)**:
+  - En `/admin/recetario` → Producción → "Desde pedidos", ahora se puede:
+    - Marcar el checkbox del cliente para seleccionar o deseleccionar **todos** los cócteles de su pedido de una vez (igual que antes).
+    - Hacer clic sobre los chips individuales de cada cóctel dentro del pedido para incluir o excluir **solo algunos cócteles específicos** de ese cliente (mostrando estado indeterminado e indicador `X de Y seleccionados` cuando la selección es parcial).
+    - Usar el botón rápido **"Seleccionar todos / Deseleccionar todos"** para marcar todos los pedidos del rango con 1 clic.
+- **Archivos**: `lib/services/productionService.ts`, `app/actions/admin/adminActions.ts`, `app/admin/quotes/[id]/QuoteDetailClient.tsx`, `app/actions/admin/recetarioActions.ts`, `app/admin/recetario/RecetarioClient.tsx`.
+
 ### 14-10-2026 — Páginas Únicas de Producto (`/barriles/[slug]`), SEO Rich Snippets, Cross-selling y Meta CAPI/Pixel Granular
 
 - **Páginas de Detalle de Producto (PDP) para Barriles 5L (`/barriles/[slug]`)**:
