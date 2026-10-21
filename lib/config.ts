@@ -31,7 +31,7 @@ export const WHATSAPP_LABEL = `+56 9 ${waLocal8.slice(0, 4)} ${waLocal8.slice(4)
 export const MURO_INSTALLATION_COST = 50_000;
 
 /** Litros mínimos para poder elegir el Muro de Coctelería */
-export const MURO_MIN_LITERS = 40;
+export const MURO_MIN_LITERS = 60;
 
 /** Litros mínimos para poder elegir el Dispensador Portátil */
 export const PORTATIL_MIN_LITERS = 10;

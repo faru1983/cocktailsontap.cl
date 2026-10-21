@@ -163,7 +163,7 @@ Define la arquitectura, reglas irrompibles, convenciones de código, esquema de 
 - Tamaños disponibles: **5L, 10L, 20L, 30L** (determinados por `product_prices`)
 
 ### Muro de Coctelería
-- **Pedido mínimo**: volumen total **≥ 40L** (`MURO_MIN_LITERS = 40`).
+- **Pedido mínimo**: volumen total **≥ 60L** (`MURO_MIN_LITERS = 60`).
 - **Formatos compatibles**: exclusivamente barriles de **20L y 30L** (`MURO_COMPATIBLE_SIZES = [20, 30]`). Los barriles de 5L y 10L quedan excluidos del Muro.
 - **Costo de instalación**: **$50.000 CLP** (`MURO_INSTALLATION_COST`).
 

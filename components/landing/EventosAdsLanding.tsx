@@ -254,7 +254,7 @@ export default function EventosAdsLanding({ cocktails, comunas, regions, eventTy
         const result: WizardSelection[] = [];
         if (topSellers.length === 0) return result;
 
-        // Si el usuario eligió Muro (solo 20L y 30L, mín 40L) o Portátil (solo 5L y 10L, mín 10L)
+        // Si el usuario eligió Muro (solo 20L y 30L, mín 60L) o Portátil (solo 5L y 10L, mín 10L)
         if (activeDispenser === 'muro') {
             const targetLiters = Math.max(MURO_MIN_LITERS, proposal.liters);
             let remaining = targetLiters;
@@ -965,7 +965,7 @@ Quiero confirmar disponibilidad para mi fecha.`;
                                         </div>
                                         <div className="flex items-center gap-2">
                                             <Check className="w-4 h-4 text-primary shrink-0" />
-                                            <span>Pedido mínimo 40L · Montaje {formatCurrency(MURO_INSTALLATION_COST)}</span>
+                                            <span>Pedido mínimo {MURO_MIN_LITERS}L · Montaje {formatCurrency(MURO_INSTALLATION_COST)}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -1293,7 +1293,7 @@ Quiero confirmar disponibilidad para mi fecha.`;
                                                 </span>
                                             </div>
                                             <p className="text-[0.72rem] text-zinc-400 mt-0.5 leading-snug">
-                                                Barriles 20L y 30L (Mín. 40L)
+                                                Barriles 20L y 30L (Mín. {MURO_MIN_LITERS}L)
                                             </p>
                                         </div>
                                     </button>

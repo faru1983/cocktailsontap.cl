@@ -776,7 +776,7 @@ Determinados por `product_prices` en la DB: **5L, 10L, 20L, 30L**
 
 | Formato | Volumen Mínimo | Tamaños Compatibles | Costo Instalación | Constantes |
 |---------|----------------|---------------------|-------------------|------------|
-| **Muro de Coctelería** | 40 Litros | 20L, 30L | $50.000 CLP | `MURO_MIN_LITERS`, `MURO_COMPATIBLE_SIZES`, `MURO_INSTALLATION_COST` |
+| **Muro de Coctelería** | 60 Litros | 20L, 30L | $50.000 CLP | `MURO_MIN_LITERS`, `MURO_COMPATIBLE_SIZES`, `MURO_INSTALLATION_COST` |
 | **Dispensador Portátil** | 10 Litros | 5L, 10L | $0 CLP | `PORTATIL_MIN_LITERS`, `PORTATIL_COMPATIBLE_SIZES` |
 
 ### Envíos Dinámicos por Comuna

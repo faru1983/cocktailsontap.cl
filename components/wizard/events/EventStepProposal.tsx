@@ -5,7 +5,7 @@ import Image from 'next/image';
 import type { CocktailForWizard } from '@/lib/types';
 import { calculateEstimatedProposal } from '@/lib/wizardLogic';
 import { formatCurrency } from '@/lib/utils';
-import { MURO_MIN_LITERS, PORTATIL_MIN_LITERS, MURO_INSTALLATION_COST } from '@/lib/config';
+import { MURO_MIN_LITERS, PORTATIL_MIN_LITERS, MURO_INSTALLATION_COST, COCKTAILS_PER_LITER } from '@/lib/config';
 import { 
     Sparkles, 
     Wine, 
@@ -89,6 +89,7 @@ export default function EventStepProposal({
                 'No requiere conexión eléctrica',
                 'Mantiene el frío garantizado con hielo',
                 'Barriles compactos de 5L y 10L',
+                `Pedido mínimo desde ${PORTATIL_MIN_LITERS}L (${PORTATIL_MIN_LITERS * COCKTAILS_PER_LITER} cócteles)`,
                 'Instalación y montaje incluidos a $0',
             ],
         },
@@ -106,6 +107,7 @@ export default function EventStepProposal({
                 'Estructura estilo barra con canillas',
                 'Iluminación LED y puesta en escena fotográfica',
                 'Barriles de gran formato (20L y 30L)',
+                `Pedido mínimo desde ${MURO_MIN_LITERS}L (${MURO_MIN_LITERS * COCKTAILS_PER_LITER} cócteles)`,
                 'Ideal para alto flujo de invitados',
             ],
         },
@@ -325,10 +327,16 @@ export default function EventStepProposal({
                                             {disp.summary}
                                         </p>
 
-                                        {/* Formatos de barril compatibles tag */}
-                                        <div className="mb-3 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 text-brand-text font-bold text-[0.75rem] border border-brand-border/60">
-                                            <Wine className="w-3.5 h-3.5 text-primary" />
-                                            <span>{disp.compatibleSizesText}</span>
+                                        {/* Formatos de barril compatibles y Pedido Mínimo tags */}
+                                        <div className="mb-3 flex flex-wrap items-center gap-1.5">
+                                            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 text-brand-text font-bold text-[0.75rem] border border-brand-border/60">
+                                                <Wine className="w-3.5 h-3.5 text-primary" />
+                                                <span>{disp.compatibleSizesText}</span>
+                                            </div>
+                                            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-primary/10 text-primary font-bold text-[0.75rem] border border-primary/20">
+                                                <Droplets className="w-3.5 h-3.5 text-primary" />
+                                                <span>Pedido mín. {disp.minLiters}L</span>
+                                            </div>
                                         </div>
 
                                         {/* Features bullets */}
@@ -401,7 +409,7 @@ export default function EventStepProposal({
                                     <Droplets className="w-6 h-6 text-primary shrink-0 mt-0.5" />
                                     <div>
                                         <h4 className="font-bold text-brand-text text-sm mb-1">Sistema Autoservicio</h4>
-                                        <p className="text-xs text-brand-text-muted">Dispensador portátil o muro instalado y listo para usar.</p>
+                                        <p className="text-xs text-brand-text-muted">Dispensador portátil (mínimo {PORTATIL_MIN_LITERS}L) o muro de coctelería (mínimo {MURO_MIN_LITERS}L) instalado y listo para usar.</p>
                                     </div>
                                 </div>
                                 <div className="flex items-start gap-4 bg-slate-50 p-4 rounded-2xl border border-brand-border">
@@ -481,13 +489,36 @@ export default function EventStepProposal({
                                 {dispensers.find(d => d.id === modalDispenser)?.description}
                             </p>
 
-                            <div className="mb-6 p-3 rounded-xl bg-slate-50 border border-brand-border/60">
-                                <span className="text-[0.7rem] uppercase tracking-wider font-extrabold text-brand-text-muted block mb-1">
-                                    Formatos de Barril
-                                </span>
-                                <span className="text-xs font-bold text-brand-text">
-                                    {dispensers.find(d => d.id === modalDispenser)?.compatibleSizesText}
-                                </span>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
+                                <div className="p-3.5 rounded-2xl bg-slate-50 border border-brand-border/60 flex flex-col justify-between">
+                                    <div>
+                                        <div className="flex items-center gap-1.5 text-[0.7rem] uppercase tracking-wider font-extrabold text-brand-text-muted mb-1">
+                                            <Droplets className="w-3.5 h-3.5 text-primary" />
+                                            <span>Pedido Mínimo</span>
+                                        </div>
+                                        <span className="text-sm font-black text-brand-text block">
+                                            Desde {dispensers.find(d => d.id === modalDispenser)?.minLiters} Litros
+                                        </span>
+                                    </div>
+                                    <span className="text-[0.72rem] text-primary font-bold mt-1">
+                                        {(dispensers.find(d => d.id === modalDispenser)?.minLiters || 0) * COCKTAILS_PER_LITER} cócteles mínimos
+                                    </span>
+                                </div>
+
+                                <div className="p-3.5 rounded-2xl bg-slate-50 border border-brand-border/60 flex flex-col justify-between">
+                                    <div>
+                                        <div className="flex items-center gap-1.5 text-[0.7rem] uppercase tracking-wider font-extrabold text-brand-text-muted mb-1">
+                                            <Wine className="w-3.5 h-3.5 text-primary" />
+                                            <span>Formatos de Barril</span>
+                                        </div>
+                                        <span className="text-xs font-bold text-brand-text block leading-snug">
+                                            {dispensers.find(d => d.id === modalDispenser)?.compatibleSizesText}
+                                        </span>
+                                    </div>
+                                    <span className="text-[0.72rem] text-brand-text-muted font-medium mt-1">
+                                        {modalDispenser === 'muro' ? 'Exclusivo 20L y 30L' : 'Exclusivo 5L y 10L'}
+                                    </span>
+                                </div>
                             </div>
                             
                             <div className="flex flex-col gap-4 border-t border-brand-border pt-4">

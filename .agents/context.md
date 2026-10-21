@@ -41,6 +41,18 @@
 
 ## Ultimos Cambios
 
+### 21-10-2026 — Actualización Regla Muro de Coctelería a 60L y Pedidos Mínimos en Ficha Informativa (Paso 3)
+
+- **Regla de negocio `MURO_MIN_LITERS = 60`**:
+  - Actualizado el umbral mínimo del Muro de Coctelería de 40L a **60 Litros** (`MURO_MIN_LITERS = 60` en [`lib/config.ts`](file:///c:/Webs/cocktailsontap.cl/lib/config.ts)).
+  - La recomendación automática de dispensador en base a volumen ahora sugiere Muro a partir de 60L (antes 40L).
+  - Validaciones de servidor y cliente actualizadas (Zero Trust: confirmación, catálogo, checkout y cálculo de cotización aplican 60L para Muro y 10L para Portátil).
+- **Ficha informativa y tarjetas en Paso 3 ([`components/wizard/events/EventStepProposal.tsx`](file:///c:/Webs/cocktailsontap.cl/components/wizard/events/EventStepProposal.tsx))**:
+  - **Tarjetas principales**: incorporado badge visible de pedido mínimo en cada formato (`Pedido mín. 10L` en Portátil, `Pedido mín. 60L` en Muro) junto al formato de barriles compatibles.
+  - **Ficha informativa modal ("Ver fotos y detalles")**: agregada cuadrícula comparativa destacando explícitamente el **Pedido Mínimo** (`Desde 10L / 50 cócteles` vs `Desde 60L / 300 cócteles`), formatos compatibles y costo de instalación.
+  - **Modal de inclusiones**: especificado el mínimo correspondiente para cada dispensador en la sección de autoservicio.
+  - Actualizados los textos dinámicos en la landing [`components/landing/EventosAdsLanding.tsx`](file:///c:/Webs/cocktailsontap.cl/components/landing/EventosAdsLanding.tsx), `README.md` y `.agents/rules/rules.md`.
+
 ### 21-10-2026 — Fix Sincronización y Búsqueda Google Contacts (Formato Celular E.164 / Display)
 
 - **Investigación compra directa token `18536d87b03efb743f1e91be4beaaf75` (Fernando Herrmann)**:
