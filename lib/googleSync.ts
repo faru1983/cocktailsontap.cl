@@ -1,4 +1,5 @@
 import { PROJECT_TIMEZONE } from './config';
+import { formatPhoneDisplay } from './phone';
 
 const CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
@@ -160,10 +161,15 @@ export async function syncGoogleContact(data: {
 
         // 2. Búsqueda por Email o Teléfono si aún no hay resourceName
         if (!existingResourceName) {
-            const queries = [data.email, data.phone].filter(Boolean);
+            const phoneQueries = data.phone
+                ? [data.phone, formatPhoneDisplay(data.phone)].filter(
+                      (v, i, a): v is string => Boolean(v) && a.indexOf(v) === i
+                  )
+                : [];
+            const queries = [data.email, ...phoneQueries].filter(Boolean) as string[];
             for (const query of queries) {
                 const searchResponse = await googleFetch<GoogleSearchResponse>(
-                    `https://people.googleapis.com/v1/people:searchContacts?readMask=names,emailAddresses,phoneNumbers,addresses,biographies&query=${encodeURIComponent(query!)}`
+                    `https://people.googleapis.com/v1/people:searchContacts?readMask=names,emailAddresses,phoneNumbers,addresses,biographies&query=${encodeURIComponent(query)}`
                 );
                 const foundPerson = searchResponse.results?.[0]?.person;
                 if (foundPerson && foundPerson.resourceName) {
@@ -194,7 +200,13 @@ export async function syncGoogleContact(data: {
         }
 
         if (data.phone) {
-            contactData.phoneNumbers = [{ value: data.phone }];
+            const formatted = formatPhoneDisplay(data.phone);
+            const raw = data.phone.trim();
+            const phoneList = [{ value: formatted || raw, type: 'mobile' }];
+            if (formatted && raw && formatted !== raw) {
+                phoneList.push({ value: raw, type: 'other' });
+            }
+            contactData.phoneNumbers = phoneList;
             updateFields.push('phoneNumbers');
         }
 
@@ -215,13 +227,17 @@ export async function syncGoogleContact(data: {
 
         // 5. Lógica de Notas (Bitácora: lo nuevo primero, deduplicando por URL)
         let newNoteEntry = '';
-        if (data.eventDate || data.quoteUrl) {
+        if (data.noteLabel) {
+            newNoteEntry = data.noteLabel.includes('http') || data.noteLabel.includes('/')
+                ? data.noteLabel
+                : `${data.noteLabel}: ${(data.eventDate || 'S/F').split('-').reverse().join('/')}${data.quoteUrl ? ` - ${data.quoteUrl}` : ''}`;
+        } else if (data.eventDate || data.quoteUrl) {
             let dateFormatted = data.eventDate || 'S/F';
             if (dateFormatted.includes('-')) {
                 dateFormatted = dateFormatted.split('-').reverse().join('/');
             }
 
-            const label = data.noteLabel || (data.confirmed ? 'Evento (Confirmado)' : 'Evento');
+            const label = data.confirmed ? 'Evento (Confirmado)' : 'Evento';
             const linkStr = data.quoteUrl ? ` - ${data.quoteUrl}` : '';
             newNoteEntry = `${label}: ${dateFormatted}${linkStr}`;
         }

@@ -41,6 +41,18 @@
 
 ## Ultimos Cambios
 
+### 21-10-2026 — Fix Sincronización y Búsqueda Google Contacts (Formato Celular E.164 / Display)
+
+- **Investigación compra directa token `18536d87b03efb743f1e91be4beaaf75` (Fernando Herrmann)**:
+  - El cliente sí se registró y sincronizó automáticamente a Supabase (`clients.id = d120dd64-46b4-4b54-9670-fa84465e0778`) y a Google Contacts (`people/c8460540917755675828`) en la cuenta de Google oficial (`coctelesenbarril@gmail.com`).
+  - **Causa raíz de la no visibilidad en búsquedas**: Google People API realiza indexación estricta por tokens. Al guardarse el teléfono únicamente como string compacto sin espacios (`+56998181790`) y sin `type: 'mobile'`, las búsquedas con espacios como `+56 9 9818 1790` o dígitos parciales `9818 1790` arrojaban 0 resultados (solo coincidía buscando por nombre "Fernando", "Herrmann" o el string compacto sin espacios).
+  - Además, en la lista alfabética de Google Contacts figura como **`Cócteles - Fernando Herrmann`** (bajo la letra **C** y no la F ni H).
+  - **Mejoras implementadas en [`lib/googleSync.ts`](file:///c:/Webs/cocktailsontap.cl/lib/googleSync.ts)**:
+    1. **Guardado dual y tipado de teléfono**: ahora se envía el número formateado con espacios (`formatPhoneDisplay(data.phone)`) con `type: 'mobile'` (permitiendo búsquedas directas con espacios y en dialers móviles) y la versión compacta E.164 con `type: 'other'`.
+    2. **Búsqueda robusta**: `searchContacts` consulta tanto el formato compacto como el formateado para deduplicar contra contactos existentes creados manualmente.
+    3. **Notas limpias**: evita duplicar la fecha y enlace si `noteLabel` ya viene resuelto desde `site_settings`.
+  - El contacto de Fernando Herrmann fue actualizado en tiempo real en Google Contacts con su dirección completa, ambos formatos de teléfono y nota limpia.
+
 ### 21-10-2026 — Auditoría Técnica Integral y Ejecución Completa (Fases 1, 2 y 3)
 
 - **Auditoría Técnica Completa**:
