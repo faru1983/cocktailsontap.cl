@@ -307,34 +307,7 @@ export default function ClientDetailClient({
 
     return (
         <div>
-            <style>{`
-                .cd-grid { display: grid; grid-template-columns: 1fr; gap: 16px; }
-                @media (min-width: 768px) { .cd-grid { grid-template-columns: 280px 1fr; gap: 24px; } }
-                .cd-profile { background: #1e2433; border: 1px solid rgba(255,255,255,0.06); border-radius: 16px; padding: 24px; position: relative; }
-                .cd-profile-top { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; }
-                @media (min-width: 768px) { .cd-profile-top { flex-direction: column; align-items: flex-start; gap: 0; } .cd-profile-top .cd-avatar { margin-bottom: 14px; } }
-                .cd-avatar { width: 52px; height: 52px; flex-shrink: 0; border-radius: 50%; background: linear-gradient(135deg, #E2A049, #c8872e); display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 900; color: #1a1a2e; }
-                .cd-name-block h2 { color: #f1f5f9; font-size: 17px; font-weight: 800; margin: 0 0 2px; }
-                .cd-name-block p { color: #475569; font-size: 12px; margin: 0; word-break: break-all; }
-                .cd-meta { display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; padding-top: 14px; border-top: 1px solid rgba(255,255,255,0.05); }
-                .cd-actions { display: flex; flex-direction: column; gap: 10px; margin-top: 16px; }
-                .cd-quotes { background: #1e2433; border: 1px solid rgba(255,255,255,0.06); border-radius: 16px; overflow: hidden; }
-                .cd-quote-table { display: none; }
-                .cd-quote-cards { display: flex; flex-direction: column; }
-                .cd-quote-card { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 16px 20px; border-bottom: 1px solid rgba(255,255,255,0.04); text-decoration: none; }
-                .cd-quote-card:last-child { border-bottom: none; }
-                .cd-quote-card:hover { background: rgba(255,255,255,0.02); }
-                @media (min-width: 600px) {
-                    .cd-quote-cards { display: none; }
-                    .cd-quote-table { display: block; overflow-x: auto; }
-                    .cd-quote-table table { border-collapse: collapse; width: 100%; }
-                }
-                .q-input { background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 8px 12px; color: #fff; font-size: 13px; width: 100%; outline: none; }
-                .q-input:focus { border-color: #E2A049; }
-                .q-label { color: #64748b; font-size: 11px; margin-bottom: 4px; display: block; }
-                .id-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.04); }
-                .id-row:last-child { border-bottom: none; }
-            `}</style>
+
 
             <div className="flex justify-between items-center mb-6">
                 <Link href="/admin/clients" className="flex items-center gap-2 text-[#E2A049] text-sm font-bold hover:text-white transition-colors no-underline">
@@ -390,17 +363,17 @@ export default function ClientDetailClient({
                 </div>
             )}
 
-            <div className="cd-grid">
-                <div className="cd-profile">
+            <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] gap-4 md:gap-6">
+                <div className="bg-[#1e2433] border border-white/[0.06] rounded-2xl p-6 relative">
                     {!isEditing ? (
                         <>
-                            <div className="cd-profile-top">
-                                <div className="cd-avatar">{getAvatarInitial(client.first_name)}</div>
+                            <div className="flex items-center md:flex-col md:items-start gap-4 md:gap-0 mb-4">
+                                <div className="w-[52px] h-[52px] shrink-0 rounded-full md:mb-3.5 bg-gradient-to-br from-[#E2A049] to-[#c8872e] flex items-center justify-center text-xl font-black text-[#1a1a2e]">{getAvatarInitial(client.first_name)}</div>
                                 <div className="cd-name-block">
-                                    <h2>
+                                    <h2 className="text-slate-100 text-[17px] font-extrabold m-0 mb-0.5">
                                         {client.first_name} {client.last_name || ''}
                                     </h2>
-                                    <p>{client.email || 'Sin email primario'}</p>
+                                    <p className="text-slate-500 text-xs m-0 break-all">{client.email || 'Sin email primario'}</p>
                                     <span
                                         style={{
                                             display: 'inline-block',
@@ -418,7 +391,7 @@ export default function ClientDetailClient({
                                     </span>
                                 </div>
                             </div>
-                            <div className="cd-meta">
+                            <div className="flex flex-col gap-2 mb-5 pt-3.5 border-t border-white/[0.05]">
                                 {client.phone && (
                                     <div className="flex items-center gap-2 text-slate-400 text-sm">
                                         <Phone size={14} /> {formatPhoneDisplay(client.phone)}
@@ -448,20 +421,20 @@ export default function ClientDetailClient({
                     ) : (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                             <div>
-                                <label className="q-label">Nombre</label>
-                                <input className="q-input" value={editForm.first_name} onChange={(e) => setEditForm((f) => ({ ...f, first_name: e.target.value }))} />
+                                <label className="text-slate-500 text-[11px] mb-1 block">Nombre</label>
+                                <input className="bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-white text-[13px] w-full outline-none focus:border-[#E2A049]" value={editForm.first_name} onChange={(e) => setEditForm((f) => ({ ...f, first_name: e.target.value }))} />
                             </div>
                             <div>
-                                <label className="q-label">Apellido</label>
-                                <input className="q-input" value={editForm.last_name} onChange={(e) => setEditForm((f) => ({ ...f, last_name: e.target.value }))} />
+                                <label className="text-slate-500 text-[11px] mb-1 block">Apellido</label>
+                                <input className="bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-white text-[13px] w-full outline-none focus:border-[#E2A049]" value={editForm.last_name} onChange={(e) => setEditForm((f) => ({ ...f, last_name: e.target.value }))} />
                             </div>
                             <div>
-                                <label className="q-label">Email primario</label>
-                                <input className="q-input" type="email" value={editForm.email} onChange={(e) => setEditForm((f) => ({ ...f, email: e.target.value }))} />
+                                <label className="text-slate-500 text-[11px] mb-1 block">Email primario</label>
+                                <input className="bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-white text-[13px] w-full outline-none focus:border-[#E2A049]" type="email" value={editForm.email} onChange={(e) => setEditForm((f) => ({ ...f, email: e.target.value }))} />
                             </div>
                             <div>
-                                <label className="q-label">Celular primario</label>
-                                <PhoneInput className="q-input" value={editForm.phone} onChange={(e164) => setEditForm((f) => ({ ...f, phone: e164 }))} />
+                                <label className="text-slate-500 text-[11px] mb-1 block">Celular primario</label>
+                                <PhoneInput className="bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-white text-[13px] w-full outline-none focus:border-[#E2A049]" value={editForm.phone} onChange={(e164) => setEditForm((f) => ({ ...f, phone: e164 }))} />
                             </div>
                             <button
                                 className="flex justify-center items-center gap-2 bg-[#E2A049] text-black font-bold text-sm py-3 rounded-xl hover:bg-[#f0ad5c] transition-colors"
@@ -474,7 +447,7 @@ export default function ClientDetailClient({
                     )}
 
                     {!isEditing && (
-                        <div className="cd-actions flex flex-col gap-3 mt-5">
+                        <div className="flex flex-col gap-3 mt-5">
                             <button
                                 onClick={handleSyncGoogle}
                                 disabled={isPending}
@@ -505,7 +478,7 @@ export default function ClientDetailClient({
                 </div>
 
                 <div className="flex flex-col gap-4">
-                    <div className="cd-quotes">
+                    <div className="bg-[#1e2433] border border-white/[0.06] rounded-2xl overflow-hidden">
                         <div style={{ padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
                             <h3 style={{ color: '#f1f5f9', fontSize: '15px', fontWeight: 700, margin: 0 }}>
                                 Ciclo de vida CRM
@@ -513,9 +486,9 @@ export default function ClientDetailClient({
                         </div>
                         <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
                             <div>
-                                <label className="q-label">Etapa</label>
+                                <label className="text-slate-500 text-[11px] mb-1 block">Etapa</label>
                                 <select
-                                    className="q-input"
+                                    className="bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-white text-[13px] w-full outline-none focus:border-[#E2A049]"
                                     value={crmForm.lifecycle_stage}
                                     onChange={(e) =>
                                         setCrmForm((f) => ({ ...f, lifecycle_stage: e.target.value }))
@@ -529,9 +502,9 @@ export default function ClientDetailClient({
                                 </select>
                             </div>
                             <div>
-                                <label className="q-label">Intención</label>
+                                <label className="text-slate-500 text-[11px] mb-1 block">Intención</label>
                                 <select
-                                    className="q-input"
+                                    className="bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-white text-[13px] w-full outline-none focus:border-[#E2A049]"
                                     value={crmForm.intent}
                                     onChange={(e) => setCrmForm((f) => ({ ...f, intent: e.target.value }))}
                                 >
@@ -542,18 +515,18 @@ export default function ClientDetailClient({
                                 </select>
                             </div>
                             <div>
-                                <label className="q-label">Tags (separados por coma)</label>
+                                <label className="text-slate-500 text-[11px] mb-1 block">Tags (separados por coma)</label>
                                 <input
-                                    className="q-input"
+                                    className="bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-white text-[13px] w-full outline-none focus:border-[#E2A049]"
                                     value={crmForm.tags}
                                     onChange={(e) => setCrmForm((f) => ({ ...f, tags: e.target.value }))}
                                     placeholder="vip, corporate…"
                                 />
                             </div>
                             <div>
-                                <label className="q-label">Notas</label>
+                                <label className="text-slate-500 text-[11px] mb-1 block">Notas</label>
                                 <textarea
-                                    className="q-input"
+                                    className="bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-white text-[13px] w-full outline-none focus:border-[#E2A049]"
                                     rows={3}
                                     value={crmForm.notes}
                                     onChange={(e) => setCrmForm((f) => ({ ...f, notes: e.target.value }))}
@@ -572,7 +545,7 @@ export default function ClientDetailClient({
                         </div>
                     </div>
 
-                    <div className="cd-quotes">
+                    <div className="bg-[#1e2433] border border-white/[0.06] rounded-2xl overflow-hidden">
                         <div style={{ padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
                             <h3
                                 style={{
@@ -597,7 +570,7 @@ export default function ClientDetailClient({
                                 stageEvents.map((ev) => {
                                     const to = stageMeta[ev.to_stage] || stageMeta.curious;
                                     return (
-                                        <div key={ev.id} className="id-row" style={{ alignItems: 'flex-start' }}>
+                                        <div key={ev.id} className="flex items-center justify-between gap-2 py-2 border-b border-white/[0.04] last:border-b-0" style={{ alignItems: 'flex-start' }}>
                                             <div>
                                                 <div style={{ color: '#f1f5f9', fontSize: 13, fontWeight: 700 }}>
                                                     {ev.from_stage || '—'} → {to.label}
@@ -618,7 +591,7 @@ export default function ClientDetailClient({
                         </div>
                     </div>
 
-                    <div className="cd-quotes">
+                    <div className="bg-[#1e2433] border border-white/[0.06] rounded-2xl overflow-hidden">
                         <div style={{ padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
                             <h3 style={{ color: '#f1f5f9', fontSize: '15px', fontWeight: 700, margin: 0 }}>Identificadores ({identifiers.length})</h3>
                             <button
@@ -638,7 +611,7 @@ export default function ClientDetailClient({
                                 <div style={{ color: '#475569', fontSize: '13px', padding: '12px 0' }}>Sin identificadores.</div>
                             ) : (
                                 identifiers.map((ident) => (
-                                    <div key={ident.id} className="id-row">
+                                    <div key={ident.id} className="flex items-center justify-between gap-2 py-2 border-b border-white/[0.04] last:border-b-0">
                                         <div>
                                             <div style={{ color: '#94a3b8', fontSize: '11px', textTransform: 'uppercase', fontWeight: 700 }}>
                                                 {ident.type === 'email' ? 'Email' : 'Celular'}
@@ -680,7 +653,7 @@ export default function ClientDetailClient({
                         </div>
                     </div>
 
-                    <div className="cd-quotes">
+                    <div className="bg-[#1e2433] border border-white/[0.06] rounded-2xl overflow-hidden">
                         <div style={{ padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
                             <h3 style={{ color: '#f1f5f9', fontSize: '15px', fontWeight: 700, margin: 0 }}>
                                 Historial de Cotizaciones ({initialQuotes.length})
@@ -691,11 +664,11 @@ export default function ClientDetailClient({
                             <div style={{ padding: '40px 20px', textAlign: 'center', color: '#475569', fontSize: '14px' }}>Sin cotizaciones registradas.</div>
                         ) : (
                             <>
-                                <div className="cd-quote-cards">
+                                <div className="flex flex-col sm:hidden">
                                     {initialQuotes.map((q: Quote) => {
                                         const badge = statusBadge[q.status] || statusBadge.draft;
                                         return (
-                                            <Link key={q.id} href={`/admin/quotes/${q.id}`} className="cd-quote-card">
+                                            <Link key={q.id} href={`/admin/quotes/${q.id}`} className="flex justify-between items-center gap-3 px-5 py-4 border-b border-white/[0.04] last:border-b-0 hover:bg-white/[0.02] no-underline">
                                                 <div>
                                                     <div style={{ color: '#E2A049', fontSize: '14px', fontWeight: 700, marginBottom: '2px' }}>
                                                         {formatCLP(Number(q.total_price))}
@@ -728,7 +701,7 @@ export default function ClientDetailClient({
                                     })}
                                 </div>
 
-                                <div className="cd-quote-table">
+                                <div className="hidden sm:block overflow-x-auto">
                                     <table>
                                         <thead>
                                             <tr style={{ background: 'rgba(255,255,255,0.02)' }}>
@@ -882,9 +855,9 @@ export default function ClientDetailClient({
                     </div>
                     {addIdentifierForm.type === 'email' ? (
                         <div>
-                            <label className="q-label">Email</label>
+                            <label className="text-slate-500 text-[11px] mb-1 block">Email</label>
                             <input
-                                className="q-input"
+                                className="bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-white text-[13px] w-full outline-none focus:border-[#E2A049]"
                                 type="email"
                                 value={addIdentifierForm.value}
                                 onChange={(e) => setAddIdentifierForm((f) => ({ ...f, value: e.target.value }))}
@@ -893,9 +866,9 @@ export default function ClientDetailClient({
                         </div>
                     ) : (
                         <div>
-                            <label className="q-label">Celular</label>
+                            <label className="text-slate-500 text-[11px] mb-1 block">Celular</label>
                             <PhoneInput
-                                className="q-input"
+                                className="bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-white text-[13px] w-full outline-none focus:border-[#E2A049]"
                                 value={addIdentifierForm.value}
                                 onChange={(e164) => setAddIdentifierForm((f) => ({ ...f, value: e164 }))}
                             />

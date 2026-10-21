@@ -1,8 +1,20 @@
 'use server';
 
+import { z } from 'zod';
+
 import { createServerClient } from '@/lib/supabaseServer';
 import { revalidatePath } from 'next/cache';
 import { validateSession } from '@/lib/adminAuth';
+
+
+const ExpenseInputSchema = z.object({
+    amount: z.number().positive('El monto debe ser mayor a 0').finite(),
+    payment_method: z.string().min(1, 'Medio de pago requerido').max(50),
+    expense_date: z.string().min(1, 'Fecha requerida'),
+    category_id: z.string().uuid('Categoría inválida'),
+    subcategory_id: z.string().uuid('Subcategoría inválida'),
+    notes: z.string().max(500).optional().nullable(),
+});
 
 async function checkAuth() {
     const isAuth = await validateSession();
@@ -20,13 +32,18 @@ export async function addExpense(data: {
     await checkAuth();
     const db = createServerClient();
     
+    const parsed = ExpenseInputSchema.safeParse(data);
+    if (!parsed.success) {
+        return { success: false, error: parsed.error.issues[0]?.message || 'Datos de gasto inválidos' };
+    }
+    const clean = parsed.data;
     const { error } = await db.from('expenses').insert([{
-        amount: data.amount,
-        payment_method: data.payment_method,
-        expense_date: data.expense_date,
-        category_id: data.category_id,
-        subcategory_id: data.subcategory_id,
-        notes: data.notes || null
+        amount: clean.amount,
+        payment_method: clean.payment_method,
+        expense_date: clean.expense_date,
+        category_id: clean.category_id,
+        subcategory_id: clean.subcategory_id,
+        notes: clean.notes || null
     }]);
 
     if (error) {

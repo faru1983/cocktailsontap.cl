@@ -164,55 +164,10 @@ export default function QuotesListClient({
 
     return (
         <div>
-            <style>{`
-                .qp-header { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 12px; margin-bottom: 20px; }
-                .qp-search { width: 100%; border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; background: #1e2433; color: #f1f5f9; padding: 9px 14px; outline: none; transition: border-color 0.15s; }
-                .qp-search:focus { border-color: #E2A049; }
-                @media(min-width: 600px) { .qp-search { width: 220px; } }
-                .qp-sort-select { padding: 9px 12px; background: #1e2433; border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; color: #f1f5f9; fontSize: 13px; outline: none; cursor: pointer; }
 
-                .qp-filters-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; flex-wrap: wrap; gap: 12px; }
-                .qp-filters { display: flex; gap: 7px; flex-wrap: wrap; }
-
-                .qp-bulk-bar {
-                    display: flex; gap: 10px; align-items: center; padding: 10px 16px; background: rgba(226,160,73,0.1);
-                    border: 1px solid rgba(226,160,73,0.2); border-radius: 12px; margin-bottom: 15px; animation: slideDown 0.2s ease-out;
-                }
-                @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
-
-                .qp-cards { display: flex; flex-direction: column; gap: 10px; }
-                .qp-card { background: #1e2433; border: 1px solid rgba(255,255,255,0.06); border-radius: 14px; padding: 14px 16px; position: relative; transition: border-color 0.15s; }
-                .qp-card:hover { border-color: rgba(226,160,73,0.3); }
-
-                .qp-table-wrap { display: none; background: #1e2433; border-radius: 16px; border: 1px solid rgba(255,255,255,0.06); overflow: hidden; }
-                @media(min-width: 768px) { .qp-cards { display: none; } .qp-table-wrap { display: block; } }
-                .qp-row { position: relative; transition: background 0.15s; border-top: 1px solid rgba(255,255,255,0.04); }
-                .qp-row:hover { background: rgba(255,255,255,0.02); }
-                .qp-row.selected { background: rgba(226,160,73,0.04); }
-
-                .checkbox { width: 18px; height: 18px; accent-color: #E2A049; cursor: pointer; }
-                .bulk-btn { padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer; border: none; transition: all 0.2s; }
-                .bulk-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-
-                /* ── Pagination ── */
-                .pagination-wrap { display: flex; justify-content: center; align-items: center; gap: 8px; margin-top: 24px; padding-bottom: 20px; }
-                .page-link { 
-                    padding: 8px 16px; border-radius: 10px; background: #1e2433; border: 1px solid rgba(255,255,255,0.06); 
-                    color: #94a3b8; text-decoration: none; font-size: 13px; font-weight: 700; transition: all 0.2s; 
-                }
-                .page-link:hover { border-color: #E2A049; color: #E2A049; }
-                .page-link.active { background: #E2A049; color: #1a1b26; border-color: #E2A049; }
-                .page-link.disabled { opacity: 0.4; pointer-events: none; }
-                .new-quote-menu-item {
-                    display: flex; align-items: center; gap: 12px; padding: 12px 14px;
-                    border-radius: 10px; text-decoration: none; color: #f1f5f9;
-                    transition: background 0.15s;
-                }
-                .new-quote-menu-item:hover { background: rgba(226,160,73,0.12); }
-            `}</style>
 
             {/* Header */}
-            <div className="qp-header" style={{ marginBottom: '28px' }}>
+            <div className="flex justify-between items-start flex-wrap gap-3 mb-7">
                 <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                     <div>
                         <h1 style={{ color: '#f1f5f9', fontSize: '24px', fontWeight: 900, margin: '0 0 3px' }}>Cotizaciones</h1>
@@ -240,7 +195,7 @@ export default function QuotesListClient({
                                 <Link
                                     href="/admin/quotes/new?type=event"
                                     onClick={() => setNewMenuOpen(false)}
-                                    className="new-quote-menu-item"
+                                    className="flex items-center gap-3 p-3 sm:px-3.5 sm:py-3 rounded-[10px] no-underline text-slate-100 transition-colors hover:bg-[#E2A049]/12"
                                 >
                                     <Calendar size={18} style={{ color: '#E2A049', flexShrink: 0 }} />
                                     <div>
@@ -251,7 +206,7 @@ export default function QuotesListClient({
                                 <Link
                                     href="/admin/quotes/new?type=direct"
                                     onClick={() => setNewMenuOpen(false)}
-                                    className="new-quote-menu-item"
+                                    className="flex items-center gap-3 p-3 sm:px-3.5 sm:py-3 rounded-[10px] no-underline text-slate-100 transition-colors hover:bg-[#E2A049]/12"
                                 >
                                     <Package size={18} style={{ color: '#E2A049', flexShrink: 0 }} />
                                     <div>
@@ -267,8 +222,8 @@ export default function QuotesListClient({
                     {status && <input type="hidden" name="status" value={status} />}
                     {type && type !== 'all' && <input type="hidden" name="type" value={type} />}
                     {source && source !== 'all' && <input type="hidden" name="source" value={source} />}
-                    <input name="q" defaultValue={q || ''} placeholder="Buscar por nombre o email…" className="qp-search" />
-                    <SortSelect name="sort_order" className="qp-sort-select" defaultValue={`${sort}-${order}`}>
+                    <input name="q" defaultValue={q || ''} placeholder="Buscar por nombre o email…" className="w-full sm:w-[220px] border border-white/10 rounded-[10px] bg-[#1e2433] text-slate-100 px-3.5 py-2 text-sm outline-none transition-colors focus:border-[#E2A049]" />
+                    <SortSelect name="sort_order" className="px-3 py-2 bg-[#1e2433] border border-white/10 rounded-[10px] text-slate-100 text-[13px] outline-none cursor-pointer" defaultValue={`${sort}-${order}`}>
                         <option value="event_date-asc">Evento (más antiguos)</option>
                         <option value="event_date-desc">Evento (más cercanos)</option>
                         <option value="created_at-desc">Recientes primero</option>
@@ -279,8 +234,8 @@ export default function QuotesListClient({
             </div>
 
             {/* Filters & Bulk Menu */}
-            <div className="qp-filters-row">
-                <div className="qp-filters">
+            <div className="flex justify-between items-center mb-4.5 flex-wrap gap-3">
+                <div className="flex gap-1.5 flex-wrap">
                     {filters.map(f => {
                         const active = (status || 'all') === f.value;
                         return (
@@ -323,18 +278,18 @@ export default function QuotesListClient({
                 </div>
 
                 {selectedIds.length > 0 && (
-                    <div className="qp-bulk-bar">
+                    <div className="flex gap-2.5 items-center px-4 py-2.5 bg-[#E2A049]/10 border border-[#E2A049]/20 rounded-xl mb-3.5">
                         <span style={{ fontSize: '12px', color: '#E2A049', fontWeight: 800 }}>{selectedIds.length} seleccionadas</span>
                         <div style={{ display: 'flex', gap: '6px' }}>
-                            <button onClick={() => handleBulkStatus('completed')} className="bulk-btn" style={{ background: '#a78bfa', color: '#2e1065' }}>Completar</button>
-                            <button onClick={() => handleBulkStatus('cancelled')} className="bulk-btn" style={{ background: '#f87171', color: '#450a0a' }}>Cancelar</button>
+                            <button onClick={() => handleBulkStatus('completed')} className="px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer border-none transition-all disabled:opacity-50 disabled:cursor-not-allowed" style={{ background: '#a78bfa', color: '#2e1065' }}>Completar</button>
+                            <button onClick={() => handleBulkStatus('cancelled')} className="px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer border-none transition-all disabled:opacity-50 disabled:cursor-not-allowed" style={{ background: '#f87171', color: '#450a0a' }}>Cancelar</button>
                         </div>
                     </div>
                 )}
             </div>
 
             {/* ── MOBILE: cards ── */}
-            <div className="qp-cards">
+            <div className="flex flex-col gap-2.5 md:hidden">
                 {initialQuotes.length === 0 ? (
                     <div style={{ textAlign: 'center', padding: '40px', color: '#475569' }}>No se encontraron cotizaciones.</div>
                 ) : initialQuotes.map((q: any) => {
@@ -342,9 +297,9 @@ export default function QuotesListClient({
                     const srcBadge = sourceBadge[normalizeQuoteSource(q.source)];
                     const isSelected = selectedIds.includes(q.id);
                     return (
-                        <div key={q.id} className="qp-card" style={{ borderLeft: isSelected ? '4px solid #E2A049' : '1px solid rgba(255,255,255,0.06)' }}>
+                        <div key={q.id} className="bg-[#1e2433] border border-white/10 rounded-[14px] p-3.5 sm:p-4 relative transition-colors hover:border-[#E2A049]/30" style={{ borderLeft: isSelected ? '4px solid #E2A049' : '1px solid rgba(255,255,255,0.06)' }}>
                             <div style={{ position: 'absolute', top: '14px', right: '16px', zIndex: 10 }}>
-                                <input type="checkbox" className="checkbox" checked={isSelected} onChange={() => toggleSelect(q.id)} />
+                                <input type="checkbox" className="w-[18px] h-[18px] accent-[#E2A049] cursor-pointer" checked={isSelected} onChange={() => toggleSelect(q.id)} />
                             </div>
                             <Link href={`/admin/quotes/${q.id}`} style={{ textDecoration: 'none', display: 'block' }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', paddingRight: '30px' }}>
@@ -383,12 +338,12 @@ export default function QuotesListClient({
             </div>
 
             {/* ── DESKTOP: table ── */}
-            <div className="qp-table-wrap">
+            <div className="hidden md:block bg-[#1e2433] rounded-2xl border border-white/10 overflow-hidden">
                 <table style={{ borderCollapse: 'collapse', width: '100%' }}>
                     <thead>
                         <tr style={{ background: 'rgba(255,255,255,0.02)' }}>
                             <th style={{ padding: '13px 20px', width: '40px' }}>
-                                <input type="checkbox" className="checkbox" checked={selectedIds.length === initialQuotes.length && initialQuotes.length > 0} onChange={toggleSelectAll} />
+                                <input type="checkbox" className="w-[18px] h-[18px] accent-[#E2A049] cursor-pointer" checked={selectedIds.length === initialQuotes.length && initialQuotes.length > 0} onChange={toggleSelectAll} />
                             </th>
                             {sortFields.map(h => (
                                 <th key={h.field} align="left" style={{ padding: '13px 20px', color: '#475569', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase' }}>
@@ -408,9 +363,9 @@ export default function QuotesListClient({
                             const srcBadge = sourceBadge[normalizeQuoteSource(q.source)];
                             const isSelected = selectedIds.includes(q.id);
                             return (
-                                <tr key={q.id} className={`qp-row ${isSelected ? 'selected' : ''}`}>
+                                <tr key={q.id} className={`relative transition-colors border-t border-white/5 hover:bg-white/[0.02] ${isSelected ? 'bg-[#E2A049]/[0.04]' : ''}`}>
                                     <td style={{ padding: '14px 20px' }}>
-                                        <input type="checkbox" className="checkbox" checked={isSelected} onChange={() => toggleSelect(q.id)} />
+                                        <input type="checkbox" className="w-[18px] h-[18px] accent-[#E2A049] cursor-pointer" checked={isSelected} onChange={() => toggleSelect(q.id)} />
                                     </td>
                                     <td style={{ padding: '14px 20px', color: '#f1f5f9', fontSize: '14px', fontWeight: 600 }}>
                                         <Link href={`/admin/quotes/${q.id}`} style={{ color: 'inherit', textDecoration: 'none' }}>
@@ -449,8 +404,8 @@ export default function QuotesListClient({
 
             {/* ── PAGINATION ── */}
             {totalPages > 1 && (
-                <div className="pagination-wrap">
-                    <Link href={getPageLink(currentPage - 1)} className={`page-link ${currentPage <= 1 ? 'disabled' : ''}`}>
+                <div className="flex justify-center items-center gap-2 mt-6 pb-5">
+                    <Link href={getPageLink(currentPage - 1)} className={`px-4 py-2 rounded-[10px] bg-[#1e2433] border border-white/10 text-slate-400 no-underline text-[13px] font-bold transition-all hover:border-[#E2A049] hover:text-[#E2A049] ${currentPage <= 1 ? 'opacity-40 pointer-events-none' : ''}`}>
                         Anterior
                     </Link>
                     
@@ -458,7 +413,7 @@ export default function QuotesListClient({
                         Página {currentPage} de {totalPages}
                     </div>
 
-                    <Link href={getPageLink(currentPage + 1)} className={`page-link ${currentPage >= totalPages ? 'disabled' : ''}`}>
+                    <Link href={getPageLink(currentPage + 1)} className={`px-4 py-2 rounded-[10px] bg-[#1e2433] border border-white/10 text-slate-400 no-underline text-[13px] font-bold transition-all hover:border-[#E2A049] hover:text-[#E2A049] ${currentPage >= totalPages ? 'opacity-40 pointer-events-none' : ''}`}>
                         Siguiente
                     </Link>
                 </div>

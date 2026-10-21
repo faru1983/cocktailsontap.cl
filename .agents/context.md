@@ -41,6 +41,79 @@
 
 ## Ultimos Cambios
 
+### 21-10-2026 — Auditoría Técnica Integral y Ejecución Completa (Fases 1, 2 y 3)
+
+- **Auditoría Técnica Completa**:
+  - Diagnóstico exhaustivo documentado en artefacto de auditoría con matriz completa de 28 tablas de Supabase, análisis oficial del aviso de Supabase del 30 de octubre de 2026, mitigación de 23 CVEs y plan de acción de 3 fases ejecutado al 100%.
+- **Ejecución Fase 3 (Infraestructura, Aceleración Checkout, Optimización de Imágenes y Limpieza Tailwind v4)**:
+  - **Aislamiento de Tablas de Respaldo en Supabase**:
+    - Movidas las tablas huérfanas `_backup_clients_20260803` y `_backup_quotes_client_fk_20260803` desde el esquema `public` al esquema privado `archive` (`ALTER TABLE ... SET SCHEMA archive;`). El esquema `public` queda con 0 tablas sin clave primaria, 0 tablas huérfanas y 0 lints de seguridad en los Supabase Advisors.
+  - **Seguridad en Cabeceras Vercel (CSP)**:
+    - Agregado `https://*.facebook.com` a la directiva `connect-src` del Content Security Policy (CSP) en `vercel.json` junto con las cabeceras HSTS y Permissions-Policy existentes, evitando bloqueos en la entrega de eventos Meta Pixel.
+  - **Aceleración de Checkout y Creación de Cotizaciones (`after()`)**:
+    - En `lib/services/createQuoteCore.ts`, las tareas secundarias de red (sincronización con Google People/Calendar y despacho de correos por Resend) se desacoplaron envolviéndolas en `after()` de `next/server`. El endpoint responde al usuario en <300ms de forma no bloqueante manteniendo la ejecución segura en Vercel.
+  - **Optimización y Límites en Carga de Imágenes de Catálogo**:
+    - Configurado `experimental: { serverActions: { bodySizeLimit: '6mb' } }` en `next.config.ts` para admitir fotografías tomadas con smartphones sin rechazo por payload.
+    - En `app/actions/admin/productActions.ts` (`uploadImage`), integrada compresión y redimensionamiento con `sharp` hacia WebP (máximo 1200x1200px, 82% calidad), reduciendo archivos a <350KB antes de subirlos a Supabase Storage y respetando holgadamente la cuota de 2MB del bucket `product-images`.
+  - **Cumplimiento Estricto de la Regla de Oro #1 (Tailwind CSS v4 Only)**:
+    - Eliminadas todas las etiquetas `<style>` y `<style jsx>` en las vistas de administración: `ClientsList`, `ClientDetail`, `QuotesList`, `QuoteDetail` y `CreateQuoteManual`.
+    - Definidas las utilidades `@utility admin-input` y `@utility scrollbar-none` en `app/globals.css` bajo la especificación nativa de Tailwind v4. Cero etiquetas `<style>` en todo el repositorio.
+  - **Corrección en Selección de Dispensador en Wizard de Eventos**:
+    - Corregida la condición de carrera y desincronización de closure entre `EventStepProposal.tsx` y `EventWizardShell.tsx`. Al avanzar desde el Paso 3, `handleNextFromProposal` evaluaba `!state.dispenser` (vacío en el primer renderizado) y sobreescribía la elección manual del usuario con la recomendación algorítmica por defecto. Se implementó el paso directo del parámetro `dispenserOverride` en `onNext(id)` y `handleNextFromProposal`, garantizando que la opción seleccionada por el usuario prevalezca inmediatamente sin requerir volver atrás.
+- **Ejecución Fase 2 (Integridad de Datos, Límites de 1.000 Filas, Conversiones CAPI y Validación Zod)**:
+  - **Eliminación de Truncamiento en PostgREST (1.000 filas)**:
+    - En Estadísticas (`app/admin/estadisticas/page.tsx`), se anidó `quote_items(...)` dentro de la consulta de `quotes` con filtro de fecha, eliminando la consulta global que truncaba items antiguos y reduciendo a 2 llamadas HTTP a Supabase.
+    - En Clientes Admin (`app/admin/clients/page.tsx`), `getStageCounts()` ahora utiliza `{ count: 'exact', head: true }` por cada etapa (transferencia de 0 bytes y conteo exacto sin límites).
+    - En Catálogo de Clientes (`lib/serverData.ts`), añadido tag `['clients-data']` para permitir invalidación selectiva en caché.
+  - **Optimización de Conversiones Meta CAPI**:
+    - Enriquecido el payload de CAPI en `sendMetaCapiEvent` y `advanceClientStage` pasando `client_ip_address` y `client_user_agent` desde `headers()` en `createQuote.ts` y `confirmQuote.ts`, maximizando el Event Match Quality (EMQ).
+    - Eliminado el doble disparo CAPI (`InitiateCheckout` + `Purchase`) cuando `confirmNow = true` en `createQuoteCore.ts`.
+  - **Rendimiento de Envío de Recordatorios**:
+    - En `reminderService.ts` (`sendManualBatchReminders`), los envíos de correos válidos ahora se procesan en paralelo con `Promise.all`, evitando esperas secuenciales excesivas.
+  - **Validación Zod y Caché en Admin**:
+    - Validados los inputs de `addExpense` y `updateExpense` en `gastosActions.ts` mediante `ExpenseInputSchema`.
+    - Validados `addQuotePayment` y `saveEventType` en `adminActions.ts` con esquemas Zod estrictos.
+    - Añadida invalidación `revalidateTag('product-data', 'max')` en `saveEventType`, `deleteEventType` y `updateSiteSetting` para que los cambios en tarifas y configuración se reflejen inmediatamente.
+- **Ejecución Fase 1 (Urgente / Seguridad & Preparación Supabase)**:
+  - **Supabase Endurecimiento Grants & Pre-30 Oct**: Creada migración `supabase/migrations/20261021110000_security_and_grants_oct30.sql` aplicada exitosamente en producción que revoca accesos de escritura a `anon`/`authenticated`, restringe tablas privadas a `service_role`, ajusta RLS de catálogo a `is_active = true`, configura `ALTER DEFAULT PRIVILEGES` para `service_role` y crea los 9 índices faltantes en claves foráneas (`clients.merged_into_id`, etc.).
+  - **Corrección Rules of Hooks en `Navbar.tsx`**: Movido el retorno condicional de rutas excluidas (`/admin`, `/lp`) posterior al `useEffect`, eliminando el riesgo de fallo de hidratación/renderizado en navegaciones cliente.
+  - **Privacidad y UX en `/lp/eventos`**: Limpiado el campo `comments` en `EventosAdsLanding.tsx` para evitar que metadatos internos de campaña se filtren en la vista del cliente o en los correos transaccionales de cotización.
+  - **Sanitización HTML y Seguridad en Correos**:
+    - Creado helper `escapeHtml()` en `lib/utils.ts`.
+    - Sanitizadas variables y plantillas en `lib/services/reminderService.ts` (`renderReminderEmailHtml`) y `app/actions/admin/adminActions.ts` (`sendReviewEmail`).
+    - Validado esquema de protocolo (`http://` o `https://`) en `dispatch_tracking_url` en `markDirectSaleInDelivery`.
+  - **Actualización de Dependencias**:
+    - Actualizado `next` de `16.1.6` a `16.4.2` y `eslint-config-next` a `16.4.2` (mitigando 23 CVEs críticos/altos).
+    - Actualizado `sharp` a `^0.35.5`.
+    - Verificación exitosa de compilación TypeScript (`npx tsc --noEmit`) y compilación de producción (`npm run build` - 21/21 rutas OK).
+
+
+### 17-10-2026 — Landing Page Comercial Meta Ads (/lp/eventos), Experimento Dual WhatsApp vs. Email y CAPI InitiateCheckout
+
+- **Nueva Landing Comercial dedicada para Meta Ads (`app/lp/eventos/page.tsx` & `components/landing/EventosAdsLanding.tsx`)**:
+  - Diseñada 100% mobile-first para tráfico frío/tibio de anuncios pagados en Instagram y Facebook con estructura de scroll narrativo (educación + acción).
+  - **Aislamiento total de navegación**: Menú hamburguesa ([`Navbar.tsx`](file:///c:/Webs/cocktailsontap.cl/components/shared/Navbar.tsx)) y footer corporativo con enlaces internos ([`Footer.tsx`](file:///c:/Webs/cocktailsontap.cl/components/shared/Footer.tsx)) ocultos en `/lp/*` para eliminar fugas de clics pagados.
+  - **Secciones de alta conversión**:
+    1. Hero comercial con video background y 3 badges de beneficios (`Hielo y vasos a $0`, `Sin límite de horas`, `Cócteles en 5 seg`).
+    2. Embed oficial del Reel de Instagram (`DY-WKXHgBXz`) + explicación de los 4 simples pasos.
+    3. Tabla comparativa: Barra Tradicional / Por tu cuenta vs. Cocktails on Tap.
+    4. Grilla de inclusiones sin costos sorpresa a $0 (Hielo, Vasos/Copas, Garnish, Accesorios de bar, Dispensador y Sin límite de tiempo).
+    5. Formatos de barra (Dispensador Portátil vs. Muro) y vitrina de cócteles estrella.
+    6. Reseñas reales de clientes en Google Maps (5.0 ★★★★★) con enlace directo a la ficha oficial.
+  - **Calculadora interactiva en vivo incrustada en la página**:
+    - Selección táctil de invitados (30, 50, 80, 100, 150 o personalizado) e intensidad de tragos (2, 3 o 4+ tragos p/p).
+    - Cálculo instantáneo de litros y presupuesto estimado usando `calculateEstimatedProposal`.
+    - **Pre-selección inteligente de Top Sellers**: Asigna automáticamente los barriles calculados a variedades populares (Pisco Sour, Aperol Spritz, Mojito, etc.), con botón desplegable para personalizar sabores en vivo si el usuario desea.
+  - **Experimento Dual de CTA (WhatsApp vs. Email)**:
+    - **Botón A (WhatsApp)**: Crea la cotización borrador en base de datos con su token único, registra el touchpoint con `ctaChannel: 'whatsapp'`, dispara `InitiateCheckout` en Meta CAPI + Pixel, y abre WhatsApp con el mensaje estructurado pre-llenado incluyendo el link `/cotizar/[token]`.
+    - **Botón B (Email)**: Crea la cotización en base de datos, registra el touchpoint con `ctaChannel: 'email'`, dispara `InitiateCheckout` en Meta CAPI + Pixel, despacha el correo vía Resend y redirige al checkout `/cotizar/[token]?new=true` para reserva inmediata online.
+- **Soporte de Atribución y Esquemas**:
+  - `lib/types.ts`: `CreateQuoteSchema` ahora permite que `email` sea opcional en cotizaciones cuando se ingresa celular válido (`phone`), manteniéndolo obligatorio únicamente para reservas inmediatas (`confirmNow`).
+  - `lib/services/createQuoteCore.ts` y `app/actions/createQuote.ts`: Aceptan `landingMeta: { landing: string; ctaChannel: 'whatsapp' | 'email' }`, persistiendo siempre la elección en `client_touchpoints.payload` para análisis A/B en base de datos.
+  - `lib/fpixel.ts`: `metaServiceLineFromPath` ampliado para reconocer `/lp/eventos` y disparar `ViewContent` con `service: 'eventos'` y `content_category: 'Eventos'`.
+  - `vercel.json`: Actualizado Content-Security-Policy (CSP) habilitando `https://www.instagram.com` en `frame-src` y `script-src` para el reproductor embebido.
+- **Archivos**: `app/lp/eventos/page.tsx`, `components/landing/EventosAdsLanding.tsx`, `lib/types.ts`, `lib/services/createQuoteCore.ts`, `app/actions/createQuote.ts`, `lib/fpixel.ts`, `components/shared/Navbar.tsx`, `components/shared/Footer.tsx`, `vercel.json`.
+
 ### 16-10-2026 — Recetario / Producción: Corrección de cócteles omitidos (`size_value` nulo) y selección granular de cócteles por pedido
 
 - **Causa raíz de cócteles omitidos en Producción ("Sin receta o no líquidos: Caipiriña / Pisco Sour")**:

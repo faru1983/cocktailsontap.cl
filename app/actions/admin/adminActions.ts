@@ -1,5 +1,7 @@
 'use server';
 
+import { z } from 'zod';
+
 import { createServerClient } from '@/lib/supabaseServer';
 import { Resend } from 'resend';
 import * as React from 'react';
@@ -12,6 +14,21 @@ import type { Quote, QuoteItem } from '@/lib/types';
 import { QuoteStatusSchema, UpdateQuoteAdminSchema } from '@/lib/types';
 import { normalizePhoneE164 } from '@/lib/phone';
 import { formatQuoteAddress } from '@/lib/geo';
+import { escapeHtml } from '@/lib/utils';
+
+
+const AddPaymentInputSchema = z.object({
+    date: z.string().min(1, 'Fecha requerida'),
+    amount: z.number().positive('El monto debe ser mayor a 0').finite(),
+    note: z.string().max(250).optional().default(''),
+});
+
+const SaveEventTypeInputSchema = z.object({
+    id: z.string().uuid().optional(),
+    name: z.string().min(1, 'El nombre es obligatorio').max(100),
+    icon: z.string().max(50).optional().nullable(),
+    display_order: z.number().int().optional().default(0),
+});
 
 async function checkAuth() {
     const isAuth = await validateSession();
@@ -216,8 +233,13 @@ export async function addQuotePayment(
         .single();
     if (fetchErr || !quote) return { success: false, error: 'Cotización no encontrada.' };
 
+    const parsedPayment = AddPaymentInputSchema.safeParse(payment);
+    if (!parsedPayment.success) {
+        return { success: false, error: parsedPayment.error.issues[0]?.message || 'Datos de pago inválidos.' };
+    }
+    const cleanPayment = parsedPayment.data;
     const currentPayments = Array.isArray(quote.payments) ? quote.payments : [];
-    const newPayments = [...currentPayments, payment];
+    const newPayments = [...currentPayments, cleanPayment];
 
     const { error } = await db.from('quotes').update({ payments: newPayments }).eq('id', quoteId);
     if (error) return { success: false, error: error.message };
@@ -340,6 +362,14 @@ export async function markDirectSaleInDelivery(
             const url = String(input.trackingUrl || '').trim();
             if (!name || !url) {
                 return { success: false, error: 'Nombre de empresa y URL de seguimiento son obligatorios.' };
+            }
+            try {
+                const parsedUrl = new URL(url);
+                if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
+                    return { success: false, error: 'La URL de seguimiento debe comenzar con http:// o https://' };
+                }
+            } catch {
+                return { success: false, error: 'URL de seguimiento inválida.' };
             }
             dispatch_carrier_name = name;
             dispatch_tracking_url = url;
@@ -947,11 +977,13 @@ export async function sendReviewEmail(quoteId: string): Promise<{ success: boole
 
     const reviewLink = linkRes.data?.value || '';
     const fullName = `${quoteRes.data.client_name} ${quoteRes.data.client_lastname || ''}`.trim();
-    const template = (templateRes.data?.value || '').replace('{nombre}', fullName);
+    const safeFullName = escapeHtml(fullName);
+    const safeReviewLink = escapeHtml(reviewLink);
+    const template = escapeHtml(templateRes.data?.value || '').replace(/{nombre}/g, safeFullName);
     const html = `<div style="font-family: -apple-system, sans-serif; max-width: 600px; margin: auto; padding: 32px; background: #fff; border-radius: 12px;">
         <p style="font-size: 15px; line-height: 1.7; color: #334155;">${template.replace(/\n/g, '<br/>')}</p>
         <div style="text-align: center; margin: 28px 0;">
-          <a href="${reviewLink}" style="background: #E2A049; color: #fff; padding: 14px 28px; border-radius: 10px; text-decoration: none; font-weight: 800; font-size: 15px;">⭐ Dejar reseña</a>
+          <a href="${safeReviewLink}" style="background: #E2A049; color: #fff; padding: 14px 28px; border-radius: 10px; text-decoration: none; font-weight: 800; font-size: 15px;">⭐ Dejar reseña</a>
         </div>
         <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 24px 0;" />
         <p style="font-size: 12px; color: #94a3b8;">Cocktails on Tap — <a href="${SITE_URL}" style="color: #E2A049;">cocktailsontap.cl</a></p>
@@ -1210,13 +1242,18 @@ export async function runRemindersNow(): Promise<{
 }
 
 // ── Event Types Management ──────────────────────────────────────────────
-export async function saveEventType(data: any) {
+export async function saveEventType(data: unknown) {
     await checkAuth();
+    const parsed = SaveEventTypeInputSchema.safeParse(data);
+    if (!parsed.success) {
+        return { success: false, error: parsed.error.issues[0]?.message || 'Datos de temática inválidos' };
+    }
     const db = createServerClient();
-    const { error } = await db.from('event_types').upsert(data);
+    const { error } = await db.from('event_types').upsert(parsed.data);
     if (error) throw new Error(error.message);
     revalidatePath('/admin/settings');
     revalidatePath('/cotizar');
+    revalidateTag('product-data', 'max');
     return { success: true };
 }
 
@@ -1227,6 +1264,7 @@ export async function deleteEventType(id: string) {
     if (error) throw new Error(error.message);
     revalidatePath('/admin/settings');
     revalidatePath('/cotizar');
+    revalidateTag('product-data', 'max');
     return { success: true };
 }
 
@@ -1464,6 +1502,7 @@ export async function updateSiteSetting(id: string, data: { value: string; is_ac
 
     if (error) return { success: false, error: error.message };
     revalidatePath('/admin/settings');
+    revalidateTag('product-data', 'max');
     return { success: true };
 }
 

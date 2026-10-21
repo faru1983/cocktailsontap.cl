@@ -37,6 +37,8 @@ export interface ConfirmQuoteCoreOptions {
      * de litros (10L portátil / reglas de muro). No usar en web ni API pública.
      */
     allowAdminMinLitersOverride?: boolean;
+    clientIp?: string | null;
+    clientUserAgent?: string | null;
 }
 
 function statusConfirmError(status: string): string {
@@ -293,6 +295,8 @@ export async function confirmQuoteCore(
                     city: quoteCity,
                     fbc: effectiveFbc,
                     fbp: effectiveFbp,
+                    clientIpAddress: options?.clientIp || null,
+                    clientUserAgent: options?.clientUserAgent || null,
                 });
             } catch (stageErr) {
                 console.error('[ConfirmQuote] CRM stage advance error:', stageErr);

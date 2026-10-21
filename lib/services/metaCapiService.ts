@@ -85,6 +85,8 @@ export interface SendMetaCapiInput {
     fbp?: string | null;
     /** Comuna/ciudad para EMQ (hasheada en user_data.ct). */
     city?: string | null;
+    clientIpAddress?: string | null;
+    clientUserAgent?: string | null;
 }
 
 /** Read Meta browser cookies when available (Server Actions / RSC). */
@@ -166,6 +168,8 @@ export async function sendMetaCapiEvent(
     if (input.city?.trim()) userData.ct = [sha256Normalize(input.city.trim())];
     if (fbc) userData.fbc = fbc;
     if (fbp) userData.fbp = fbp;
+    if (input.clientIpAddress) userData.client_ip_address = input.clientIpAddress;
+    if (input.clientUserAgent) userData.client_user_agent = input.clientUserAgent;
 
     // ctwa_clid mejora atribución CTWA. NO usar action_source business_messaging
     // con Contact/InitiateCheckout: Meta lo rechaza (solo acepta Purchase/LeadSubmitted ahí).

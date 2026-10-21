@@ -4,6 +4,7 @@
  * Usado por Server Actions (web/admin) y por /api/v1/* (integraciones).
  */
 import * as React from 'react';
+import { after } from 'next/server';
 import { Resend } from 'resend';
 import { render } from '@react-email/components';
 import { CreateQuoteSchema } from '@/lib/types';
@@ -33,6 +34,9 @@ export interface CreateQuoteInput {
     fbc?: string | null;
     fbp?: string | null;
     ctwaClid?: string | null;
+    landingMeta?: { landing: string; ctaChannel: 'whatsapp' | 'email' };
+    clientIp?: string | null;
+    clientUserAgent?: string | null;
 }
 
 export interface CreateQuoteResult {
@@ -154,7 +158,7 @@ export async function createQuoteCore(input: CreateQuoteInput): Promise<CreateQu
 
         const isDirect = state.serviceType === 'direct';
 
-        if (clientId) {
+        if (clientId && !wantsConfirmNow) {
             try {
                 const { advanceClientStage } = await import('@/lib/services/clientLifecycleService');
                 const { readMetaBrowserCookies } = await import('@/lib/services/metaCapiService');
@@ -163,8 +167,8 @@ export async function createQuoteCore(input: CreateQuoteInput): Promise<CreateQu
                 const effectiveFbp = input.fbp || cookies.fbp || null;
                 const effectiveCtwaClid = input.ctwaClid || null;
 
-                // Registrar touchpoint si hay parámetros de atribución Meta
-                if (effectiveFbc || effectiveFbp || effectiveCtwaClid) {
+                // Registrar touchpoint si hay parámetros de atribución Meta o landingMeta
+                if (effectiveFbc || effectiveFbp || effectiveCtwaClid || input.landingMeta) {
                     try {
                         const { recordTouchpoint } = await import('@/lib/services/clientService');
                         await recordTouchpoint({
@@ -178,6 +182,7 @@ export async function createQuoteCore(input: CreateQuoteInput): Promise<CreateQu
                                 quoteId: createResult.quote.id,
                                 token: createResult.token,
                                 isDirect,
+                                ...input.landingMeta,
                             },
                         });
                     } catch (tpErr) {
@@ -217,6 +222,8 @@ export async function createQuoteCore(input: CreateQuoteInput): Promise<CreateQu
                     fbc: effectiveFbc,
                     fbp: effectiveFbp,
                     ctwaClid: effectiveCtwaClid,
+                    clientIpAddress: input.clientIp || null,
+                    clientUserAgent: input.clientUserAgent || null,
                 });
             } catch (stageErr) {
                 console.error('CRM stage advance on quote create failed:', stageErr);
@@ -239,6 +246,8 @@ export async function createQuoteCore(input: CreateQuoteInput): Promise<CreateQu
                 {
                     skipEmail: Boolean(skipEmail),
                     allowAdminMinLitersOverride: Boolean(isAdmin),
+                    clientIp: input.clientIp || null,
+                    clientUserAgent: input.clientUserAgent || null,
                 }
             );
             if (!confirmRes.success) {
@@ -348,7 +357,19 @@ export async function createQuoteCore(input: CreateQuoteInput): Promise<CreateQu
             );
         }
 
-        await Promise.allSettled(tasks);
+        const runBackgroundTasks = async () => {
+            try {
+                await Promise.allSettled(tasks);
+            } catch (bgErr) {
+                console.error('[createQuoteCore] Error en tareas en segundo plano:', bgErr);
+            }
+        };
+
+        try {
+            after(runBackgroundTasks);
+        } catch {
+            await runBackgroundTasks();
+        }
 
         return {
             success: true,

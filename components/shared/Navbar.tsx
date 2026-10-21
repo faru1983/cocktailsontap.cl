@@ -29,11 +29,12 @@ export default function Navbar() {
     const [scrolled, setScrolled] = useState(false);
     const [hiddenOnScroll, setHiddenOnScroll] = useState(false);
 
-    if (pathname?.startsWith('/admin')) return null;
+    const isExcluded = pathname?.startsWith('/admin') || pathname?.startsWith('/lp');
 
     const isWizard = pathname?.startsWith('/eventos') || pathname?.startsWith('/barriles');
 
     useEffect(() => {
+        if (isExcluded) return;
         let timeoutId: ReturnType<typeof setTimeout>;
         let lastScrollY = window.scrollY;
 
@@ -64,7 +65,9 @@ export default function Navbar() {
             window.removeEventListener('scroll', onScroll);
             clearTimeout(timeoutId);
         };
-    }, [isWizard]);
+    }, [isWizard, isExcluded]);
+
+    if (isExcluded) return null;
 
     const shouldHide = isWizard && hiddenOnScroll && !open;
 

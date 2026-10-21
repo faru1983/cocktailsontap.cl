@@ -5,7 +5,7 @@
 import { Resend } from 'resend';
 import { createServerClient } from '@/lib/supabaseServer';
 import { FROM_EMAIL, PROJECT_TIMEZONE, SITE_URL, WHATSAPP_LABEL, WHATSAPP_URL } from '@/lib/config';
-import { formatCurrency, VERCEL_REMINDERS_CRON_UTC_HOUR } from '@/lib/utils';
+import { formatCurrency, VERCEL_REMINDERS_CRON_UTC_HOUR, escapeHtml } from '@/lib/utils';
 import { SettingsService } from '@/lib/services/settingsService';
 import { applyReminderBoldMarkup } from '@/lib/reminderMarkup';
 
@@ -396,15 +396,20 @@ export function renderReminderEmailHtml(template: { content: string }, vars: {
     link: string;
     linkHref: string;
 }): string {
-    const withBold = applyReminderBoldMarkup(template.content, 'email');
+    const safeNombre = escapeHtml(vars.nombre);
+    const safeFecha = escapeHtml(vars.fecha);
+    const safeTotal = escapeHtml(vars.total);
+    const safeLink = escapeHtml(vars.link);
+    const safeHref = escapeHtml(vars.linkHref);
+    const withBold = applyReminderBoldMarkup(escapeHtml(template.content), 'email');
     const content = withBold
         .replace(/\\n/g, '\n')
-        .replace(/{nombre}/g, `<strong>${vars.nombre}</strong>`)
-        .replace(/{fecha}/g, `<strong>${vars.fecha}</strong>`)
-        .replace(/{total}/g, `<strong>${vars.total}</strong>`)
+        .replace(/{nombre}/g, `<strong>${safeNombre}</strong>`)
+        .replace(/{fecha}/g, `<strong>${safeFecha}</strong>`)
+        .replace(/{total}/g, `<strong>${safeTotal}</strong>`)
         .replace(
             /{link}/g,
-            `<a href="${vars.linkHref}" style="color: #E2A049; font-weight: 700;">${vars.link}</a>`
+            `<a href="${safeHref}" style="color: #E2A049; font-weight: 700;">${safeLink}</a>`
         )
         .replace(
             /{whatsapp}/g,
@@ -457,6 +462,8 @@ export async function sendManualBatchReminders(
     const today = todayYmdInSantiago();
     const results: Array<{ quoteId: string; success: boolean; error?: string }> = [];
 
+    const toSend: Array<{ quote: QuoteRow; email: string; subject: string; html: string }> = [];
+
     for (const quote of quotes as QuoteRow[]) {
         const email = normalizeReminderEmail(quote.client_email);
         if (!email) {
@@ -505,22 +512,30 @@ export async function sendManualBatchReminders(
             linkHref,
         });
         const subject = renderReminderSubject(template.subject, { nombre, fecha: eventDateStr });
-        const sent = await sendOneEmail({ to: email, subject, html });
+        toSend.push({ quote, email, subject, html });
+    }
 
-        await insertLog({
-            quote_id: quote.id,
-            template_id: template.id,
-            template_name: template.name,
-            channel: 'email',
-            client_id: quote.client_id,
-            recipient_email: email,
-            status: sent.ok ? 'sent' : 'failed',
-            error: sent.error || null,
-            trigger: template.trigger,
-            target_date: quote.event_date || today,
-            source: 'manual',
-        });
-        results.push({ quoteId: quote.id, success: sent.ok, error: sent.error });
+    if (toSend.length > 0) {
+        const sendResults = await Promise.all(
+            toSend.map(async ({ quote, email, subject, html }) => {
+                const sent = await sendOneEmail({ to: email, subject, html });
+                await insertLog({
+                    quote_id: quote.id,
+                    template_id: template.id,
+                    template_name: template.name,
+                    channel: 'email',
+                    client_id: quote.client_id,
+                    recipient_email: email,
+                    status: sent.ok ? 'sent' : 'failed',
+                    error: sent.error || null,
+                    trigger: template.trigger,
+                    target_date: quote.event_date || today,
+                    source: 'manual',
+                });
+                return { quoteId: quote.id, success: sent.ok, error: sent.error };
+            })
+        );
+        results.push(...sendResults);
     }
 
     return { success: true, results };
@@ -535,7 +550,7 @@ export async function sendTestReminderEmailService(
     const totalStr = formatCurrency(150000);
     const testLink = `${SITE_URL}/cotizar/test-token`;
     const testName = 'Cliente de Prueba';
-    const withBold = applyReminderBoldMarkup(template.content, 'email');
+    const withBold = applyReminderBoldMarkup(escapeHtml(template.content), 'email');
     const html = `<div style="font-family: -apple-system, sans-serif; max-width: 600px; margin: auto; padding: 32px; background: #fff; border-radius: 12px; color: #1e293b;">
         <p style="font-size: 14px; color: #94a3b8; margin-bottom: 20px;"><strong>[EMAIL DE PRUEBA]</strong></p>
         <div style="font-size: 16px; line-height: 1.6; white-space: pre-wrap;">${withBold

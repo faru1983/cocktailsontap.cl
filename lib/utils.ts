@@ -144,3 +144,17 @@ export function sanitizePostgrestSearch(term: string | null | undefined): string
     if (!term || typeof term !== 'string') return '';
     return term.replace(/[,().:\"'\\%_]/g, ' ').replace(/\s+/g, ' ').trim();
 }
+
+
+/**
+ * Escapa caracteres especiales de HTML para prevenir XSS / HTML Injection en emails y vistas.
+ */
+export function escapeHtml(str: string | null | undefined): string {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}

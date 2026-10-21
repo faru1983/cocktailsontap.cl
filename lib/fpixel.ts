@@ -151,8 +151,8 @@ export const pageview = () => {
  */
 export function metaServiceLineFromPath(pathname: string): MetaServiceLine | null {
   const path = pathname.replace(/\/+$/, '') || '/';
-  if (path === '/eventos') return 'eventos';
-  if (path === '/barriles') return 'barriles';
+  if (path === '/eventos' || path.startsWith('/lp/eventos')) return 'eventos';
+  if (path === '/barriles' || path.startsWith('/lp/barriles')) return 'barriles';
   return null;
 }
 

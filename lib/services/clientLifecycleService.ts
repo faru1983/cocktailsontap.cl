@@ -70,6 +70,8 @@ export interface AdvanceStageOpts {
     /** Señales Meta Contact (Interesado WA con datos mínimos del flujo). */
     engagedGuests?: number | null;
     engagedComuna?: string | null;
+    clientIpAddress?: string | null;
+    clientUserAgent?: string | null;
 }
 
 export interface AdvanceStageResult {
@@ -215,6 +217,8 @@ export async function advanceClientStage(
                     ctwaClid: opts.ctwaClid,
                     fbc: opts.fbc,
                     fbp: opts.fbp,
+                    clientIpAddress: opts.clientIpAddress,
+                    clientUserAgent: opts.clientUserAgent,
                     city: opts.city ?? opts.engagedComuna,
                     customData,
                 });
@@ -274,6 +278,8 @@ export async function advanceClientStage(
                     ctwaClid: opts.ctwaClid,
                     fbc: opts.fbc ?? cookies.fbc,
                     fbp: opts.fbp ?? cookies.fbp,
+                    clientIpAddress: opts.clientIpAddress,
+                    clientUserAgent: opts.clientUserAgent,
                     city: opts.city ?? opts.engagedComuna,
                     customData: {
                         content_name: opts.contentName || defaultName,

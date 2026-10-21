@@ -31,7 +31,7 @@ interface Props {
     cocktails: CocktailForWizard[];
     selectedDispenser?: 'portatil' | 'muro' | 'desechable' | '';
     onSelectDispenser: (disp: 'portatil' | 'muro') => void;
-    onNext: () => void;
+    onNext: (dispenser?: 'portatil' | 'muro') => void;
     onBack?: () => void;
 }
 
@@ -53,6 +53,7 @@ export default function EventStepProposal({
 }: Props) {
     const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
     const [modalDispenser, setModalDispenser] = useState<'portatil' | 'muro' | null>(null);
+    const [isNavigating, setIsNavigating] = useState(false);
 
     const proposal = useMemo(() => {
         return calculateEstimatedProposal(guests, drinksPerPerson, cocktails);
@@ -111,9 +112,11 @@ export default function EventStepProposal({
     ];
 
     const handleCardClick = (id: 'portatil' | 'muro') => {
+        if (isNavigating) return;
+        setIsNavigating(true);
         onSelectDispenser(id);
         setTimeout(() => {
-            onNext();
+            onNext(id);
         }, 180);
     };
 

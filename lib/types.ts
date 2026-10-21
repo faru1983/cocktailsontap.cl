@@ -322,7 +322,13 @@ export const CreateQuoteSchema = z
                 contact: z.object({
                     firstName: z.string().min(2, 'Nombre muy corto'),
                     lastName: z.string().min(2, 'Apellido muy corto'),
-                    email: z.string().email('Email inválido'),
+                    email: z
+                        .string()
+                        .trim()
+                        .refine((val) => val === '' || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val), {
+                            message: 'Email inválido',
+                        })
+                        .optional(),
                     phone: OptionalPhoneSchema,
                     address: z.string().nullable().optional().or(z.literal('')),
                     region: z.string().min(1, 'Selecciona una región'),
@@ -357,6 +363,22 @@ export const CreateQuoteSchema = z
         confirmNow: z.boolean().optional(),
     })
     .superRefine((data, ctx) => {
+        const email = (data.state.contact.email || '').trim();
+        const phone = (data.state.contact.phone || '').trim();
+        if (!email && !phone) {
+            ctx.addIssue({
+                code: 'custom',
+                message: 'Debes ingresar al menos un celular o un email de contacto',
+                path: ['state', 'contact', 'phone'],
+            });
+        }
+        if (data.confirmNow && !email) {
+            ctx.addIssue({
+                code: 'custom',
+                message: 'El email es obligatorio para confirmar la reserva',
+                path: ['state', 'contact', 'email'],
+            });
+        }
         if (!data.confirmNow || data.state.dispenser === 'desechable') return;
         const address = (data.state.contact.address || '').trim();
         if (address.length < 5) {

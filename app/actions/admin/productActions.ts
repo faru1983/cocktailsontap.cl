@@ -1,6 +1,7 @@
 'use server';
 
 import path from 'path';
+import sharp from 'sharp';
 import { createServerClient } from '@/lib/supabaseServer';
 import { revalidatePath, revalidateTag } from 'next/cache';
 import { validateSession } from '@/lib/adminAuth';
@@ -17,7 +18,7 @@ const ALLOWED_IMAGE_MIME: Record<string, string> = {
     'image/gif': 'gif',
 };
 
-const MAX_UPLOAD_BYTES = 2 * 1024 * 1024;
+const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
 
 async function checkAuth() {
     const isAuth = await validateSession();
@@ -186,15 +187,21 @@ export async function uploadImage(formData: FormData) {
     if (!ext) throw new Error('Tipo de archivo no permitido. Usa WebP, JPEG, PNG o GIF.');
 
     if (file.size > MAX_UPLOAD_BYTES) {
-        throw new Error('La imagen no puede superar 2 MB.');
+        throw new Error('La imagen no puede superar 5 MB.');
     }
 
-    const db = createServerClient();
-    const fileName = `${Date.now()}-${crypto.randomUUID().slice(0, 8)}.${ext}`;
-    const buffer = await file.arrayBuffer();
+    const rawBuffer = Buffer.from(await file.arrayBuffer());
+    // Optimizar y redimensionar con sharp a WebP (máx 1200x1200px, 82% calidad)
+    const optimizedBuffer = await sharp(rawBuffer)
+        .resize({ width: 1200, height: 1200, fit: 'inside', withoutEnlargement: true })
+        .webp({ quality: 82 })
+        .toBuffer();
 
-    const { error } = await db.storage.from('product-images').upload(fileName, buffer, {
-        contentType: file.type,
+    const db = createServerClient();
+    const fileName = `${Date.now()}-${crypto.randomUUID().slice(0, 8)}.webp`;
+
+    const { error } = await db.storage.from('product-images').upload(fileName, optimizedBuffer, {
+        contentType: 'image/webp',
         upsert: false,
     });
 

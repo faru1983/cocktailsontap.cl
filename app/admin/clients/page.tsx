@@ -18,15 +18,20 @@ const STAGE_COLORS: Record<string, { color: string; bg: string }> = {
 
 async function getStageCounts() {
     const db = createServerClient();
-    const { data } = await db
-        .from('clients')
-        .select('lifecycle_stage')
-        .is('merged_into_id', null);
+    const stages = ['curious', 'engaged', 'quoted', 'customer', 'lost'] as const;
+    const results = await Promise.all(
+        stages.map((stage) =>
+            db
+                .from('clients')
+                .select('*', { count: 'exact', head: true })
+                .is('merged_into_id', null)
+                .eq('lifecycle_stage', stage)
+        )
+    );
     const counts: Record<string, number> = {};
-    for (const row of data || []) {
-        const s = row.lifecycle_stage || 'curious';
-        counts[s] = (counts[s] || 0) + 1;
-    }
+    stages.forEach((stage, idx) => {
+        counts[stage] = results[idx].count || 0;
+    });
     return counts;
 }
 
@@ -185,40 +190,9 @@ export default async function ClientsPage({ searchParams }: { searchParams: Sear
 
     return (
         <div>
-            <style>{`
-                .cp-header { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; }
-                .cp-search { width: 100%; }
-                @media(min-width: 600px) { .cp-search { width: 220px; } }
-                .cp-sort-select { padding: 9px 12px; background: #1e2433; border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; color: #f1f5f9; font-size: 13px; outline: none; cursor: pointer; }
-                .cp-stage-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
-                .cp-stage-tab { padding: 7px 12px; border-radius: 999px; border: 1px solid rgba(255,255,255,0.08); background: #1e2433; color: #94a3b8; font-size: 12px; font-weight: 700; text-decoration: none; }
-                .cp-stage-tab.active { border-color: rgba(226,160,73,0.45); color: #E2A049; background: rgba(226,160,73,0.1); }
-                .cp-cards { display: flex; flex-direction: column; gap: 10px; }
-                .cp-card { background: #1e2433; border: 1px solid rgba(255,255,255,0.06); border-radius: 14px; padding: 14px 16px; text-decoration: none; display: flex; align-items: center; gap: 14px; transition: border-color 0.15s; }
-                .cp-card:hover { border-color: rgba(226,160,73,0.35); }
-                .cp-avatar { width: 44px; height: 44px; border-radius: 50%; flex-shrink: 0; background: linear-gradient(135deg, #E2A049, #c8872e); display: flex; align-items: center; justify-content: center; color: #1a1a2e; font-weight: 900; font-size: 16px; }
-                .cp-card-body { flex: 1; min-width: 0; }
-                .cp-card-name { color: #f1f5f9; font-size: 15px; font-weight: 700; margin-bottom: 3px; }
-                .cp-card-email { color: #64748b; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-bottom: 4px; }
-                .cp-card-footer { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
-                .cp-sync-badge { font-size: 11px; font-weight: 600; }
-                .cp-card-phone { color: #475569; font-size: 12px; }
-                .cp-chevron { color: #E2A049; font-size: 18px; flex-shrink: 0; }
-                .cp-table-wrap { display: none; background: #1e2433; border-radius: 16px; border: 1px solid rgba(255,255,255,0.06); overflow: hidden; }
-                @media(min-width: 768px) { .cp-cards { display: none; } .cp-table-wrap { display: block; } }
-                .cp-table-wrap table { border-collapse: collapse; width: 100%; }
-                .cp-row { position: relative; transition: background 0.15s; cursor: pointer; border-top: 1px solid rgba(255,255,255,0.04); }
-                .cp-row:hover { background: rgba(255,255,255,0.02) !important; }
-                .cp-row-link { color: inherit; text-decoration: none; }
-                .cp-row-link::after { content: ''; position: absolute; inset: 0; z-index: 1; }
-                .pagination-wrap { display: flex; justify-content: center; align-items: center; gap: 8px; margin-top: 24px; }
-                .page-link { padding: 8px 16px; border-radius: 10px; background: #1e2433; border: 1px solid rgba(255,255,255,0.06); color: #94a3b8; text-decoration: none; font-size: 13px; font-weight: 700; transition: all 0.2s; }
-                .page-link:hover { border-color: #E2A049; color: #E2A049; }
-                .page-link.active { background: #E2A049; color: #1a1b26; border-color: #E2A049; }
-                .page-link.disabled { opacity: 0.4; pointer-events: none; }
-            `}</style>
 
-            <div className="cp-header">
+
+            <div className="flex justify-between items-start flex-wrap gap-3 mb-4">
                 <div>
                     <h1 style={{ color: '#f1f5f9', fontSize: '24px', fontWeight: 900, margin: '0 0 3px' }}>
                         Clientes
@@ -237,7 +211,7 @@ export default async function ClientsPage({ searchParams }: { searchParams: Sear
                         name="q"
                         defaultValue={q || ''}
                         placeholder="Buscar cliente…"
-                        className="cp-search"
+                        className="w-full sm:w-[220px]"
                         style={{
                             padding: '9px 14px',
                             background: '#1e2433',
@@ -249,7 +223,7 @@ export default async function ClientsPage({ searchParams }: { searchParams: Sear
                             fontFamily: 'inherit',
                         }}
                     />
-                    <SortSelect name="sort_order" className="cp-sort-select" defaultValue={`${sort}-${order}`}>
+                    <SortSelect name="sort_order" className="px-3 py-2 bg-[#1e2433] border border-white/10 rounded-[10px] text-slate-100 text-[13px] outline-none cursor-pointer" defaultValue={`${sort}-${order}`}>
                         <option value="created_at-desc">Recientes primero</option>
                         <option value="last_activity_at-desc">Última actividad</option>
                         <option value="first_name-asc">Nombre (A-Z)</option>
@@ -259,7 +233,7 @@ export default async function ClientsPage({ searchParams }: { searchParams: Sear
                 </form>
             </div>
 
-            <div className="cp-stage-tabs">
+            <div className="flex flex-wrap gap-2 mb-4">
                 {stageTabs.map((tab) => {
                     const count =
                         tab.key === 'all'
@@ -270,7 +244,7 @@ export default async function ClientsPage({ searchParams }: { searchParams: Sear
                         <Link
                             key={tab.key}
                             href={getStageLink(tab.key)}
-                            className={`cp-stage-tab${active ? ' active' : ''}`}
+                            className={`px-3 py-1.5 rounded-full border text-xs font-bold no-underline transition-colors ${active ? 'border-amber-500/45 text-[#E2A049] bg-[#E2A049]/10' : 'border-white/[0.08] bg-[#1e2433] text-slate-400 hover:text-slate-200'}`}
                         >
                             {tab.label} ({count})
                         </Link>
@@ -278,40 +252,40 @@ export default async function ClientsPage({ searchParams }: { searchParams: Sear
                 })}
             </div>
 
-            <div className="cp-cards">
+            <div className="flex flex-col gap-2.5 md:hidden">
                 {clients.length === 0 ? (
                     <div style={{ textAlign: 'center', padding: '40px', color: '#475569' }}>
                         No hay resultados.
                     </div>
                 ) : (
                     clients.map((c: any) => (
-                        <Link key={c.id} href={`/admin/clients/${c.id}`} className="cp-card">
-                            <div className="cp-avatar">{getAvatarInitial(c.first_name)}</div>
-                            <div className="cp-card-body">
-                                <div className="cp-card-name">
+                        <Link key={c.id} href={`/admin/clients/${c.id}`} className="bg-[#1e2433] border border-white/[0.06] rounded-[14px] p-3.5 sm:p-4 no-underline flex items-center gap-3.5 transition-colors hover:border-[#E2A049]/35">
+                            <div className="w-11 h-11 rounded-full shrink-0 bg-gradient-to-br from-[#E2A049] to-[#c8872e] flex items-center justify-center text-[#1a1a2e] font-black text-base">{getAvatarInitial(c.first_name)}</div>
+                            <div className="flex-1 min-w-0">
+                                <div className="text-slate-100 text-[15px] font-bold mb-0.5">
                                     {c.first_name} {c.last_name || ''}
                                 </div>
-                                <div className="cp-card-email">{c.email || 'Sin email'}</div>
-                                <div className="cp-card-footer">
+                                <div className="text-slate-500 text-[13px] truncate mb-1">{c.email || 'Sin email'}</div>
+                                <div className="flex gap-3 items-center flex-wrap">
                                     <StageBadge stage={c.lifecycle_stage || 'curious'} />
                                     <span
-                                        className="cp-sync-badge"
+                                        className="text-[11px] font-semibold"
                                         style={{ color: c.google_contact_id ? '#34d399' : '#475569' }}
                                     >
                                         {c.google_contact_id ? 'Sync' : 'Sin sync'}
                                     </span>
                                     {c.phone && (
-                                        <span className="cp-card-phone">{formatPhoneDisplay(c.phone)}</span>
+                                        <span className="text-slate-600 text-xs">{formatPhoneDisplay(c.phone)}</span>
                                     )}
                                 </div>
                             </div>
-                            <span className="cp-chevron">›</span>
+                            <span className="text-[#E2A049] text-lg shrink-0">›</span>
                         </Link>
                     ))
                 )}
             </div>
 
-            <div className="cp-table-wrap">
+            <div className="hidden md:block bg-[#1e2433] rounded-2xl border border-white/[0.06] overflow-hidden">
                 <div style={{ overflowX: 'auto' }}>
                     <table>
                         <thead>
@@ -350,7 +324,7 @@ export default async function ClientsPage({ searchParams }: { searchParams: Sear
                         </thead>
                         <tbody>
                             {clients.map((c: any) => (
-                                <tr key={c.id} className="cp-row">
+                                <tr key={c.id} className="relative transition-colors cursor-pointer border-t border-white/[0.04] hover:bg-white/[0.02]">
                                     <td style={{ padding: '14px 20px' }}>
                                         <div
                                             style={{
@@ -380,7 +354,7 @@ export default async function ClientsPage({ searchParams }: { searchParams: Sear
                                     >
                                         <Link
                                             href={`/admin/clients/${c.id}`}
-                                            className="cp-row-link"
+                                            className="text-inherit no-underline after:content-[''] after:absolute after:inset-0 after:z-1"
                                             aria-label={`Ver cliente ${c.first_name} ${c.last_name || ''}`.trim()}
                                         >
                                             {c.first_name}
@@ -453,10 +427,10 @@ export default async function ClientsPage({ searchParams }: { searchParams: Sear
             </div>
 
             {totalPages > 1 && (
-                <div className="pagination-wrap">
+                <div className="flex justify-center items-center gap-2 mt-6">
                     <Link
                         href={getPageLink(currentPage - 1)}
-                        className={`page-link ${currentPage <= 1 ? 'disabled' : ''}`}
+                        className={`px-4 py-2 rounded-[10px] bg-[#1e2433] border border-white/[0.06] text-slate-400 no-underline text-[13px] font-bold transition-all hover:border-[#E2A049] hover:text-[#E2A049] ${currentPage <= 1 ? 'opacity-40 pointer-events-none' : ''}`}
                     >
                         Anterior
                     </Link>
@@ -465,7 +439,7 @@ export default async function ClientsPage({ searchParams }: { searchParams: Sear
                     </div>
                     <Link
                         href={getPageLink(currentPage + 1)}
-                        className={`page-link ${currentPage >= totalPages ? 'disabled' : ''}`}
+                        className={`px-4 py-2 rounded-[10px] bg-[#1e2433] border border-white/[0.06] text-slate-400 no-underline text-[13px] font-bold transition-all hover:border-[#E2A049] hover:text-[#E2A049] ${currentPage >= totalPages ? 'opacity-40 pointer-events-none' : ''}`}
                     >
                         Siguiente
                     </Link>

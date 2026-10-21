@@ -77,23 +77,23 @@ export default async function EstadisticasPage({ searchParams }: { searchParams:
     const fetchStart = `${year - 2}-01-01`;
     const fetchEnd = getYearBounds(year).endDate;
 
-    const [quotesRes, itemsRes, expensesRes] = await Promise.all([
+    const [quotesRes, expensesRes] = await Promise.all([
         db
             .from('quotes')
             .select(
-                'id, client_id, status, total_price, event_date, created_at, client_name, client_lastname, comuna_name, comuna_other, dispenser, service_type'
+                'id, client_id, status, total_price, event_date, created_at, client_name, client_lastname, comuna_name, comuna_other, dispenser, service_type, quote_items(quote_id, product_name, quantity, offer_price_at_time, size)'
             )
             .gte('event_date', fetchStart)
             .lte('event_date', fetchEnd),
-        db.from('quote_items').select('quote_id, product_name, quantity, offer_price_at_time, size'),
         db
             .from('expenses')
             .select('id, amount, expense_date, expense_categories(name), expense_subcategories(name)')
             .gte('expense_date', fetchStart),
     ]);
 
-    const quotes = (quotesRes.data || []) as RawQuoteRow[];
-    const quoteItems = itemsRes.data || [];
+    const rawQuotes = (quotesRes.data || []) as any[];
+    const quotes = rawQuotes.map(({ quote_items: _items, ...q }) => q) as RawQuoteRow[];
+    const quoteItems = rawQuotes.flatMap((q) => q.quote_items || []);
     const expenses = ((expensesRes.data || []) as RawExpense[]).map((e) => ({
         ...e,
         category_name: getRelationName(e.expense_categories, 'Otro'),

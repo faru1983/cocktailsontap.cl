@@ -243,5 +243,5 @@ export const fetchAllClients = unstable_cache(
         return data ?? [];
     },
     ['clients-data'],
-    { revalidate: 60 }
+    { revalidate: 60, tags: ['clients-data'] }
 );

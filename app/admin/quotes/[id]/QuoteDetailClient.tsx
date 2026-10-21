@@ -501,18 +501,8 @@ export default function QuoteDetailClient({
                     textAlign: 'center',
                 }}
             >
-                <div
-                    style={{
-                        width: '40px',
-                        height: '40px',
-                        border: '3px solid rgba(226,160,73,0.1)',
-                        borderTopColor: '#E2A049',
-                        borderRadius: '50%',
-                        animation: 'spin 1s linear infinite',
-                    }}
-                />
-                <p style={{ fontSize: '16px', fontWeight: 600 }}>Eliminando cotización y redirigiendo…</p>
-                <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+                <div className="w-10 h-10 rounded-full border-3 border-[#E2A049]/10 border-t-[#E2A049] animate-spin" />
+                <p className="text-base font-semibold">Eliminando cotización y redirigiendo…</p>
             </div>
         );
     }
@@ -540,25 +530,7 @@ export default function QuoteDetailClient({
                 </div>
             )}
 
-            <style>{`
-                .q-modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 1000; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(4px); padding: 20px; }
-                .q-modal { background: #1e2433; border: 1px solid rgba(255,255,255,0.1); border-radius: 20px; width: 100%; max-width: 450px; padding: 28px; box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
-                .q-form-group { margin-bottom: 16px; }
-                .q-label { display: block; color: #64748b; font-size: 11px; font-weight: 700; text-transform: uppercase; margin-bottom: 6px; }
-                .q-input { width: 100%; padding: 12px; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; color: #fff; outline: none; box-sizing: border-box; font-family: inherit; }
-                .q-action-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 10px 20px; border-radius: 12px; font-size: 13px; font-weight: 700; cursor: pointer; border: none; font-family: inherit; }
-                .q-action-btn-primary { background: #E2A049; color: #1a1a2e; }
-                .q-action-btn-secondary { background: rgba(255,255,255,0.05); color: #94a3b8; border: 1px solid rgba(255,255,255,0.1); }
-                .q-status-chip { padding: 8px 14px; border-radius: 10px; font-size: 12px; font-weight: 700; cursor: pointer; font-family: inherit; border: none; white-space: nowrap; }
-                .q-status-chip-label-short { display: none; }
-                .q-status-chip:disabled { opacity: 0.5; cursor: not-allowed; }
-                @media(max-width: 767px) {
-                    .q-status-scroll { display: grid; grid-template-columns: repeat(var(--status-cols, 4), minmax(0, 1fr)); gap: 6px; }
-                    .q-status-chip { width: 100%; padding: 8px 3px; font-size: clamp(9px, 2.35vw, 11px); white-space: normal; text-align: center; }
-                    .q-status-chip-label { display: none; }
-                    .q-status-chip-label-short { display: inline; }
-                }
-            `}</style>
+
 
             {/* Header */}
             <div
@@ -749,8 +721,8 @@ export default function QuoteDetailClient({
                 </div>
 
                 <div
-                    className="q-status-scroll"
-                    style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '14px', '--status-cols': statusActions.length } as CSSProperties}
+                    className="grid max-md:grid-cols-[repeat(var(--status-cols,4),minmax(0,1fr))] max-md:gap-1.5 md:flex md:flex-wrap md:gap-2 mb-3.5"
+                    style={{ '--status-cols': statusActions.length } as CSSProperties}
                 >
                     {statusActions.map((s) => {
                         const sb = statusBadge[s];
@@ -761,15 +733,15 @@ export default function QuoteDetailClient({
                                 type="button"
                                 onClick={() => (isDispatch ? setShowDispatchModal(true) : handleStatusChange(s))}
                                 disabled={isPending || isEditing}
-                                className="q-status-chip"
+                                className="w-full max-md:py-2 max-md:px-0.5 max-md:text-[clamp(9px,2.35vw,11px)] max-md:whitespace-normal max-md:text-center md:w-auto md:px-3.5 md:py-2 md:text-xs md:whitespace-nowrap rounded-[10px] font-bold cursor-pointer border-none disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                                 style={{
                                     background: sb.bg,
                                     border: `1px solid ${sb.color}40`,
                                     color: sb.color,
                                 }}
                             >
-                                <span className="q-status-chip-label">{sb.label}</span>
-                                <span className="q-status-chip-label-short">{sb.shortLabel}</span>
+                                <span className="hidden md:inline">{sb.label}</span>
+                                <span className="inline md:hidden">{sb.shortLabel}</span>
                             </button>
                         );
                     })}
@@ -857,32 +829,32 @@ export default function QuoteDetailClient({
 
             {/* Modal pago */}
             {showPayModal && (
-                <div className="q-modal-overlay">
-                    <form className="q-modal" onSubmit={handleAddPayment}>
+                <div className="fixed inset-0 bg-black/70 z-[1000] flex items-center justify-center backdrop-blur-sm p-5">
+                    <form className="bg-[#1e2433] border border-white/10 rounded-[20px] w-full max-w-[450px] p-7 shadow-2xl" onSubmit={handleAddPayment}>
                         <h2 style={{ color: '#f1f5f9', fontSize: '18px', margin: '0 0 20px' }}>Registrar pago</h2>
-                        <div className="q-form-group">
-                            <label className="q-label">Monto (CLP)</label>
+                        <div className="mb-4">
+                            <label className="block text-slate-500 text-[11px] font-bold uppercase mb-1.5">Monto (CLP)</label>
                             <input
                                 name="amount"
                                 type="number"
                                 required
-                                className="q-input"
+                                className="w-full p-3 bg-black/20 border border-white/10 rounded-[10px] text-white outline-none focus:border-[#E2A049]"
                                 placeholder={`Ej: ${balance > 0 ? balance : 50000}`}
                                 autoFocus
                             />
                         </div>
-                        <div className="q-form-group">
-                            <label className="q-label">Fecha</label>
+                        <div className="mb-4">
+                            <label className="block text-slate-500 text-[11px] font-bold uppercase mb-1.5">Fecha</label>
                             <input
                                 name="date"
                                 type="date"
                                 required
-                                className="q-input"
+                                className="w-full p-3 bg-black/20 border border-white/10 rounded-[10px] text-white outline-none focus:border-[#E2A049]"
                                 defaultValue={new Date().toISOString().split('T')[0]}
                             />
                         </div>
-                        <div className="q-form-group">
-                            <label className="q-label">Glosa / Tipo</label>
+                        <div className="mb-4">
+                            <label className="block text-slate-500 text-[11px] font-bold uppercase mb-1.5">Glosa / Tipo</label>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                                 <label style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#f1f5f9', fontSize: '13px' }}>
                                     <input type="radio" checked={payNoteType === 'full'} onChange={() => setPayNoteType('full')} />
@@ -898,7 +870,7 @@ export default function QuoteDetailClient({
                                 </label>
                                 {payNoteType === 'custom' && (
                                     <input
-                                        className="q-input"
+                                        className="w-full p-3 bg-black/20 border border-white/10 rounded-[10px] text-white outline-none focus:border-[#E2A049]"
                                         value={payCustomNote}
                                         onChange={(e) => setPayCustomNote(e.target.value)}
                                         placeholder="Texto libre"
@@ -907,10 +879,10 @@ export default function QuoteDetailClient({
                             </div>
                         </div>
                         <div style={{ display: 'flex', gap: '10px', marginTop: '24px' }}>
-                            <button type="button" className="q-action-btn q-action-btn-secondary" style={{ flex: 1 }} onClick={() => setShowPayModal(false)}>
+                            <button type="button" className="flex-1 inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-[13px] font-bold cursor-pointer bg-white/5 text-slate-400 border border-white/10 hover:bg-white/10 transition-colors" onClick={() => setShowPayModal(false)}>
                                 Cancelar
                             </button>
-                            <button type="submit" disabled={isPending} className="q-action-btn q-action-btn-primary" style={{ flex: 1 }}>
+                            <button type="submit" disabled={isPending} className="flex-1 inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-[13px] font-bold cursor-pointer border-none bg-[#E2A049] text-[#1a1a2e] hover:bg-[#c88830] transition-colors disabled:opacity-50">
                                 {isPending ? '...' : 'Guardar pago'}
                             </button>
                         </div>
@@ -920,39 +892,39 @@ export default function QuoteDetailClient({
 
             {/* Modal redactar email */}
             {showEmailModal && (
-                <div className="q-modal-overlay">
-                    <form className="q-modal" onSubmit={handleSendComposeEmail} style={{ maxWidth: '520px' }}>
+                <div className="fixed inset-0 bg-black/70 z-[1000] flex items-center justify-center backdrop-blur-sm p-5">
+                    <form className="bg-[#1e2433] border border-white/10 rounded-[20px] w-full max-w-[450px] p-7 shadow-2xl" onSubmit={handleSendComposeEmail} style={{ maxWidth: '520px' }}>
                         <h2 style={{ color: '#f1f5f9', fontSize: '18px', margin: '0 0 8px' }}>Redactar email</h2>
                         <p style={{ color: '#64748b', fontSize: '13px', margin: '0 0 20px' }}>
                             Para: <strong style={{ color: '#f1f5f9' }}>{String(quote.client_email || 'Sin email')}</strong>
                         </p>
-                        <div className="q-form-group">
-                            <label className="q-label">Asunto</label>
+                        <div className="mb-4">
+                            <label className="block text-slate-500 text-[11px] font-bold uppercase mb-1.5">Asunto</label>
                             <input
                                 name="subject"
                                 value={emailForm.subject}
                                 onChange={(e) => setEmailForm((f) => ({ ...f, subject: e.target.value }))}
                                 required
-                                className="q-input"
+                                className="w-full p-3 bg-black/20 border border-white/10 rounded-[10px] text-white outline-none focus:border-[#E2A049]"
                             />
                         </div>
-                        <div className="q-form-group">
-                            <label className="q-label">Mensaje</label>
+                        <div className="mb-4">
+                            <label className="block text-slate-500 text-[11px] font-bold uppercase mb-1.5">Mensaje</label>
                             <textarea
                                 name="body"
                                 value={emailForm.body}
                                 onChange={(e) => setEmailForm((f) => ({ ...f, body: e.target.value }))}
                                 required
                                 rows={6}
-                                className="q-input"
+                                className="w-full p-3 bg-black/20 border border-white/10 rounded-[10px] text-white outline-none focus:border-[#E2A049]"
                                 style={{ resize: 'vertical' }}
                             />
                         </div>
                         <div style={{ display: 'flex', gap: '10px', marginTop: '24px' }}>
-                            <button type="button" className="q-action-btn q-action-btn-secondary" style={{ flex: 1 }} onClick={() => setShowEmailModal(false)}>
+                            <button type="button" className="flex-1 inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-[13px] font-bold cursor-pointer bg-white/5 text-slate-400 border border-white/10 hover:bg-white/10 transition-colors" onClick={() => setShowEmailModal(false)}>
                                 Cancelar
                             </button>
-                            <button type="submit" disabled={isPending} className="q-action-btn q-action-btn-primary" style={{ flex: 1 }}>
+                            <button type="submit" disabled={isPending} className="flex-1 inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-[13px] font-bold cursor-pointer border-none bg-[#E2A049] text-[#1a1a2e] hover:bg-[#c88830] transition-colors disabled:opacity-50">
                                 {isPending ? 'Enviando…' : 'Enviar'}
                             </button>
                         </div>
@@ -962,8 +934,8 @@ export default function QuoteDetailClient({
 
             {/* Modal despacho */}
             {showDispatchModal && (
-                <div className="q-modal-overlay">
-                    <div className="q-modal">
+                <div className="fixed inset-0 bg-black/70 z-[1000] flex items-center justify-center backdrop-blur-sm p-5">
+                    <div className="bg-[#1e2433] border border-white/10 rounded-[20px] w-full max-w-[450px] p-7 shadow-2xl">
                         <h2 style={{ color: '#f1f5f9', fontSize: '18px', margin: '0 0 20px' }}>En reparto</h2>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '20px' }}>
                             <label style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#f1f5f9', fontSize: '13px', cursor: 'pointer' }}>
@@ -987,12 +959,12 @@ export default function QuoteDetailClient({
                                 </label>
                                 {carrierPreset === 'custom' && (
                                     <>
-                                        <input className="q-input" placeholder="Nombre empresa" value={customCarrierName} onChange={(e) => setCustomCarrierName(e.target.value)} />
-                                        <input className="q-input" placeholder="URL de seguimiento" value={customTrackingUrl} onChange={(e) => setCustomTrackingUrl(e.target.value)} />
+                                        <input className="w-full p-3 bg-black/20 border border-white/10 rounded-[10px] text-white outline-none focus:border-[#E2A049]" placeholder="Nombre empresa" value={customCarrierName} onChange={(e) => setCustomCarrierName(e.target.value)} />
+                                        <input className="w-full p-3 bg-black/20 border border-white/10 rounded-[10px] text-white outline-none focus:border-[#E2A049]" placeholder="URL de seguimiento" value={customTrackingUrl} onChange={(e) => setCustomTrackingUrl(e.target.value)} />
                                     </>
                                 )}
                                 <input
-                                    className="q-input"
+                                    className="w-full p-3 bg-black/20 border border-white/10 rounded-[10px] text-white outline-none focus:border-[#E2A049]"
                                     placeholder="Número de seguimiento *"
                                     value={trackingNumber}
                                     onChange={(e) => setTrackingNumber(e.target.value)}
@@ -1001,10 +973,10 @@ export default function QuoteDetailClient({
                             </div>
                         )}
                         <div style={{ display: 'flex', gap: '10px', marginTop: '24px' }}>
-                            <button type="button" className="q-action-btn q-action-btn-secondary" style={{ flex: 1 }} onClick={() => setShowDispatchModal(false)}>
+                            <button type="button" className="flex-1 inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-[13px] font-bold cursor-pointer bg-white/5 text-slate-400 border border-white/10 hover:bg-white/10 transition-colors" onClick={() => setShowDispatchModal(false)}>
                                 Cancelar
                             </button>
-                            <button type="button" disabled={isPending} className="q-action-btn q-action-btn-primary" style={{ flex: 1 }} onClick={handleMarkInDelivery}>
+                            <button type="button" disabled={isPending} className="flex-1 inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-[13px] font-bold cursor-pointer border-none bg-[#E2A049] text-[#1a1a2e] hover:bg-[#c88830] transition-colors disabled:opacity-50" onClick={handleMarkInDelivery}>
                                 {isPending ? '...' : 'Confirmar y enviar email'}
                             </button>
                         </div>

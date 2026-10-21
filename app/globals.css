@@ -116,3 +116,33 @@
     display: none;
   }
 }
+@utility admin-input {
+  width: 100%;
+  padding: 12px 18px;
+  border-radius: 16px;
+  font-size: 14px;
+  outline: none;
+  transition: all 0.2s;
+  font-family: inherit;
+  background-color: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: white;
+
+  &:focus {
+    border-color: #E2A049;
+    background-color: rgba(0, 0, 0, 0.3);
+  }
+
+  &::placeholder {
+    color: rgba(148, 163, 184, 0.9);
+  }
+}
+
+@utility scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}

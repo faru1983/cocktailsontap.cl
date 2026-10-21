@@ -97,11 +97,15 @@ export default function EventWizardShell({ cocktails, eventTypes, comunas, regio
         goToStep(3);
     };
 
-    const handleNextFromProposal = () => {
-        if (!state.dispenser || state.dispenser === 'desechable') {
-            const defaultDisp = suggestedLiters >= 40 ? 'muro' : 'portatil';
-            updateDispenser(defaultDisp);
-        }
+    const handleNextFromProposal = (dispenserOverride?: 'portatil' | 'muro') => {
+        const nextDispenser =
+            dispenserOverride ||
+            (state.dispenser && state.dispenser !== 'desechable'
+                ? state.dispenser
+                : suggestedLiters >= 40
+                  ? 'muro'
+                  : 'portatil');
+        updateDispenser(nextDispenser);
         setValidationError('');
         goToStep(4);
     };

@@ -857,16 +857,7 @@ export default function CreateQuoteManualClient({ allProducts, comunas, regions,
                 </div>
             </form>
 
-            <style jsx>{`
-                /* :global para que también aplique a PhoneInput (hijo en otro componente) */
-                :global(.admin-input) {
-                    width: 100%; padding: 12px 18px; border-radius: 16px; font-size: 14px; outline: none; transition: all 0.2s; font-family: inherit;
-                    background: rgba(0, 0, 0, 0.2); border: 1px solid rgba(255, 255, 255, 0.1); color: white;
-                }
-                :global(.admin-input:focus) { border-color: #E2A049; background: rgba(0, 0, 0, 0.3); }
-                :global(.admin-input::placeholder) { color: rgba(148, 163, 184, 0.9); }
-                .scrollbar-none::-webkit-scrollbar { display: none; }
-            `}</style>
+
         </div>
     );
 }
