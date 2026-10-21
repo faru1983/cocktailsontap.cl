@@ -7,6 +7,17 @@
   ],
   "redirects": [
     {
+      "source": "/qr/activacion",
+      "destination": "https://www.instagram.com/p/DXt4sh3jdSY/",
+      "permanent": false,
+      "has": [
+        {
+          "type": "host",
+          "value": "(www\\.)?cocktailsontap\\.cl$"
+        }
+      ]
+    },
+    {
       "source": "/qr",
       "destination": "https://www.instagram.com/cocktailsontap.chile",
       "permanent": true,
