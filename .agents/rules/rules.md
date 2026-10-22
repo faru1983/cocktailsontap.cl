@@ -148,7 +148,7 @@ Define la arquitectura, reglas irrompibles, convenciones de código, esquema de 
 - `dispenser`: Enum `portatil | muro`
 - `total_price`: Recalculado server-side en confirmación
 - `region_name`: Snapshot legible de la región (short_name) al crear/confirmar
-- `shipping_cost`: `resolveShipping` — eventos: siempre traslado propio (`cost` + `free_from`); desechables: tarifa propia o Blue Express (paquetes M/L); pendiente si falta tarifa o comuna `Otra`
+- `shipping_cost`: `resolveShipping` — eventos: siempre traslado propio (`cost` + `free_from`); desechables: tarifa propia o Blue Express (paquetes M/L); pendiente si falta tarifa o cotizaciones legacy `Otra`
 - `installation_cost`: $50.000 solo si `muro` + ≥30L + sin barriles de 5L
 - `google_event_id` / `google_pickup_event_id`: IDs de eventos de Calendar para updates
 - `manual_discount`: Descuento manual aplicado desde el admin
@@ -175,7 +175,7 @@ Define la arquitectura, reglas irrompibles, convenciones de código, esquema de 
 ### Envíos Dinámicos
 - **Carrier:** región por defecto; **override por comuna** (`shipping_carrier` / `blue_express_zone` null = hereda). RM: provincia Santiago = propio; resto RM = Blue Express `misma_zona`.
 - Blue Express domicilio: tarifas en Admin → Cobertura (`misma_zona` / centro / extremo). 5L = 1 barril; 1→M, 2–4→L, 5→L+M. Wizard no muestra provincias.
-- Comuna `Otra` solo en RM → “Pendiente de factibilidad”.
+- Comuna `Otra` desactivada en RM (solo 52 comunas oficiales en selectores públicos y admin; compatibilidad de lectura legacy preservada).
 - Flags `available_for_events` / `available_for_direct` por región (default: solo RM en eventos).
 - Helper: `resolveShipping()` en `lib/wizardLogic.ts`.
 

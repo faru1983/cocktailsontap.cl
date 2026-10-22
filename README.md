@@ -786,7 +786,7 @@ Cada comuna en la DB tiene:
 
 ```
 Si totalLiters >= free_from → envío $0
-Si comuna === "Otra"       → "Pendiente de factibilidad" ($0 temporal)
+Si falta tarifa configurada → "Pendiente de factibilidad" ($0 temporal)
 De lo contrario             → cobrar cost
 ```
 

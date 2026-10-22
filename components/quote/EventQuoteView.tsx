@@ -251,7 +251,6 @@ export default function EventQuoteView({ quote, comunas, regions, availableCockt
         if (lastName.trim().length < 2) errors.lastName = true;
         if (address.trim().length < 5) errors.address = true;
         if (!comuna || comuna === '...') errors.comuna = true;
-        if (comuna === 'Otra' && !comunaOther.trim()) errors.comunaOther = true;
         const eventMethodConfig = comunas[0]?.shippingMethodsConfig?.own_events;
         if (!eventDate) {
             errors.eventDate = true;

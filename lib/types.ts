@@ -427,13 +427,6 @@ export const CreateQuoteSchema = z
                 path: ['state', 'eventData', 'pickupTime'],
             });
         }
-        if (data.state.contact.comuna === 'Otra' && !(data.state.contact.otherComuna || '').trim()) {
-            ctx.addIssue({
-                code: 'custom',
-                message: 'Especifica la comuna',
-                path: ['state', 'contact', 'otherComuna'],
-            });
-        }
     });
 
 export const ConfirmQuoteSchema = z.object({

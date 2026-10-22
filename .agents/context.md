@@ -41,6 +41,23 @@
 
 ## Ultimos Cambios
 
+### 22-10-2026 — Desactivación de opción "Otra" en comunas de RM y limpieza de flujo
+
+- **Base de datos (`comunas`)**:
+  - Desactivada la comuna sintética `"Otra"` en Región Metropolitana (`is_active = false` en `comunas` id `fcb5f2aa-8806-4d70-ae38-dda99b6de556`).
+  - Solo quedan activas las 52 comunas oficiales y reales de las 6 provincias de la RM (Santiago, Chacabuco, Cordillera, Maipo, Melipilla, Talagante).
+- **Compatibilidad histórica garantizada**:
+  - 33 cotizaciones históricas que utilizaron `"Otra"` y `comuna_other` mantienen su display intacto (`resolveComunaDisplay`), mostrando sus nombres reales (*"Papudo"*, *"Viña del Mar"*, *"Talca"*, etc.).
+  - En la edición de cotizaciones del admin ([`QuoteOperationalSummary.tsx`](file:///c:/Webs/cocktailsontap.cl/app/admin/quotes/%5Bid%5D/QuoteOperationalSummary.tsx)), si se edita una cotización histórica con `comuna_name = 'Otra'`, se presenta como opción histórica sin romper el selector ni borrar datos.
+- **Frontend y Wizards**:
+  - [`RegionComunaFields.tsx`](file:///c:/Webs/cocktailsontap.cl/components/ui/RegionComunaFields.tsx): eliminado el input condicional "Especificar Comuna" y la etiqueta artificial "Otra / No está en la lista".
+  - Removidas validaciones de `otherComuna` en modales de checkout ([`EventWizardCheckoutModal.tsx`](file:///c:/Webs/cocktailsontap.cl/components/wizard/events/EventWizardCheckoutModal.tsx), [`DirectWizardCheckoutModal.tsx`](file:///c:/Webs/cocktailsontap.cl/components/wizard/direct/DirectWizardCheckoutModal.tsx), [`EventosAdsLanding.tsx`](file:///c:/Webs/cocktailsontap.cl/components/landing/EventosAdsLanding.tsx), [`DirectQuoteView.tsx`](file:///c:/Webs/cocktailsontap.cl/components/quote/DirectQuoteView.tsx), [`EventQuoteView.tsx`](file:///c:/Webs/cocktailsontap.cl/components/quote/EventQuoteView.tsx)).
+- **Validaciones & Lógica de Servidor**:
+  - Limpiadas validaciones Zod en [`lib/types.ts`](file:///c:/Webs/cocktailsontap.cl/lib/types.ts) y helpers en [`lib/confirmNowValidation.ts`](file:///c:/Webs/cocktailsontap.cl/lib/confirmNowValidation.ts).
+  - Limpiado el ordenamiento artificial de "Otra" en [`lib/serverData.ts`](file:///c:/Webs/cocktailsontap.cl/lib/serverData.ts) y [`lib/geo.ts`](file:///c:/Webs/cocktailsontap.cl/lib/geo.ts).
+  - Limpiada la agrupación de provincia artificial "Otra" en [`CoverageSettings.tsx`](file:///c:/Webs/cocktailsontap.cl/components/admin/CoverageSettings.tsx).
+  - Actualizados `README.md` y [`.agents/rules/rules.md`](file:///c:/Webs/cocktailsontap.cl/.agents/rules/rules.md).
+
 ### 21-10-2026 — Actualización Regla Muro de Coctelería a 60L y Pedidos Mínimos en Ficha Informativa (Paso 3)
 
 - **Regla de negocio `MURO_MIN_LITERS = 60`**:

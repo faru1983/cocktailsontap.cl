@@ -900,14 +900,15 @@ export default function QuoteOperationalSummary({
                                     style={inputStyle}
                                 >
                                     <option value="">Selecciona…</option>
+                                    {editInfo.comuna_name === 'Otra' && (
+                                        <option value="Otra">Otra (Histórico)</option>
+                                    )}
                                     {comunas
                                         .filter((c) => c.regionCode === regionCode)
-                                        .sort((a, b) =>
-                                            a.name === 'Otra' ? 1 : b.name === 'Otra' ? -1 : a.name.localeCompare(b.name, 'es')
-                                        )
+                                        .sort((a, b) => a.name.localeCompare(b.name, 'es'))
                                         .map((c) => (
                                             <option key={c.name} value={c.name}>
-                                                {c.name === 'Otra' ? 'Otra / No está en la lista' : c.name}
+                                                {c.name}
                                             </option>
                                         ))}
                                 </select>

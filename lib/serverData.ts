@@ -154,8 +154,6 @@ export const fetchAllProductData = unstable_cache(
                     const rb = regionsById.get(b.regionId)?.displayOrder ?? 0;
                     if (ra !== rb) return ra - rb;
                 }
-                if (a.name === 'Otra') return 1;
-                if (b.name === 'Otra') return -1;
                 return a.name.localeCompare(b.name, 'es');
             });
 

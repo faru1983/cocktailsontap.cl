@@ -200,7 +200,6 @@ export default function DirectQuoteView({ quote, comunas, regions, availableCock
         if (lastName.trim().length < 2) errors.lastName = true;
         if (address.trim().length < 5) errors.address = true;
         if (!comuna || comuna === '...') errors.comuna = true;
-        if (comuna === 'Otra' && !comunaOther.trim()) errors.comunaOther = true;
         if (!eventDate) errors.eventDate = true;
         else {
             const dateErr = validateDirectSaleDate(eventDate, activeMethodConfig);

@@ -20,9 +20,6 @@ export function validateConfirmNowState(state: WizardState): string | null {
     if (!(state.contact.comuna || '').trim()) {
         return 'Selecciona una comuna.';
     }
-    if (state.contact.comuna === 'Otra' && !(state.contact.otherComuna || '').trim()) {
-        return 'Especifica la comuna.';
-    }
     if (!(state.eventData.startTime || '').trim()) {
         return 'Hora de inicio obligatoria.';
     }

@@ -119,8 +119,6 @@ export default function DirectWizardCheckoutModal({
         }
         if (!state.contact.comuna.trim()) {
             newErrors.comuna = 'Selecciona tu comuna.';
-        } else if (state.contact.comuna === 'Otra' && !state.contact.otherComuna?.trim()) {
-            newErrors.comuna = 'Especifica la comuna.';
         }
         if (!state.contact.address?.trim() || state.contact.address.trim().length < 5) {
             newErrors.address = 'Ingresa una dirección completa (mín. 5 caracteres).';

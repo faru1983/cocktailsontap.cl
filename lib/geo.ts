@@ -118,13 +118,9 @@ export function filterRegionsForService(
     });
 }
 
-/** Comunas activas de una región (por code), con Otra al final solo en RM. */
+/** Comunas activas de una región (por code). */
 export function filterComunasForRegion(comunas: Comuna[], regionCode: string): Comuna[] {
     return comunas
         .filter((c) => c.regionCode === regionCode && c.isActive)
-        .sort((a, b) => {
-            if (a.name === 'Otra') return 1;
-            if (b.name === 'Otra') return -1;
-            return a.name.localeCompare(b.name, 'es');
-        });
+        .sort((a, b) => a.name.localeCompare(b.name, 'es'));
 }

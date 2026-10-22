@@ -89,7 +89,6 @@ const PROVINCE_ORDER: Record<string, string[]> = {
 
 function provinceKey(comuna: AdminComunaRow): string {
     if (comuna.province_name) return comuna.province_name;
-    if (comuna.name === 'Otra') return 'Otra';
     return 'Sin provincia';
 }
 
@@ -248,7 +247,7 @@ export default function CoverageSettings({
     const regionComunas = useMemo(() => {
         if (!selectedRegionId) return [];
         return comunas
-            .filter((c) => c.region_id === selectedRegionId)
+            .filter((c) => c.region_id === selectedRegionId && c.name !== 'Otra')
             .sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0) || a.name.localeCompare(b.name, 'es'));
     }, [comunas, selectedRegionId]);
 
@@ -265,8 +264,6 @@ export default function CoverageSettings({
             const ia = order.indexOf(a);
             const ib = order.indexOf(b);
             if (ia !== -1 || ib !== -1) return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
-            if (a === 'Otra') return 1;
-            if (b === 'Otra') return -1;
             return a.localeCompare(b, 'es');
         });
         return keys.map((province) => ({ province, comunas: map.get(province) || [] }));
@@ -841,8 +838,7 @@ export default function CoverageSettings({
                                                         >
                                                             <div className="flex items-center justify-between gap-3">
                                                                 <span>Provincia {group.province}</span>
-                                                                {group.province !== 'Otra' &&
-                                                                    group.province !== 'Sin provincia' && (
+                                                                {group.province !== 'Sin provincia' && (
                                                                         <span className="flex gap-2 normal-case tracking-normal">
                                                                             <button
                                                                                 type="button"

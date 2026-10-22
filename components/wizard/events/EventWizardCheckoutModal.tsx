@@ -118,8 +118,6 @@ export default function EventWizardCheckoutModal({
         }
         if (!state.contact.comuna.trim()) {
             newErrors.comuna = 'Selecciona tu comuna.';
-        } else if (state.contact.comuna === 'Otra' && !state.contact.otherComuna?.trim()) {
-            newErrors.comuna = 'Especifica la comuna.';
         }
 
         // 2. Evento

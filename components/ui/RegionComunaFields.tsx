@@ -20,10 +20,10 @@ interface Props {
     /** Nombre de comuna seleccionada (alias: comunaName). */
     comuna?: string;
     comunaName?: string;
-    otherComuna: string;
+    otherComuna?: string;
     onRegionChange: (regionCode: string) => void;
     onComunaChange: (comuna: string) => void;
-    onOtherComunaChange: (other: string) => void;
+    onOtherComunaChange?: (other: string) => void;
     stacked?: boolean;
     required?: boolean;
     variant?: 'public' | 'admin';
@@ -36,7 +36,6 @@ interface Props {
 /**
  * Cascada Región → Comuna.
  * Default: región preseleccionada (RM), comuna en "Selecciona...".
- * "Otra" solo aparece dentro de RM.
  */
 export default function RegionComunaFields({
     regions,
@@ -61,9 +60,6 @@ export default function RegionComunaFields({
     const isAdmin = variant === 'admin';
     const labelCls = labelClassName ?? (isAdmin ? ADMIN_LABEL : PUBLIC_LABEL);
     const selectCls = selectClassName ?? (isAdmin ? ADMIN_SELECT : PUBLIC_SELECT);
-    const inputCls = isAdmin
-        ? ADMIN_SELECT
-        : 'w-full p-2.5 border border-slate-200 rounded-xl focus:border-primary focus:ring-2 focus:ring-primary/10 outline-none text-sm';
 
     const comunaSelectCls = comunaError
         ? `${selectCls} border-red-400 bg-red-50/20 focus:border-red-500 focus:ring-red-100`
@@ -102,7 +98,7 @@ export default function RegionComunaFields({
                     onChange={(e) => {
                         onRegionChange(e.target.value);
                         onComunaChange('');
-                        onOtherComunaChange('');
+                        onOtherComunaChange?.('');
                     }}
                 >
                     {availableRegions.map((r) => (
@@ -123,13 +119,13 @@ export default function RegionComunaFields({
                     value={selectedComuna}
                     onChange={(e) => {
                         onComunaChange(e.target.value);
-                        if (e.target.value !== 'Otra') onOtherComunaChange('');
+                        onOtherComunaChange?.('');
                     }}
                 >
                     <option value="">Selecciona...</option>
                     {comunasInRegion.map((c) => (
                         <option key={`${c.regionCode}-${c.name}`} value={c.name}>
-                            {c.name === 'Otra' ? 'Otra / No está en la lista' : c.name}
+                            {c.name}
                         </option>
                     ))}
                 </select>
@@ -144,26 +140,8 @@ export default function RegionComunaFields({
     );
 
     return (
-        <div className={isAdmin ? 'md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6' : 'flex flex-col gap-3'}>
-            {isAdmin ? fields : <div className={gridClass}>{fields}</div>}
-
-            {selectedComuna === 'Otra' && regionCode === 'RM' && (
-                <div className={`animate-fade-in ${isAdmin ? 'md:col-span-2' : ''}`}>
-                    <label className={labelCls}>
-                        Especificar Comuna{' '}
-                        {required && <span className={isAdmin ? 'text-[#E2A049]' : 'text-primary'}>*</span>}
-                    </label>
-                    <input
-                        id={comunaId ? `${comunaId}-other` : 'field-comuna-other'}
-                        type="text"
-                        required={required}
-                        placeholder="Ej: Curacaví"
-                        className={comunaError && !otherComuna ? `${inputCls} border-red-400 bg-red-50/20 focus:border-red-500 focus:ring-red-100` : inputCls}
-                        value={otherComuna}
-                        onChange={(e) => onOtherComunaChange(e.target.value)}
-                    />
-                </div>
-            )}
+        <div className={isAdmin ? 'md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6' : gridClass}>
+            {fields}
         </div>
     );
 }

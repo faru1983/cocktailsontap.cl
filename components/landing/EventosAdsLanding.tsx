@@ -439,8 +439,6 @@ export default function EventosAdsLanding({ cocktails, comunas, regions, eventTy
 
         if (!comuna.trim()) {
             errs.comuna = 'Selecciona tu comuna';
-        } else if (comuna === 'Otra' && !otherComuna.trim()) {
-            errs.comuna = 'Especifica el nombre de tu comuna';
         }
 
         if (!eventDate.trim()) {
@@ -492,7 +490,7 @@ export default function EventosAdsLanding({ cocktails, comunas, regions, eventTy
                         address: '',
                         region,
                         comuna,
-                        otherComuna: comuna === 'Otra' ? otherComuna.trim() : '',
+                        otherComuna: '',
                         comments: '',
                     },
                     eventData: {
@@ -547,7 +545,7 @@ export default function EventosAdsLanding({ cocktails, comunas, regions, eventTy
                 const waMessage = `¡Hola Cocktails on Tap! 🍸 Acabo de armar mi propuesta en la web:
 • Nombre: ${firstName.trim()} ${lastName.trim()}
 • Evento: ${eventType}${eventType === 'Otro' && otherType ? ` (${otherType})` : ''} (${guests} invitados)
-• Fecha: ${eventDate} en ${comuna === 'Otra' ? otherComuna : comuna}
+• Fecha: ${eventDate} en ${comuna}
 • Formato: ${activeDispenser === 'muro' ? 'Muro de Coctelería' : 'Dispensador Portátil'} (${summaryData.totalLiters}L — ~${summaryData.totalCocktails} cócteles)
 • Sabores sugeridos:
 ${itemsList}
