@@ -156,6 +156,7 @@ export interface WizardSelection {
     size: string;
     quantity: number;
     customPrice?: number;
+    customName?: string;
 }
 
 export interface WizardState {
@@ -449,7 +450,7 @@ export const ConfirmQuoteSchema = z.object({
     items: z
         .array(
             z.object({
-                product_id: z.string().min(1, 'Producto requerido'),
+                product_id: z.string().nullable().optional(),
                 size: z.string().min(1),
                 quantity: z.coerce.number().min(1),
             })

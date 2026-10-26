@@ -41,6 +41,23 @@
 
 ## Ultimos Cambios
 
+### 25-10-2026 — Soporte para Ítems/Productos Personalizados (Custom Items) en Cotizaciones Admin
+
+- **Capacidad Admin para Ítems Personalizados (`admin/quotes/`)**:
+  - Habilitada la creación y edición de productos/servicios personalizados (solo para administradores) con nombre, valor unitario en CLP, cantidad y formato/unidad (por defecto *"Servicio"*, editable).
+  - Disponible tanto en la **edición de cotizaciones existentes** ([`QuoteOperationalSummary.tsx`](file:///c:/Webs/cocktailsontap.cl/app/admin/quotes/%5Bid%5D/QuoteOperationalSummary.tsx) / [`QuoteDetailClient.tsx`](file:///c:/Webs/cocktailsontap.cl/app/admin/quotes/%5Bid%5D/QuoteDetailClient.tsx)) como en la **creación de cotizaciones manuales** ([`CreateQuoteManualClient.tsx`](file:///c:/Webs/cocktailsontap.cl/app/admin/quotes/new/CreateQuoteManualClient.tsx)).
+  - **Edición directa de cantidad manual**: En [`CreateQuoteManualClient.tsx`](file:///c:/Webs/cocktailsontap.cl/app/admin/quotes/new/CreateQuoteManualClient.tsx), el selector de cantidad ahora es un input numérico editable directamente (pudiendo escribir 300 de inmediato para vasos, insumos o extras) conservando además los botones `+` y `-` para ajustes rápidos.
+- **Base de Datos & Esquema (`quote_items`)**:
+  - Utiliza `product_id: null` en `quote_items`, guardando el nombre personalizado en `product_name`, formato en `size`, y `size_value = 0` para no inflar los litros de cóctel de eventos.
+  - Soporte robusto de inserciones/upserts con asignación de UUID en [`adminActions.ts`](file:///c:/Webs/cocktailsontap.cl/app/actions/admin/adminActions.ts) (`updateQuoteItemsAdmin`).
+- **Seguridad y Zero Trust en Confirmación Pública**:
+  - [`ConfirmQuoteSchema`](file:///c:/Webs/cocktailsontap.cl/lib/types.ts): actualizado para permitir `product_id: z.string().nullable().optional()`.
+  - [`confirmQuoteCore.ts`](file:///c:/Webs/cocktailsontap.cl/lib/services/confirmQuoteCore.ts): separa líneas de catálogo (recalculadas contra DB) y líneas custom preexistentes en la cotización, preservando estrictamente el precio fijado por el admin e impidiendo que el cliente inyecte o altere valores. Resuelto bug de inserción en lote en Supabase donde la presencia dispar de la clave `id` en ítems custom provocaba violación de `NOT NULL` en ítems de catálogo; ahora `insertPayload` mapea campos homogéneamente omitiendo `id` para delegar la generación a PostgreSQL (`gen_random_uuid()`).
+  - [`EventQuoteView.tsx`](file:///c:/Webs/cocktailsontap.cl/components/quote/EventQuoteView.tsx) / [`DirectQuoteView.tsx`](file:///c:/Webs/cocktailsontap.cl/components/quote/DirectQuoteView.tsx): eliminado helper local legado `getSizeLiters` que retornaba 10L por defecto al no encontrar "30L/20L/10L/5L", lo que provocaba que ítems custom de servicio con cantidad 2 sumaran 20L espurios. Ahora utiliza la función canónica de [`wizardLogic.ts`](file:///c:/Webs/cocktailsontap.cl/lib/wizardLogic.ts) que retorna 0L si no es formato de litros.
+  - [`createQuoteCore.ts`](file:///c:/Webs/cocktailsontap.cl/lib/services/createQuoteCore.ts): flexibilizado chequeo de `hasMainProduct` cuando `isAdmin: true`.
+- **Compatibilidad 360° Verificada**:
+  - Emails Resend ([`QuoteEmail.tsx`](file:///c:/Webs/cocktailsontap.cl/components/emails/QuoteEmail.tsx), [`ConfirmationEmail.tsx`](file:///c:/Webs/cocktailsontap.cl/components/emails/ConfirmationEmail.tsx)), Google Calendar ([`googleSyncService.ts`](file:///c:/Webs/cocktailsontap.cl/lib/services/googleSyncService.ts)), Recetario/Producción ([`productionService.ts`](file:///c:/Webs/cocktailsontap.cl/lib/services/productionService.ts)), y Meta CAPI/Pixel ([`metaCapiService.ts`](file:///c:/Webs/cocktailsontap.cl/lib/services/metaCapiService.ts)) operan sin advertencias ni regresiones.
+
 ### 22-10-2026 — Desactivación de opción "Otra" en comunas de RM y limpieza de flujo
 
 - **Base de datos (`comunas`)**:

@@ -457,6 +457,24 @@ export default function QuoteDetailClient({
         setSearchTerm('');
     };
 
+    const handleAddCustomItem = (name: string, price: number, quantity: number, size: string) => {
+        setEditItems((prev) => [
+            ...prev,
+            {
+                id: `temp-${Date.now()}`,
+                product_id: null,
+                product_name: name.trim(),
+                size: size.trim() || 'Servicio',
+                size_value: 0,
+                unit_id: null,
+                is_disposable: false,
+                quantity: Math.max(1, quantity),
+                price_at_time: price,
+                offer_price_at_time: price,
+            } as QuoteItem,
+        ]);
+    };
+
     const handleRemoveItem = (idx: number) => {
         setEditItems((prev) => prev.filter((_, i) => i !== idx));
     };
@@ -819,6 +837,7 @@ export default function QuoteDetailClient({
                 comunas={comunas}
                 regions={regions}
                 onAddItem={handleAddItem}
+                onAddCustomItem={handleAddCustomItem}
                 onRemoveItem={handleRemoveItem}
                 onUpdateItem={updateItem}
                 onRegisterPayment={() => setShowPayModal(true)}

@@ -137,7 +137,10 @@ export async function updateQuoteItemsAdmin(
         // 1. Get current items to find which ones to delete
         const { data: existingItems } = await db.from('quote_items').select('id').eq('quote_id', quoteId);
         const existingIds = existingItems?.map(i => i.id) || [];
-        const incomingIds = data.items.map(i => i.id).filter(Boolean);
+        const isUuid = (val: unknown) =>
+            typeof val === 'string' &&
+            /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
+        const incomingIds = data.items.map(i => i.id).filter(isUuid);
         const idsToDelete = existingIds.filter(id => !incomingIds.includes(id));
 
         // 2. Perform DB operations with accurate volume calculation
@@ -151,6 +154,7 @@ export async function updateQuoteItemsAdmin(
             subtotal += item.offer_price_at_time * item.quantity;
             
             // Calculate liters using structured price metadata
+            const isCustom = !item.product_id;
             const cocktail = cocktails.find(c => c.id === item.product_id);
             const priceData = cocktail?.prices[item.size];
             if (priceData && priceData.unit === 'L') {
@@ -169,21 +173,34 @@ export async function updateQuoteItemsAdmin(
 
         // Upserts (Inserts/Updates)
         data.items.forEach(item => {
+            const isCustom = !item.product_id;
             const cocktail = cocktails.find(c => c.id === item.product_id);
             const priceData = cocktail?.prices[item.size];
             const parsedSizeMatch = String(item.size || '').match(/(\d+(?:\.\d+)?)/);
             const fallbackSizeVal = parsedSizeMatch ? Number(parsedSizeMatch[1]) || null : null;
-            const itemData = {
-                ...item,
+            const itemData: any = {
+                product_id: isCustom ? null : item.product_id,
+                product_name: item.product_name,
+                size: item.size || 'Servicio',
+                quantity: item.quantity,
+                price_at_time: item.price_at_time ?? item.offer_price_at_time,
+                offer_price_at_time: item.offer_price_at_time,
                 quote_id: quoteId,
-                size_value: priceData?.sizeValue ?? item.size_value ?? fallbackSizeVal,
-                unit_id: priceData?.unitId ?? item.unit_id ?? null,
+                size_value: isCustom ? 0 : (priceData?.sizeValue ?? item.size_value ?? fallbackSizeVal),
+                unit_id: isCustom ? null : (priceData?.unitId ?? item.unit_id ?? null),
                 is_disposable:
-                    priceData?.isDisposable ??
+                    isCustom
+                        ? false
+                        : priceData?.isDisposable ??
                     item.is_disposable ??
                     /desechable/i.test(String(item.size || '')),
             };
-            promises.push(db.from('quote_items').upsert(itemData) as any);
+            if (isUuid(item.id)) {
+                itemData.id = item.id;
+                promises.push(db.from('quote_items').upsert(itemData) as any);
+            } else {
+                promises.push(db.from('quote_items').insert(itemData) as any);
+            }
         });
 
         // Update Quote Total and Costs

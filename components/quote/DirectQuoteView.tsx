@@ -114,7 +114,7 @@ export default function DirectQuoteView({ quote, comunas, regions, availableCock
                 value: totals.totalFinal,
                 currency: 'CLP',
                 contents: items.map(item => ({
-                    id: item.product_id,
+                    id: item.product_id || item.product_name,
                     item_price: item.offer_price_at_time,
                     quantity: item.quantity
                 })),
@@ -145,13 +145,18 @@ export default function DirectQuoteView({ quote, comunas, regions, availableCock
             if (priceData && priceData.unit === 'L' && cocktail?.category !== 'Otros') {
                 totalLiters += priceData.sizeValue * item.quantity;
             } else if (!priceData) {
-                // Si no hay datos estructurados, usamos el fallback (y filtramos si es Otros por nombre si es posible)
-                const sizeStr = (item.size || '').toLowerCase();
-                if (!sizeStr.match(/kg|und|un|g\b/i) && cocktail?.category !== 'Otros') {
-                    if (item.size_value && sizeStr.includes('l')) {
-                        totalLiters += item.size_value * item.quantity;
-                    } else {
-                        totalLiters += getSizeLiters(item.size) * item.quantity;
+                if (!item.product_id) {
+                    // Ítems personalizados: solo suman volumen si su formato/tamaño especifica litros explícitamente (ej: "20L")
+                    totalLiters += getSizeLiters(item.size) * item.quantity;
+                } else {
+                    // Si no hay datos estructurados, usamos el fallback (y filtramos si es Otros por nombre si es posible)
+                    const sizeStr = (item.size || '').toLowerCase();
+                    if (!sizeStr.match(/kg|und|un|g\b/i) && cocktail?.category !== 'Otros') {
+                        if (item.size_value && sizeStr.includes('l')) {
+                            totalLiters += item.size_value * item.quantity;
+                        } else {
+                            totalLiters += getSizeLiters(item.size) * item.quantity;
+                        }
                     }
                 }
             }
@@ -402,7 +407,7 @@ export default function DirectQuoteView({ quote, comunas, regions, availableCock
             pickup_time: '',
             comments: comments,
             items: items.map((item) => ({
-                product_id: item.product_id,
+                product_id: item.product_id || null,
                 size: item.size,
                 quantity: item.quantity,
             })),
@@ -429,7 +434,7 @@ export default function DirectQuoteView({ quote, comunas, regions, availableCock
                 value: totals.totalFinal,
                 currency: 'CLP',
                 contents: items.map(item => ({
-                    id: item.product_id,
+                    id: item.product_id || item.product_name,
                     item_price: item.offer_price_at_time,
                     quantity: item.quantity
                 })),

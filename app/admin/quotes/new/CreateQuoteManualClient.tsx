@@ -3,7 +3,7 @@
 import { useState, useTransition, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Save, Plus, Trash2, Search, Check, AlertCircle, MessageCircle, RefreshCw, Copy, MapPin, Loader2 } from 'lucide-react';
+import { ArrowLeft, Save, Plus, Trash2, Search, Check, AlertCircle, MessageCircle, RefreshCw, Copy, MapPin, Loader2, X } from 'lucide-react';
 import { createQuoteAdmin } from '@/app/actions/admin/createQuoteAdmin';
 import { getClientAddressesFromQuotes, type ClientQuoteAddress } from '@/app/actions/admin/adminActions';
 import type { Product, Comuna, Region, EventType, WizardState } from '@/lib/types';
@@ -134,7 +134,12 @@ export default function CreateQuoteManualClient({ allProducts, comunas, regions,
 
     const [serviceType, setServiceType] = useState<'event' | 'direct'>(initialServiceType);
     const [dispenser, setDispenser] = useState<'portatil' | 'muro'>('portatil');
-    const [selections, setSelections] = useState<{ id: string; size: string; quantity: number; customPrice?: number }[]>([]);
+    const [selections, setSelections] = useState<{ id: string; size: string; quantity: number; customPrice?: number; customName?: string }[]>([]);
+    const [showCustomForm, setShowCustomForm] = useState(false);
+    const [customName, setCustomName] = useState('');
+    const [customPrice, setCustomPrice] = useState('');
+    const [customQty, setCustomQty] = useState(1);
+    const [customSize, setCustomSize] = useState('Servicio');
     
     const [searchTerm, setSearchTerm] = useState('');
     const [successData, setSuccessData] = useState<{
@@ -205,6 +210,20 @@ export default function CreateQuoteManualClient({ allProducts, comunas, regions,
         p.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
+    const handleAddCustomProduct = (name: string, price: number, quantity: number, size: string) => {
+        const customId = `custom-${Date.now()}`;
+        setSelections(prev => [
+            ...prev,
+            {
+                id: customId,
+                size: size.trim() || 'Servicio',
+                quantity: Math.max(1, quantity),
+                customPrice: price,
+                customName: name.trim(),
+            }
+        ]);
+    };
+
     const handleAddProduct = (p: Product, size: string) => {
         setSelections(prev => {
             const existing = prev.find(s => s.id === p.id && s.size === size);
@@ -223,7 +242,13 @@ export default function CreateQuoteManualClient({ allProducts, comunas, regions,
 
     const updateQuantity = (id: string, size: string, delta: number) => {
         setSelections(prev => prev.map(s => 
-            s.id === id && s.size === size ? { ...s, quantity: Math.max(1, s.quantity + delta) } : s
+            s.id === id && s.size === size ? { ...s, quantity: Math.max(1, (s.quantity || 0) + delta) } : s
+        ));
+    };
+
+    const setDirectQuantity = (id: string, size: string, qty: number) => {
+        setSelections(prev => prev.map(s => 
+            s.id === id && s.size === size ? { ...s, quantity: qty } : s
         ));
     };
 
@@ -248,9 +273,15 @@ export default function CreateQuoteManualClient({ allProducts, comunas, regions,
             if (confirmErr) return setError(confirmErr);
         }
 
+        const cleanedSelections = selections.map(s => (!s.quantity || s.quantity < 1 ? { ...s, quantity: 1 } : s));
+        const stateToSubmit: WizardState = {
+            ...currentWizardState,
+            selections: cleanedSelections
+        };
+
         startTransition(async () => {
             const res = await createQuoteAdmin({
-                state: currentWizardState,
+                state: stateToSubmit,
                 confirmNow: serviceType === 'event' && confirmNow,
                 overrides: {
                     ...(shippingPorPagar ? { shippingCost: 0, shippingLabel: 'Por Pagar' } : shippingOverride !== undefined ? { shippingCost: shippingOverride } : {}),
@@ -679,6 +710,133 @@ export default function CreateQuoteManualClient({ allProducts, comunas, regions,
                             )}
                         </div>
 
+                        {/* Botón y panel para ítem personalizado */}
+                        <div className="mb-8">
+                            {!showCustomForm ? (
+                                <button
+                                    type="button"
+                                    onClick={() => setShowCustomForm(true)}
+                                    className="w-full py-3 px-4 bg-[#E2A049]/10 hover:bg-[#E2A049]/20 border border-[#E2A049]/30 rounded-2xl text-[#E2A049] text-xs font-bold transition-all flex items-center justify-center gap-2"
+                                >
+                                    <Plus size={14} />
+                                    <span>Agregar ítem personalizado (Solo Admin)</span>
+                                </button>
+                            ) : (
+                                <div className="bg-black/40 border border-[#E2A049]/30 rounded-2xl p-5 space-y-4 animate-in fade-in zoom-in-95 duration-200">
+                                    <div className="flex items-center justify-between border-b border-white/5 pb-2">
+                                        <span className="text-[#E2A049] font-black text-xs uppercase tracking-wider">
+                                            Nuevo ítem personalizado (Solo Admin)
+                                        </span>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setShowCustomForm(false);
+                                                setCustomName('');
+                                                setCustomPrice('');
+                                                setCustomSize('Servicio');
+                                                setCustomQty(1);
+                                            }}
+                                            className="text-slate-500 hover:text-white transition-colors"
+                                        >
+                                            <X size={16} />
+                                        </button>
+                                    </div>
+                                    <div className="space-y-3">
+                                        <div>
+                                            <label className="text-[10px] font-black uppercase text-slate-500 tracking-wider mb-1 block">
+                                                Nombre del ítem / servicio
+                                            </label>
+                                            <input
+                                                type="text"
+                                                placeholder="Ej: Personal de Apoyo, Bartender extra..."
+                                                value={customName}
+                                                onChange={(e) => setCustomName(e.target.value)}
+                                                className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-white text-xs outline-none focus:border-[#E2A049]"
+                                                autoFocus
+                                            />
+                                        </div>
+                                        <div className="grid grid-cols-3 gap-2">
+                                            <div>
+                                                <label className="text-[10px] font-black uppercase text-slate-500 tracking-wider mb-1 block">
+                                                    Formato
+                                                </label>
+                                                <input
+                                                    type="text"
+                                                    placeholder="Servicio"
+                                                    value={customSize}
+                                                    onChange={(e) => setCustomSize(e.target.value)}
+                                                    className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-white text-xs outline-none focus:border-[#E2A049]"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="text-[10px] font-black uppercase text-slate-500 tracking-wider mb-1 block">
+                                                    Valor CLP
+                                                </label>
+                                                <input
+                                                    type="number"
+                                                    placeholder="Ej: 60000"
+                                                    value={customPrice}
+                                                    onChange={(e) => setCustomPrice(e.target.value)}
+                                                    className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-white text-xs outline-none focus:border-[#E2A049]"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="text-[10px] font-black uppercase text-slate-500 tracking-wider mb-1 block">
+                                                    Cantidad
+                                                </label>
+                                                <input
+                                                    type="number"
+                                                    min={1}
+                                                    value={customQty}
+                                                    onChange={(e) => setCustomQty(Math.max(1, Number(e.target.value) || 1))}
+                                                    className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-white text-xs outline-none focus:border-[#E2A049]"
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="flex justify-end gap-2 pt-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setShowCustomForm(false);
+                                                setCustomName('');
+                                                setCustomPrice('');
+                                                setCustomSize('Servicio');
+                                                setCustomQty(1);
+                                            }}
+                                            className="px-3 py-1.5 rounded-xl border border-white/10 text-slate-400 text-xs font-bold hover:bg-white/5 transition-all"
+                                        >
+                                            Cancelar
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                if (!customName.trim()) {
+                                                    alert('Por favor escribe un nombre para el ítem.');
+                                                    return;
+                                                }
+                                                const priceNum = Number(customPrice);
+                                                if (isNaN(priceNum) || priceNum < 0) {
+                                                    alert('Por favor ingresa un valor válido.');
+                                                    return;
+                                                }
+                                                handleAddCustomProduct(customName, priceNum, customQty, customSize || 'Servicio');
+                                                setShowCustomForm(false);
+                                                setCustomName('');
+                                                setCustomPrice('');
+                                                setCustomSize('Servicio');
+                                                setCustomQty(1);
+                                            }}
+                                            className="px-4 py-1.5 rounded-xl bg-[#E2A049] text-[#1a1a2e] text-xs font-black hover:bg-[#E2A049]/90 transition-all flex items-center gap-1.5"
+                                        >
+                                            <Plus size={14} />
+                                            <span>Agregar</span>
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
                         {belowEventMinLiters && (
                             <div className="mb-6 p-4 rounded-2xl border border-amber-500/20 bg-amber-500/10 flex items-start gap-3 text-amber-200 text-xs leading-relaxed">
                                 <AlertCircle size={16} className="shrink-0 mt-0.5 text-amber-400" />
@@ -695,35 +853,72 @@ export default function CreateQuoteManualClient({ allProducts, comunas, regions,
                             ) : selections.map(s => {
                                 const product = allProducts.find(p => p.id === s.id);
                                 return (
-                                    <div key={s.id + s.size} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-black/20 rounded-2xl border border-white/5 group hover:border-[#E2A049]/20 transition-all gap-3 sm:gap-4">
-                                        <div className="flex-1 min-w-0 pr-2 mb-2 sm:mb-0">
-                                            <div className="text-white font-bold text-[12px] sm:text-[11px] uppercase tracking-tight leading-tight">{product?.name || 'Producto Desconocido'}</div>
-                                            <div className="text-slate-500 text-[10px] sm:text-[9px] font-black uppercase tracking-widest mt-0.5">{s.size}</div>
+                                    <div key={s.id + s.size} className="p-3.5 bg-black/25 rounded-2xl border border-white/5 group hover:border-[#E2A049]/20 transition-all flex flex-col gap-2.5">
+                                        {/* Fila 1: Badge, Nombre, Formato y Botón Borrar */}
+                                        <div className="flex items-start justify-between gap-2">
+                                            <div className="min-w-0 flex-1">
+                                                <div className="flex items-center gap-1.5 flex-wrap">
+                                                    {!product && (
+                                                        <span className="text-[9px] font-black bg-[#E2A049]/15 text-[#E2A049] px-1.5 py-0.5 rounded border border-[#E2A049]/20 uppercase shrink-0">
+                                                            Custom
+                                                        </span>
+                                                    )}
+                                                    <span className="text-white font-bold text-[12px] uppercase tracking-tight leading-snug break-words">
+                                                        {s.customName || product?.name || 'Producto Desconocido'}
+                                                    </span>
+                                                </div>
+                                                <div className="text-slate-500 text-[10px] font-black uppercase tracking-widest mt-1">
+                                                    {s.size}
+                                                </div>
+                                            </div>
+
+                                            {/* Eliminar */}
+                                            <button 
+                                                type="button" 
+                                                onClick={() => handleRemoveProduct(s.id, s.size)} 
+                                                className="text-rose-500/40 hover:text-rose-500 p-1.5 hover:bg-rose-500/10 rounded-lg transition-colors shrink-0"
+                                                title="Eliminar producto"
+                                            >
+                                                <Trash2 size={16} />
+                                            </button>
                                         </div>
                                         
-                                        <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0 w-full sm:w-auto border-t sm:border-0 border-white/5 pt-3 sm:pt-0">
+                                        {/* Fila 2: Precio Unitario y Controles de Cantidad */}
+                                        <div className="flex items-center justify-between gap-3 pt-2 border-t border-white/5">
                                             {/* Input de Precio */}
-                                            <div className="flex items-center text-[#E2A049] text-[10px] font-black bg-black/40 px-2 py-1.5 rounded-lg border border-white/5 focus-within:border-[#E2A049]/40 transition-colors">
-                                                <span className="mr-1 opacity-40">$</span>
+                                            <div className="flex items-center text-[#E2A049] text-xs font-black bg-black/40 px-2.5 py-1.5 rounded-xl border border-white/5 focus-within:border-[#E2A049]/40 transition-colors">
+                                                <span className="mr-1 text-[10px] opacity-40">$</span>
                                                 <input 
                                                     type="number"
                                                     value={s.customPrice ?? 0}
                                                     onChange={(e) => updatePrice(s.id, s.size, parseInt(e.target.value))}
-                                                    className="bg-transparent w-14 outline-none focus:text-white transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                                    className="bg-transparent w-20 outline-none focus:text-white transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none font-mono"
+                                                    title="Precio unitario"
                                                 />
                                             </div>
 
                                             {/* Controles de Cantidad */}
-                                            <div className="flex items-center gap-1 bg-black/60 rounded-xl p-0.5 border border-white/5">
-                                                <button type="button" onClick={() => updateQuantity(s.id, s.size, -1)} className="w-7 h-7 flex items-center justify-center text-slate-500 hover:text-white transition-colors">-</button>
-                                                <span className="text-xs font-black text-[#E2A049] min-w-[14px] text-center">{s.quantity}</span>
-                                                <button type="button" onClick={() => updateQuantity(s.id, s.size, 1)} className="w-7 h-7 flex items-center justify-center text-slate-500 hover:text-white transition-colors">+</button>
+                                            <div className="flex items-center gap-1 bg-black/60 rounded-xl p-0.5 border border-white/5 focus-within:border-[#E2A049]/40 transition-colors">
+                                                <button type="button" onClick={() => updateQuantity(s.id, s.size, -1)} className="w-7 h-7 flex items-center justify-center text-slate-500 hover:text-white transition-colors" title="Disminuir">-</button>
+                                                <input
+                                                    type="number"
+                                                    min="1"
+                                                    value={s.quantity === 0 ? '' : s.quantity}
+                                                    onChange={(e) => {
+                                                        const raw = e.target.value;
+                                                        const parsed = raw === '' ? 0 : parseInt(raw, 10);
+                                                        setDirectQuantity(s.id, s.size, isNaN(parsed) ? 0 : Math.max(0, parsed));
+                                                    }}
+                                                    onBlur={() => {
+                                                        if (!s.quantity || s.quantity < 1) {
+                                                            setDirectQuantity(s.id, s.size, 1);
+                                                        }
+                                                    }}
+                                                    className="bg-transparent text-xs font-black text-[#E2A049] w-12 text-center outline-none focus:text-white transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                                    title="Cantidad editable"
+                                                />
+                                                <button type="button" onClick={() => updateQuantity(s.id, s.size, 1)} className="w-7 h-7 flex items-center justify-center text-slate-500 hover:text-white transition-colors" title="Aumentar">+</button>
                                             </div>
-
-                                            {/* Eliminar */}
-                                            <button type="button" onClick={() => handleRemoveProduct(s.id, s.size)} className="text-rose-500/30 hover:text-rose-500 p-1.5 transition-colors">
-                                                <Trash2 size={16} />
-                                            </button>
                                         </div>
                                     </div>
                                 );

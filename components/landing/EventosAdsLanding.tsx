@@ -65,26 +65,26 @@ interface Props {
 const STEP_PHOTOS = [
     {
         step: '01',
-        title: 'Hielo a tope',
-        desc: 'Incluimos sacos de hielo para toda la noche. Tus invitados llenan su copa sin preocuparse.',
+        title: 'Hielo a Tope',
+        desc: 'Completa tu vaso o copa con mucho hielo. ¡Mientras más, mejor!',
         img: '/assets/pasos_1.webp',
     },
     {
         step: '02',
-        title: 'Tira la canilla',
-        desc: 'En 5 segundos sale el cóctel helado, con la mezcla exacta de un bar de autor.',
+        title: 'Tira la Canilla',
+        desc: 'Elige tu cóctel favorito y sirve hasta completar el vaso.',
         img: '/assets/pasos_2.webp',
     },
     {
         step: '03',
-        title: 'Toque de Garnish',
-        desc: 'Decoraciones de cítricos deshidratados incluidas para coronar cada copa.',
+        title: 'Decora',
+        desc: 'Dale el toque final con nuestro garnish deshidratado.',
         img: '/assets/pasos_3.webp',
     },
     {
         step: '04',
-        title: 'Sin límite de horas',
-        desc: 'Nadie te apura ni te cobra horas extra. Retiramos los equipos al día siguiente.',
+        title: 'Disfruta',
+        desc: '¡Salud! Ya tienes un cóctel profesional en segundos.',
         img: '/assets/pasos_4.webp',
     },
 ];
@@ -92,21 +92,21 @@ const STEP_PHOTOS = [
 const ZERO_COST_PERKS = [
     {
         icon: Snowflake,
-        title: 'Hielo ilimitado para tu barra',
+        title: 'Hielo suficiente para todo el evento',
         valueTag: 'Valor ref. $45.000',
         desc: 'Calculado según los litros de tu evento para que nunca falte frío.',
     },
     {
         icon: GlassWater,
-        title: 'Préstamo de copas y vasos',
+        title: 'Vasos y Copas',
         valueTag: 'Valor ref. $65.000',
-        desc: 'Cristalería reutilizable de alta resistencia lista para servir.',
+        desc: 'Vasos y copas reutilizables de alta resistencia listos para servir (también puedes solicitar vasos desechables).',
     },
     {
         icon: Leaf,
-        title: 'Garnish cítrico deshidratado',
+        title: 'Decoración deshidratada (Garnish)',
         valueTag: 'Valor ref. $30.000',
-        desc: 'Naranja, limón o pomelo deshidratado más hieleras, pinzas y palas.',
+        desc: 'Naranja y limón deshidratado más hieleras, pinzas y palas.',
     },
     {
         icon: InfinityIcon,
@@ -650,18 +650,18 @@ Quiero confirmar disponibilidad para mi fecha.`;
                         </a>
 
                         <h1 className="text-4xl sm:text-5xl lg:text-[3.5rem] font-black tracking-tight leading-[1.06] text-white mb-6">
-                            Cócteles de autor tirados de barril.{' '}
+                            Coctelería clásica.{' '}
                             <span className="bg-gradient-to-r from-amber-200 via-primary to-amber-400 bg-clip-text text-transparent">
-                                Cero filas. Cero bartenders por hora.
+                                Una experiencia fuera de lo común.
                             </span>
                         </h1>
 
                         <p className="text-zinc-300 text-base sm:text-lg leading-relaxed mb-8 max-w-xl font-normal">
-                            Instalamos una estación de coctelería profesional en tu matrimonio, cumpleaños o evento corporativo. Tus invitados tiran la canilla y se sirven un{' '}
+                            Sorprende a tus invitados con una estación de cócteles listos para servir.{' '}
                             <strong className="text-white font-bold">
-                                Pisco Sour, Aperol Spritz, Mojito o Moscow Mule helado en 5 segundos
+                                Mojito, Sangría, Pisco Sour, Aperol Spritz, Moscow Mule y más
                             </strong>
-                            .
+                            , preparados con ingredientes naturales y licores de marca, con un sistema diseñado para que cada invitado disfrute a su ritmo.
                         </p>
 
                         {/* Ecuación de valor: Todo incluido a $0 */}
@@ -679,15 +679,15 @@ Quiero confirmar disponibilidad para mi fecha.`;
                             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
                                 <div className="flex items-center gap-2 text-zinc-200 font-semibold">
                                     <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                                    <span>Hielo ilimitado ($0)</span>
+                                    <span>Hielo para todo el evento ($0)</span>
                                 </div>
                                 <div className="flex items-center gap-2 text-zinc-200 font-semibold">
                                     <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                                    <span>Copas de vidrio ($0)</span>
+                                    <span>Vasos/Copas ($0)</span>
                                 </div>
                                 <div className="flex items-center gap-2 text-zinc-200 font-semibold">
                                     <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                                    <span>Garnish cítrico ($0)</span>
+                                    <span>Decoración deshidratada ($0)</span>
                                 </div>
                                 <div className="flex items-center gap-2 text-zinc-200 font-semibold">
                                     <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
@@ -833,7 +833,7 @@ Quiero confirmar disponibilidad para mi fecha.`;
                     <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-4">
                         <div>
                             <span className="text-primary font-black text-xs uppercase tracking-[0.2em] block mb-2">
-                                Experiencia Autoservicio Llave en Mano
+                                Experiencia Autoservicio
                             </span>
                             <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight leading-tight">
                                 Tú disfrutas tu fiesta.{' '}
@@ -897,13 +897,13 @@ Quiero confirmar disponibilidad para mi fecha.`;
 
                                 <div className="p-6">
                                     <span className="text-[0.7rem] font-extrabold uppercase tracking-wider text-zinc-400">
-                                        Eventos de 15 a 70 personas
+                                        Eventos Pequeños y Medianos
                                     </span>
                                     <h3 className="text-2xl font-black text-white mt-0.5 mb-2">
                                         Dispensador Portátil
                                     </h3>
                                     <p className="text-xs sm:text-sm text-zinc-300 leading-relaxed mb-4">
-                                        2 salidas simultáneas y enfriamiento continuo con hielo. No usa electricidad: cabe en cualquier mesa, quincho o terraza.
+                                        2 salidas simultáneas. No usa electricidad: cabe en cualquier mesa, quincho o terraza.
                                     </p>
                                     <div className="space-y-2 text-xs text-zinc-200 font-medium">
                                         <div className="flex items-center gap-2">
@@ -948,13 +948,16 @@ Quiero confirmar disponibilidad para mi fecha.`;
 
                                 <div className="p-6">
                                     <span className="text-[0.7rem] font-extrabold uppercase tracking-wider text-primary">
-                                        Eventos de 60 a 300+ personas
+                                        Eventos Grandes y Masivos
                                     </span>
                                     <h3 className="text-2xl font-black text-white mt-0.5 mb-2">
-                                        Muro de Coctelería LED
+                                        Muro de Coctelería
                                     </h3>
                                     <p className="text-xs sm:text-sm text-zinc-300 leading-relaxed mb-4">
-                                        Estructura escénica tipo barra con iluminación LED y múltiples canillas de alto flujo. El centro de atención fotográfico de la fiesta.
+                                        <strong className="text-white font-bold block mb-1">
+                                            El espectáculo que también sirve cócteles.
+                                        </strong>
+                                        Una estructura escénica con iluminación LED y múltiples grifos de alto flujo, diseñada para servir cócteles en segundos. Un punto de encuentro que combina diseño, tecnología y autoservicio para sorprender a tus invitados y convertirse en el centro de atención de tu evento.
                                     </p>
                                     <div className="space-y-2 text-xs text-zinc-200 font-medium">
                                         <div className="flex items-center gap-2">
@@ -1464,7 +1467,7 @@ Quiero confirmar disponibilidad para mi fecha.`;
                                 </div>
 
                                 <div className="mt-3.5 pt-3 border-t border-white/10 flex flex-wrap items-center justify-between gap-2 text-[0.7rem] text-zinc-300">
-                                    <span>✓ Hielo + Copas + Garnish: $0</span>
+                                    <span>✓ Hielo + Vasos/Copas + Decoración: $0</span>
                                     <span>
                                         {comuna
                                             ? `✓ Despacho ${comuna}: ${

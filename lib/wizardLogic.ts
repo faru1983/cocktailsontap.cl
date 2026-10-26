@@ -521,7 +521,7 @@ export function calculateSummaryData(
             
             return {
                 id: s.id || 'manual',
-                name: 'Producto Personalizado',
+                name: s.customName || 'Producto Personalizado',
                 category_id: 'manual',
                 category: 'Manual',
                 desc: 'Producto añadido manualmente',
@@ -530,7 +530,7 @@ export function calculateSummaryData(
                 quantity: s.quantity,
                 totalNormalPrice: itemTotal,
                 totalOfferPrice: itemTotal,
-                priceData: { price: unitPrice, offerPrice: unitPrice, sizeValue: getSizeLiters(s.size), unit: 'L', isDisposable: false }
+                priceData: { price: unitPrice, offerPrice: unitPrice, sizeValue: getSizeLiters(s.size), unit: getSizeLiters(s.size) > 0 ? 'L' : 'u', isDisposable: false }
             };
         }
 

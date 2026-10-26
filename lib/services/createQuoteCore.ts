@@ -115,7 +115,7 @@ export async function createQuoteCore(input: CreateQuoteInput): Promise<CreateQu
             if (confirmErr) return { success: false, error: confirmErr };
         }
 
-        if (cocktails) {
+        if (cocktails && !isAdmin) {
             const hasMainProduct = state.selections.some((sel) => {
                 const product = cocktails.find((c) => c.id === sel.id);
                 return product && product.category !== 'Otros';

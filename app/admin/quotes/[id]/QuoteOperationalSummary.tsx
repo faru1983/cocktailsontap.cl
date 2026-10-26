@@ -164,6 +164,7 @@ export type QuoteOperationalSummaryProps = {
     comunas: Comuna[];
     regions: Region[];
     onAddItem: (p: Product, size: string, price: number, offer: number) => void;
+    onAddCustomItem?: (name: string, price: number, quantity: number, size: string) => void;
     onRemoveItem: (idx: number) => void;
     onUpdateItem: (idx: number, field: keyof QuoteItem, val: unknown) => void;
     onRegisterPayment: () => void;
@@ -458,6 +459,7 @@ export default function QuoteOperationalSummary({
     comunas,
     regions,
     onAddItem,
+    onAddCustomItem,
     onRemoveItem,
     onUpdateItem,
     onRegisterPayment,
@@ -486,6 +488,7 @@ export default function QuoteOperationalSummary({
         payments?: { date: string; amount: number; note: string }[] | null;
         quote_items?: {
             id?: string;
+            product_id?: string | null;
             product_name?: string;
             size?: string;
             quantity?: number;
@@ -504,6 +507,12 @@ export default function QuoteOperationalSummary({
         service_type?: string | null;
         total_liters?: number | null;
     };
+
+    const [showCustomForm, setShowCustomForm] = useState(false);
+    const [customName, setCustomName] = useState('');
+    const [customPrice, setCustomPrice] = useState('');
+    const [customQty, setCustomQty] = useState(1);
+    const [customSize, setCustomSize] = useState('Servicio');
 
     const displayItems = isEditing ? editItems : (q.quote_items || []);
     const fullName = [q.client_name, q.client_lastname].filter(Boolean).join(' ') || '—';
@@ -985,8 +994,9 @@ export default function QuoteOperationalSummary({
                     title={`Pedido (${displayItems.length} producto${displayItems.length === 1 ? '' : 's'})`}
                 >
                     {isEditing && (
+                        <>
                         <div style={{ position: 'relative', marginBottom: '4px' }}>
-                            <label style={labelStyle}>Añadir producto</label>
+                            <label style={labelStyle}>Añadir cóctel del catálogo</label>
                             <input
                                 placeholder="Buscar por nombre…"
                                 value={searchTerm}
@@ -1038,7 +1048,137 @@ export default function QuoteOperationalSummary({
                                 </div>
                             )}
                         </div>
-                    )}
+
+                        {/* Botón y panel para ítem personalizado */}
+                        {!showCustomForm ? (
+                            <div style={{ marginTop: '8px', marginBottom: '12px' }}>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowCustomForm(true)}
+                                    style={chipLinkStyle(GOLD, 'rgba(226,160,73,0.1)', 'rgba(226,160,73,0.25)')}
+                                >
+                                    <Plus size={12} />
+                                    Agregar ítem personalizado (Solo Admin)
+                                </button>
+                            </div>
+                        ) : (
+                            <div
+                                style={{
+                                    background: 'rgba(0,0,0,0.3)',
+                                    border: '1px solid rgba(226,160,73,0.3)',
+                                    borderRadius: '12px',
+                                    padding: '14px',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    gap: '10px',
+                                    marginTop: '8px',
+                                    marginBottom: '12px',
+                                }}
+                            >
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                    <span style={{ color: GOLD, fontSize: '12px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                        Nuevo ítem personalizado (Solo Admin)
+                                    </span>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setShowCustomForm(false);
+                                            setCustomName('');
+                                            setCustomPrice('');
+                                            setCustomSize('Servicio');
+                                            setCustomQty(1);
+                                        }}
+                                        style={{ background: 'none', border: 'none', color: MUTED, cursor: 'pointer', padding: '2px' }}
+                                    >
+                                        <X size={14} />
+                                    </button>
+                                </div>
+
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '8px' }}>
+                                    <div style={{ gridColumn: 'span 2' }}>
+                                        <label style={labelStyle}>Nombre del ítem / servicio</label>
+                                        <input
+                                            placeholder="Ej: Personal de Apoyo, Bartender extra..."
+                                            value={customName}
+                                            onChange={(e) => setCustomName(e.target.value)}
+                                            style={inputStyle}
+                                            autoFocus
+                                        />
+                                    </div>
+                                    <div>
+                                        <label style={labelStyle}>Formato / Unidad</label>
+                                        <input
+                                            placeholder="Servicio"
+                                            value={customSize}
+                                            onChange={(e) => setCustomSize(e.target.value)}
+                                            style={inputStyle}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label style={labelStyle}>Valor unitario CLP</label>
+                                        <input
+                                            type="number"
+                                            placeholder="Ej: 60000"
+                                            value={customPrice}
+                                            onChange={(e) => setCustomPrice(e.target.value)}
+                                            style={inputStyle}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label style={labelStyle}>Cantidad</label>
+                                        <input
+                                            type="number"
+                                            min={1}
+                                            value={customQty}
+                                            onChange={(e) => setCustomQty(Math.max(1, Number(e.target.value) || 1))}
+                                            style={inputStyle}
+                                        />
+                                    </div>
+                                </div>
+
+                                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '4px' }}>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setShowCustomForm(false);
+                                            setCustomName('');
+                                            setCustomPrice('');
+                                            setCustomSize('Servicio');
+                                            setCustomQty(1);
+                                        }}
+                                        style={chipLinkStyle(SOFT, 'rgba(255,255,255,0.05)', 'rgba(255,255,255,0.1)')}
+                                    >
+                                        Cancelar
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            if (!customName.trim()) {
+                                                alert('Por favor escribe un nombre para el ítem.');
+                                                return;
+                                            }
+                                            const priceNum = Number(customPrice);
+                                            if (isNaN(priceNum) || priceNum < 0) {
+                                                alert('Por favor ingresa un valor válido.');
+                                                return;
+                                            }
+                                            onAddCustomItem?.(customName, priceNum, customQty, customSize || 'Servicio');
+                                            setShowCustomForm(false);
+                                            setCustomName('');
+                                            setCustomPrice('');
+                                            setCustomSize('Servicio');
+                                            setCustomQty(1);
+                                        }}
+                                        style={chipLinkStyle('#1a1a2e', GOLD, GOLD)}
+                                    >
+                                        <Plus size={13} />
+                                        Agregar a cotización
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                    </>
+                )}
 
                     {displayItems.length === 0 ? (
                         <p style={{ color: MUTED, fontSize: '13px', margin: 0 }}>Sin productos.</p>
@@ -1063,12 +1203,37 @@ export default function QuoteOperationalSummary({
                                     >
                                         {isEditing ? (
                                             <>
-                                                <div style={{ flex: 1, minWidth: '120px' }}>
-                                                    <div style={{ color: TEXT, fontSize: '14px', fontWeight: 700 }}>
-                                                        {item.product_name}
+                                                {item.product_id === null ? (
+                                                    <div style={{ flex: 1, minWidth: '160px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                            <span style={{ fontSize: '10px', fontWeight: 800, padding: '2px 6px', borderRadius: '4px', background: 'rgba(226,160,73,0.15)', color: GOLD, flexShrink: 0 }}>
+                                                                Personalizado
+                                                            </span>
+                                                            <input
+                                                                value={item.product_name}
+                                                                onChange={(e) => onUpdateItem(idx, 'product_name', e.target.value)}
+                                                                placeholder="Nombre..."
+                                                                style={{ ...inputStyle, padding: '4px 8px', fontSize: '13px', fontWeight: 700 }}
+                                                            />
+                                                        </div>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                            <span style={{ color: MUTED, fontSize: '11px', flexShrink: 0 }}>Formato:</span>
+                                                            <input
+                                                                value={item.size}
+                                                                onChange={(e) => onUpdateItem(idx, 'size', e.target.value)}
+                                                                placeholder="Servicio"
+                                                                style={{ ...inputStyle, width: '120px', padding: '3px 6px', fontSize: '11px' }}
+                                                            />
+                                                        </div>
                                                     </div>
-                                                    <div style={{ color: MUTED, fontSize: '12px' }}>{item.size}</div>
-                                                </div>
+                                                ) : (
+                                                    <div style={{ flex: 1, minWidth: '120px' }}>
+                                                        <div style={{ color: TEXT, fontSize: '14px', fontWeight: 700 }}>
+                                                            {item.product_name}
+                                                        </div>
+                                                        <div style={{ color: MUTED, fontSize: '12px' }}>{item.size}</div>
+                                                    </div>
+                                                )}
                                                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                                                     <input
                                                         type="number"
@@ -1130,6 +1295,11 @@ export default function QuoteOperationalSummary({
                                                         wordBreak: 'break-word',
                                                     }}
                                                 >
+                                                    {item.product_id === null && (
+                                                        <span style={{ fontSize: '10px', fontWeight: 800, padding: '2px 6px', borderRadius: '4px', background: 'rgba(226,160,73,0.15)', color: GOLD, marginRight: '6px', verticalAlign: 'middle' }}>
+                                                            Personalizado
+                                                        </span>
+                                                    )}
                                                     {item.product_name}
                                                 </span>
                                                 <span style={{ textAlign: 'right', flexShrink: 0 }}>

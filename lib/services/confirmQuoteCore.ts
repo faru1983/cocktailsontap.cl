@@ -66,7 +66,7 @@ export async function confirmQuoteCore(
         const data = validation.data;
 
         const [quoteRes, catalogRes] = await Promise.all([
-            db.from('quotes').select('*').eq('token', data.token).single(),
+            db.from('quotes').select('*, quote_items(*)').eq('token', data.token).single(),
             fetchAllProductData(),
         ]);
 
@@ -79,13 +79,45 @@ export async function confirmQuoteCore(
 
         isDirectSale = quote.service_type === 'direct' || quote.dispenser === 'desechable';
 
-        const resolved = resolveQuoteItemsFromCatalog(data.items, catalogRes.cocktails);
+        const catalogLines = data.items
+            .filter((i) => Boolean(i.product_id))
+            .map((i) => ({ product_id: i.product_id!, size: i.size, quantity: i.quantity }));
+        const customLines = data.items.filter((i) => !i.product_id);
+
+        const existingItems = ((quote as any).quote_items as QuoteItem[]) || [];
+        const existingCustomItems = existingItems.filter((i) => !i.product_id);
+
+        const resolved = resolveQuoteItemsFromCatalog(catalogLines, catalogRes.cocktails);
         if (resolved.error) return { success: false, error: resolved.error };
 
-        const resolvedItems = resolved.items.map((item) => ({
+        const resolvedCatalogItems = resolved.items.map((item) => ({
             ...item,
             quote_id: quote.id,
         })) as QuoteItem[];
+
+        // Preservar ítems personalizados ya fijados por el admin en la cotización
+        const resolvedCustomItems: QuoteItem[] = [];
+        for (const customLine of customLines) {
+            const matched = existingCustomItems.find(
+                (ex) => ex.size === customLine.size || ex.product_name === customLine.size
+            ) || existingCustomItems[resolvedCustomItems.length];
+
+            if (!matched) {
+                return { success: false, error: 'Producto no válido en la cotización.' };
+            }
+
+            const { id: _ignoredId, ...matchedData } = matched;
+
+            resolvedCustomItems.push({
+                ...matchedData,
+                quote_id: quote.id,
+                quantity: customLine.quantity,
+                price_at_time: matched.price_at_time,
+                offer_price_at_time: matched.offer_price_at_time,
+            } as QuoteItem);
+        }
+
+        const resolvedItems = [...resolvedCatalogItems, ...resolvedCustomItems];
 
         const summary = calculateSummaryData(
             {
@@ -94,6 +126,8 @@ export async function confirmQuoteCore(
                     id: i.product_id || 'manual',
                     size: i.size,
                     quantity: i.quantity,
+                    customPrice: i.offer_price_at_time,
+                    customName: i.product_name,
                 })),
                 serviceType: isDirectSale ? 'direct' : 'event',
                 contact: {
@@ -213,12 +247,20 @@ export async function confirmQuoteCore(
             throw new Error(deleteResult.error.message);
         }
 
-        const insertResult = await db.from('quote_items').insert(
-            resolvedItems.map(({ quote_id: _q, ...item }) => ({
-                quote_id: quote.id,
-                ...item,
-            }))
-        );
+        const insertPayload = resolvedItems.map((item: any) => ({
+            quote_id: quote.id,
+            product_id: item.product_id || null,
+            product_name: item.product_name || 'Producto',
+            size: item.size || 'Servicio',
+            size_value: typeof item.size_value === 'number' ? item.size_value : null,
+            unit_id: item.unit_id || null,
+            is_disposable: Boolean(item.is_disposable),
+            quantity: item.quantity,
+            price_at_time: item.price_at_time,
+            offer_price_at_time: item.offer_price_at_time,
+        }));
+
+        const insertResult = await db.from('quote_items').insert(insertPayload);
 
         if (insertResult.error) {
             const auditNote = `[${new Date().toISOString()}] Error al guardar ítems en confirmación: ${insertResult.error.message}`;

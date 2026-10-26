@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { formatCurrency, copyToClipboard } from '@/lib/utils';
 import { isValidPhoneE164, normalizePhoneE164 } from '@/lib/phone';
 import PhoneInput from '@/components/ui/PhoneInput';
-import { formatEventDate, calculateMaxPickupDate, isAllowedEventPickupDate, EVENT_NEXT_DAY_PICKUP_SLOTS, getTodayString, resolveShipping, isEventBarrelSizeLabelCompatible } from '@/lib/wizardLogic';
+import { formatEventDate, calculateMaxPickupDate, isAllowedEventPickupDate, EVENT_NEXT_DAY_PICKUP_SLOTS, getTodayString, resolveShipping, isEventBarrelSizeLabelCompatible, getSizeLiters } from '@/lib/wizardLogic';
 import { confirmQuote } from '@/app/actions/confirmQuote';
 import { MURO_INSTALLATION_COST, PORTATIL_MIN_LITERS, MURO_MIN_LITERS } from '@/lib/config';
 import { getMinSelectableDate, validateShippingDate } from '@/lib/shippingMethods';
@@ -164,13 +164,18 @@ export default function EventQuoteView({ quote, comunas, regions, availableCockt
             if (priceData && priceData.unit === 'L' && cocktail?.category !== 'Otros') {
                 totalLiters += priceData.sizeValue * item.quantity;
             } else if (!priceData) {
-                // Fallback si el producto ya no está en catálogo o es antiguo
-                const sizeStr = (item.size || '').toLowerCase();
-                if (!sizeStr.match(/kg|und|un|g\b/i) && cocktail?.category !== 'Otros') {
-                    if (item.size_value && sizeStr.includes('l')) {
-                        totalLiters += item.size_value * item.quantity;
-                    } else {
-                        totalLiters += getSizeLiters(item.size) * item.quantity;
+                if (!item.product_id) {
+                    // Ítems personalizados: solo suman volumen si su formato/tamaño especifica litros explícitamente (ej: "20L")
+                    totalLiters += getSizeLiters(item.size) * item.quantity;
+                } else {
+                    // Fallback si el producto ya no está en catálogo o es antiguo
+                    const sizeStr = (item.size || '').toLowerCase();
+                    if (!sizeStr.match(/kg|und|un|g\b/i) && cocktail?.category !== 'Otros') {
+                        if (item.size_value && sizeStr.includes('l')) {
+                            totalLiters += item.size_value * item.quantity;
+                        } else {
+                            totalLiters += getSizeLiters(item.size) * item.quantity;
+                        }
                     }
                 }
             }
@@ -480,7 +485,7 @@ export default function EventQuoteView({ quote, comunas, regions, availableCockt
             pickup_time: pickupTime,
             comments: comments,
             items: items.map((item) => ({
-                product_id: item.product_id,
+                product_id: item.product_id || null,
                 size: item.size,
                 quantity: item.quantity,
             })),
@@ -1285,12 +1290,4 @@ export default function EventQuoteView({ quote, comunas, regions, availableCockt
             )}
         </div>
     );
-}
-
-function getSizeLiters(size: string): number {
-    if (size.includes('30L')) return 30;
-    if (size.includes('20L')) return 20;
-    if (size.includes('10L')) return 10;
-    if (size.includes('5L')) return 5;
-    return 10;
 }
