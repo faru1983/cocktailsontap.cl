@@ -9,7 +9,7 @@ import { SITE_URL, WHATSAPP_URL, WHATSAPP_LABEL } from '@/lib/config';
 
 export default function Footer() {
     const pathname = usePathname();
-    if (pathname?.startsWith('/admin') || pathname?.startsWith('/lp')) return null;
+    if (pathname?.startsWith('/admin') || pathname?.startsWith('/lp') || pathname?.startsWith('/qr')) return null;
 
     return (
         <footer className="bg-[#0d1117] text-white/80 pt-20">

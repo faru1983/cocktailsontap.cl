@@ -6,7 +6,7 @@ export default function robots(): MetadataRoute.Robots {
         rules: {
             userAgent: '*',
             allow: '/',
-            disallow: '/cotizar/',
+            disallow: ['/cotizar/', '/qr'],
         },
         sitemap: `${SITE_URL}/sitemap.xml`,
     };

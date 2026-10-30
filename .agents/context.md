@@ -41,6 +41,18 @@
 
 ## Ultimos Cambios
 
+### 30-10-2026 — Deep Linking Nativo a Instagram para Códigos QR (`/qr` y `/qr/activacion`)
+
+- **Reemplazo de redirecciones HTTP estáticas por puente inteligente de Deep Linking**:
+  - Eliminadas las redirecciones estáticas `307`/`308` de `/qr/activacion` y `/qr` en [`vercel.json`](file:///c:/Webs/cocktailsontap.cl/vercel.json), ya que los navegadores móviles (iOS Safari / Android Chrome) suprimen Universal Links y App Links al recibir redirecciones HTTP `3xx` cross-domain desde escaneos de cámara.
+  - Creadas rutas dinámicas Server Component [`app/qr/activacion/page.tsx`](file:///c:/Webs/cocktailsontap.cl/app/qr/activacion/page.tsx) y [`app/qr/page.tsx`](file:///c:/Webs/cocktailsontap.cl/app/qr/page.tsx) (`dynamic = 'force-dynamic'`, `noindex, nofollow`).
+  - **Enrutamiento por `User-Agent` ([`lib/instagramDeepLink.ts`](file:///c:/Webs/cocktailsontap.cl/lib/instagramDeepLink.ts))**:
+    - **Desktop, bots de previsualización (WhatsApp/Meta) y navegador interno de Instagram**: redirección inmediata en servidor (`HTTP 307`) hacia la URL web de Instagram sin pantalla intermedia.
+    - **iOS**: conversión determinista (`BigInt`) del shortcode del Reel (`DfIICbCANvA` → `4019498018263849920`) para invocar `instagram://media?id=...` en `/qr/activacion` y `instagram://user?username=cocktailsontap.chile` en `/qr`.
+    - **Android**: construcción de `intent://...#Intent;package=com.instagram.android;scheme=https;S.browser_fallback_url=...;end` para abrir directamente el Reel o perfil en la app oficial con fallback seguro a web si no está instalada.
+  - **UI de respaldo ultraligera ([`InstagramDeepLinkBridge.tsx`](file:///c:/Webs/cocktailsontap.cl/components/shared/InstagramDeepLinkBridge.tsx))**: dispara la apertura automática al montar y presenta de inmediato un botón `<a href>` con gesto directo del usuario + enlace secundario al navegador web. Ocultados [`Navbar.tsx`](file:///c:/Webs/cocktailsontap.cl/components/shared/Navbar.tsx) y [`Footer.tsx`](file:///c:/Webs/cocktailsontap.cl/components/shared/Footer.tsx) en `/qr*`.
+  - Constantes centralizadas en [`lib/config.ts`](file:///c:/Webs/cocktailsontap.cl/lib/config.ts) (`INSTAGRAM_USERNAME`, `INSTAGRAM_PROFILE_URL`, `QR_ACTIVACION_REEL_SHORTCODE`, `QR_ACTIVACION_REEL_URL`).
+
 ### 25-10-2026 — Soporte para Ítems/Productos Personalizados (Custom Items) en Cotizaciones Admin
 
 - **Capacidad Admin para Ítems Personalizados (`admin/quotes/`)**:

@@ -7,28 +7,6 @@
   ],
   "redirects": [
     {
-      "source": "/qr/activacion",
-      "destination": "https://www.instagram.com/reels/DfIICbCANvA/",
-      "permanent": false,
-      "has": [
-        {
-          "type": "host",
-          "value": "(www\\.)?cocktailsontap\\.cl$"
-        }
-      ]
-    },
-    {
-      "source": "/qr",
-      "destination": "https://www.instagram.com/cocktailsontap.chile",
-      "permanent": true,
-      "has": [
-        {
-          "type": "host",
-          "value": "(www\\.)?cocktailsontap\\.cl$"
-        }
-      ]
-    },
-    {
       "source": "/google",
       "destination": "https://g.page/r/CZMhTQCrKMcrEBI/review",
       "permanent": true,
@@ -59,6 +37,24 @@
   "headers": [
     {
       "source": "/cotizar/:path*",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow"
+        }
+      ]
+    },
+    {
+      "source": "/qr",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow"
+        }
+      ]
+    },
+    {
+      "source": "/qr/:path*",
       "headers": [
         {
           "key": "X-Robots-Tag",

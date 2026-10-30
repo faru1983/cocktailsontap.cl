@@ -29,7 +29,7 @@ export default function Navbar() {
     const [scrolled, setScrolled] = useState(false);
     const [hiddenOnScroll, setHiddenOnScroll] = useState(false);
 
-    const isExcluded = pathname?.startsWith('/admin') || pathname?.startsWith('/lp');
+    const isExcluded = pathname?.startsWith('/admin') || pathname?.startsWith('/lp') || pathname?.startsWith('/qr');
 
     const isWizard = pathname?.startsWith('/eventos') || pathname?.startsWith('/barriles');
 

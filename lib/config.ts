@@ -27,6 +27,12 @@ export const WHATSAPP_URL = `https://wa.me/${WHATSAPP_NUMBER}`;
 const waLocal8 = WHATSAPP_NUMBER.slice(-8);
 export const WHATSAPP_LABEL = `+56 9 ${waLocal8.slice(0, 4)} ${waLocal8.slice(4)}`;
 
+/** Instagram & códigos QR impresos (/qr y /qr/activacion) */
+export const INSTAGRAM_USERNAME = 'cocktailsontap.chile';
+export const INSTAGRAM_PROFILE_URL = `https://www.instagram.com/${INSTAGRAM_USERNAME}/`;
+export const QR_ACTIVACION_REEL_SHORTCODE = 'DfIICbCANvA';
+export const QR_ACTIVACION_REEL_URL = `https://www.instagram.com/reels/${QR_ACTIVACION_REEL_SHORTCODE}/`;
+
 /** Costo de instalación del Muro de Coctelería (en CLP) */
 export const MURO_INSTALLATION_COST = 50_000;
 
