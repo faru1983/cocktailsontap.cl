@@ -51,13 +51,13 @@ export interface AdvanceStageOpts {
     /**
      * CRM lifecycle CAPI (engaged→Contact): only when `true`.
      * `curious` solo CRM/touchpoint — no CAPI (señal de baja calidad en Meta).
-     * Quote commerce CAPI (quoted→InitiateCheckout / customer→Purchase with token): default on
+     * Quote commerce CAPI (quoted→Lead / customer→Purchase with token): default on
      * when `quoteToken` is set; pass `false` to skip.
      */
     fireCapi?: boolean;
-    /** Quote token → event_id `initiateCheckout_{token}` / `purchase_{token}` (dedupe con Pixel). */
+    /** Quote token → event_id `lead_{token}` / `purchase_{token}` (dedupe con Pixel). */
     quoteToken?: string | null;
-    /** Monto CLP de la cotización/venta (value de InitiateCheckout / Purchase). */
+    /** Monto CLP de la cotización/venta (value de Lead / Purchase). */
     value?: number | null;
     contentName?: string | null;
     /** Ítems del carrito → custom_data.contents / content_ids / num_items. */
@@ -103,7 +103,7 @@ function resolveActionSource(
  * **Única puerta de salida CAPI** del CRM:
  * - curious → solo etapa CRM (sin CAPI)
  * - engaged + fireCapi → Contact `contact_client_{id}` (una vez)
- * - quoted + quoteToken → InitiateCheckout `initiateCheckout_{token}` (+ value + ítems)
+ * - quoted + quoteToken → Lead `lead_{token}` (+ value + ítems)
  * - customer + quoteToken → Purchase `purchase_{token}` (+ value + ítems)
  * Incluye web, whatsapp y admin (admin = canal manual real / teléfono).
  */
@@ -239,13 +239,13 @@ export async function advanceClientStage(
 
     if (fireQuoteCapi && opts.quoteToken) {
         const eventName: MetaCapiEventName =
-            toStage === 'quoted' ? 'InitiateCheckout' : 'Purchase';
+            toStage === 'quoted' ? 'Lead' : 'Purchase';
         const eventId =
             toStage === 'quoted'
-                ? `initiateCheckout_${opts.quoteToken}`
+                ? `lead_${opts.quoteToken}`
                 : `purchase_${opts.quoteToken}`;
 
-        // Dedupe por event_id (token único) — no reenviar el mismo InitiateCheckout/Purchase
+        // Dedupe por event_id (token único) — no reenviar el mismo Lead/Purchase
         const { count: priorQuoteCapi } = await db
             .from('client_stage_events')
             .select('id', { count: 'exact', head: true })

@@ -29,12 +29,13 @@ function hashPhoneE164(e164: string): string {
 }
 
 export type MetaCapiEventName =
+    | 'Lead'
     | 'InitiateCheckout'
     | 'Contact'
     | 'Purchase'
     | 'CompleteRegistration';
 
-/** Línea de cotización/venta para custom_data de Meta (InitiateCheckout / Purchase). */
+/** Línea de cotización/venta para custom_data de Meta (Lead / InitiateCheckout / Purchase). */
 export interface MetaQuoteLineItem {
     product_id?: string | null;
     product_name?: string | null;

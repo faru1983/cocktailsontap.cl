@@ -655,8 +655,8 @@ export default function EventosAdsLanding({ cocktails, comunas, regions, eventTy
                 return;
             }
 
-            // Deduplicación exacta con CAPI server-side (initiateCheckout_TOKEN)
-            trackOnce(`initiateCheckout_${result.token}`, 'InitiateCheckout', {
+            // Deduplicación exacta con CAPI server-side (lead_TOKEN)
+            trackOnce(`lead_${result.token}`, 'Lead', {
                 content_name: 'Cotización Eventos Landing Ads',
                 content_category: 'Eventos',
                 value: result.totalPrice || summaryData.totalPrice,

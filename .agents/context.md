@@ -37,9 +37,19 @@
 - `lifecycle_stage`: `curious` → `engaged` → `quoted` → `customer` (monotónico). `lost` solo manual en admin.
 - `intent`: `event` | `direct` | `unknown`. Historial en `client_stage_events`.
 - Bot (`whatsapp-cot`): welcome → `bot_started` (curious); al elegir Eventos/Barriles parchea `intent` (`event`|`direct`) sin subir de stage; Interesado sigue en transiciones de flujo (`intent_selected`).
-- **CAPI solo desde `advanceClientStage`** (web / whatsapp / admin): Contact (engaged), InitiateCheckout (quoted), Purchase (customer).
+- **CAPI solo desde `advanceClientStage`** (web / whatsapp / admin): Contact (engaged), Lead (quoted), Purchase (customer).
 
 ## Ultimos Cambios
+
+### 01-11-2026 — Migración de Señal de Cotización de Eventos a 'Lead' en Meta Ads (Pixel + CAPI)
+
+- **Alineación con el Embudo Real de Eventos**:
+  - Reemplazado el evento `InitiateCheckout` por el evento estándar nativo **`Lead`** (Cliente Potencial) para toda cotización de evento creada en web, landing (`#bar-studio` en `/lp/eventos`), wizard y admin.
+  - El modelo de eventos es de venta asistida/prospecto calificado: el usuario deja sus datos completos para cotizar, por lo que optimizar hacia `Lead` entrena el algoritmo de Meta con personas con intención real de contactar y ser cerradas.
+  - Al confirmarse la reserva (abono del 50%), el sistema continúa despachando **`Purchase`** con el valor real y deduplicación exacta.
+- **Deduplicación 1:1 Pixel Browser + Server-Side CAPI**:
+  - Tanto en frontend (`EventosAdsLanding.tsx` y `EventQuoteView.tsx`) como en backend (`clientLifecycleService.ts` vía `advanceClientStage`), el `event_id` se unificó bajo el formato determinista **`lead_{quoteToken}`**.
+  - `metaCapiService.ts`: Agregado `'Lead'` al tipo `MetaCapiEventName` y actualizado el mapeo de metadata comercial y Advanced Matching.
 
 ### 01-11-2026 — Refactorización Espaciosa y 100% Texto de "Configura tu Barra en 30 Segundos" (`#bar-studio`) en `/lp/eventos`
 

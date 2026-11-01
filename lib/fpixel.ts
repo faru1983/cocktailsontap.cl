@@ -4,7 +4,7 @@ export const FB_PIXEL_ID = process.env.NEXT_PUBLIC_META_PIXEL_ID ?? '17395472501
 
 /**
  * Línea de negocio en custom_data (`service` + `content_category`).
- * Todos los eventos estándar de Meta (ViewContent, Contact, InitiateCheckout, Purchase)
+ * Todos los eventos estándar de Meta (ViewContent, Contact, Lead, Purchase)
  * usan estas mismas claves para filtrar Eventos vs Barriles en Ads.
  * PageView no se etiqueta: cubre toda la web. Landings `/eventos` y `/barriles`
  * disparan ViewContent (Pixel) con `service`.
@@ -84,7 +84,7 @@ export interface QuotePixelExtras {
 }
 
 /**
- * Advanced Matching para InitiateCheckout / Purchase.
+ * Advanced Matching para Lead / Purchase.
  * external_id = clients.id, alineado con sendMetaCapiEvent (SHA-256 server-side).
  */
 export function quotePixelUserData(

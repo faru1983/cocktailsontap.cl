@@ -97,8 +97,8 @@ Define la arquitectura, reglas irrompibles, convenciones de código, esquema de 
 │   └── services/
 │       ├── createQuoteCore.ts    # Dominio crear cotización (web + API)
 │       ├── clientService.ts      # Resolve/create/merge persona + identifiers + touchpoints
-│       ├── clientLifecycleService.ts # advanceClientStage + stage events + CAPI único (Contact/InitiateCheckout/Purchase)
-│       ├── metaCapiService.ts    # Meta Conversions API (Contact/InitiateCheckout/Purchase) server-side
+│       ├── clientLifecycleService.ts # advanceClientStage + stage events + CAPI único (Contact/Lead/Purchase)
+│       ├── metaCapiService.ts    # Meta Conversions API (Contact/Lead/Purchase) server-side
 │       ├── quoteService.ts       # Transacciones de BD para cotizaciones
 │       ├── googleSyncService.ts  # Orquestación de Google Contacts/Calendar
 │       ├── settingsService.ts    # Configuración dinámica desde site_settings
@@ -245,7 +245,7 @@ Define la arquitectura, reglas irrompibles, convenciones de código, esquema de 
 - `user_data.external_id` = hash SHA256 de `clients.id`; `em`/`ph` hasheados de **todos** los identifiers; `ctwa_clid`/`fbc`/`fbp` desde touchpoint o cookies `_fbc`/`_fbp` (web).
 - **Disparo solo desde `advanceClientStage`** (no desde createQuoteCore / confirmQuote / bot):
   - Ciclo CRM: Contact `contact_client_{id}` (una vez por persona, solo engaged); curious sin CAPI
-  - Contact / InitiateCheckout / Purchase: mismo par `service=eventos|barriles` + `content_category=Eventos|Barriles` cuando el carril se conoce. Contact sin intent no etiqueta. PageView no etiqueta.
+  - Contact / Lead / Purchase: mismo par `service=eventos|barriles` + `content_category=Eventos|Barriles` cuando el carril se conoce. Contact sin intent no etiqueta. PageView no etiqueta.
   - Pixel ViewContent (sin CAPI) en `/eventos` y `/barriles` con el mismo par `service` / `content_category`.
   - Canales: web (`website`), whatsapp (`chat`), admin (`phone_call`)
 - `meta_event_sent` guarda el `event_id` completo (no solo el nombre del evento).

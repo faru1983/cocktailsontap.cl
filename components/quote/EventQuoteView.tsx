@@ -216,7 +216,7 @@ export default function EventQuoteView({ quote, comunas, regions, availableCockt
         }
     }, [canHaveMuro, dispenser, isDraft]);
 
-    // ─── Meta Pixel: InitiateCheckout al crear cotización (dedupe con CAPI) ──
+    // ─── Meta Pixel: Lead al crear cotización (dedupe con CAPI) ──────────────
     useEffect(() => {
         if (isNew) {
             const totals = calculateTotals();
@@ -225,7 +225,7 @@ export default function EventQuoteView({ quote, comunas, regions, availableCockt
                 item_price: item.offer_price_at_time,
                 quantity: item.quantity
             }));
-            fp.trackOnce(`initiateCheckout_${quote.token}`, 'InitiateCheckout', {
+            fp.trackOnce(`lead_${quote.token}`, 'Lead', {
                 content_name: 'Cotización Eventos',
                 ...fp.metaLineParams('event', fp.META_SERVICE_EVENTOS),
                 value: totals.totalFinal,
