@@ -310,6 +310,16 @@ export function formatEventDate(dateStr: string | null | undefined): string {
  * - Regla oficial de negocio: 1 Litro = 5 Cócteles (vaso estándar 200ml).
  */
 export function calculateSmartConfig(guests: number, avgDrinks: number, isDirect: boolean = false) {
+    if (guests <= 0 || avgDrinks <= 0) {
+        return {
+            config: '',
+            liters: 0,
+            totalDrinks: 0,
+            varietiesCount: 0,
+            counts: { 5: 0, 10: 0, 20: 0, 30: 0 },
+        };
+    }
+
     const totalRequired = Math.ceil(guests * avgDrinks);
     
     // Si es Directo, se calcula en base a barriles desechables de 5L (5L * 5 = 25 cócteles c/u)
@@ -459,8 +469,8 @@ export function calculateEstimatedProposal(
     
     // Valor real de catálogo
     const estimatedTotal = rawTotal;
-    const totalDrinks = config.totalDrinks || 1;
-    const estimatedPricePerDrink = Math.round(estimatedTotal / totalDrinks);
+    const totalDrinks = config.totalDrinks || 0;
+    const estimatedPricePerDrink = totalDrinks > 0 ? Math.round(estimatedTotal / totalDrinks) : 0;
 
     return {
         ...config,

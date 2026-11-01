@@ -13,7 +13,7 @@ export interface PublicCreateQuoteInput {
     fbc?: string | null;
     fbp?: string | null;
     ctwaClid?: string | null;
-    landingMeta?: { landing: string; ctaChannel: 'whatsapp' | 'email' };
+    landingMeta?: { landing: string; ctaChannel: 'whatsapp' | 'email' | 'web' | 'quote' };
 }
 
 /** Server Action pública — catálogo y precios solo desde el servidor. */

@@ -6,6 +6,7 @@ import type { CocktailForWizard, Comuna, Region, EventType, WizardSelection } fr
 import { DEFAULT_REGION_CODE } from '@/lib/types';
 import {
     calculateEstimatedProposal,
+    calculateLiveQuoterSuggestion,
     calculateSummaryData,
     getWhatsAppUrl,
     isEventBarrelSizeLabelCompatible,
@@ -51,12 +52,10 @@ import {
     Award,
     CheckCircle2,
     SlidersHorizontal,
-    Mail,
     RotateCcw,
     Search,
     X,
 } from 'lucide-react';
-import { WhatsappIcon } from '@/components/shared/icons';
 import { getProductEnrichedInfo } from '@/lib/productDetails';
 
 interface Props {
@@ -204,19 +203,19 @@ export default function EventosAdsLanding({ cocktails, comunas, regions, eventTy
     const [canScrollLeft, setCanScrollLeft] = useState(false);
     const [canScrollRight, setCanScrollRight] = useState(true);
 
-    // Estado de la calculadora interactiva
-    const [guests, setGuests] = useState<number>(60);
+    // Estado de la calculadora interactiva (inicia en 0 para cotizador limpio)
+    const [guests, setGuests] = useState<number>(0);
     const [customGuests, setCustomGuests] = useState<string>('');
     const [isCustomGuests, setIsCustomGuests] = useState<boolean>(false);
     const [drinksPerPerson, setDrinksPerPerson] = useState<number>(3);
     const [dispenser, setDispenser] = useState<'portatil' | 'muro'>('portatil');
     const [userOverrodeDispenser, setUserOverrodeDispenser] = useState(false);
 
-    // Personalización de sabores (Modo Explorador 100% Texto)
+    // Personalización de sabores (null = propuesta sugerida automática; array = editado por el usuario)
     const [showCocktailDrawer, setShowCocktailDrawer] = useState(false);
     const [flavorFilter, setFlavorFilter] = useState<'all' | 'Cocktails' | 'Combinados' | 'Mocktails'>('all');
     const [flavorSearch, setFlavorSearch] = useState('');
-    const [manualSelections, setManualSelections] = useState<WizardSelection[]>([]);
+    const [manualSelections, setManualSelections] = useState<WizardSelection[] | null>(null);
 
     // Formulario de contacto
     const [firstName, setFirstName] = useState('');
@@ -233,9 +232,7 @@ export default function EventosAdsLanding({ cocktails, comunas, regions, eventTy
     // Estados de envío y errores
     const [errors, setErrors] = useState<Record<string, string>>({});
     const [sendStatus, setSendStatus] = useState<'idle' | 'saving' | 'error'>('idle');
-    const [activeCta, setActiveCta] = useState<'whatsapp' | 'email' | null>(null);
     const [saveError, setSaveError] = useState('');
-    const [inCheckoutView, setInCheckoutView] = useState(false);
 
     const eventMethodConfig = comunas[0]?.shippingMethodsConfig?.own_events;
 
@@ -259,31 +256,38 @@ export default function EventosAdsLanding({ cocktails, comunas, regions, eventTy
         el.scrollBy({ left: dir === 'left' ? -step : step, behavior: 'smooth' });
     };
 
-    // Ocultar la barra flotante móvil únicamente cuando el ticket/formulario final está en pantalla
-    useEffect(() => {
-        const el = document.getElementById('studio-checkout-card');
-        if (!el || typeof IntersectionObserver === 'undefined') return;
-        const obs = new IntersectionObserver(
-            ([entry]) => setInCheckoutView(entry.isIntersecting),
-            { threshold: 0.12 }
-        );
-        obs.observe(el);
-        return () => obs.disconnect();
-    }, []);
+    // Cócteles totales necesarios según regla del wizard de eventos (invitados * tragos por persona)
+    const targetDrinksNeeded = guests > 0 ? guests * drinksPerPerson : 0;
+
+    // Litros sugeridos de barriles según la regla del wizard (calculateLiveQuoterSuggestion)
+    const { recommendedLiters: wizardRecommendedLiters } = useMemo(() => {
+        return calculateLiveQuoterSuggestion(guests, drinksPerPerson);
+    }, [guests, drinksPerPerson]);
 
     // Propuesta calculada
     const proposal = useMemo(() => {
+        if (guests <= 0) {
+            return {
+                config: '',
+                liters: 0,
+                totalDrinks: 0,
+                varietiesCount: 0,
+                counts: { 5: 0, 10: 0, 20: 0, 30: 0 },
+                estimatedTotal: 0,
+                estimatedPricePerDrink: 0,
+            };
+        }
         return calculateEstimatedProposal(guests, drinksPerPerson, cocktails);
     }, [guests, drinksPerPerson, cocktails]);
 
     const recommendedDispenser: 'portatil' | 'muro' =
-        proposal.liters >= MURO_MIN_LITERS ? 'muro' : 'portatil';
+        wizardRecommendedLiters >= MURO_MIN_LITERS ? 'muro' : 'portatil';
 
     useEffect(() => {
-        if (!userOverrodeDispenser) {
+        if (!userOverrodeDispenser && guests > 0) {
             setDispenser(recommendedDispenser);
         }
-    }, [recommendedDispenser, userOverrodeDispenser]);
+    }, [recommendedDispenser, userOverrodeDispenser, guests]);
 
     const activeDispenser = dispenser;
 
@@ -375,12 +379,17 @@ export default function EventosAdsLanding({ cocktails, comunas, regions, eventTy
     // Pre-selección inteligente de barriles compatibles con el dispensador elegido
     const autoSelections: WizardSelection[] = useMemo(() => {
         const result: WizardSelection[] = [];
-        if (topSellers.length === 0) return result;
+        if (topSellers.length === 0 || guests <= 0) return result;
 
-        // Si el usuario eligió Muro (solo 20L y 30L, mín 60L) o Portátil (solo 5L y 10L, mín 10L)
+        // Meta de litros según la regla del wizard (y respetando los mínimos del dispensador)
+        const effectiveLiters = Math.max(
+            activeDispenser === 'muro' ? MURO_MIN_LITERS : PORTATIL_MIN_LITERS,
+            wizardRecommendedLiters
+        );
+
+        // Si el usuario eligió Muro (solo 20L y 30L, mín 60L)
         if (activeDispenser === 'muro') {
-            const targetLiters = Math.max(MURO_MIN_LITERS, proposal.liters);
-            let remaining = targetLiters;
+            let remaining = effectiveLiters;
             let idx = 0;
             while (remaining > 0 && idx < 20) {
                 const sizeNum = remaining >= 30 && remaining % 20 !== 0 ? 30 : 20;
@@ -395,9 +404,8 @@ export default function EventosAdsLanding({ cocktails, comunas, regions, eventTy
             return result;
         }
 
-        // Portátil: barriles de 10L y 5L
-        const targetLiters = Math.max(PORTATIL_MIN_LITERS, proposal.liters);
-        let remaining = targetLiters;
+        // Portátil: barriles de 10L y 5L (mín 10L)
+        let remaining = effectiveLiters;
         let idx = 0;
         while (remaining > 0 && idx < 30) {
             const sizeNum = remaining >= 10 ? 10 : 5;
@@ -410,9 +418,9 @@ export default function EventosAdsLanding({ cocktails, comunas, regions, eventTy
             remaining -= sizeNum;
         }
         return result;
-    }, [proposal.liters, activeDispenser, topSellers]);
+    }, [guests, wizardRecommendedLiters, activeDispenser, topSellers]);
 
-    const currentSelections = manualSelections.length > 0 ? manualSelections : autoSelections;
+    const currentSelections = manualSelections !== null ? manualSelections : autoSelections;
 
     // Resumen exacto de precios con la lógica oficial del servidor
     const summaryData = useMemo(() => {
@@ -476,12 +484,12 @@ export default function EventosAdsLanding({ cocktails, comunas, regions, eventTy
             setIsCustomGuests(false);
             setCustomGuests('');
             setGuests(presetGuests);
-            setManualSelections([]);
+            setManualSelections(null);
         }
         if (presetDispenser !== undefined) {
             setUserOverrodeDispenser(true);
             setDispenser(presetDispenser);
-            setManualSelections([]);
+            setManualSelections(null);
         }
         const el = document.getElementById('bar-studio');
         if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -496,7 +504,7 @@ export default function EventosAdsLanding({ cocktails, comunas, regions, eventTy
         setIsCustomGuests(false);
         setCustomGuests('');
         setGuests(num);
-        setManualSelections([]);
+        setManualSelections(null);
     };
 
     const handleCustomGuestChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -505,14 +513,17 @@ export default function EventosAdsLanding({ cocktails, comunas, regions, eventTy
         const parsed = parseInt(val, 10);
         if (parsed > 0) {
             setGuests(parsed);
-            setManualSelections([]);
+            setManualSelections(null);
+        } else {
+            setGuests(0);
+            setManualSelections(null);
         }
     };
 
     const handleDispenserSelect = (disp: 'portatil' | 'muro') => {
         setUserOverrodeDispenser(true);
         setDispenser(disp);
-        if (manualSelections.length > 0) {
+        if (manualSelections !== null) {
             setManualSelections(
                 manualSelections.filter((s) => isEventBarrelSizeLabelCompatible(s.size, disp))
             );
@@ -520,7 +531,7 @@ export default function EventosAdsLanding({ cocktails, comunas, regions, eventTy
     };
 
     const handleQuantityChange = (cocktailId: string, sizeLabel: string, delta: number) => {
-        const source = manualSelections.length > 0 ? manualSelections : autoSelections;
+        const source = manualSelections !== null ? manualSelections : autoSelections;
         const copy = source.map((item) => ({ ...item }));
         const idx = copy.findIndex((s) => s.id === cocktailId && s.size === sizeLabel);
 
@@ -535,7 +546,7 @@ export default function EventosAdsLanding({ cocktails, comunas, regions, eventTy
     };
 
     const handleRemoveItem = (cocktailId: string, sizeLabel: string) => {
-        const source = manualSelections.length > 0 ? manualSelections : autoSelections;
+        const source = manualSelections !== null ? manualSelections : autoSelections;
         setManualSelections(source.filter((s) => !(s.id === cocktailId && s.size === sizeLabel)));
     };
 
@@ -548,7 +559,7 @@ export default function EventosAdsLanding({ cocktails, comunas, regions, eventTy
         });
     };
 
-    const validate = (targetCta: 'whatsapp' | 'email') => {
+    const validate = () => {
         const errs: Record<string, string> = {};
 
         if (!firstName.trim() || firstName.trim().length < 2) {
@@ -560,13 +571,9 @@ export default function EventosAdsLanding({ cocktails, comunas, regions, eventTy
         if (!phone.trim() || isChilePrefixOnly(phone) || !isValidPhoneE164(phone)) {
             errs.phone = 'Ingresa un celular válido (+56 9 XXXX XXXX)';
         }
-        if (targetCta === 'email') {
-            if (!email.trim()) {
-                errs.email = 'Ingresa tu email para enviarte la cotización formal';
-            } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
-                errs.email = 'Formato de email inválido';
-            }
-        } else if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+        if (!email.trim()) {
+            errs.email = 'Ingresa tu email para enviarte la cotización formal';
+        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
             errs.email = 'Formato de email inválido';
         }
 
@@ -581,26 +588,29 @@ export default function EventosAdsLanding({ cocktails, comunas, regions, eventTy
             if (dateErr) errs.date = dateErr;
         }
 
-        const minLiters = activeDispenser === 'muro' ? MURO_MIN_LITERS : PORTATIL_MIN_LITERS;
-        if (summaryData.totalLiters < minLiters) {
-            errs.liters = `El pedido mínimo para ${
-                activeDispenser === 'muro' ? 'Muro de Coctelería' : 'Dispensador Portátil'
-            } es de ${minLiters}L (actual: ${summaryData.totalLiters}L).`;
+        if (guests <= 0) {
+            errs.liters = 'Indica la cantidad de invitados en el Paso 1 para armar tu barra.';
+        } else {
+            const minLiters = activeDispenser === 'muro' ? MURO_MIN_LITERS : PORTATIL_MIN_LITERS;
+            if (summaryData.totalLiters < minLiters) {
+                errs.liters = `El pedido mínimo para ${
+                    activeDispenser === 'muro' ? 'Muro de Coctelería' : 'Dispensador Portátil'
+                } es de ${minLiters}L (actual: ${summaryData.totalLiters}L).`;
+            }
         }
 
         setErrors(errs);
         return Object.keys(errs).length === 0;
     };
 
-    const handleSubmit = async (ctaChannel: 'whatsapp' | 'email') => {
-        if (!validate(ctaChannel)) {
+    const handleSubmit = async () => {
+        if (!validate()) {
             const formEl = document.getElementById('studio-checkout-card');
             if (formEl) formEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
             return;
         }
 
         setSendStatus('saving');
-        setActiveCta(ctaChannel);
         setSaveError('');
 
         try {
@@ -643,7 +653,7 @@ export default function EventosAdsLanding({ cocktails, comunas, regions, eventTy
                 fbp: attribution.fbp,
                 landingMeta: {
                     landing: 'lp_eventos',
-                    ctaChannel,
+                    ctaChannel: 'quote',
                 },
             });
 
@@ -662,34 +672,8 @@ export default function EventosAdsLanding({ cocktails, comunas, regions, eventTy
                 value: result.totalPrice || summaryData.totalPrice,
                 currency: 'CLP',
                 service: 'eventos',
-                cta_channel: ctaChannel,
+                cta_channel: 'quote',
             });
-
-            if (ctaChannel === 'whatsapp') {
-                const totalFormatted = formatCurrency(result.totalPrice || summaryData.totalPrice);
-                const quoteUrl = `https://cocktailsontap.cl/cotizar/${result.token}`;
-                const itemsList = currentSelections
-                    .map((s) => {
-                        const prod = cocktails.find((c) => c.id === s.id);
-                        return `  • ${s.quantity}x ${s.size} ${prod?.name || 'Cóctel'}`;
-                    })
-                    .join('\n');
-
-                const waMessage = `¡Hola Cocktails on Tap! 🍸 Acabo de armar mi propuesta en la web:
-• Nombre: ${firstName.trim()} ${lastName.trim()}
-• Evento: ${eventType}${eventType === 'Otro' && otherType ? ` (${otherType})` : ''} (${guests} invitados)
-• Fecha: ${eventDate} en ${comuna}
-• Formato: ${activeDispenser === 'muro' ? 'Muro de Coctelería' : 'Dispensador Portátil'} (${summaryData.totalLiters}L — ~${summaryData.totalCocktails} cócteles)
-• Sabores sugeridos:
-${itemsList}
-• Total estimado: ${totalFormatted}
-• Link de mi cotización: ${quoteUrl}
-
-Quiero confirmar disponibilidad para mi fecha.`;
-
-                window.location.href = getWhatsAppUrl(waMessage);
-                return;
-            }
 
             window.location.href = `/cotizar/${result.token}?new=true`;
         } catch (err) {
@@ -1324,19 +1308,32 @@ Quiero confirmar disponibilidad para mi fecha.`;
                         <div className="lg:col-span-7 space-y-5 sm:space-y-6">
                             {/* Resumen en Vivo para Móvil/Tablet (evita perder de vista el precio mientras se configura) */}
                             <div className="lg:hidden rounded-2xl bg-zinc-950 border border-primary/40 p-3.5 flex items-center justify-between gap-3 shadow-lg">
-                                <div>
-                                    <span className="text-[10px] font-black uppercase tracking-wider text-amber-400 block">
-                                        Estimado Todo Incluido ({summaryData.totalCocktails} copas)
-                                    </span>
-                                    <div className="flex items-baseline gap-1.5 mt-0.5">
-                                        <span className="text-xl font-black text-white">
-                                            {formatCurrency(summaryData.totalPrice)}
+                                {guests === 0 ? (
+                                    <div>
+                                        <span className="text-[10px] font-black uppercase tracking-wider text-amber-400 block">
+                                            Cotizador en Vivo
                                         </span>
-                                        <span className="text-[11px] font-bold text-zinc-400">
-                                            (~{formatCurrency(pricePerCocktail)}/copa)
-                                        </span>
+                                        <div className="text-sm font-bold text-zinc-300 mt-0.5">
+                                            Selecciona tus invitados en el Paso 1 ↓
+                                        </div>
                                     </div>
-                                </div>
+                                ) : (
+                                    <div>
+                                        <span className="text-[10px] font-black uppercase tracking-wider text-amber-400 block">
+                                            Estimado Todo Incluido ({summaryData.totalCocktails} copas)
+                                        </span>
+                                        <div className="flex items-baseline gap-1.5 mt-0.5">
+                                            <span className="text-xl font-black text-white">
+                                                {formatCurrency(summaryData.totalPrice)}
+                                            </span>
+                                            {summaryData.totalCocktails > 0 && (
+                                                <span className="text-[11px] font-bold text-zinc-400">
+                                                    (~{formatCurrency(pricePerCocktail)}/copa)
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
 
                                 <button
                                     type="button"
@@ -1361,7 +1358,7 @@ Quiero confirmar disponibilidad para mi fecha.`;
                                             <span>Cantidad de Invitados</span>
                                         </span>
                                         <span className="text-sm sm:text-base font-black text-primary">
-                                            {guests} personas
+                                            {guests > 0 ? `${guests} personas` : 'Sin seleccionar'}
                                         </span>
                                     </div>
 
@@ -1384,7 +1381,7 @@ Quiero confirmar disponibilidad para mi fecha.`;
                                             type="button"
                                             onClick={() => {
                                                 setIsCustomGuests(true);
-                                                if (!customGuests) setCustomGuests(String(guests));
+                                                if (!customGuests && guests > 0) setCustomGuests(String(guests));
                                             }}
                                             className={`py-3 rounded-xl font-black text-xs sm:text-sm transition-all cursor-pointer border ${
                                                 isCustomGuests
@@ -1424,7 +1421,9 @@ Quiero confirmar disponibilidad para mi fecha.`;
                                             <span>Cócteles por Persona</span>
                                         </span>
                                         <span className="text-[11px] sm:text-xs font-bold text-amber-300">
-                                            Total estimado: ~{proposal.totalDrinks} copas ({proposal.liters}L)
+                                            {guests > 0
+                                                ? `Total necesario: ~${targetDrinksNeeded} cócteles (${wizardRecommendedLiters}L recomendados)`
+                                                : 'Indica tus invitados para calcular'}
                                         </span>
                                     </div>
 
@@ -1454,7 +1453,7 @@ Quiero confirmar disponibilidad para mi fecha.`;
                                                 type="button"
                                                 onClick={() => {
                                                     setDrinksPerPerson(opt.drinks);
-                                                    setManualSelections([]);
+                                                    setManualSelections(null);
                                                 }}
                                                 className={`p-3 sm:p-3.5 rounded-2xl text-left border transition-all cursor-pointer ${
                                                     drinksPerPerson === opt.drinks
@@ -1476,6 +1475,11 @@ Quiero confirmar disponibilidad para mi fecha.`;
                                                 <div className="text-[0.72rem] text-zinc-400 leading-tight">
                                                     {opt.sub}
                                                 </div>
+                                                {guests > 0 && (
+                                                    <div className="text-[0.68rem] text-amber-300 font-bold mt-1.5 pt-1 border-t border-white/[0.08]">
+                                                        ~{guests * opt.drinks} cócteles en total
+                                                    </div>
+                                                )}
                                             </button>
                                         ))}
                                     </div>
@@ -1566,10 +1570,10 @@ Quiero confirmar disponibilidad para mi fecha.`;
                                         </div>
 
                                         <div className="flex items-center gap-2 self-start sm:self-auto">
-                                            {manualSelections.length > 0 && (
+                                            {manualSelections !== null && guests > 0 && (
                                                 <button
                                                     type="button"
-                                                    onClick={() => setManualSelections([])}
+                                                    onClick={() => setManualSelections(null)}
                                                     className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-[11px] font-bold text-zinc-300 transition-colors cursor-pointer"
                                                     title="Restaurar a la propuesta recomendada"
                                                 >
@@ -1610,8 +1614,13 @@ Quiero confirmar disponibilidad para mi fecha.`;
                                             <span className="text-[11px] font-semibold text-zinc-400">
                                                 Meta calculada:{' '}
                                                 <strong className="text-amber-300 font-bold">
-                                                    {proposal.liters}L
+                                                    {wizardRecommendedLiters}L
                                                 </strong>
+                                                {targetDrinksNeeded > 0 && (
+                                                    <span className="text-zinc-400 ml-1">
+                                                        (~{targetDrinksNeeded} cócteles nec.)
+                                                    </span>
+                                                )}
                                             </span>
                                         </div>
 
@@ -1619,35 +1628,45 @@ Quiero confirmar disponibilidad para mi fecha.`;
                                         <div className="w-full h-2 rounded-full bg-zinc-800 overflow-hidden">
                                             <div
                                                 className={`h-full transition-all duration-300 ${
-                                                    summaryData.totalLiters < (activeDispenser === 'muro' ? MURO_MIN_LITERS : PORTATIL_MIN_LITERS)
+                                                    summaryData.totalLiters === 0
+                                                        ? 'bg-zinc-700'
+                                                        : summaryData.totalLiters < (activeDispenser === 'muro' ? MURO_MIN_LITERS : PORTATIL_MIN_LITERS)
                                                         ? 'bg-red-500'
-                                                        : summaryData.totalLiters >= proposal.liters
+                                                        : summaryData.totalLiters >= wizardRecommendedLiters
                                                         ? 'bg-emerald-400'
                                                         : 'bg-primary'
                                                 }`}
                                                 style={{
-                                                    width: `${Math.min(100, Math.round((summaryData.totalLiters / Math.max(1, proposal.liters)) * 100))}%`,
+                                                    width: `${wizardRecommendedLiters > 0 ? Math.min(100, Math.round((summaryData.totalLiters / wizardRecommendedLiters) * 100)) : 0}%`,
                                                 }}
                                             />
                                         </div>
 
                                         {/* Feedback dinámico según el litraje actual */}
                                         <div className="flex items-center justify-between text-[11px]">
-                                            {summaryData.totalLiters < (activeDispenser === 'muro' ? MURO_MIN_LITERS : PORTATIL_MIN_LITERS) ? (
+                                            {guests === 0 ? (
+                                                <span className="text-zinc-400 font-medium">
+                                                    Indica la cantidad de invitados en el Paso 1 para calcular tu barra ideal.
+                                                </span>
+                                            ) : summaryData.totalLiters === 0 ? (
+                                                <span className="text-amber-300 font-medium">
+                                                    No tienes barriles en tu barra. Presiona &ldquo;Sugeridos&rdquo; arriba o abre la carta para agregar sabores.
+                                                </span>
+                                            ) : summaryData.totalLiters < (activeDispenser === 'muro' ? MURO_MIN_LITERS : PORTATIL_MIN_LITERS) ? (
                                                 <span className="text-red-400 font-bold flex items-center gap-1">
                                                     <AlertCircle className="w-3.5 h-3.5 shrink-0" />
                                                     <span>
                                                         Faltan {(activeDispenser === 'muro' ? MURO_MIN_LITERS : PORTATIL_MIN_LITERS) - summaryData.totalLiters}L para el mínimo de {activeDispenser === 'muro' ? 'Muro LED (60L)' : 'Portátil (10L)'}.
                                                     </span>
                                                 </span>
-                                            ) : summaryData.totalLiters < proposal.liters ? (
+                                            ) : summaryData.totalLiters < wizardRecommendedLiters ? (
                                                 <span className="text-amber-300 font-medium">
-                                                    Te sugerimos sumar {proposal.liters - summaryData.totalLiters}L más para cubrir a tus {guests} invitados toda la noche.
+                                                    Te sugerimos sumar {wizardRecommendedLiters - summaryData.totalLiters}L más para cubrir a tus {guests} invitados (~{targetDrinksNeeded} cócteles).
                                                 </span>
                                             ) : (
                                                 <span className="text-emerald-400 font-bold flex items-center gap-1">
                                                     <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
-                                                    <span>Barra perfectamente balanceada para {guests} invitados.</span>
+                                                    <span>Barra perfectamente balanceada para {guests} invitados (~{targetDrinksNeeded} cócteles).</span>
                                                 </span>
                                             )}
                                         </div>
@@ -1934,7 +1953,7 @@ Quiero confirmar disponibilidad para mi fecha.`;
                             noValidate
                             onSubmit={(e) => {
                                 e.preventDefault();
-                                handleSubmit('whatsapp');
+                                handleSubmit();
                             }}
                             className="lg:col-span-5 lg:sticky lg:top-20 bg-white text-slate-900 rounded-[1.75rem] sm:rounded-[2rem] p-5 sm:p-7 shadow-[0_25px_70px_rgba(0,0,0,0.5)] border-2 border-primary/40 scroll-mt-20"
                         >
@@ -1949,11 +1968,17 @@ Quiero confirmar disponibilidad para mi fecha.`;
                                             {formatCurrency(summaryData.totalPrice)}
                                         </div>
                                         <span className="text-xs text-zinc-300 font-medium">
-                                            Aprox.{' '}
-                                            <strong className="text-amber-300 font-black">
-                                                {formatCurrency(pricePerCocktail)}
-                                            </strong>{' '}
-                                            por cóctel servido
+                                            {summaryData.totalCocktails > 0 ? (
+                                                <>
+                                                    Aprox.{' '}
+                                                    <strong className="text-amber-300 font-black">
+                                                        {formatCurrency(pricePerCocktail)}
+                                                    </strong>{' '}
+                                                    por cóctel servido
+                                                </>
+                                            ) : (
+                                                'Selecciona invitados en el Paso 1 para cotizar'
+                                            )}
                                         </span>
                                     </div>
 
@@ -2247,12 +2272,9 @@ Quiero confirmar disponibilidad para mi fecha.`;
                                 <div>
                                     <label
                                         htmlFor="lp-email"
-                                        className="flex items-center justify-between text-[0.75rem] font-bold text-slate-700 mb-1"
+                                        className="block text-[0.75rem] font-bold text-slate-700 mb-1"
                                     >
-                                        <span>Tu Email</span>
-                                        <span className="text-[0.65rem] font-normal text-slate-500">
-                                            Requerido si eliges recibir por correo
-                                        </span>
+                                        Tu Email <span className="text-primary">*</span>
                                     </label>
                                     <input
                                         id="lp-email"
@@ -2264,6 +2286,7 @@ Quiero confirmar disponibilidad para mi fecha.`;
                                         autoCorrect="off"
                                         spellCheck={false}
                                         enterKeyHint="done"
+                                        required
                                         aria-invalid={Boolean(errors.email)}
                                         aria-describedby={errors.email ? 'lp-email-err' : undefined}
                                         value={email}
@@ -2289,51 +2312,34 @@ Quiero confirmar disponibilidad para mi fecha.`;
                                 </div>
                             </div>
 
-                            {/* DOBLE CTA EXPERIMENTAL: WhatsApp vs. Email */}
+                            {/* CTA Único Oficial */}
                             <div className="mt-6 space-y-2.5">
                                 <button
                                     type="submit"
                                     disabled={sendStatus === 'saving'}
-                                    className="w-full py-4 px-5 rounded-2xl bg-[#25D366] hover:bg-[#1da851] text-white font-black text-sm sm:text-base flex items-center justify-center gap-2.5 shadow-[0_8px_25px_rgba(37,211,102,0.35)] transition-all cursor-pointer active:scale-98 disabled:opacity-60"
+                                    className="w-full py-4 px-5 rounded-2xl bg-gradient-to-r from-primary to-[#d98a2b] hover:brightness-110 text-slate-950 font-black text-sm sm:text-base flex items-center justify-center gap-2.5 shadow-[0_8px_25px_rgba(226,160,73,0.35)] transition-all cursor-pointer active:scale-98 disabled:opacity-60"
                                 >
-                                    {sendStatus === 'saving' && activeCta === 'whatsapp' ? (
+                                    {sendStatus === 'saving' ? (
                                         <>
                                             <Loader2 className="w-5 h-5 animate-spin" />
-                                            <span>Generando tu link de cotización...</span>
+                                            <span>Generando tu cotización oficial...</span>
                                         </>
                                     ) : (
                                         <>
-                                            <WhatsappIcon className="w-5 h-5 text-white shrink-0" />
-                                            <span>Recibir propuesta y continuar en WhatsApp</span>
-                                        </>
-                                    )}
-                                </button>
-
-                                <button
-                                    type="button"
-                                    disabled={sendStatus === 'saving'}
-                                    onClick={() => handleSubmit('email')}
-                                    className="w-full py-3.5 px-5 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all cursor-pointer active:scale-98 disabled:opacity-60"
-                                >
-                                    {sendStatus === 'saving' && activeCta === 'email' ? (
-                                        <>
-                                            <Loader2 className="w-4 h-4 animate-spin" />
-                                            <span>Enviando a tu correo...</span>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <Mail className="w-4 h-4 text-primary shrink-0" />
-                                            <span>Enviar a mi Email y ver Reserva Online</span>
-                                            <ArrowRight className="w-4 h-4 text-primary" />
+                                            <span>Generar Cotización Oficial</span>
+                                            <ArrowRight className="w-4.5 h-4.5 stroke-[2.5]" />
                                         </>
                                     )}
                                 </button>
                             </div>
 
-                            <div className="mt-4 flex items-center justify-center gap-2 text-[0.7rem] text-slate-500 font-medium">
-                                <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
-                                <span>
-                                    Recibes tu link único al instante · Sin pago por adelantado
+                            <div className="mt-4 flex flex-col items-center justify-center gap-1.5 text-center text-[0.72rem] text-slate-500 font-medium">
+                                <div className="flex items-center gap-1.5 text-slate-600 font-semibold">
+                                    <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+                                    <span>Recibirás copia en tu email y podrás continuar por WhatsApp</span>
+                                </div>
+                                <span className="text-[0.68rem] text-slate-400">
+                                    Precios congelados · Link único oficial · $0 por adelantado
                                 </span>
                             </div>
                         </form>
@@ -2460,7 +2466,7 @@ Quiero confirmar disponibilidad para mi fecha.`;
             {/* ═══════════════════════════════════════════════════════════════════
                 6. FOOTER MINIMALISTA DE CAMPAÑA
                ═══════════════════════════════════════════════════════════════════ */}
-            <footer className="bg-[#06070B] border-t border-white/10 py-10 pb-28 sm:pb-12 px-4 text-center">
+            <footer className="bg-[#06070B] border-t border-white/10 py-10 pb-12 px-4 text-center">
                 <div className="max-w-4xl mx-auto flex flex-col items-center gap-3">
                     <Image
                         src="/assets/logo.webp"
@@ -2477,40 +2483,6 @@ Quiero confirmar disponibilidad para mi fecha.`;
                     </p>
                 </div>
             </footer>
-
-            {/* ═══════════════════════════════════════════════════════════════════
-                STICKY BOTTOM BAR EN MÓVIL (Se oculta únicamente al llegar al formulario final)
-               ═══════════════════════════════════════════════════════════════════ */}
-            <div
-                className={`fixed bottom-0 inset-x-0 z-40 sm:hidden bg-zinc-950/95 backdrop-blur-xl border-t border-white/15 px-4 pt-2.5 pb-[calc(0.65rem+env(safe-area-inset-bottom))] transition-transform duration-300 ${
-                    inCheckoutView ? 'translate-y-full pointer-events-none' : 'translate-y-0'
-                }`}
-            >
-                <div className="flex items-center justify-between gap-3 max-w-md mx-auto">
-                    <div>
-                        <span className="text-[0.65rem] font-bold uppercase tracking-wider text-zinc-400 block">
-                            Propuesta {guests} inv. ({summaryData.totalCocktails} copas)
-                        </span>
-                        <div className="flex items-baseline gap-1.5">
-                            <span className="text-lg font-black text-amber-400">
-                                {formatCurrency(summaryData.totalPrice)}
-                            </span>
-                            <span className="text-[0.68rem] text-zinc-300">
-                                (~{formatCurrency(pricePerCocktail)}/copa)
-                            </span>
-                        </div>
-                    </div>
-
-                    <button
-                        type="button"
-                        onClick={() => scrollToStudio()}
-                        className="px-4 py-2.5 rounded-xl bg-primary text-slate-950 font-black text-xs flex items-center gap-1.5 shadow-lg active:scale-95 cursor-pointer shrink-0"
-                    >
-                        <span>Cotizar</span>
-                        <ArrowRight className="w-3.5 h-3.5 stroke-[2.5]" />
-                    </button>
-                </div>
-            </div>
         </div>
     );
 }

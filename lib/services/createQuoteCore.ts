@@ -34,7 +34,7 @@ export interface CreateQuoteInput {
     fbc?: string | null;
     fbp?: string | null;
     ctwaClid?: string | null;
-    landingMeta?: { landing: string; ctaChannel: 'whatsapp' | 'email' };
+    landingMeta?: { landing: string; ctaChannel: 'whatsapp' | 'email' | 'web' | 'quote' };
     clientIp?: string | null;
     clientUserAgent?: string | null;
 }

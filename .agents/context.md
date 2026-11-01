@@ -41,6 +41,32 @@
 
 ## Ultimos Cambios
 
+### 01-11-2026 — Unificación de CTA Único Oficial y Email Obligatorio en `/lp/eventos`
+
+- **Email Obligatorio y Calidad Máxima de Matching Meta (CAPI + Pixel)**:
+  - En el formulario de `#bar-studio` ([`EventosAdsLanding.tsx`](file:///c:/Webs/cocktailsontap.cl/components/landing/EventosAdsLanding.tsx)), el campo `email` pasó a ser 100% obligatorio junto con Nombre, Apellido, Celular, Comuna y Fecha.
+  - Esto garantiza que toda cotización generada despache a Meta Ads (tanto por servidor CAPI como por navegador) los identificadores `em` + `ph` hasheados en SHA-256 para lograr un Match Quality óptimo.
+- **Unificación de CTA en Botón Único y Redirección a Cotización Nativa**:
+  - Reemplazado el bloque de doble botón (WhatsApp vs Email) por un único botón principal: **"Generar Cotización Oficial"**.
+  - El formulario procesa la cotización vía `createQuote` (generando registro CRM, congelando precios, enviando email por Resend y evento CAPI `Lead`), dispara el Pixel `Lead` con deduplicación `lead_{token}`, y redirige de inmediato a la vista oficial `/cotizar/${token}?new=true`.
+  - En la vista de cotización, el cliente recibe el mensaje de confirmación en pantalla, tiene su respaldo en el correo y dispone del botón prominente de WhatsApp para continuar la conversación con el mensaje preformateado y su link oficial, resolviendo la fuga en frío que ocurría en PC cuando el usuario no tenía WhatsApp instalado.
+
+### 01-11-2026 — Corrección y Limpieza de Cotizador Móvil, Regla Oficial de Tragos y Vaciado de Carta en `/lp/eventos`
+
+- **Cotizador Limpio desde Cero e Inicio sin Barra Inferior Móvil ([`EventosAdsLanding.tsx`](file:///c:/Webs/cocktailsontap.cl/components/landing/EventosAdsLanding.tsx))**:
+  - Eliminada la barra inferior flotante móvil (`fixed bottom-0`) que precargaba por defecto 60 invitados y 200 copas. La tarjeta superior adherente es suficiente para monitorear el precio en pantallas pequeñas.
+  - El cotizador ahora inicia en **0 invitados** (estado completamente limpio). Los presets numéricos del Paso 1 aparecen deseleccionados y las selecciones automáticas no se generan hasta que el usuario elija su cantidad de invitados.
+  - Si el usuario navega desde los botones rápidos del Hero (ej: 30, 50, 80, 100, 150), se preconfigura esa cantidad y se hace scroll directo a `#bar-studio`.
+- **Soporte de Vaciado y Borrado Completo de Cócteles en Paso 3**:
+  - Resuelto el problema donde al eliminar todos los cócteles de la barra el sistema volvía a cargar la lista recomendada por defecto.
+  - Se desacopló el estado de edición manual usando `manualSelections: WizardSelection[] | null` (donde `null` indica uso de sugerencias automáticas y `[]` indica que el usuario eliminó todos los cócteles manualmente).
+  - Al vaciar la barra, se preserva la lista en 0 mostrando el mensaje amigable de barra vacía y permitiendo restaurar la sugerencia mediante el botón *"Sugeridos"*.
+- **Regla Oficial del Wizard para Cálculo de Tragos y Litros**:
+  - El cálculo de necesidad de consumo ahora adopta exactamente la regla oficial de [`calculateLiveQuoterSuggestion`](file:///c:/Webs/cocktailsontap.cl/lib/wizardLogic.ts):
+    `targetDrinksNeeded = guests * drinksPerPerson` (ej: 60 inv. × 3 tr/p = 180 cócteles; 36L exactos → 40L recomendados en barriles).
+  - La meta en litros sugeridos y el feedback dinámico comparan contra `calculateLiveQuoterSuggestion(guests, drinksPerPerson)`, reflejando en tiempo real tanto las copas exactas necesarias como la cobertura en barriles sugerida.
+  - Se agregó salvaguarda en `calculateSmartConfig` y `calculateEstimatedProposal` en [`lib/wizardLogic.ts`](file:///c:/Webs/cocktailsontap.cl/lib/wizardLogic.ts) para retornar ceros limpios cuando `guests <= 0`.
+
 ### 01-11-2026 — Migración de Señal de Cotización de Eventos a 'Lead' en Meta Ads (Pixel + CAPI)
 
 - **Alineación con el Embudo Real de Eventos**:
