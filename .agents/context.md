@@ -41,6 +41,54 @@
 
 ## Ultimos Cambios
 
+### 01-11-2026 — Refactorización Espaciosa y 100% Texto de "Configura tu Barra en 30 Segundos" (`#bar-studio`) en `/lp/eventos`
+
+- **Espacio amplio y modular ([`EventosAdsLanding.tsx`](file:///c:/Webs/cocktailsontap.cl/components/landing/EventosAdsLanding.tsx))**:
+  - Contenedor expandido de `max-w-6xl` a `max-w-7xl` para dar respiro visual tanto a la columna de configuración como al ticket de cotización.
+  - La columna izquierda fue dividida en 3 tarjetas independientes y ordenadas (*Paso 1: Invitados y Ritmo de Consumo*, *Paso 2: Estación de Coctelería*, *Paso 3: Carta de Cócteles de tu Barra*), eliminando la sensación de hacinamiento y cajones colapsados en 288px.
+- **Eliminación total de fotos diminutas en favor de diseño 100% texto con ingredientes directos**:
+  - Removidas todas las imágenes de cócteles comprimidas (36px) que eran ilegibles en móvil.
+  - La selección de variedades ahora es 100% textual, limpia y directa: nombre del cóctel en tipografía destacada, badge de categoría (*Cóctel Clásico*, *Combinado*, *Sin Alcohol 0.0%*), graduación alcohólica (ABV) y la **lista concisa de ingredientes** (`info.ingredients`) en lugar de textos largos comerciales.
+  - El buscador en vivo ahora indexa también los ingredientes (ej: buscar *"menta"*, *"maracuyá"*, *"canela"*, *"ron"*, *"cachaça"*).
+- **Recomendación por defecto basada en Cócteles Clásicos más económicos**:
+  - `topSellers` ahora filtra exclusivamente la categoría `Cocktails` y prioriza en orden estricto las opciones más económicas y de alta rotación: **Mojito Tradicional, Sangría, Caipiriña, Mojito Sabores (Maracuyá/Frambuesa/Mango), Pisco Sour Clásico, Gin and Tonic**, completando con los demás clásicos en orden ascendente de precio.
+  - Esto garantiza que la cotización inicial por defecto sea mucho más accesible, competitiva y alineada a las preferencias reales del cliente.
+- **Medidor en vivo de balance de litros y cobertura**:
+  - Barra de progreso que compara en tiempo real el volumen configurado (`summaryData.totalLiters`) contra la meta calculada (`proposal.liters`) y el mínimo exigido según dispensador (Portátil 10L, Muro 60L).
+  - Feedback dinámico con alertas por déficit de mínimo, sugerencia de litros faltantes para cubrir todo el evento o confirmación de balance óptimo.
+- **Lista de barra activa con controles directos**:
+  - Vista limpia de los cócteles actualmente en la barra con su rendimiento en copas (`10L = ~50 copas`), controles `[-]` / `[+]` directos y botón de eliminación rápida (`X`) sin tener que abrir el catálogo completo.
+- **Explorador completo de variedades con filtros y buscador en vivo**:
+  - Pestañas de filtrado por categoría (*Todos*, *Cócteles*, *Combinados*, *Sin Alcohol*) con conteo dinámico.
+  - Buscador textual interactivo (por nombre, ingredientes o licor) con limpieza rápida (`X`).
+  - Grilla responsiva de 2 columnas con tarjetas de texto, selectores de formato compatibles (5L/10L para Portátil, 20L/30L para Muro) y resaltado visual dorado inmediato cuando la cantidad es mayor a cero.
+- **Ticket de cotización con desglose ítem por ítem en tiempo real**:
+  - La tarjeta flotante/adherente (`#studio-checkout-card`) ahora incluye la lista desglosada de los barriles seleccionados (`2x 10L Pisco Sour Catedral (100 copas)...`), reflejando al instante cada ajuste realizado en la barra.
+
+### 01-11-2026 — Arquitectura Narrativa Post-Clic (Texto ↔ Video Nativo) en `/lp/eventos` y Desbloqueo LAN `next dev`
+
+- **Eliminación de pestañas e `<iframe>` de Instagram en favor de narrativa progresiva ([`EventosAdsLanding.tsx`](file:///c:/Webs/cocktailsontap.cl/components/landing/EventosAdsLanding.tsx))**:
+  - Removido el selector de pestañas y el embed externo de Instagram (cero fuga de clics pagados y limpieza de `https://www.instagram.com` en CSP de [`vercel.json`](file:///c:/Webs/cocktailsontap.cl/vercel.json)).
+  - **Ritmo móvil Texto → Video 1 → Valor/Acción en Hero**: en pantallas móviles, tras el titular y gancho inicial aparece de inmediato [`video_lp_cot.mp4`](file:///c:/Webs/cocktailsontap.cl/public/assets/video_lp_cot.mp4) (evento real de día y noche en `9:16`), seguido de la ecuación de valor (`$0` en extras) y los botones rápidos de invitados (`30–150`); en escritorio mantiene el split asimétrico `7/5` sin duplicar DOM.
+  - **Sección 3 (`#como-funciona-video`) rediseñada con Video Explicativo + Línea de Tiempo Operativa**: integra [`video_lp_como_funciona.mp4`](file:///c:/Webs/cocktailsontap.cl/public/assets/video_lp_como_funciona.mp4) acompañado de las 3 etapas del servicio (*01 Horas antes: montaje completo*, *02 Durante la fiesta: autoservicio en 5 seg sin cobro por hora*, *03 Al día siguiente: retiro sin lavar*), seguido de los 4 pasos en barra y el bento de formatos.
+- **Reproductor vertical propio estilo Reels ([`LandingReelPlayer.tsx`](file:///c:/Webs/cocktailsontap.cl/components/landing/LandingReelPlayer.tsx))**:
+  - Portadas livianas en WebP `405x720` (`9:16` real: [`video_lp_cot_poster.webp`](file:///c:/Webs/cocktailsontap.cl/public/assets/video_lp_cot_poster.webp) y [`video_lp_como_funciona_poster.webp`](file:///c:/Webs/cocktailsontap.cl/public/assets/video_lp_como_funciona_poster.webp)), barra de progreso superior tipo *Stories*, controles fuera del área central/inferior para no tapar los subtítulos quemados del video explicativo, reinicio automático desde `0:00` al activar audio por primera vez, exclusión mutua de sonido entre videos (`cot:reel-unmute`), pausa automática fuera de pantalla, respeto a `prefers-reduced-motion` y carga diferida (`loading="lazy"` + fallback `IntersectionObserver`) para no descargar los `20,8 MB` del segundo video en la carga inicial.
+- **Desarrollo en red local (`npm run dev`)**: configurado `allowedDevOrigins` dinámico en [`next.config.ts`](file:///c:/Webs/cocktailsontap.cl/next.config.ts) para permitir pruebas móviles por IP Wi-Fi en Next.js `16.4.2`.
+
+### 30-10-2026 — Optimización CRO Mobile-First y Carrusel de Cócteles Clásicos en `/lp/eventos`
+
+- **Nuevo Mensaje Comercial y Hero Responsivo ([`EventosAdsLanding.tsx`](file:///c:/Webs/cocktailsontap.cl/components/landing/EventosAdsLanding.tsx))**:
+  - Titular reemplazado por *«Los mejores cócteles, listos para servir. Tu evento, a otro nivel.»* con énfasis en degradado dorado/ámbar y saltos de línea equilibrados en móvil y escritorio.
+  - Selector rápido de invitados (`30, 50, 80, 100, 150`) dispuesto en una única fila simétrica de 5 columnas también en móvil, eliminando saltos asimétricos y reduciendo altura vertical sobre el pliegue.
+- **Carrusel Protagonista de Cócteles Clásicos (`Cocktails`)**:
+  - Reemplazada la grilla de miniaturas (`80px`) por un carrusel horizontal táctil (`snap-x snap-mandatory`) con controles de navegación en escritorio, ubicado estratégicamente justo después del Hero.
+  - Muestra los **13 cócteles activos de la categoría `Cocktails`** con fotografías cuadradas a tamaño completo (`aspect-square`, `226px–266px`, sin repetir títulos ya impresos en el arte oficial) acompañadas únicamente de la descripción breve de ingredientes reales y puente directo al cotizador.
+- **Optimización Integral de Conversión Móvil (Tráfico Meta Ads / Instagram WebView)**:
+  - **4 Pasos Autoservicio**: compactados en móvil en grilla `2x2` (`grid-cols-2 lg:grid-cols-4`), reduciendo más de 700px de scroll vertical innecesario.
+  - **Visibilidad continua de precio en `Bar Studio`**: incorporada tarjeta resumen en vivo en móvil (`lg:hidden`) al inicio del configurador y ajustado el `IntersectionObserver` del `Sticky Bottom Bar` para ocultarse recién al llegar al formulario final (`#studio-checkout-card`), evitando que el precio desaparezca mientras el usuario ajusta invitados o sabores.
+  - **Formulario Semántico `<form>` Anti-Zoom iOS & Autofill**: controles con `text-base sm:text-sm` (`16px` en móvil para evitar el auto-zoom forzado de Safari iOS / Instagram), asociación explícita `label`/`id`/`name`, atributos `autoComplete` (`given-name`, `family-name`, `tel`, `email`), placeholder nativo en [`PhoneInput`](file:///c:/Webs/cocktailsontap.cl/components/ui/PhoneInput.tsx) e input condicional para celebración `"Otro"`.
+  - **Prueba Social y Cierre**: reseñas de Google Maps deslizables horizontalmente en móvil + bloque compacto de 4 preguntas frecuentes con acordeón nativo `<details name="eventos-faq">` y CTA final.
+
 ### 30-10-2026 — Deep Linking Nativo a Instagram para Códigos QR (`/qr` y `/qr/activacion`)
 
 - **Reemplazo de redirecciones HTTP estáticas por puente inteligente de Deep Linking**:
