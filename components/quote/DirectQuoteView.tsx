@@ -170,14 +170,13 @@ export default function DirectQuoteView({ quote, comunas, regions, availableCock
             totalLiters,
             comunas,
         });
-        let shipping = quote.shipping_cost;
-        if (resolved.isPending) {
-            shipping = 0;
-        } else if (comuna !== quote.comuna_name || regionCode !== initialRegionCode) {
-            shipping = resolved.shippingCost;
-        } else if (resolved.shippingLabel === '¡Gratis!') {
-            shipping = 0;
+        let shipping: number;
+        const locationChanged = comuna !== quote.comuna_name || regionCode !== initialRegionCode;
+        if (locationChanged) {
+            // El cliente cambió la ubicación: recalcular desde cero
+            shipping = resolved.isPending ? 0 : resolved.shippingCost;
         } else {
+            // Misma ubicación: respetar el valor guardado en DB (puede ser un override del admin)
             shipping = quote.shipping_cost ?? resolved.shippingCost;
         }
 

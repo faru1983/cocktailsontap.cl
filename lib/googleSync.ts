@@ -1,4 +1,4 @@
-import { PROJECT_TIMEZONE } from './config';
+﻿import { PROJECT_TIMEZONE } from './config';
 import { formatPhoneDisplay } from './phone';
 
 const CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
@@ -53,6 +53,16 @@ async function getAccessToken(): Promise<string> {
         }),
     });
 
+    // Guardia: si Google responde HTML en vez de JSON (env vars faltantes, token inválido, etc.)
+    const contentType = response.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) {
+        const rawText = await response.text();
+        throw new Error(
+            `Google OAuth2: respuesta inesperada (HTTP ${response.status} ${response.statusText}). ` +
+            `Verifica GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET y GOOGLE_REFRESH_TOKEN en Vercel. ` +
+            `Inicio: ${rawText.slice(0, 120)}`
+        );
+    }
     const data = await response.json() as GoogleTokenResponse & GoogleErrorResponse;
     if (!response.ok) {
         throw new Error(`Google OAuth2 Error: ${data.error_description || data.error?.message || response.statusText}`);
@@ -83,6 +93,12 @@ async function googleFetch<T>(url: string, options: RequestInit = {}): Promise<T
 
     if (response.status === 204) return null as T;
 
+    // Guardia: respuesta HTML inesperada (quota exceeded, auth error, etc.)
+    const ct = response.headers.get('content-type') || '';
+    if (!ct.includes('application/json')) {
+        const raw = await response.text();
+        throw new Error(`Google API: respuesta no JSON (HTTP ${response.status}) para [${url.split('?')[0]}]. Inicio: ${raw.slice(0, 100)}`);
+    }
     const data = await response.json();
     if (!response.ok) {
         const errorData = data as GoogleErrorResponse;
