@@ -41,6 +41,19 @@
 
 ## Ultimos Cambios
 
+### 09-11-2026 — Mensajes Preformateados de WhatsApp Enriquecidos (Eventos y Barriles)
+
+- **Actualización de `buildWhatsAppMessage` y `buildWhatsAppMessageFromQuote` (`lib/wizardLogic.ts`)**:
+  - **Identificación limpia sin etiquetas**: Datos de contacto directos al inicio (`Felipe Ramírez`, `+56 9 1234 5678`, `correo@...`) sin prefijos como `Nombre:` ni `Teléfono:`.
+  - **Títulos contextualizados**:
+    - `*COTIZACIÓN EVENTO*` (cotizaciones de eventos en borrador).
+    - `*RESERVA EVENTO CONFIRMADA*` (reservas de eventos confirmadas con dirección y retiro).
+    - `*PEDIDO BARRIL DESECHABLE*` (pedidos de barriles desechables en venta directa).
+  - **Detalles de entrega y eventos**:
+    - **Eventos**: Fecha y hora de inicio, dirección/comuna completa formateada con `formatQuoteAddress`, horario de retiro si aplica, temática e invitados, y formato de dispensador.
+    - **Barriles (Venta Directa)**: Soporte nativo para estimación de Blue Express a regiones (`quote.delivery_estimate_label` o `state.deliveryEstimate.deliveryEstimateLabel`) mostrando `📦 Llegada estimada: [Rango] (Blue Express)` o fecha de entrega agendada en Santiago (`📅 Fecha de entrega: [Fecha]`), junto con dirección y comuna.
+  - **Productos y Desglose**: Viñetas con cantidades y tamaños, subtotales, costo de despacho/traslados, costo de instalación (si aplica) y total general, junto con el enlace permanente de la cotización/reserva en `cocktailsontap.cl/cotizar/[token]`.
+
 ### 09-11-2026 — Desacoplamiento de Despachos en /barriles (Días Hábiles, Blue Express y Google Calendar)
 
 - **Cálculo de Días Hábiles en Producción (`lib/businessDays.ts` y `lib/shippingMethods.ts`)**:

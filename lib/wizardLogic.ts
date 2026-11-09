@@ -1,5 +1,6 @@
-import type { CocktailForWizard, Comuna, WizardState, WizardSelection, Quote, QuoteItem } from './types';
+﻿import type { CocktailForWizard, Comuna, WizardState, WizardSelection, Quote, QuoteItem } from './types';
 import { formatCurrency } from './utils';
+import { formatQuoteAddress } from './geo';
 import { SITE_URL, WHATSAPP_URL, MURO_INSTALLATION_COST, MURO_COMPATIBLE_SIZES, MURO_MIN_LITERS, PORTATIL_COMPATIBLE_SIZES, PORTATIL_MIN_LITERS, PROJECT_TIMEZONE, COCKTAILS_PER_LITER } from './config';
 import {
     barrelsFromLiters,
@@ -629,42 +630,124 @@ export function calculateSummaryData(
  */
 export function buildWhatsAppMessage(state: WizardState, data: SummaryData, token?: string): string {
     const guests = state.consumption.guests || 0;
-    const totalDrinks = data.totalLiters * 5;
-    const avgDrinks = guests > 0 ? (totalDrinks / guests).toFixed(1) : '0';
     const N = new Intl.NumberFormat('es-CL');
 
-    const itemsText = data.items.map((s) => {
-        const hasOffer = s.totalNormalPrice > s.totalOfferPrice;
-        return `- x${s.quantity} ${s.name} (${s.selectedSize}): ${hasOffer ? `~$${N.format(s.totalNormalPrice)}~ ` : ''}*$${N.format(s.totalOfferPrice)}*`;
-    }).join('\n');
-
     const isDirect = state.serviceType === 'direct';
-    let msg = isDirect ? `*NUEVO PEDIDO*\n\n` : `*SOLICITUD DE COTIZACIÓN*\n\n`;
+    const isConfirmed = Boolean(state.eventData?.pickupDate && state.contact?.address);
 
-    msg += `*PRODUCTOS:*\n${itemsText}\n`;
+    // 1. Título contextual
+    let title = '*COTIZACIÓN EVENTO*';
+    if (isDirect) {
+        title = '*PEDIDO BARRIL DESECHABLE*';
+    } else if (isConfirmed) {
+        title = '*RESERVA EVENTO CONFIRMADA*';
+    }
 
-    msg += `*Subtotal:* ${formatCurrency(data.totalNormalPrice)}\n`;
-    if (data.totalDiscount > 0) msg += `*Descuento:* -${formatCurrency(data.totalDiscount)}\n`;
-    msg += `*Traslados:* ${data.shippingLabel}\n`;
-    msg += `*${data.dispenserLabel}:* ${data.installationCost === 0 ? '¡Gratis!' : formatCurrency(data.installationCost)}\n`;
-    msg += `*TOTAL: ${formatCurrency(data.totalPrice)}*\n`;
-    msg += `_Valores netos. No incluyen IVA._\n\n`;
+    let msg = `${title}\n\n`;
 
-    // Solo mostrar el rendimiento si realmente hay litros acumulados
-    if (data.totalLiters > 0) {
-        msg += `*Notas:* \n`;
-        msg += `_Estas cotizando ${data.totalLiters}L con rendimiento total aprox. de ${data.totalCocktails} cócteles._\n`;
-        
-        if (guests > 0) {
-            const avgDrinks = (data.totalCocktails / guests).toFixed(1);
-            msg += `_Para ${guests} invitados tienes en promedio ${avgDrinks} cócteles x pers._\n\n`;
+    // 2. Datos de contacto directos sin títulos
+    const fullName = [state.contact.firstName, state.contact.lastName].filter(Boolean).join(' ').trim();
+    const contactLines: string[] = [];
+    if (fullName) contactLines.push(fullName);
+    if (state.contact.phone) contactLines.push(state.contact.phone);
+    if (state.contact.email) contactLines.push(state.contact.email);
+
+    if (contactLines.length > 0) {
+        msg += `${contactLines.join('\n')}\n\n`;
+    }
+
+    // 3. Detalles de entrega / evento
+    const detailLines: string[] = [];
+    if (isDirect) {
+        if (state.deliveryEstimate?.deliveryEstimateLabel) {
+            detailLines.push(`📦 Llegada estimada: ${state.deliveryEstimate.deliveryEstimateLabel} (Blue Express)`);
+        } else if (state.eventData.date) {
+            detailLines.push(`📅 Fecha de entrega: ${data.formattedDate}`);
+        }
+
+        const addressParts = [
+            state.contact.address?.trim(),
+            state.contact.comuna ? (state.contact.comuna === 'Otra' ? state.contact.otherComuna : state.contact.comuna) : '',
+            state.contact.region ? (state.contact.region !== 'RM' ? state.contact.region : 'Región Metropolitana') : ''
+        ].filter(Boolean);
+
+        if (addressParts.length > 0) {
+            detailLines.push(`📍 ${addressParts.join(', ')}`);
+        }
+    } else {
+        // Eventos
+        if (state.eventData.date) {
+            const timeStr = state.eventData.startTime ? ` · ${state.eventData.startTime} hrs` : '';
+            detailLines.push(`📅 Evento: ${data.formattedDate}${timeStr}`);
+        }
+
+        const addressParts = [
+            state.contact.address?.trim(),
+            state.contact.comuna ? (state.contact.comuna === 'Otra' ? state.contact.otherComuna : state.contact.comuna) : '',
+            state.contact.region ? (state.contact.region !== 'RM' ? state.contact.region : 'Región Metropolitana') : ''
+        ].filter(Boolean);
+
+        if (addressParts.length > 0) {
+            detailLines.push(`📍 ${addressParts.join(', ')}`);
+        }
+
+        if (state.eventData.pickupDate) {
+            const pickupTimeStr = state.eventData.pickupTime ? ` · ${state.eventData.pickupTime} hrs` : '';
+            detailLines.push(`🔄 Retiro: ${data.formattedPickupDate}${pickupTimeStr}`);
+        }
+
+        if (data.eventTypeDisplay) {
+            detailLines.push(`🎉 ${data.eventTypeDisplay}${guests > 0 ? ` · ${guests} invitados` : ''}`);
+        } else if (guests > 0) {
+            detailLines.push(`👥 ${guests} invitados`);
+        }
+
+        if (data.dispenserLabel) {
+            detailLines.push(`🍸 Formato: ${data.dispenserLabel}`);
         }
     }
 
+    if (detailLines.length > 0) {
+        msg += `*${isDirect ? 'Detalles de Entrega:' : isConfirmed ? 'Detalles de la Reserva:' : 'Detalles del Evento:'}*\n`;
+        msg += `${detailLines.join('\n')}\n\n`;
+    }
+
+    // 4. Productos
+    const itemsText = data.items.map((s) => {
+        const hasOffer = s.totalNormalPrice > s.totalOfferPrice;
+        return `• x${s.quantity} ${s.name} (${s.selectedSize}): ${hasOffer ? `~$${N.format(s.totalNormalPrice)}~ ` : ''}*$${N.format(s.totalOfferPrice)}*`;
+    }).join('\n');
+
+    msg += `*PRODUCTOS:*\n${itemsText}\n\n`;
+
+    // 5. Totales
+    msg += `*Subtotal:* ${formatCurrency(data.totalNormalPrice)}\n`;
+    if (data.totalDiscount > 0) msg += `*Descuento:* -${formatCurrency(data.totalDiscount)}\n`;
+    msg += `*${isDirect ? 'Despacho' : 'Traslados'}:* ${data.shippingLabel}\n`;
+    if (!isDirect) {
+        msg += `*${data.dispenserLabel}:* ${data.installationCost === 0 ? '¡Gratis!' : formatCurrency(data.installationCost)}\n`;
+    }
+    msg += `*TOTAL: ${formatCurrency(data.totalPrice)}*\n`;
+    msg += `_Valores netos. No incluyen IVA._\n\n`;
+
+    // 6. Rendimiento y notas (Eventos)
+    if (!isDirect && data.totalLiters > 0) {
+        msg += `_${data.totalLiters}L en total · aprox. ${data.totalCocktails} cócteles`;
+        if (guests > 0) {
+            const avgDrinks = (data.totalCocktails / guests).toFixed(1);
+            msg += ` (${avgDrinks} cócteles p/p)`;
+        }
+        msg += `_\n\n`;
+    }
+
+    // 7. Enlace
     if (token) {
-        msg += isDirect 
-            ? `*Comprobante de tu pedido aquí:* ${SITE_URL}/cotizar/${token}\n`
-            : `*Confirma tu cotización aquí:* ${SITE_URL}/cotizar/${token}\n`;
+        const linkLabel = isDirect
+            ? '*Ver comprobante y seguimiento del pedido:*'
+            : isConfirmed
+              ? '*Ver reserva y comprobante digital:*'
+              : '*Ver y confirmar cotización aquí:*';
+        msg += `${linkLabel}\n${SITE_URL}/cotizar/${token}\n`;
     }
 
     return msg;
@@ -676,15 +759,90 @@ export function buildWhatsAppMessage(state: WizardState, data: SummaryData, toke
 export function buildWhatsAppMessageFromQuote(quote: Quote & { quote_items: QuoteItem[] }): string {
     const N = new Intl.NumberFormat('es-CL');
     const isDirect = quote.service_type === 'direct';
+    const isConfirmed = quote.status === 'confirmed';
     const items = quote.quote_items || [];
 
+    // 1. Título contextual
+    let title = '*COTIZACIÓN EVENTO*';
+    if (isDirect) {
+        title = '*PEDIDO BARRIL DESECHABLE*';
+    } else if (isConfirmed) {
+        title = '*RESERVA EVENTO CONFIRMADA*';
+    }
+
+    let msg = `${title}\n\n`;
+
+    // 2. Datos de contacto directos sin títulos
+    const fullName = [quote.client_name, quote.client_lastname].filter(Boolean).join(' ').trim();
+    const contactLines: string[] = [];
+    if (fullName) contactLines.push(fullName);
+    if (quote.client_phone) contactLines.push(quote.client_phone);
+    if (quote.client_email) contactLines.push(quote.client_email);
+
+    if (contactLines.length > 0) {
+        msg += `${contactLines.join('\n')}\n\n`;
+    }
+
+    // 3. Detalles de entrega / evento
+    const detailLines: string[] = [];
+    if (isDirect) {
+        if (quote.delivery_estimate_label) {
+            detailLines.push(`📦 Llegada estimada: ${quote.delivery_estimate_label} (Blue Express)`);
+        } else if (quote.event_date) {
+            detailLines.push(`📅 Fecha de entrega: ${formatEventDate(quote.event_date)}`);
+        }
+
+        const address = formatQuoteAddress(quote);
+        if (address) {
+            detailLines.push(`📍 ${address}`);
+        }
+    } else {
+        // Eventos
+        if (quote.event_date) {
+            const timeStr = quote.start_time ? ` · ${quote.start_time} hrs` : '';
+            detailLines.push(`📅 Evento: ${formatEventDate(quote.event_date)}${timeStr}`);
+        }
+
+        const address = formatQuoteAddress(quote);
+        if (address) {
+            detailLines.push(`📍 ${address}`);
+        }
+
+        if (quote.pickup_date) {
+            const pickupTimeStr = quote.pickup_time ? ` · ${quote.pickup_time} hrs` : '';
+            detailLines.push(`🔄 Retiro: ${formatEventDate(quote.pickup_date)}${pickupTimeStr}`);
+        }
+
+        const eventType = quote.event_type_other || quote.event_type_id;
+        const guests = quote.guests || 0;
+        if (eventType) {
+            detailLines.push(`🎉 ${eventType}${guests > 0 ? ` · ${guests} invitados` : ''}`);
+        } else if (guests > 0) {
+            detailLines.push(`👥 ${guests} invitados`);
+        }
+
+        const dispenserLabel = quote.dispenser === 'muro' ? 'Muro de Coctelería' : quote.dispenser === 'desechable' ? 'Barril Desechable' : 'Dispensador Portátil';
+        if (dispenserLabel) {
+            detailLines.push(`🍸 Formato: ${dispenserLabel}`);
+        }
+    }
+
+    if (detailLines.length > 0) {
+        msg += `*${isDirect ? 'Detalles de Entrega:' : isConfirmed ? 'Detalles de la Reserva:' : 'Detalles del Evento:'}*\n`;
+        msg += `${detailLines.join('\n')}\n\n`;
+    }
+
+    // 4. Productos
     const itemsText = items.map((item) => {
         const normal = item.price_at_time * item.quantity;
         const offer = item.offer_price_at_time * item.quantity;
         const hasOffer = normal > offer;
-        return `- x${item.quantity} ${item.product_name} (${item.size}): ${hasOffer ? `~$${N.format(normal)}~ ` : ''}*$${N.format(offer)}*`;
+        return `• x${item.quantity} ${item.product_name} (${item.size}): ${hasOffer ? `~$${N.format(normal)}~ ` : ''}*$${N.format(offer)}*`;
     }).join('\n');
 
+    msg += `*PRODUCTOS:*\n${itemsText}\n\n`;
+
+    // 5. Totales
     const totalLiters = quote.total_liters ?? items.reduce((sum, i) => sum + (i.size_value || 0) * i.quantity, 0);
     const totalCocktails = totalLiters * 5;
     const guests = quote.guests || 0;
@@ -692,28 +850,31 @@ export function buildWhatsAppMessageFromQuote(quote: Quote & { quote_items: Quot
     const dispenserLabel = quote.dispenser === 'muro' ? 'Muro de Coctelería' : quote.dispenser === 'desechable' ? 'Barril Desechable' : 'Dispensador Portátil';
     const discount = Math.max(0, (quote.total_normal_price || 0) - (quote.total_offer_price || 0)) + (quote.manual_discount || 0);
 
-    let msg = isDirect ? `*NUEVO PEDIDO*\n\n` : `*SOLICITUD DE COTIZACIÓN*\n\n`;
-    msg += `*PRODUCTOS:*\n${itemsText}\n`;
     msg += `*Subtotal:* ${formatCurrency(quote.total_normal_price || 0)}\n`;
     if (discount > 0) msg += `*Descuento:* -${formatCurrency(discount)}\n`;
-    msg += `*Traslados:* ${shippingLabel}\n`;
+    msg += `*${isDirect ? 'Despacho' : 'Traslados'}:* ${shippingLabel}\n`;
     if (!isDirect) {
         msg += `*${dispenserLabel}:* ${quote.installation_cost === 0 ? '¡Gratis!' : formatCurrency(quote.installation_cost || 0)}\n`;
     }
     msg += `*TOTAL: ${formatCurrency(quote.total_price || 0)}*\n`;
     msg += `_Valores netos. No incluyen IVA._\n\n`;
 
-    if (totalLiters > 0) {
-        msg += `*Notas:* \n`;
-        msg += `_Estas cotizando ${totalLiters}L con rendimiento total aprox. de ${totalCocktails} cócteles._\n`;
+    // 6. Rendimiento y notas (Eventos)
+    if (!isDirect && totalLiters > 0) {
+        msg += `_${totalLiters}L en total · aprox. ${totalCocktails} cócteles`;
         if (guests > 0) {
-            msg += `_Para ${guests} invitados tienes en promedio ${(totalCocktails / guests).toFixed(1)} cócteles x pers._\n\n`;
+            msg += ` (${(totalCocktails / guests).toFixed(1)} cócteles p/p)`;
         }
+        msg += `_\n\n`;
     }
 
-    msg += isDirect
-        ? `*Comprobante de tu pedido aquí:* ${SITE_URL}/cotizar/${quote.token}\n`
-        : `*Confirma tu cotización aquí:* ${SITE_URL}/cotizar/${quote.token}\n`;
+    // 7. Enlace
+    const linkLabel = isDirect
+        ? '*Ver comprobante y seguimiento del pedido:*'
+        : isConfirmed
+          ? '*Ver reserva y comprobante digital:*'
+          : '*Ver y confirmar cotización aquí:*';
+    msg += `${linkLabel}\n${SITE_URL}/cotizar/${quote.token}\n`;
 
     return msg;
 }
