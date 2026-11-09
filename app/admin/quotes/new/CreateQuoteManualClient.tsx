@@ -529,16 +529,18 @@ export default function CreateQuoteManualClient({ allProducts, comunas, regions,
                                         setSelectedAddressKey(null);
                                     }} className="admin-input" placeholder="Av. Siempre Viva 123" />
                                 </Field>
-                                <Field label={directDateCopy?.label ?? 'Fecha de entrega'} className="md:col-span-2">
+                                <Field label={summary.shippingCarrier === 'blue_express' ? 'Fecha de Despacho a Courier (Taller)' : 'Fecha de Entrega a Domicilio'} className="md:col-span-2">
                                     <input
                                         type="date"
                                         value={eventData.date}
                                         onChange={e => setEventData(d => ({...d, date: e.target.value}))}
                                         className="admin-input"
                                     />
-                                    {directDateCopy && (
-                                        <p className="text-slate-500 text-[10px] mt-2 leading-relaxed">{directDateCopy.hint}</p>
-                                    )}
+                                    <p className="text-slate-500 text-[10px] mt-2 leading-relaxed">
+                                        {summary.shippingCarrier === 'blue_express'
+                                            ? 'Día en que el taller entregará los bultos en la sucursal de Blue Express.'
+                                            : 'Día en que nuestro reparto entregará el pedido en el domicilio del cliente.'}
+                                    </p>
                                 </Field>
                             </div>
                         </SectionBox>

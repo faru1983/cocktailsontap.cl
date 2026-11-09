@@ -41,6 +41,23 @@
 
 ## Ultimos Cambios
 
+### 09-11-2026 — Desacoplamiento de Despachos en /barriles (Días Hábiles, Blue Express y Google Calendar)
+
+- **Cálculo de Días Hábiles en Producción (`lib/businessDays.ts` y `lib/shippingMethods.ts`)**:
+  - Los días de anticipación configurados en el Admin (`minOffsetDays`) ahora se calculan estrictamente como **días hábiles (Lunes a Viernes)**, omitiendo sábados y domingos (`getProductionReadyDate`).
+  - Ejemplo: si la compra se realiza un domingo y la producción es de 2 días hábiles, el producto queda listo para despacho o reparto el día miércoles.
+- **Separación de Experiencia de Entrega en Checkout (`DirectWizardCheckoutModal.tsx`)**:
+  - **Santiago (Reparto Propio)**: Conserva el selector interactivo de fechas (`ShippingDatePicker`), iniciando su disponibilidad a partir del día hábil posterior a la producción.
+  - **Regiones (Blue Express)**: Se eliminó el selector manual de fecha. El cliente visualiza una tarjeta informativa limpia de e-commerce con el plazo estimado (`4–5 días hábiles`), el rango de llegada (`Llegada: DD al DD de Mes`) y el detalle de producción + transporte a su destino.
+- **Base de Datos y Persistencia de Rangos (`quotes` y `quoteService.ts`)**:
+  - Creada migración `supabase/migrations/20261109000000_quote_delivery_estimates.sql` con columnas retrocompatibles: `dispatch_estimated_date`, `delivery_estimate_min`, `delivery_estimate_max`, `delivery_estimate_label` y `delivery_estimate_days`.
+- **Google Calendar para Venta Directa (`googleSyncService.ts`)**:
+  - **Fecha de Despacho Operativa**: Para Blue Express, el evento en `CALENDAR_DESECHABLE_ID` se agenda en `dispatch_estimated_date` (el día hábil después de producción, ej. el miércoles), representando la fecha física en que el taller entrega los bultos al courier. Para reparto propio, se mantiene la fecha elegida por el cliente.
+  - **Supresión Total de Notificaciones**: En todas las ventas directas (`isDirectSale`), se eliminó al cliente de `attendees` (`attendees: []`), evitando que Google Calendar envíe correos o invitaciones de calendario a los compradores de barriles.
+- **Coherencia en Comunicaciones (Emails y Comprobante Web)**:
+  - En correos (`DirectSaleEmail.tsx`, `ConfirmationEmail.tsx`, `EmailShared.tsx`) y en la vista con token único (`DirectQuoteView.tsx`, `QuoteSummaryReservation.tsx`), los pedidos de Blue Express muestran la ventana de entrega estimada (*"Llegada estimada: 01 al 05 de Noviembre (vía Blue Express)"*), manteniendo perfecta coherencia con lo visto en el checkout.
+  - En el panel de administración (`QuoteOperationalSummary.tsx` y `CreateQuoteManualClient.tsx`), se presenta el desglose claro entre la fecha de despacho en taller y la ventana de llegada del cliente.
+
 ### 01-11-2026 — Unificación de CTA Único Oficial y Email Obligatorio en `/lp/eventos`
 
 - **Email Obligatorio y Calidad Máxima de Matching Meta (CAPI + Pixel)**:

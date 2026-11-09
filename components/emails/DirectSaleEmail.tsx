@@ -40,7 +40,7 @@ export const DirectSaleEmail: React.FC<Readonly<DirectSaleEmailProps>> = ({ quot
     <BaseLayout preview={`Tu pedido de compra directa – ${eventDate}`} accentColor={brandColor}>
       <h2 style={{ color: brandDark, margin: '0 0 8px', fontSize: '22px', lineHeight: '1.3' }}>¡Hemos recibido tu pedido!</h2>
       <Text style={{ color: gray, margin: '0 0 28px', fontSize: '15px', lineHeight: '1.6' }}>
-        Hola <strong>{clientName}</strong>, aquí tienes el resumen de tu pedido de Barril Desechable para el <strong>{eventDate}</strong>. Quedamos a la espera de la validación del pago para confirmar el despacho.
+        Hola <strong>{clientName}</strong>, aquí tienes el resumen de tu pedido de Barril Desechable {quote.delivery_estimate_label ? <>con llegada estimada entre el <strong>{quote.delivery_estimate_label}</strong> (vía Blue Express)</> : <>para el <strong>{eventDate}</strong></>}. Quedamos a la espera de la validación del pago para confirmar el despacho.
       </Text>
       
       <ItemsTable items={quote.quote_items} />

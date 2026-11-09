@@ -4,7 +4,7 @@
 // Maneja días hábiles, anticipación (lead time), fechas bloqueadas (blackout) y envío gratis.
 // ==============================================================================
 
-import { PROJECT_TIMEZONE } from './config';
+import { addBusinessDays, formatDateYMD, getProductionReadyDate } from './businessDays';
 
 export type ServiceScope = 'direct' | 'event' | 'both';
 
@@ -15,7 +15,7 @@ export interface ShippingMethodConfig {
     serviceType: ServiceScope;
     isActive: boolean;
     availableWeekdays: number[]; // 0=Dom, 1=Lun, 2=Mar, 3=Mie, 4=Jue, 5=Vie, 6=Sab
-    minOffsetDays: number; // Días mínimos de anticipación
+    minOffsetDays: number; // Días mínimos de anticipación (días hábiles de producción)
     blockedDates: string[]; // Fechas bloqueadas en formato ISO 'YYYY-MM-DD'
     deliveryWindow?: string; // Ej: "Durante todo el día (09:00 a 20:00 hrs)"
     freeShippingEnabled?: boolean;
@@ -88,9 +88,9 @@ export const DEFAULT_SHIPPING_METHODS: ShippingMethodsSettings = {
         serviceType: 'direct',
         isActive: true,
         availableWeekdays: [1, 2, 3, 4, 5], // Lunes a Viernes
-        minOffsetDays: 1,
+        minOffsetDays: 2,
         blockedDates: [],
-        deliveryWindow: 'Fecha en que entregamos tu pedido al courier Blue Express para su despacho a domicilio',
+        deliveryWindow: 'Entrega a domicilio coordinada por Blue Express tras el despacho',
         freeShippingEnabled: false,
         freeShippingThresholdType: 'amount',
         freeShippingThreshold: 0,
@@ -171,17 +171,16 @@ export function parseShippingMethodsConfig(raw: unknown): ShippingMethodsSetting
 }
 
 /**
- * Retorna la fecha mínima seleccionable para un método en formato 'YYYY-MM-DD' en hora Chile.
+ * Retorna la fecha mínima seleccionable para un método en formato 'YYYY-MM-DD' en hora Chile,
+ * calculando sobre días hábiles de producción (Lunes a Viernes).
  */
 export function getMinSelectableDate(methodConfig?: ShippingMethodConfig | null, fallbackOffsetDays = 2): string {
     const offset = methodConfig && typeof methodConfig.minOffsetDays === 'number'
         ? methodConfig.minOffsetDays
         : fallbackOffsetDays;
 
-    const now = new Date();
-    const chileTime = new Date(now.toLocaleString('en-US', { timeZone: PROJECT_TIMEZONE }));
-    chileTime.setDate(chileTime.getDate() + offset);
-    return chileTime.toISOString().split('T')[0];
+    const minDateObj = getProductionReadyDate(new Date(), offset);
+    return formatDateYMD(minDateObj);
 }
 
 /**
@@ -223,7 +222,7 @@ export function validateShippingDate(
     const minDate = getMinSelectableDate(methodConfig, fallbackOffsetDays);
     if (dateStr < minDate) {
         const offset = methodConfig?.minOffsetDays ?? fallbackOffsetDays;
-        return `La fecha debe ser al menos ${offset} ${offset === 1 ? 'día' : 'días'} desde hoy.`;
+        return `La fecha debe considerar al menos ${offset} ${offset === 1 ? 'día hábil' : 'días hábiles'} de preparación.`;
     }
 
     if (methodConfig) {

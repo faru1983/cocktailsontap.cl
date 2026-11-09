@@ -100,6 +100,10 @@ export function useWizard(cocktails: CocktailForWizard[], comunas: Comuna[], cat
         setState((prev) => ({ ...prev, consumption: { ...prev.consumption, [key]: value } }));
     }, []);
 
+    const updateDeliveryEstimate = useCallback((estimate: WizardState['deliveryEstimate']) => {
+        setState((prev) => ({ ...prev, deliveryEstimate: estimate }));
+    }, []);
+
     const updateContact = useCallback((key: keyof WizardState['contact'], value: string) => {
         setState((prev) => ({ ...prev, contact: { ...prev.contact, [key]: value } }));
     }, []);
@@ -272,6 +276,6 @@ export function useWizard(cocktails: CocktailForWizard[], comunas: Comuna[], cat
         state, updateEventData, updateConsumption, updateContact,
         updateQuantity, setSelections, toggleCocktail, toggleCategory, goToStep, reset,
         validateStep, calculateSummaryData: calculateSummaryDataBound, calculateSmartConfig, getWhatsAppQuoteUrl,
-        initCategory, updateDispenser, updateServiceType
+        initCategory, updateDispenser, updateServiceType, updateDeliveryEstimate
     };
 }

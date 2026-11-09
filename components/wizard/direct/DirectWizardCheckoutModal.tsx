@@ -1,18 +1,19 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import type { useWizard } from '@/hooks/useWizard';
 import type { Comuna, Region } from '@/lib/types';
 import { formatCurrency } from '@/lib/utils';
 import PhoneInput from '@/components/ui/PhoneInput';
 import RegionComunaFields from '@/components/ui/RegionComunaFields';
 import ShippingDatePicker from '@/components/ui/ShippingDatePicker';
-import { X, Loader2, AlertCircle } from 'lucide-react';
+import { X, Loader2, AlertCircle, Truck } from 'lucide-react';
 import CheckoutCartSection from '@/components/quote/CheckoutCartSection';
 import QuoteSummaryTotals from '@/components/quote/QuoteSummaryTotals';
 import { DIRECT_SALE_MIN_DISPATCH_OFFSET_DAYS, validateDirectSaleDate } from '@/lib/wizardLogic';
 import { getMinSelectableDate } from '@/lib/shippingMethods';
-import { getDirectSaleDateFieldCopy } from '@/lib/blueExpress';
+import { getDirectSaleDateFieldCopy, getBlueExpressTransitDays } from '@/lib/blueExpress';
+import { calculateDirectSaleSchedule } from '@/lib/businessDays';
 import { isChilePrefixOnly, isValidPhoneE164 } from '@/lib/phone';
 
 interface Props {
@@ -34,7 +35,7 @@ export default function DirectWizardCheckoutModal({
     sendStatus,
     saveError,
 }: Props) {
-    const { state, updateContact, updateEventData } = wizard;
+    const { state, updateContact, updateEventData, updateDeliveryEstimate } = wizard;
     const [showComments, setShowComments] = useState(Boolean(state.contact.comments));
     const [dateError, setDateError] = useState<string | null>(null);
     const [localError, setLocalError] = useState('');
@@ -86,6 +87,39 @@ export default function DirectWizardCheckoutModal({
         ? methodsConfig?.blue_express
         : methodsConfig?.own_direct;
 
+    const isBlueExpress = summaryData.shippingCarrier === 'blue_express';
+    const selectedComuna = comunas.find((c) => c.name.toLowerCase() === (state.contact.comuna || '').toLowerCase());
+    const beZone = selectedComuna?.blueExpressZone || selectedComuna?.regionBlueExpressZone;
+    const transitDays = getBlueExpressTransitDays(beZone);
+    const productionDays = activeMethodConfig?.minOffsetDays ?? DIRECT_SALE_MIN_DISPATCH_OFFSET_DAYS;
+
+    const beSchedule = useMemo(() => {
+        return calculateDirectSaleSchedule({
+            productionBusinessDays: productionDays,
+            transitMinDays: transitDays.minDays,
+            transitMaxDays: transitDays.maxDays,
+        });
+    }, [productionDays, transitDays.minDays, transitDays.maxDays]);
+
+    // Sincronizar fecha operativa y estimación de entrega cuando el carrier es Blue Express
+    useEffect(() => {
+        if (isBlueExpress) {
+            if (state.eventData.date !== beSchedule.dispatchDate) {
+                updateEventData('date', beSchedule.dispatchDate);
+            }
+            updateDeliveryEstimate?.({
+                dispatchEstimatedDate: beSchedule.dispatchDate,
+                deliveryEstimateMin: beSchedule.deliveryMinDate,
+                deliveryEstimateMax: beSchedule.deliveryMaxDate,
+                deliveryEstimateLabel: beSchedule.dateRangeLabel,
+                deliveryEstimateDays: beSchedule.estimatedDaysLabel,
+            });
+            setDateError(null);
+        } else {
+            updateDeliveryEstimate?.(undefined);
+        }
+    }, [isBlueExpress, beSchedule, state.eventData.date, updateEventData, updateDeliveryEstimate]);
+
     const minDate = getMinSelectableDate(activeMethodConfig, DIRECT_SALE_MIN_DISPATCH_OFFSET_DAYS);
     const dateCopy = getDirectSaleDateFieldCopy(summaryData.shippingCarrier);
 
@@ -124,10 +158,14 @@ export default function DirectWizardCheckoutModal({
             newErrors.address = 'Ingresa una dirección completa (mín. 5 caracteres).';
         }
 
-        const dateErr = validateDirectSaleDate(state.eventData.date, activeMethodConfig);
-        if (dateErr) {
-            newErrors.date = dateErr;
-            setDateError(dateErr);
+        if (!isBlueExpress) {
+            const dateErr = validateDirectSaleDate(state.eventData.date, activeMethodConfig);
+            if (dateErr) {
+                newErrors.date = dateErr;
+                setDateError(dateErr);
+            } else {
+                setDateError(null);
+            }
         } else {
             setDateError(null);
         }
@@ -225,7 +263,7 @@ export default function DirectWizardCheckoutModal({
             >
                 <div className="flex justify-between items-start shrink-0 p-4 sm:p-6 xl:p-8 pb-0 pr-8">
                     <div>
-                        <h3 className="text-lg sm:text-2xl font-black text-brand-text mb-0.5">Resumen de tu Pedido</h3>
+                        <h3 className="text-lg sm:2xl font-black text-brand-text mb-0.5">Resumen de tu Pedido</h3>
                         <p className="text-brand-text-muted text-xs sm:text-[0.9rem] leading-tight">Revisa los detalles y completa tus datos de despacho para enviar.</p>
                     </div>
                     <button
@@ -388,30 +426,52 @@ export default function DirectWizardCheckoutModal({
                                     </div>
 
                                     <div>
-                                        <ShippingDatePicker
-                                            id="field-date"
-                                            label={dateCopy.label}
-                                            required
-                                            value={state.eventData.date}
-                                            onChange={(val) => {
-                                                updateEventData('date', val);
-                                                clearError('date');
-                                                setDateError(null);
-                                                setLocalError('');
-                                            }}
-                                            methodConfig={activeMethodConfig}
-                                            fallbackOffsetDays={2}
-                                            helperText={errors.date || dateError ? undefined : (activeMethodConfig?.deliveryWindow || dateCopy.hint)}
-                                            onErrorChange={(err) => {
-                                                setDateError(err);
-                                                if (!err) clearError('date');
-                                            }}
-                                        />
-                                        {(errors.date || dateError) && (
-                                            <p className="mt-1 text-xs text-red-500 font-medium flex items-center gap-1">
-                                                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                                                {errors.date || dateError}
-                                            </p>
+                                        {isBlueExpress ? (
+                                            <div className="bg-amber-500/5 border border-amber-500/20 rounded-2xl p-4 transition-all">
+                                                <div className="flex items-center gap-2 mb-2">
+                                                    <Truck className="w-5 h-5 text-primary shrink-0" />
+                                                    <span className="font-bold text-sm text-brand-text">Transporte vía Blue Express</span>
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <p className="text-xs text-brand-text-muted">
+                                                        Plazo estimado: <strong className="text-brand-text">{beSchedule.estimatedDaysLabel}</strong>
+                                                    </p>
+                                                    <p className="text-base font-black text-brand-text">
+                                                        Llegada: {beSchedule.dateRangeLabel}
+                                                    </p>
+                                                    <p className="text-[11px] text-brand-text-muted leading-relaxed mt-1.5">
+                                                        Este plazo considera {productionDays} {productionDays === 1 ? 'día hábil' : 'días hábiles'} de preparación y producción, más el tiempo de transporte hasta tu destino.
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <>
+                                                <ShippingDatePicker
+                                                    id="field-date"
+                                                    label="Fecha de entrega"
+                                                    required
+                                                    value={state.eventData.date}
+                                                    onChange={(val) => {
+                                                        updateEventData('date', val);
+                                                        clearError('date');
+                                                        setDateError(null);
+                                                        setLocalError('');
+                                                    }}
+                                                    methodConfig={activeMethodConfig}
+                                                    fallbackOffsetDays={2}
+                                                    helperText={errors.date || dateError ? undefined : (activeMethodConfig?.deliveryWindow || 'Indica cuándo quieres recibir tu pedido en la dirección indicada.')}
+                                                    onErrorChange={(err) => {
+                                                        setDateError(err);
+                                                        if (!err) clearError('date');
+                                                    }}
+                                                />
+                                                {(errors.date || dateError) && (
+                                                    <p className="mt-1 text-xs text-red-500 font-medium flex items-center gap-1">
+                                                        <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                                                        {errors.date || dateError}
+                                                    </p>
+                                                )}
+                                            </>
                                         )}
                                     </div>
 

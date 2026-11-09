@@ -122,6 +122,11 @@ export const QuoteService = {
                 service_type: state.serviceType || 'event',
                 source,
                 shipping_label: effectiveOverrides?.shippingLabel ?? null,
+                dispatch_estimated_date: state.deliveryEstimate?.dispatchEstimatedDate || (state.serviceType === 'direct' ? state.eventData.date : null),
+                delivery_estimate_min: state.deliveryEstimate?.deliveryEstimateMin || null,
+                delivery_estimate_max: state.deliveryEstimate?.deliveryEstimateMax || null,
+                delivery_estimate_label: state.deliveryEstimate?.deliveryEstimateLabel || null,
+                delivery_estimate_days: state.deliveryEstimate?.deliveryEstimateDays || null,
             })
             .select('*')
             .single();

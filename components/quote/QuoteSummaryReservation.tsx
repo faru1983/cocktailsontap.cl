@@ -14,6 +14,7 @@ export interface QuoteSummaryReservationData {
     formattedPickupDate?: string;
     pickupTime?: string;
     comments?: string;
+    deliveryEstimateLabel?: string | null;
 }
 
 interface Props {
@@ -65,10 +66,13 @@ export default function QuoteSummaryReservation({ data }: Props) {
                         </span>
                     </div>
                     <div className="flex items-start gap-2">
-                        <span className="font-bold text-brand-text-muted min-w-[85px]">Fecha:</span>
+                        <span className="font-bold text-brand-text-muted min-w-[85px]">
+                            {data.deliveryEstimateLabel ? 'Entrega:' : 'Fecha:'}
+                        </span>
                         <span className="font-medium text-brand-text leading-tight">
-                            {data.formattedDate}
-                            {data.startTime && data.startTime !== '--:--' && ` · (${data.startTime})`}
+                            {data.deliveryEstimateLabel
+                                ? `${data.deliveryEstimateLabel} (Transporte Blue Express)`
+                                : `${data.formattedDate}${data.startTime && data.startTime !== '--:--' ? ` · (${data.startTime})` : ''}`}
                         </span>
                     </div>
                     {data.formattedPickupDate && (

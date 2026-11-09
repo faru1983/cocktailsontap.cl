@@ -312,7 +312,8 @@ export default function DirectQuoteView({ quote, comunas, regions, availableCock
             formattedPickupDate: undefined,
             pickupTime: '',
             comments: comments,
-            isDirect: true
+            isDirect: true,
+            deliveryEstimateLabel: quote.delivery_estimate_label || null
         };
     }, [quote.client_name, lastName, quote.client_email, quote.region_name, phone, address, comuna, comunaOther, regionCode, regions, eventDate, comments]);
 

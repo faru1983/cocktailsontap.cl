@@ -129,11 +129,34 @@ export async function createQuoteCore(input: CreateQuoteInput): Promise<CreateQu
         if (!isAdmin) {
             if (state.serviceType === 'direct') {
                 const carrier = resolveDirectSaleCarrier(state.contact.comuna, state.contact.region, comunas);
-                const directConfig = carrier === 'blue_express'
-                    ? comunas[0]?.shippingMethodsConfig?.blue_express
-                    : comunas[0]?.shippingMethodsConfig?.own_direct;
-                const dateErr = validateDirectSaleDate(state.eventData.date, directConfig);
-                if (dateErr) return { success: false, error: dateErr };
+                if (carrier === 'blue_express') {
+                    if (!state.deliveryEstimate) {
+                        const { getBlueExpressTransitDays } = await import('@/lib/blueExpress');
+                        const { calculateDirectSaleSchedule } = await import('@/lib/businessDays');
+                        const selectedComuna = comunas.find((c) => c.name.toLowerCase() === (state.contact.comuna || '').toLowerCase());
+                        const beZone = selectedComuna?.blueExpressZone || selectedComuna?.regionBlueExpressZone;
+                        const transitDays = getBlueExpressTransitDays(beZone);
+                        const beConfig = comunas[0]?.shippingMethodsConfig?.blue_express;
+                        const productionDays = beConfig?.minOffsetDays ?? 2;
+                        const schedule = calculateDirectSaleSchedule({
+                            productionBusinessDays: productionDays,
+                            transitMinDays: transitDays.minDays,
+                            transitMaxDays: transitDays.maxDays,
+                        });
+                        state.eventData.date = schedule.dispatchDate;
+                        state.deliveryEstimate = {
+                            dispatchEstimatedDate: schedule.dispatchDate,
+                            deliveryEstimateMin: schedule.deliveryMinDate,
+                            deliveryEstimateMax: schedule.deliveryMaxDate,
+                            deliveryEstimateLabel: schedule.dateRangeLabel,
+                            deliveryEstimateDays: schedule.estimatedDaysLabel,
+                        };
+                    }
+                } else {
+                    const directConfig = comunas[0]?.shippingMethodsConfig?.own_direct;
+                    const dateErr = validateDirectSaleDate(state.eventData.date, directConfig);
+                    if (dateErr) return { success: false, error: dateErr };
+                }
             } else if (state.serviceType === 'event') {
                 const eventConfig = comunas[0]?.shippingMethodsConfig?.own_events;
                 const dateErr = validateShippingDate(state.eventData.date, eventConfig, 5);
@@ -306,7 +329,8 @@ export async function createQuoteCore(input: CreateQuoteInput): Promise<CreateQu
                         : '';
                     const fullNameClient =
                         `${fullQuote.client_name} ${fullQuote.client_lastname || ''}`.trim();
-                    const emailVars = { full_name: fullNameClient, event_date: eventDate };
+                    const displayDelivery = fullQuote.delivery_estimate_label || eventDate;
+                    const emailVars = { full_name: fullNameClient, event_date: displayDelivery };
 
                     const [clientHtml, adminHtml, clientSubject, adminSubject] = await Promise.all([
                         render(

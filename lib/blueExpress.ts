@@ -19,6 +19,20 @@ export const BLUE_EXPRESS_ZONE_OPTIONS: { value: BlueExpressZone; label: string 
     { value: 'extremo', label: 'Extremo (norte / sur)' },
 ];
 
+/** Tiempos estimados de tránsito courier (en días hábiles) desde Santiago */
+export const BLUE_EXPRESS_TRANSIT_DAYS: Record<BlueExpressZone, { minDays: number; maxDays: number }> = {
+    misma_zona: { minDays: 1, maxDays: 2 },
+    centro: { minDays: 2, maxDays: 3 },
+    extremo: { minDays: 4, maxDays: 6 },
+};
+
+export function getBlueExpressTransitDays(zone?: BlueExpressZone | null): { minDays: number; maxDays: number } {
+    if (zone && BLUE_EXPRESS_TRANSIT_DAYS[zone]) {
+        return BLUE_EXPRESS_TRANSIT_DAYS[zone];
+    }
+    return BLUE_EXPRESS_TRANSIT_DAYS.centro;
+}
+
 export const BLUE_EXPRESS_RATES_SETTING_KEY = 'blue_express_home_rates';
 
 /** Fallback si aún no hay fila en site_settings. */

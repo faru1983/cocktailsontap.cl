@@ -223,7 +223,13 @@ export const ReservationInfoSection: React.FC<{ quote: Quote, isDirect?: boolean
             {quote.client_phone && <Row label="Celular" value={formatPhoneDisplay(quote.client_phone)} />}
             {fullAddress && <Row label="Dirección" value={fullAddress} />}
             {!directMode && <Row label="Evento" value={`${quote.event_type_other || quote.event_type_id || 'No especificado'} • ${quote.guests} pers.`} />}
-            <Row label={directMode ? "Fecha Despacho" : "Fecha"} value={`${eventDate}${(!directMode && quote.start_time && quote.start_time !== '--:--') ? ` • ${quote.start_time}` : ''}`} />
+            {!directMode ? (
+              <Row label="Fecha" value={`${eventDate}${quote.start_time && quote.start_time !== '--:--' ? ` • ${quote.start_time}` : ''}`} />
+            ) : quote.delivery_estimate_label ? (
+              <Row label="Llegada estimada" value={`${quote.delivery_estimate_label} (Blue Express)`} />
+            ) : (
+              <Row label="Fecha de entrega" value={eventDate} />
+            )}
             {!directMode && quote.pickup_date && <Row label="Retiro" value={`${new Date(quote.pickup_date + 'T12:00:00').toLocaleDateString('es-CL', { day: '2-digit', month: 'long', year: 'numeric' })}${quote.pickup_time ? ` • ${quote.pickup_time}` : ''}`} />}
           </tbody>
         </table>

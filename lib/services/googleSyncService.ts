@@ -247,7 +247,11 @@ export const GoogleSyncService = {
             let startISO: string, endISO: string, isAllDay: boolean;
 
             // 1. Create Service/Delivery Event
-            if (targetCalendarId && quote.event_date) {
+            const calendarDate = (isDirectSale && quote.dispatch_estimated_date)
+                ? quote.dispatch_estimated_date
+                : quote.event_date;
+
+            if (targetCalendarId && calendarDate) {
                 const serviceSummary = await SettingsService.getResolvedValue(
                     isDirectSale ? 'calendar_direct_sale_summary_template' : 'calendar_event_summary_template',
                     variables,
@@ -260,8 +264,8 @@ export const GoogleSyncService = {
                     endISO = startISO; // Duración 0
                     isAllDay = false;
                 } else {
-                    startISO = quote.event_date;
-                    endISO = getNextDay(quote.event_date);
+                    startISO = calendarDate;
+                    endISO = getNextDay(calendarDate);
                     isAllDay = true;
                 }
 
@@ -273,7 +277,7 @@ export const GoogleSyncService = {
                     startISO,
                     endISO,
                     isAllDay,
-                    attendees: quote.client_email ? [quote.client_email] : []
+                    attendees: isDirectSale ? [] : (quote.client_email ? [quote.client_email] : [])
                 });
                 eventId = created?.id || undefined;
             }

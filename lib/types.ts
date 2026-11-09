@@ -190,6 +190,13 @@ export interface WizardState {
     dispenser: 'portatil' | 'muro' | 'desechable' | '';
     expandedCocktailId: string | null;
     expandedCategoryId: string;
+    deliveryEstimate?: {
+        dispatchEstimatedDate?: string;
+        deliveryEstimateMin?: string;
+        deliveryEstimateMax?: string;
+        deliveryEstimateLabel?: string;
+        deliveryEstimateDays?: string;
+    };
 }
 
 export interface ICart {
@@ -312,6 +319,11 @@ export interface Quote {
     dispatch_tracking_url?: string | null;
     dispatch_tracking_number?: string | null;
     dispatched_at?: string | null;
+    dispatch_estimated_date?: string | null;
+    delivery_estimate_min?: string | null;
+    delivery_estimate_max?: string | null;
+    delivery_estimate_label?: string | null;
+    delivery_estimate_days?: string | null;
 }
 
 // ─── Esquemas de Validación (Zod) ─────────────────────────────────────────────

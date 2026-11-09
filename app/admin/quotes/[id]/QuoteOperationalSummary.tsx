@@ -506,6 +506,9 @@ export default function QuoteOperationalSummary({
         dispenser?: string | null;
         service_type?: string | null;
         total_liters?: number | null;
+        dispatch_estimated_date?: string | null;
+        delivery_estimate_label?: string | null;
+        delivery_estimate_days?: string | null;
     };
 
     const [showCustomForm, setShowCustomForm] = useState(false);
@@ -817,24 +820,39 @@ export default function QuoteOperationalSummary({
                             </div>
                         ) : (
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                <Field label={isDirectSale ? 'Entrega' : 'Evento'}>
-                                    <span style={{ fontWeight: 800 }}>{formatDateCL(q.event_date)}</span>
-                                    {!isDirectSale && formatTimeCL(q.start_time) && (
-                                        <span
-                                            style={{
-                                                display: 'inline-flex',
-                                                alignItems: 'center',
-                                                gap: '4px',
-                                                color: SOFT,
-                                                fontWeight: 600,
-                                                marginLeft: '8px',
-                                            }}
-                                        >
-                                            <Clock size={12} />
-                                            {formatTimeCL(q.start_time)}
-                                        </span>
-                                    )}
-                                </Field>
+                                {isDirectSale && q.delivery_estimate_label ? (
+                                    <>
+                                        <Field label="Despacho">
+                                            <span style={{ fontWeight: 800 }}>{formatDateCL(q.dispatch_estimated_date || q.event_date)}</span>
+                                            <span style={{ color: SOFT, fontSize: '11px', marginLeft: '6px' }}>(taller)</span>
+                                        </Field>
+                                        <Field label="Llegada Cliente">
+                                            <span style={{ fontWeight: 800, color: '#f59e0b' }}>{q.delivery_estimate_label}</span>
+                                            {q.delivery_estimate_days && (
+                                                <span style={{ color: SOFT, fontSize: '11px', marginLeft: '6px' }}>({q.delivery_estimate_days})</span>
+                                            )}
+                                        </Field>
+                                    </>
+                                ) : (
+                                    <Field label={isDirectSale ? 'Entrega' : 'Evento'}>
+                                        <span style={{ fontWeight: 800 }}>{formatDateCL(q.event_date)}</span>
+                                        {!isDirectSale && formatTimeCL(q.start_time) && (
+                                            <span
+                                                style={{
+                                                    display: 'inline-flex',
+                                                    alignItems: 'center',
+                                                    gap: '4px',
+                                                    color: SOFT,
+                                                    fontWeight: 600,
+                                                    marginLeft: '8px',
+                                                }}
+                                            >
+                                                <Clock size={12} />
+                                                {formatTimeCL(q.start_time)}
+                                            </span>
+                                        )}
+                                    </Field>
+                                )}
                                 {!isDirectSale && (
                                     <>
                                         <Field label="Retiro">
