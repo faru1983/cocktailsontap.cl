@@ -109,24 +109,35 @@ export function createCocktailsMcpServer(ctx: CocktailsMcpContext = {}): McpServ
                 const catFilter = args.category ? normalizeText(args.category) : null;
                 const searchFilter = args.search ? normalizeText(args.search) : null;
 
-                const products = catalog.products
+                const matchedProducts = catalog.products
                     .filter((p) => (!catFilter || normalizeText(p.category) === catFilter))
                     .filter(
                         (p) =>
                             !searchFilter ||
                             normalizeText(p.name).includes(searchFilter) ||
                             normalizeText(p.description).includes(searchFilter)
-                    )
+                    );
+
+                const includeDesc = Boolean(searchFilter) && matchedProducts.length <= 5;
+                const products = matchedProducts
                     .map((p) => ({
                         id: p.id,
                         name: p.name,
                         category: p.category,
-                        description: p.description,
-                        sizes: p.sizes.filter((s) => {
-                            if (serviceType === 'direct') return s.isDisposable;
-                            if (serviceType === 'event') return !s.isDisposable;
-                            return true;
-                        }),
+                        ...(includeDesc ? { desc: p.description.slice(0, 80) } : {}),
+                        sizes: p.sizes
+                            .filter((s) => {
+                                if (serviceType === 'direct') return s.isDisposable;
+                                if (serviceType === 'event') return !s.isDisposable;
+                                return true;
+                            })
+                            .map((s) => ({
+                                size: s.size,
+                                liters: s.sizeValue,
+                                disp: s.isDisposable,
+                                clp: s.price,
+                                ...(s.offerPrice != null ? { offerClp: s.offerPrice } : {}),
+                            })),
                     }))
                     .filter((p) => p.sizes.length > 0);
 
@@ -136,34 +147,52 @@ export function createCocktailsMcpServer(ctx: CocktailsMcpContext = {}): McpServ
                 let deliveryLookup: Record<string, unknown> | null = null;
                 if (args.comuna) {
                     if (matchedComuna) {
-                        const eventShipping = resolveShipping({
-                            serviceType: 'event',
-                            regionCode: matchedComuna.regionCode,
-                            comunaName: matchedComuna.name,
-                            totalLiters: 10,
-                            comunas: activeComunas,
-                            shippingMethodsConfig: catalog.shippingMethodsConfig,
-                        });
-                        const directShipping = resolveShipping({
-                            serviceType: 'direct',
-                            regionCode: matchedComuna.regionCode,
-                            comunaName: matchedComuna.name,
-                            totalLiters: 5,
-                            comunas: activeComunas,
-                            shippingMethodsConfig: catalog.shippingMethodsConfig,
-                        });
+                        const eventShipping =
+                            serviceType === 'direct'
+                                ? null
+                                : resolveShipping({
+                                      serviceType: 'event',
+                                      regionCode: matchedComuna.regionCode,
+                                      comunaName: matchedComuna.name,
+                                      totalLiters: 10,
+                                      comunas: activeComunas,
+                                      shippingMethodsConfig: catalog.shippingMethodsConfig,
+                                  });
+                        const directShipping =
+                            serviceType === 'event'
+                                ? null
+                                : resolveShipping({
+                                      serviceType: 'direct',
+                                      regionCode: matchedComuna.regionCode,
+                                      comunaName: matchedComuna.name,
+                                      totalLiters: 5,
+                                      comunas: activeComunas,
+                                      shippingMethodsConfig: catalog.shippingMethodsConfig,
+                                  });
+                        const usesBlueExpress =
+                            eventShipping?.shippingCarrier === 'blue_express' ||
+                            directShipping?.shippingCarrier === 'blue_express';
                         deliveryLookup = {
                             found: true,
                             comuna: matchedComuna.name,
-                            region: matchedComuna.regionName,
-                            regionCode: matchedComuna.regionCode,
-                            regionShortName: matchedComuna.regionShortName,
-                            eventShipping,
-                            directShipping,
-                            freeEventFromLiters: matchedComuna.freeFrom ?? matchedComuna.regionFreeFrom,
-                            blueExpressZone: matchedComuna.blueExpressZone ?? matchedComuna.regionBlueExpressZone,
-                            blueExpressRates: catalog.blueExpressRates,
-                            blueExpressTransitDays: catalog.blueExpressTransitDays,
+                            region: matchedComuna.regionShortName,
+                            ...(eventShipping
+                                ? {
+                                      eventShipping,
+                                      freeEventFromLiters:
+                                          matchedComuna.freeFrom ?? matchedComuna.regionFreeFrom,
+                                  }
+                                : {}),
+                            ...(directShipping ? { directShipping } : {}),
+                            ...(usesBlueExpress
+                                ? {
+                                      blueExpressZone:
+                                          matchedComuna.blueExpressZone ??
+                                          matchedComuna.regionBlueExpressZone,
+                                      blueExpressRates: catalog.blueExpressRates,
+                                      blueExpressTransitDays: catalog.blueExpressTransitDays,
+                                  }
+                                : {}),
                         };
                     } else {
                         deliveryLookup = {
@@ -175,29 +204,44 @@ export function createCocktailsMcpServer(ctx: CocktailsMcpContext = {}): McpServ
                 }
 
                 return okResult({
-                    rules: {
-                        cocktailsPerLiter: COCKTAILS_PER_LITER,
-                        portatilMinLiters: PORTATIL_MIN_LITERS,
-                        portatilCompatibleSizesLiters: [5, 10],
-                        muroMinLiters: MURO_MIN_LITERS,
-                        muroCompatibleSizesLiters: [20, 30],
-                        muroInstallationCostClp: MURO_INSTALLATION_COST,
-                    },
+                    ...(!searchFilter
+                        ? {
+                              rules: {
+                                  cocktailsPerLiter: COCKTAILS_PER_LITER,
+                                  portatilMinLiters: PORTATIL_MIN_LITERS,
+                                  portatilSizes: [5, 10],
+                                  muroMinLiters: MURO_MIN_LITERS,
+                                  muroSizes: [20, 30],
+                                  muroInstallationCostClp: MURO_INSTALLATION_COST,
+                              },
+                          }
+                        : {}),
                     products,
-                    eventTypes: catalog.eventTypes.map((e) => ({ id: e.id, name: e.name })),
-                    deliveryLookup,
-                    regions: catalog.regions
-                        .filter((r) => r.isActive)
-                        .map((r) => ({
-                            code: r.code,
-                            shortName: r.shortName,
-                            availableForEvents: r.availableForEvents,
-                            availableForDirect: r.availableForDirect,
-                            shippingCarrier: r.shippingCarrier,
-                            eventCost: r.cost,
-                            freeFromLiters: r.freeFrom,
-                            directSaleDeliveryCost: r.directSaleDeliveryCost,
-                        })),
+                    ...(serviceType !== 'direct' && !searchFilter
+                        ? {
+                              eventTypes: catalog.eventTypes.map((e) => ({
+                                  id: e.id,
+                                  name: e.name,
+                              })),
+                          }
+                        : {}),
+                    ...(deliveryLookup ? { deliveryLookup } : {}),
+                    ...(!args.comuna && !searchFilter
+                        ? {
+                              regions: catalog.regions
+                                  .filter((r) => r.isActive)
+                                  .map((r) => ({
+                                      code: r.code,
+                                      name: r.shortName,
+                                      events: r.availableForEvents,
+                                      direct: r.availableForDirect,
+                                      carrier: r.shippingCarrier,
+                                      eventClp: r.cost,
+                                      freeFromL: r.freeFrom,
+                                      directClp: r.directSaleDeliveryCost,
+                                  })),
+                          }
+                        : {}),
                 });
             } catch (err) {
                 return errorResult(err instanceof Error ? err.message : 'Error consultando catálogo');
