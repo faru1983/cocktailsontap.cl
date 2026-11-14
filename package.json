@@ -9,6 +9,7 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.2",
     "@react-email/components": "^1.0.9",
     "@supabase/supabase-js": "^2.97.0",
     "@vercel/speed-insights": "^2.0.0",
