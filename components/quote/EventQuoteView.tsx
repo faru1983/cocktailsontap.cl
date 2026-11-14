@@ -988,7 +988,7 @@ export default function EventQuoteView({ quote, comunas, regions, availableCockt
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div className="flex flex-col gap-1">
                                     <label className="text-[0.65rem] font-black text-brand-text-muted flex items-center gap-1.5 uppercase">
                                         <Calendar className="w-3 h-3" /> Fecha del Retiro <span className="text-red-500">*</span>
@@ -998,19 +998,22 @@ export default function EventQuoteView({ quote, comunas, regions, availableCockt
                                             id="field-pickupDate"
                                             value={pickupChoice}
                                             onChange={(e) => {
-                                                const choice = e.target.value as 'same' | 'next';
+                                                const choice = e.target.value as 'same' | 'next' | '';
                                                 if (choice === 'same') {
                                                     setPickupDate(eventDate);
                                                     setPickupTime('');
-                                                } else {
+                                                } else if (choice === 'next') {
                                                     setPickupDate(nextPickupDate);
                                                     setPickupTime(EVENT_DEFAULT_NEXT_DAY_PICKUP_TIME);
+                                                } else {
+                                                    setPickupDate('');
+                                                    setPickupTime('');
                                                 }
-                                                setValidationErrors(prev => ({ ...prev, pickupDate: false, pickupTime: false }));
+                                                setValidationErrors((prev) => ({ ...prev, pickupDate: false }));
                                             }}
                                             className={`w-full px-3 py-2.5 bg-slate-50 border rounded-xl text-[0.95rem] font-bold focus:outline-none focus:border-primary focus:bg-white transition-all shadow-sm appearance-none pr-10 ${validationErrors.pickupDate ? 'border-red-500 bg-red-50/30' : 'border-brand-border'}`}
                                         >
-                                            <option value="" disabled>Seleccionar...</option>
+                                            <option value="">Seleccionar...</option>
                                             <option value="same">Mismo día</option>
                                             <option value="next">Día siguiente</option>
                                         </select>
@@ -1018,19 +1021,22 @@ export default function EventQuoteView({ quote, comunas, regions, availableCockt
                                             <ChevronRight className="w-3.5 h-3.5 text-brand-text-muted rotate-90" />
                                         </div>
                                     </div>
-                                </div>
-                                <div className="flex flex-col gap-1">
-                                    <label className="text-[0.65rem] font-black text-brand-text-muted flex items-center gap-1.5 uppercase">
-                                        <Clock className="w-3 h-3" /> Horario Retiro
-                                    </label>
-                                    <div className="w-full px-3 py-2.5 bg-slate-100/70 border border-brand-border/60 rounded-xl text-[0.9rem] font-bold text-brand-text flex items-center justify-between shadow-sm min-h-[44px]">
-                                        <span className="text-brand-text-muted text-[0.85rem]">
-                                            {pickupChoice === 'next' ? '12:00 a 14:00 hrs' : pickupChoice === 'same' ? 'Durante el evento' : 'Por definir'}
-                                        </span>
-                                        <span className="text-[0.6rem] uppercase tracking-wider font-extrabold text-primary bg-primary/10 px-2 py-0.5 rounded-md">
-                                            Por defecto
-                                        </span>
-                                    </div>
+                                    {validationErrors.pickupDate ? (
+                                        <p className="mt-1 text-xs text-red-500 font-medium flex items-center gap-1">
+                                            <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                                            <span>Selecciona la fecha de retiro.</span>
+                                        </p>
+                                    ) : pickupChoice === 'next' ? (
+                                        <p className="mt-1 text-[0.7rem] text-brand-text-muted flex items-center gap-1">
+                                            <Clock className="w-3 h-3 text-primary shrink-0" />
+                                            <span>Retiro estimado entre 12:00 y 14:00 hrs.</span>
+                                        </p>
+                                    ) : pickupChoice === 'same' ? (
+                                        <p className="mt-1 text-[0.7rem] text-brand-text-muted flex items-center gap-1">
+                                            <Clock className="w-3 h-3 text-primary shrink-0" />
+                                            <span>Coordinaremos contigo el mejor horario de retiro durante el evento.</span>
+                                        </p>
+                                    ) : null}
                                 </div>
                             </div>
                         </div>

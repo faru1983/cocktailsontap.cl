@@ -56,7 +56,7 @@ export default function EventWizardCheckoutModal({
     const minRequiredLiters = state.dispenser === 'muro' ? MURO_MIN_LITERS : PORTATIL_MIN_LITERS;
     const minLitersMet = summaryData.totalLiters >= minRequiredLiters;
     const nextPickupDate = calculateMaxPickupDate(state.eventData.date);
-    const sameDayPickup = state.eventData.pickupDate === state.eventData.date;
+    const sameDayPickup = Boolean(state.eventData.pickupDate && state.eventData.date && state.eventData.pickupDate === state.eventData.date);
     const pickupChoice: 'same' | 'next' | '' =
         !state.eventData.pickupDate
             ? ''
@@ -144,7 +144,7 @@ export default function EventWizardCheckoutModal({
                 newErrors.startTime = 'Indica la hora de inicio del evento.';
             }
             if (!state.eventData.pickupDate?.trim()) {
-                newErrors.pickupDate = 'Indica la fecha de retiro.';
+                newErrors.pickupDate = 'Selecciona la fecha de retiro.';
             } else if (!isAllowedEventPickupDate(state.eventData.date, state.eventData.pickupDate)) {
                 newErrors.pickupDate = 'El retiro debe ser el mismo día o al día siguiente.';
             }
@@ -569,7 +569,7 @@ export default function EventWizardCheckoutModal({
                                                         const next = calculateMaxPickupDate(eventDate);
                                                         const current = state.eventData.pickupDate;
                                                         if (!current || (current !== eventDate && current !== next)) {
-                                                            updateEventData('pickupDate', eventDate);
+                                                            updateEventData('pickupDate', '');
                                                             updateEventData('pickupTime', '');
                                                         }
                                                     }
@@ -644,18 +644,21 @@ export default function EventWizardCheckoutModal({
                                                         value={pickupChoice}
                                                         onChange={(e) => {
                                                             clearError('pickupDate');
-                                                            const choice = e.target.value as 'same' | 'next';
+                                                            const choice = e.target.value as 'same' | 'next' | '';
                                                             if (choice === 'same') {
                                                                 updateEventData('pickupDate', state.eventData.date);
                                                                 updateEventData('pickupTime', '');
-                                                            } else {
+                                                            } else if (choice === 'next') {
                                                                 updateEventData('pickupDate', nextPickupDate);
                                                                 updateEventData('pickupTime', EVENT_DEFAULT_NEXT_DAY_PICKUP_TIME);
+                                                            } else {
+                                                                updateEventData('pickupDate', '');
+                                                                updateEventData('pickupTime', '');
                                                             }
                                                         }}
                                                     >
-                                                        <option value="" disabled>
-                                                            Selecciona...
+                                                        <option value="">
+                                                            Seleccionar...
                                                         </option>
                                                         <option value="same">Mismo día</option>
                                                         <option value="next">Día siguiente</option>
@@ -673,7 +676,7 @@ export default function EventWizardCheckoutModal({
                                                     ) : pickupChoice === 'same' ? (
                                                         <p className="mt-1 text-[0.7rem] text-brand-text-muted flex items-center gap-1">
                                                             <Clock className="w-3 h-3 text-primary shrink-0" />
-                                                            <span>Retiro durante el evento (todo el día).</span>
+                                                            <span>Coordinaremos contigo el mejor horario de retiro durante el evento.</span>
                                                         </p>
                                                     ) : null}
                                                 </div>

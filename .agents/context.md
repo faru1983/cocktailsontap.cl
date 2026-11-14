@@ -46,7 +46,9 @@
 - **Eliminación de selección de rango horario para clientes (`EventWizardCheckoutModal.tsx` y `EventQuoteView.tsx`)**:
   - En el modal de reserva del wizard `/eventos` y en la confirmación de cotizaciones borrador en `/cotizar/[token]`, el cliente ahora solo debe seleccionar entre **"Mismo día"** o **"Día siguiente"**.
   - Se eliminó el selector desplegable de rangos horarios para el día siguiente. Al seleccionar "Día siguiente", se fija automáticamente el estándar **`12:00 a 14:00`** (`EVENT_DEFAULT_NEXT_DAY_PICKUP_TIME` en `lib/wizardLogic.ts`).
-  - Al seleccionar "Mismo día", el retiro queda para la jornada del evento sin hora fija (Todo el día en Google Calendar).
+  - Estado inicial obligatorio en "Seleccionar..." con validación estricta en el formulario (permite deseleccionar).
+  - Al seleccionar "Mismo día", se informa al cliente que se coordinará el mejor horario con él durante el evento (Todo el día en Google Calendar).
+  - En `/cotizar/[token]` se eliminó el campo contiguo de Horario Retiro, presentando el texto descriptivo directamente bajo la selección.
 - **Consistencia en Google Calendar y Backend (`createQuoteCore.ts`, `confirmQuoteCore.ts`, `confirmNowValidation.ts`)**:
   - Validaciones y capas de creación asignan `12:00 a 14:00` por defecto si es día siguiente.
   - En Google Calendar, `CALENDAR_RETIRO_ID` recibe el bloque 12:00–14:00 hrs automáticamente o Todo el día si es misma fecha.
