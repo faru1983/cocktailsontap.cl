@@ -1,6 +1,6 @@
 import type { WizardState } from '@/lib/types';
 import { isValidPhoneE164 } from '@/lib/phone';
-import { isAllowedEventPickupDate } from '@/lib/wizardLogic';
+import { isAllowedEventPickupDate, EVENT_DEFAULT_NEXT_DAY_PICKUP_TIME } from '@/lib/wizardLogic';
 
 /** Campos obligatorios al confirmar reserva de evento (wizard/admin). */
 export function validateConfirmNowState(state: WizardState): string | null {

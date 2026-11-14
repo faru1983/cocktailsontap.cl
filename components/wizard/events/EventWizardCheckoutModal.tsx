@@ -7,12 +7,12 @@ import { formatCurrency } from '@/lib/utils';
 import PhoneInput from '@/components/ui/PhoneInput';
 import RegionComunaFields from '@/components/ui/RegionComunaFields';
 import ShippingDatePicker from '@/components/ui/ShippingDatePicker';
-import { X, Loader2, Calendar, Users, CheckCircle, FileText, User, AlertCircle } from 'lucide-react';
+import { X, Loader2, Calendar, Users, CheckCircle, FileText, User, AlertCircle, Clock } from 'lucide-react';
 import CheckoutCartSection from '@/components/quote/CheckoutCartSection';
 import QuoteSummaryTotals from '@/components/quote/QuoteSummaryTotals';
 import { PORTATIL_MIN_LITERS, MURO_MIN_LITERS } from '@/lib/config';
 import { validateConfirmNowState } from '@/lib/confirmNowValidation';
-import { calculateMaxPickupDate, EVENT_NEXT_DAY_PICKUP_SLOTS, getMinDateString, isAllowedEventPickupDate } from '@/lib/wizardLogic';
+import { calculateMaxPickupDate, EVENT_DEFAULT_NEXT_DAY_PICKUP_TIME, getMinDateString, isAllowedEventPickupDate } from '@/lib/wizardLogic';
 import { getMinSelectableDate, validateShippingDate } from '@/lib/shippingMethods';
 import { isValidPhoneE164, isChilePrefixOnly } from '@/lib/phone';
 
@@ -150,7 +150,7 @@ export default function EventWizardCheckoutModal({
             }
             const isSameDay = state.eventData.pickupDate === state.eventData.date;
             if (!isSameDay && !state.eventData.pickupTime?.trim()) {
-                newErrors.pickupTime = 'Selecciona el horario de retiro.';
+                updateEventData('pickupTime', EVENT_DEFAULT_NEXT_DAY_PICKUP_TIME);
             }
             if (!acceptedTerms) {
                 newErrors.terms = 'Debes aceptar los términos del contrato.';
@@ -479,6 +479,15 @@ export default function EventWizardCheckoutModal({
                                                         updateEventData('date', val);
                                                         clearError('date');
                                                         setLocalError('');
+                                                        if (confirmNow && state.eventData.pickupDate) {
+                                                            if (sameDayPickup) {
+                                                                updateEventData('pickupDate', val);
+                                                                updateEventData('pickupTime', '');
+                                                            } else if (state.eventData.pickupDate === nextPickupDate) {
+                                                                updateEventData('pickupDate', calculateMaxPickupDate(val));
+                                                                updateEventData('pickupTime', EVENT_DEFAULT_NEXT_DAY_PICKUP_TIME);
+                                                            }
+                                                        }
                                                     }}
                                                     methodConfig={eventMethodConfig}
                                                     fallbackOffsetDays={5}
@@ -641,13 +650,7 @@ export default function EventWizardCheckoutModal({
                                                                 updateEventData('pickupTime', '');
                                                             } else {
                                                                 updateEventData('pickupDate', nextPickupDate);
-                                                                if (
-                                                                    !EVENT_NEXT_DAY_PICKUP_SLOTS.includes(
-                                                                        state.eventData.pickupTime as (typeof EVENT_NEXT_DAY_PICKUP_SLOTS)[number]
-                                                                    )
-                                                                ) {
-                                                                    updateEventData('pickupTime', '');
-                                                                }
+                                                                updateEventData('pickupTime', EVENT_DEFAULT_NEXT_DAY_PICKUP_TIME);
                                                             }
                                                         }}
                                                     >
@@ -657,44 +660,24 @@ export default function EventWizardCheckoutModal({
                                                         <option value="same">Mismo día</option>
                                                         <option value="next">Día siguiente</option>
                                                     </select>
-                                                    {errors.pickupDate && (
+                                                    {errors.pickupDate ? (
                                                         <p className="mt-1 text-xs text-red-500 font-medium flex items-center gap-1">
                                                             <AlertCircle className="w-3.5 h-3.5 shrink-0" />
                                                             {errors.pickupDate}
                                                         </p>
-                                                    )}
+                                                    ) : pickupChoice === 'next' ? (
+                                                        <p className="mt-1 text-[0.7rem] text-brand-text-muted flex items-center gap-1">
+                                                            <Clock className="w-3 h-3 text-primary shrink-0" />
+                                                            <span>Retiro estimado entre 12:00 y 14:00 hrs.</span>
+                                                        </p>
+                                                    ) : pickupChoice === 'same' ? (
+                                                        <p className="mt-1 text-[0.7rem] text-brand-text-muted flex items-center gap-1">
+                                                            <Clock className="w-3 h-3 text-primary shrink-0" />
+                                                            <span>Retiro durante el evento (todo el día).</span>
+                                                        </p>
+                                                    ) : null}
                                                 </div>
                                             </div>
-                                            {!sameDayPickup && (
-                                                <div>
-                                                    <label className="block font-bold mb-1 text-brand-text text-[0.8rem]">
-                                                        Horario retiro <span className="text-primary">*</span>
-                                                    </label>
-                                                    <select
-                                                        id="field-pickupTime"
-                                                        required={confirmNow}
-                                                        className={getInputCls(Boolean(errors.pickupTime))}
-                                                        value={state.eventData.pickupTime}
-                                                        onChange={(e) => {
-                                                            updateEventData('pickupTime', e.target.value);
-                                                            clearError('pickupTime');
-                                                        }}
-                                                    >
-                                                        <option value="">Seleccionar...</option>
-                                                        {EVENT_NEXT_DAY_PICKUP_SLOTS.map((slot) => (
-                                                            <option key={slot} value={slot}>
-                                                                {slot}
-                                                            </option>
-                                                        ))}
-                                                    </select>
-                                                    {errors.pickupTime && (
-                                                        <p className="mt-1 text-xs text-red-500 font-medium flex items-center gap-1">
-                                                            <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                                                            {errors.pickupTime}
-                                                        </p>
-                                                    )}
-                                                </div>
-                                            )}
 
                                             <div className="space-y-2">
                                                 <h4 className="text-[0.7rem] font-black text-brand-text flex items-center gap-2 uppercase tracking-widest">

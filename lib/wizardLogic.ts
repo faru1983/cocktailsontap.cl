@@ -279,6 +279,9 @@ export function isAllowedEventPickupDate(eventDate: string, pickupDate: string):
     return pickupDate === eventDate || pickupDate === calculateMaxPickupDate(eventDate);
 }
 
+/** Horario estándar por defecto de retiro al día siguiente para eventos. */
+export const EVENT_DEFAULT_NEXT_DAY_PICKUP_TIME = '12:00 a 14:00' as const;
+
 /** Rangos de retiro al día siguiente (wizard y link de cotización). */
 export const EVENT_NEXT_DAY_PICKUP_SLOTS = ['12:00 a 14:00', '14:00 a 16:00', '16:00 a 18:00'] as const;
 

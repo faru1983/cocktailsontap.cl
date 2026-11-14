@@ -14,6 +14,7 @@ import { fetchAllProductData } from '@/lib/serverData';
 import { resolveQuoteItemsFromCatalog } from '@/lib/catalogPricing';
 import {
     calculateSummaryData,
+    EVENT_DEFAULT_NEXT_DAY_PICKUP_TIME,
     formatEventDate,
     resolveRegionCode,
     resolveRegionShortName,
@@ -211,7 +212,10 @@ export async function confirmQuoteCore(
             event_date: data.event_date,
             start_time: data.start_time,
             pickup_date: data.pickup_date,
-            pickup_time: data.pickup_time,
+            pickup_time:
+                data.pickup_date === data.event_date
+                    ? null
+                    : data.pickup_time || EVENT_DEFAULT_NEXT_DAY_PICKUP_TIME,
             comments: data.comments,
             dispenser: data.dispenser,
             total_price: total,

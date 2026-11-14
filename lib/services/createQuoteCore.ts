@@ -17,7 +17,7 @@ import { resolveQuoteSource, type QuoteSource } from '@/lib/quoteSource';
 import { confirmQuoteCore } from '@/lib/services/confirmQuoteCore';
 import { validateConfirmNowState } from '@/lib/confirmNowValidation';
 import { stripClientPricing } from '@/lib/catalogPricing';
-import { resolveRegionShortName, validateDirectSaleDate, resolveDirectSaleCarrier } from '@/lib/wizardLogic';
+import { resolveRegionShortName, validateDirectSaleDate, resolveDirectSaleCarrier, EVENT_DEFAULT_NEXT_DAY_PICKUP_TIME } from '@/lib/wizardLogic';
 import { validateShippingDate } from '@/lib/shippingMethods';
 
 export interface CreateQuoteInput {
@@ -68,7 +68,7 @@ function buildConfirmPayload(state: WizardState, token: string, items: QuoteItem
         pickup_time:
             state.eventData.pickupDate === state.eventData.date
                 ? null
-                : state.eventData.pickupTime || null,
+                : state.eventData.pickupTime || EVENT_DEFAULT_NEXT_DAY_PICKUP_TIME,
         comments: state.contact.comments?.trim() || null,
         dispenser: state.dispenser as 'portatil' | 'muro' | 'desechable',
         items: items.map((item) => ({

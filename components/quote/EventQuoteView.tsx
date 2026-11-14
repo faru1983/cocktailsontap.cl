@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { formatCurrency, copyToClipboard } from '@/lib/utils';
 import { isValidPhoneE164, normalizePhoneE164 } from '@/lib/phone';
 import PhoneInput from '@/components/ui/PhoneInput';
-import { formatEventDate, calculateMaxPickupDate, isAllowedEventPickupDate, EVENT_NEXT_DAY_PICKUP_SLOTS, getTodayString, resolveShipping, isEventBarrelSizeLabelCompatible, getSizeLiters } from '@/lib/wizardLogic';
+import { formatEventDate, calculateMaxPickupDate, isAllowedEventPickupDate, EVENT_DEFAULT_NEXT_DAY_PICKUP_TIME, getTodayString, resolveShipping, isEventBarrelSizeLabelCompatible, getSizeLiters } from '@/lib/wizardLogic';
 import { confirmQuote } from '@/app/actions/confirmQuote';
 import { MURO_INSTALLATION_COST, PORTATIL_MIN_LITERS, MURO_MIN_LITERS } from '@/lib/config';
 import { getMinSelectableDate, validateShippingDate } from '@/lib/shippingMethods';
@@ -246,7 +246,10 @@ export default function EventQuoteView({ quote, comunas, regions, availableCockt
     const totalPaid = sumQuotePayments(quote);
     const advanceAmount = totals.totalFinal;
     const advancePercentText = '100%';
-    const isSameDayPickup = pickupDate === eventDate;
+    const nextPickupDate = calculateMaxPickupDate(eventDate);
+    const isSameDayPickup = Boolean(pickupDate && eventDate && pickupDate === eventDate);
+    const isNextDayPickup = Boolean(pickupDate && eventDate && pickupDate === nextPickupDate);
+    const pickupChoice: 'same' | 'next' | '' = isSameDayPickup ? 'same' : isNextDayPickup ? 'next' : '';
 
     const validateAllFields = () => {
         const errors: Record<string, boolean> = {};
@@ -270,7 +273,9 @@ export default function EventQuoteView({ quote, comunas, regions, availableCockt
         if (pickupDate && eventDate && !isAllowedEventPickupDate(eventDate, pickupDate)) {
             errors.pickupDate = true;
         }
-        if (!isSameDayPickup && !pickupTime) errors.pickupTime = true;
+        if (!isSameDayPickup && !pickupTime) {
+            setPickupTime(EVENT_DEFAULT_NEXT_DAY_PICKUP_TIME);
+        }
         if (guests <= 0) errors.guests = true;
         if (!eventType) errors.eventType = true;
         if (eventType === 'Otro' && !otherType.trim()) errors.otherType = true;
@@ -947,6 +952,15 @@ export default function EventQuoteView({ quote, comunas, regions, availableCockt
                                             setEventDate(val);
                                             setValidationErrors(prev => ({ ...prev, eventDate: false }));
                                             setConfirmError('');
+                                            if (pickupDate) {
+                                                if (pickupChoice === 'same' || pickupDate === eventDate) {
+                                                    setPickupDate(val);
+                                                    setPickupTime('');
+                                                } else if (pickupChoice === 'next' || pickupDate === nextPickupDate) {
+                                                    setPickupDate(calculateMaxPickupDate(val));
+                                                    setPickupTime(EVENT_DEFAULT_NEXT_DAY_PICKUP_TIME);
+                                                }
+                                            }
                                         }}
                                         methodConfig={comunas[0]?.shippingMethodsConfig?.own_events}
                                         fallbackOffsetDays={5}
@@ -979,45 +993,43 @@ export default function EventQuoteView({ quote, comunas, regions, availableCockt
                                     <label className="text-[0.65rem] font-black text-brand-text-muted flex items-center gap-1.5 uppercase">
                                         <Calendar className="w-3 h-3" /> Fecha del Retiro <span className="text-red-500">*</span>
                                     </label>
-                                    <input
-                                        id="field-pickupDate"
-                                        type="date"
-                                        value={pickupDate}
-                                        min={eventDate}
-                                        max={calculateMaxPickupDate(eventDate)}
-                                        onChange={(e) => {
-                                            const newPickupDate = e.target.value;
-                                            setPickupDate(newPickupDate);
-                                            setValidationErrors(prev => ({ ...prev, pickupDate: false }));
-                                            if (newPickupDate === eventDate) setPickupTime('');
-                                        }}
-                                        className={`w-full px-3 py-2.5 bg-slate-50 border rounded-xl text-[0.95rem] font-bold focus:outline-none focus:border-primary focus:bg-white transition-all shadow-sm ${validationErrors.pickupDate ? 'border-red-500 bg-red-50/30' : 'border-brand-border'}`}
-                                    />
-                                </div>
-                                <div className={`flex flex-col gap-1 transition-all duration-300 ${isSameDayPickup ? 'opacity-0 scale-95 pointer-events-none' : 'opacity-100'}`}>
-                                    <label className="text-[0.65rem] font-black text-brand-text-muted flex items-center gap-1.5 uppercase">
-                                        <Clock className="w-3 h-3" /> Horario Retiro <span className="text-red-500">*</span>
-                                    </label>
                                     <div className="relative">
                                         <select
-                                            id="field-pickupTime"
-                                            value={pickupTime}
+                                            id="field-pickupDate"
+                                            value={pickupChoice}
                                             onChange={(e) => {
-                                                setPickupTime(e.target.value);
-                                                setValidationErrors(prev => ({ ...prev, pickupTime: false }));
+                                                const choice = e.target.value as 'same' | 'next';
+                                                if (choice === 'same') {
+                                                    setPickupDate(eventDate);
+                                                    setPickupTime('');
+                                                } else {
+                                                    setPickupDate(nextPickupDate);
+                                                    setPickupTime(EVENT_DEFAULT_NEXT_DAY_PICKUP_TIME);
+                                                }
+                                                setValidationErrors(prev => ({ ...prev, pickupDate: false, pickupTime: false }));
                                             }}
-                                            className={`w-full px-3 py-2.5 bg-slate-50 border rounded-xl text-[0.95rem] font-bold focus:outline-none focus:border-primary focus:bg-white transition-all shadow-sm appearance-none pr-10 ${validationErrors.pickupTime ? 'border-red-500 bg-red-50/30' : 'border-brand-border'}`}
+                                            className={`w-full px-3 py-2.5 bg-slate-50 border rounded-xl text-[0.95rem] font-bold focus:outline-none focus:border-primary focus:bg-white transition-all shadow-sm appearance-none pr-10 ${validationErrors.pickupDate ? 'border-red-500 bg-red-50/30' : 'border-brand-border'}`}
                                         >
-                                            <option value="">Seleccionar...</option>
-                                            {EVENT_NEXT_DAY_PICKUP_SLOTS.map((slot) => (
-                                                <option key={slot} value={slot}>
-                                                    {slot}
-                                                </option>
-                                            ))}
+                                            <option value="" disabled>Seleccionar...</option>
+                                            <option value="same">Mismo día</option>
+                                            <option value="next">Día siguiente</option>
                                         </select>
                                         <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
                                             <ChevronRight className="w-3.5 h-3.5 text-brand-text-muted rotate-90" />
                                         </div>
+                                    </div>
+                                </div>
+                                <div className="flex flex-col gap-1">
+                                    <label className="text-[0.65rem] font-black text-brand-text-muted flex items-center gap-1.5 uppercase">
+                                        <Clock className="w-3 h-3" /> Horario Retiro
+                                    </label>
+                                    <div className="w-full px-3 py-2.5 bg-slate-100/70 border border-brand-border/60 rounded-xl text-[0.9rem] font-bold text-brand-text flex items-center justify-between shadow-sm min-h-[44px]">
+                                        <span className="text-brand-text-muted text-[0.85rem]">
+                                            {pickupChoice === 'next' ? '12:00 a 14:00 hrs' : pickupChoice === 'same' ? 'Durante el evento' : 'Por definir'}
+                                        </span>
+                                        <span className="text-[0.6rem] uppercase tracking-wider font-extrabold text-primary bg-primary/10 px-2 py-0.5 rounded-md">
+                                            Por defecto
+                                        </span>
                                     </div>
                                 </div>
                             </div>
