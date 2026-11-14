@@ -70,6 +70,13 @@
 - **Coherencia en Comunicaciones (Emails y Comprobante Web)**:
   - En correos (`DirectSaleEmail.tsx`, `ConfirmationEmail.tsx`, `EmailShared.tsx`) y en la vista con token único (`DirectQuoteView.tsx`, `QuoteSummaryReservation.tsx`), los pedidos de Blue Express muestran la ventana de entrega estimada (*"Llegada estimada: 01 al 05 de Noviembre (vía Blue Express)"*), manteniendo perfecta coherencia con lo visto en el checkout.
   - En el panel de administración (`QuoteOperationalSummary.tsx` y `CreateQuoteManualClient.tsx`), se presenta el desglose claro entre la fecha de despacho en taller y la ventana de llegada del cliente.
+- **Alineación de Textos en Panel Admin de Cobertura (`ShippingMethodsCards.tsx` en `/admin/settings?tab=cobertura`)**:
+  - Reemplazados todos los textos y sufijos de *"días corridos"* por **"días hábiles"** en Transporte Propio, Eventos y Blue Express.
+  - Actualizados los labels a *"Tiempo de producción / preparación (días hábiles)"* y los textos de ayuda explicativos de anticipación.
+- **Gestión Editable de Tiempos de Tránsito Courier Blue Express (`ShippingMethodsCards.tsx` y `site_settings`)**:
+  - Incorporada tarjeta interactiva en `/admin/settings?tab=cobertura` para configurar los días hábiles de transporte courier por zona (`misma_zona`, `centro`, `extremo`) con rangos `minDays` y `maxDays`.
+  - Persistencia en `site_settings` bajo la clave `blue_express_transit_days` a través del Server Action `saveBlueExpressTransitDays`.
+  - Servido a través de `fetchAllProductData` en caché y consumido dinámicamente en el checkout modal y en el core de cotizaciones/ventas directas (`getBlueExpressTransitDays(zone, transitMatrix)`).
 
 ### 01-11-2026 — Unificación de CTA Único Oficial y Email Obligatorio en `/lp/eventos`
 

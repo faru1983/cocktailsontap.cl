@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { OptionalPhoneSchema, RequiredPhoneSchema } from '@/lib/phone';
-import type { BlueExpressHomeRates } from './blueExpress';
+import type { BlueExpressHomeRates, BlueExpressTransitTimes } from './blueExpress';
 import type { ShippingMethodsSettings } from './shippingMethods';
 
 export { OptionalPhoneSchema, RequiredPhoneSchema };
@@ -144,6 +144,8 @@ export interface Comuna {
     blueExpressZone: 'misma_zona' | 'centro' | 'extremo' | null;
     /** Tarifas BE vigentes (misma tabla para todas las comunas; viene de site_settings). */
     blueExpressRates: BlueExpressHomeRates;
+    /** Tiempos estimados de tránsito BE vigentes (en días hábiles; viene de site_settings). */
+    blueExpressTransitDays?: BlueExpressTransitTimes;
     /** Configuración dinámica de métodos de envío (reglas, anticipación, fechas bloqueadas). */
     shippingMethodsConfig?: ShippingMethodsSettings;
 }

@@ -306,6 +306,9 @@ export default function SettingsClient({
                         blueExpressRates={
                             siteSettings.find((s: { key: string }) => s.key === 'blue_express_home_rates')?.value
                         }
+                        blueExpressTransitDays={
+                            siteSettings.find((s: { key: string }) => s.key === 'blue_express_transit_days')?.value
+                        }
                         shippingMethodsConfig={
                             siteSettings.find((s: { key: string }) => s.key === 'shipping_methods_config')?.value
                         }

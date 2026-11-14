@@ -13,24 +13,70 @@ export type BlueExpressHomeRates = {
     extremo: BlueExpressSizeRates;
 };
 
+export type BlueExpressTransitTimes = Record<BlueExpressZone, { minDays: number; maxDays: number }>;
+
 export const BLUE_EXPRESS_ZONE_OPTIONS: { value: BlueExpressZone; label: string }[] = [
     { value: 'misma_zona', label: 'Misma zona' },
     { value: 'centro', label: 'Centro' },
     { value: 'extremo', label: 'Extremo (norte / sur)' },
 ];
 
+export const BLUE_EXPRESS_TRANSIT_SETTING_KEY = 'blue_express_transit_days';
+
 /** Tiempos estimados de tránsito courier (en días hábiles) desde Santiago */
-export const BLUE_EXPRESS_TRANSIT_DAYS: Record<BlueExpressZone, { minDays: number; maxDays: number }> = {
+export const DEFAULT_BLUE_EXPRESS_TRANSIT_DAYS: BlueExpressTransitTimes = {
     misma_zona: { minDays: 1, maxDays: 2 },
     centro: { minDays: 2, maxDays: 3 },
     extremo: { minDays: 4, maxDays: 6 },
 };
 
-export function getBlueExpressTransitDays(zone?: BlueExpressZone | null): { minDays: number; maxDays: number } {
-    if (zone && BLUE_EXPRESS_TRANSIT_DAYS[zone]) {
-        return BLUE_EXPRESS_TRANSIT_DAYS[zone];
+export const BLUE_EXPRESS_TRANSIT_DAYS = DEFAULT_BLUE_EXPRESS_TRANSIT_DAYS;
+
+export function parseBlueExpressTransitDays(raw: unknown): BlueExpressTransitTimes {
+    let parsed: any = raw;
+    if (typeof raw === 'string') {
+        try {
+            parsed = JSON.parse(raw);
+        } catch {
+            return {
+                misma_zona: { ...DEFAULT_BLUE_EXPRESS_TRANSIT_DAYS.misma_zona },
+                centro: { ...DEFAULT_BLUE_EXPRESS_TRANSIT_DAYS.centro },
+                extremo: { ...DEFAULT_BLUE_EXPRESS_TRANSIT_DAYS.extremo },
+            };
+        }
     }
-    return BLUE_EXPRESS_TRANSIT_DAYS.centro;
+    if (!parsed || typeof parsed !== 'object') {
+        return {
+            misma_zona: { ...DEFAULT_BLUE_EXPRESS_TRANSIT_DAYS.misma_zona },
+            centro: { ...DEFAULT_BLUE_EXPRESS_TRANSIT_DAYS.centro },
+            extremo: { ...DEFAULT_BLUE_EXPRESS_TRANSIT_DAYS.extremo },
+        };
+    }
+    const cleanZone = (zone: BlueExpressZone) => {
+        const fallback = DEFAULT_BLUE_EXPRESS_TRANSIT_DAYS[zone];
+        const src = parsed[zone] || {};
+        const minVal = Math.max(1, parseInt(src.minDays, 10) || fallback.minDays);
+        const maxVal = Math.max(minVal, parseInt(src.maxDays, 10) || fallback.maxDays);
+        return { minDays: minVal, maxDays: maxVal };
+    };
+    return {
+        misma_zona: cleanZone('misma_zona'),
+        centro: cleanZone('centro'),
+        extremo: cleanZone('extremo'),
+    };
+}
+
+export function getBlueExpressTransitDays(
+    zone?: BlueExpressZone | null,
+    transitMatrix?: BlueExpressTransitTimes | null
+): { minDays: number; maxDays: number } {
+    if (zone && transitMatrix && transitMatrix[zone]) {
+        return transitMatrix[zone];
+    }
+    if (zone && DEFAULT_BLUE_EXPRESS_TRANSIT_DAYS[zone]) {
+        return DEFAULT_BLUE_EXPRESS_TRANSIT_DAYS[zone];
+    }
+    return DEFAULT_BLUE_EXPRESS_TRANSIT_DAYS.centro;
 }
 
 export const BLUE_EXPRESS_RATES_SETTING_KEY = 'blue_express_home_rates';

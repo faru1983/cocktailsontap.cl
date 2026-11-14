@@ -10,7 +10,7 @@ import type {
     SupabaseProduct,
     MeasurementUnit,
 } from './types';
-import { isBlueExpressZone, parseBlueExpressRates, type BlueExpressHomeRates } from './blueExpress';
+import { isBlueExpressZone, parseBlueExpressRates, parseBlueExpressTransitDays, BLUE_EXPRESS_TRANSIT_SETTING_KEY, type BlueExpressHomeRates, type BlueExpressTransitTimes } from './blueExpress';
 import { parseShippingMethodsConfig, SHIPPING_METHODS_SETTING_KEY, type ShippingMethodsSettings } from './shippingMethods';
 
 // ─── Helpers de transformación ───────────────────────────────────────────────
@@ -44,6 +44,7 @@ export const fetchAllProductData = unstable_cache(
         comunas: Comuna[];
         measurementUnits: MeasurementUnit[];
         blueExpressRates: BlueExpressHomeRates;
+        blueExpressTransitDays: BlueExpressTransitTimes;
         shippingMethodsConfig: ShippingMethodsSettings;
     }> => {
         const db = createServerClient();
@@ -56,6 +57,7 @@ export const fetchAllProductData = unstable_cache(
             { data: unitsData, error: unitsError },
             { data: beRatesRow },
             { data: shippingMethodsRow },
+            { data: beTransitRow },
         ] = await Promise.all([
             supabase.from('categories').select('name').eq('is_active', true).order('display_order', { ascending: true }),
             supabase.from('event_types').select('id, name, icon').order('display_order', { ascending: true }),
@@ -88,6 +90,7 @@ export const fetchAllProductData = unstable_cache(
             supabase.from('measurement_units').select('*').eq('is_active', true).order('display_order', { ascending: true }),
             db.from('site_settings').select('value').eq('key', 'blue_express_home_rates').maybeSingle(),
             db.from('site_settings').select('value').eq('key', SHIPPING_METHODS_SETTING_KEY).maybeSingle(),
+            db.from('site_settings').select('value').eq('key', BLUE_EXPRESS_TRANSIT_SETTING_KEY).maybeSingle(),
         ]);
 
         if (catError) throw new Error(`categories: ${catError.message}`);
@@ -117,6 +120,7 @@ export const fetchAllProductData = unstable_cache(
 
         const regionsById = new Map(regions.map((r) => [r.id, r]));
         const blueExpressRates = parseBlueExpressRates(beRatesRow?.value);
+        const blueExpressTransitDays = parseBlueExpressTransitDays(beTransitRow?.value);
         const shippingMethodsConfig = parseShippingMethodsConfig(shippingMethodsRow?.value);
 
         const comunas: Comuna[] = (((comunasData ?? []) as any[])
@@ -144,6 +148,7 @@ export const fetchAllProductData = unstable_cache(
                             : null,
                     blueExpressZone: isBlueExpressZone(c.blue_express_zone) ? c.blue_express_zone : null,
                     blueExpressRates,
+                    blueExpressTransitDays,
                     shippingMethodsConfig,
                 };
             })
@@ -222,10 +227,11 @@ export const fetchAllProductData = unstable_cache(
             comunas,
             measurementUnits: unitsData ?? [],
             blueExpressRates,
+            blueExpressTransitDays,
             shippingMethodsConfig,
         };
     },
-    ['product-data-v6-shipping-methods'],
+    ['product-data-v7-shipping-transit'],
     { revalidate: 300, tags: ['product-data'] }
 );
 

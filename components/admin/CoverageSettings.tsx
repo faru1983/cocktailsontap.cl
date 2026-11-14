@@ -5,6 +5,7 @@ import {
     updateQuickComunaField,
     updateQuickRegionField,
     saveBlueExpressRates,
+    saveBlueExpressTransitDays,
     updateComunasCarrier,
     saveShippingMethodsSettings,
     bulkApplyRegionComunaRate,
@@ -30,8 +31,10 @@ import {
     formatBlueExpressPacks,
     isBlueExpressZone,
     parseBlueExpressRates,
+    parseBlueExpressTransitDays,
     quoteBlueExpressHome,
     type BlueExpressHomeRates,
+    type BlueExpressTransitTimes,
     type BlueExpressZone,
     type ShippingCarrier,
 } from '@/lib/blueExpress';
@@ -122,6 +125,7 @@ interface Props {
     regions: AdminRegionRow[];
     comunas: AdminComunaRow[];
     blueExpressRates?: BlueExpressHomeRates | string | null;
+    blueExpressTransitDays?: BlueExpressTransitTimes | string | null;
     shippingMethodsConfig?: ShippingMethodsSettings | string | null;
 }
 
@@ -194,6 +198,7 @@ export default function CoverageSettings({
     regions: initialRegions,
     comunas: initialComunas,
     blueExpressRates: initialBlueExpressRates,
+    blueExpressTransitDays: initialBlueExpressTransitDays,
     shippingMethodsConfig: initialShippingMethodsConfig,
 }: Props) {
     const [regions, setRegions] = useState(initialRegions);
@@ -209,6 +214,12 @@ export default function CoverageSettings({
         parseBlueExpressRates(initialBlueExpressRates)
     );
     const [savingRates, setSavingRates] = useState(false);
+
+    const [beTransitDays, setBeTransitDays] = useState<BlueExpressTransitTimes>(() =>
+        parseBlueExpressTransitDays(initialBlueExpressTransitDays)
+    );
+    const [savingTransitDays, setSavingTransitDays] = useState(false);
+    const [hasSavedTransitDays, setHasSavedTransitDays] = useState(false);
     const [selectedRegionId, setSelectedRegionId] = useState(
         () => initialRegions.find((r) => r.code === 'RM')?.id ?? initialRegions[0]?.id ?? ''
     );
@@ -357,6 +368,20 @@ export default function CoverageSettings({
             alert('Error al guardar configuración Blue Express: ' + message);
         } finally {
             setSavingRates(false);
+        }
+    };
+
+    const handleSaveBlueExpressTransitDays = async () => {
+        setSavingTransitDays(true);
+        try {
+            await saveBlueExpressTransitDays(beTransitDays);
+            setHasSavedTransitDays(true);
+            setTimeout(() => setHasSavedTransitDays(false), 2500);
+        } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : 'Error desconocido';
+            alert('Error al guardar plazos de tránsito Blue Express: ' + message);
+        } finally {
+            setSavingTransitDays(false);
         }
     };
 
@@ -552,6 +577,11 @@ export default function CoverageSettings({
                     onChangeBeRates={setBeRates}
                     onSaveBeRates={handleSaveBlueExpressRates}
                     isSavingBeRates={savingRates}
+                    beTransitDays={beTransitDays}
+                    onChangeBeTransitDays={setBeTransitDays}
+                    onSaveBeTransitDays={handleSaveBlueExpressTransitDays}
+                    isSavingBeTransitDays={savingTransitDays}
+                    hasSavedBeTransitDays={hasSavedTransitDays}
                 />
             )}
 

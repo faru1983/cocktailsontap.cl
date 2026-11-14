@@ -1375,6 +1375,30 @@ export async function saveBlueExpressRates(rates: {
     return { success: true };
 }
 
+export async function saveBlueExpressTransitDays(transitDays: {
+    misma_zona: { minDays: number; maxDays: number };
+    centro: { minDays: number; maxDays: number };
+    extremo: { minDays: number; maxDays: number };
+}) {
+    await checkAuth();
+    const { parseBlueExpressTransitDays, BLUE_EXPRESS_TRANSIT_SETTING_KEY } = await import('@/lib/blueExpress');
+    const parsed = parseBlueExpressTransitDays(transitDays);
+    const db = createServerClient();
+    const { error } = await db.from('site_settings').upsert(
+        {
+            key: BLUE_EXPRESS_TRANSIT_SETTING_KEY,
+            category: 'shipping',
+            value: JSON.stringify(parsed),
+            is_active: true,
+            description: 'Tiempos estimados de tránsito Blue Express (en días hábiles) por zona: misma_zona, centro y extremo.',
+        },
+        { onConflict: 'key' }
+    );
+    if (error) throw new Error(error.message);
+    revalidateCoveragePaths();
+    return { success: true };
+}
+
 export async function saveShippingMethodsSettings(config: any) {
     await checkAuth();
     const { parseShippingMethodsConfig, SHIPPING_METHODS_SETTING_KEY } = await import('@/lib/shippingMethods');

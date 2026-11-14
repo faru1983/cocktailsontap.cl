@@ -135,7 +135,7 @@ export async function createQuoteCore(input: CreateQuoteInput): Promise<CreateQu
                         const { calculateDirectSaleSchedule } = await import('@/lib/businessDays');
                         const selectedComuna = comunas.find((c) => c.name.toLowerCase() === (state.contact.comuna || '').toLowerCase());
                         const beZone = selectedComuna?.blueExpressZone || selectedComuna?.regionBlueExpressZone;
-                        const transitDays = getBlueExpressTransitDays(beZone);
+                        const transitDays = getBlueExpressTransitDays(beZone, selectedComuna?.blueExpressTransitDays || comunas[0]?.blueExpressTransitDays);
                         const beConfig = comunas[0]?.shippingMethodsConfig?.blue_express;
                         const productionDays = beConfig?.minOffsetDays ?? 2;
                         const schedule = calculateDirectSaleSchedule({

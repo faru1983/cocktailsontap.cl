@@ -90,7 +90,10 @@ export default function DirectWizardCheckoutModal({
     const isBlueExpress = summaryData.shippingCarrier === 'blue_express';
     const selectedComuna = comunas.find((c) => c.name.toLowerCase() === (state.contact.comuna || '').toLowerCase());
     const beZone = selectedComuna?.blueExpressZone || selectedComuna?.regionBlueExpressZone;
-    const transitDays = getBlueExpressTransitDays(beZone);
+    const transitDays = getBlueExpressTransitDays(
+        beZone,
+        selectedComuna?.blueExpressTransitDays || comunas[0]?.blueExpressTransitDays
+    );
     const productionDays = activeMethodConfig?.minOffsetDays ?? DIRECT_SALE_MIN_DISPATCH_OFFSET_DAYS;
 
     const beSchedule = useMemo(() => {

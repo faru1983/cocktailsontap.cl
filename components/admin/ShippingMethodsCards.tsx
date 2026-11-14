@@ -24,6 +24,7 @@ import {
 } from '@/lib/shippingMethods';
 import {
     type BlueExpressHomeRates,
+    type BlueExpressTransitTimes,
     type BlueExpressZone,
     isBlueExpressZone,
     parseBlueExpressRates,
@@ -45,6 +46,11 @@ interface Props {
     onChangeBeRates: (next: BlueExpressHomeRates) => void;
     onSaveBeRates: () => Promise<void>;
     isSavingBeRates: boolean;
+    beTransitDays: BlueExpressTransitTimes;
+    onChangeBeTransitDays: (next: BlueExpressTransitTimes) => void;
+    onSaveBeTransitDays: () => Promise<void>;
+    isSavingBeTransitDays: boolean;
+    hasSavedBeTransitDays?: boolean;
 }
 
 function formatBlockedDateReadable(dateStr: string): string {
@@ -83,6 +89,11 @@ export default function ShippingMethodsCards({
     onChangeBeRates,
     onSaveBeRates,
     isSavingBeRates,
+    beTransitDays,
+    onChangeBeTransitDays,
+    onSaveBeTransitDays,
+    isSavingBeTransitDays,
+    hasSavedBeTransitDays,
 }: Props) {
     // ── Bulk Pricing State ───────────────────────────────────────────────────
     const [selectedBulkRegionId, setSelectedBulkRegionId] = useState<string>(() => {
@@ -1026,6 +1037,101 @@ export default function ShippingMethodsCards({
                                         }}
                                         className="w-full bg-transparent border-none text-violet-300 text-sm font-black outline-none"
                                     />
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Plazos de Tránsito Blue Express por Zona (Días Hábiles) */}
+                <div className="bg-black/20 rounded-xl p-5 border border-white/5 space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div>
+                            <span className="text-white text-xs font-black flex items-center gap-1.5">
+                                <Truck size={14} className="text-violet-300" />
+                                Tiempos de Tránsito Courier Blue Express (Días Hábiles)
+                            </span>
+                            <p className="text-slate-400 text-[11px] mt-0.5">
+                                Tiempo estimado que demora el courier desde la entrega en sucursal hasta el cliente. Se suma a los días de producción para calcular el rango de llegada mostrado al cliente.
+                            </p>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => void onSaveBeTransitDays()}
+                            disabled={isSavingBeTransitDays}
+                            className="px-4 py-2 rounded-xl bg-violet-500/20 text-violet-300 border border-violet-500/30 text-xs font-black uppercase hover:bg-violet-500/30 disabled:opacity-50 flex items-center gap-1.5 self-start sm:self-auto cursor-pointer"
+                        >
+                            {isSavingBeTransitDays ? (
+                                <RefreshCw size={12} className="animate-spin" />
+                            ) : hasSavedBeTransitDays ? (
+                                <Check size={12} className="text-emerald-400" />
+                            ) : (
+                                <Check size={12} />
+                            )}
+                            {hasSavedBeTransitDays ? '¡Guardado!' : 'Guardar Plazos BE'}
+                        </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
+                        {(
+                            [
+                                ['misma_zona', 'Misma Zona', 'RM periférica'],
+                                ['centro', 'Zona Centro', 'Valparaíso, O\'Higgins, etc.'],
+                                ['extremo', 'Zona Extrema', 'Norte grande y Sur austral'],
+                            ] as const
+                        ).map(([zone, label, hint]) => (
+                            <div key={zone} className="bg-black/40 border border-white/10 rounded-xl p-3.5 space-y-2">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-white text-xs font-black">{label}</span>
+                                    <span className="text-slate-400 text-[10px]">{hint}</span>
+                                </div>
+                                <div className="grid grid-cols-2 gap-2">
+                                    <div>
+                                        <label className="block text-slate-500 text-[9px] font-black uppercase tracking-wider mb-1">
+                                            Mínimo
+                                        </label>
+                                        <div className="flex items-center gap-1 bg-black/50 border border-white/10 rounded-lg px-2.5 py-1.5">
+                                            <input
+                                                type="number"
+                                                min={1}
+                                                max={30}
+                                                value={beTransitDays[zone]?.minDays ?? 1}
+                                                onChange={(e) => {
+                                                    const minVal = Math.max(1, parseInt(e.target.value, 10) || 1);
+                                                    const currentMax = beTransitDays[zone]?.maxDays ?? minVal;
+                                                    onChangeBeTransitDays({
+                                                        ...beTransitDays,
+                                                        [zone]: { minDays: minVal, maxDays: Math.max(minVal, currentMax) },
+                                                    });
+                                                }}
+                                                className="w-full bg-transparent border-none text-violet-300 text-sm font-black outline-none"
+                                            />
+                                            <span className="text-slate-500 text-[10px] font-bold">días</span>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className="block text-slate-500 text-[9px] font-black uppercase tracking-wider mb-1">
+                                            Máximo
+                                        </label>
+                                        <div className="flex items-center gap-1 bg-black/50 border border-white/10 rounded-lg px-2.5 py-1.5">
+                                            <input
+                                                type="number"
+                                                min={beTransitDays[zone]?.minDays ?? 1}
+                                                max={30}
+                                                value={beTransitDays[zone]?.maxDays ?? 2}
+                                                onChange={(e) => {
+                                                    const maxVal = Math.max(1, parseInt(e.target.value, 10) || 1);
+                                                    const currentMin = beTransitDays[zone]?.minDays ?? 1;
+                                                    onChangeBeTransitDays({
+                                                        ...beTransitDays,
+                                                        [zone]: { minDays: Math.min(currentMin, maxVal), maxDays: maxVal },
+                                                    });
+                                                }}
+                                                className="w-full bg-transparent border-none text-violet-300 text-sm font-black outline-none"
+                                            />
+                                            <span className="text-slate-500 text-[10px] font-bold">días</span>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         ))}
