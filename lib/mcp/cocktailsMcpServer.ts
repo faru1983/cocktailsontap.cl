@@ -116,30 +116,49 @@ export function createCocktailsMcpServer(ctx: CocktailsMcpContext = {}): McpServ
                             !searchFilter ||
                             normalizeText(p.name).includes(searchFilter) ||
                             normalizeText(p.description).includes(searchFilter)
-                    );
-
-                const includeDesc = Boolean(searchFilter) && matchedProducts.length <= 5;
-                const products = matchedProducts
+                    )
                     .map((p) => ({
                         id: p.id,
                         name: p.name,
                         category: p.category,
-                        ...(includeDesc ? { desc: p.description.slice(0, 80) } : {}),
-                        sizes: p.sizes
-                            .filter((s) => {
-                                if (serviceType === 'direct') return s.isDisposable;
-                                if (serviceType === 'event') return !s.isDisposable;
-                                return true;
-                            })
-                            .map((s) => ({
-                                size: s.size,
-                                liters: s.sizeValue,
-                                disp: s.isDisposable,
-                                clp: s.price,
-                                ...(s.offerPrice != null ? { offerClp: s.offerPrice } : {}),
-                            })),
+                        description: p.description,
+                        sizes: p.sizes.filter((s) => {
+                            if (serviceType === 'direct') return s.isDisposable;
+                            if (serviceType === 'event') return !s.isDisposable;
+                            return true;
+                        }),
                     }))
                     .filter((p) => p.sizes.length > 0);
+
+                const isBroadList = matchedProducts.length > 10 && !searchFilter;
+                const includeDesc = Boolean(searchFilter) && matchedProducts.length <= 5;
+                const products = isBroadList
+                    ? undefined
+                    : matchedProducts.map((p) => ({
+                          id: p.id,
+                          name: p.name,
+                          category: p.category,
+                          ...(includeDesc ? { desc: p.description.slice(0, 80) } : {}),
+                          sizes: p.sizes.map((s) => ({
+                              size: s.size,
+                              liters: s.sizeValue,
+                              disp: s.isDisposable,
+                              clp: s.price,
+                              ...(s.offerPrice != null ? { offerClp: s.offerPrice } : {}),
+                          })),
+                      }));
+
+                const catalogSummary = isBroadList
+                    ? matchedProducts.reduce<Record<string, string[]>>((acc, p) => {
+                          const cat = p.category || 'Otros';
+                          if (!acc[cat]) acc[cat] = [];
+                          const prices = p.sizes
+                              .map((s) => `${s.sizeValue}${s.unit}:$${s.offerPrice ?? s.price}`)
+                              .join(',');
+                          acc[cat].push(`${p.name} [${prices}]`);
+                          return acc;
+                      }, {})
+                    : undefined;
 
                 const activeComunas = catalog.comunas.filter((c) => c.isActive);
                 const matchedComuna = findComuna(activeComunas, args.comuna);
@@ -203,7 +222,7 @@ export function createCocktailsMcpServer(ctx: CocktailsMcpContext = {}): McpServ
                     }
                 }
 
-                return okResult({
+                const payload: Record<string, unknown> = {
                     ...(!searchFilter
                         ? {
                               rules: {
@@ -216,8 +235,15 @@ export function createCocktailsMcpServer(ctx: CocktailsMcpContext = {}): McpServ
                               },
                           }
                         : {}),
-                    products,
-                    ...(serviceType !== 'direct' && !searchFilter
+                    ...(products ? { products } : {}),
+                    ...(catalogSummary
+                        ? {
+                              catalogSummary,
+                              note: 'Usa search o category en get_catalog_and_delivery para obtener productId y detalles exactos.',
+                          }
+                        : {}),
+                    ...(deliveryLookup ? { deliveryLookup } : {}),
+                    ...(!isBroadList && serviceType !== 'direct' && !searchFilter
                         ? {
                               eventTypes: catalog.eventTypes.map((e) => ({
                                   id: e.id,
@@ -225,8 +251,7 @@ export function createCocktailsMcpServer(ctx: CocktailsMcpContext = {}): McpServ
                               })),
                           }
                         : {}),
-                    ...(deliveryLookup ? { deliveryLookup } : {}),
-                    ...(!args.comuna && !searchFilter
+                    ...(!isBroadList && !args.comuna && !searchFilter
                         ? {
                               regions: catalog.regions
                                   .filter((r) => r.isActive)
@@ -242,7 +267,9 @@ export function createCocktailsMcpServer(ctx: CocktailsMcpContext = {}): McpServ
                                   })),
                           }
                         : {}),
-                });
+                };
+
+                return okResult(payload);
             } catch (err) {
                 return errorResult(err instanceof Error ? err.message : 'Error consultando catálogo');
             }
