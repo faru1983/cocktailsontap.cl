@@ -42,6 +42,7 @@ interface MonthlyStats {
     categoryTotals: Array<[string, number]>;
 }
 const MONTH_OPTIONS = [
+    { value: 'all', label: 'Todos' },
     { value: '01', label: 'Enero' },
     { value: '02', label: 'Febrero' },
     { value: '03', label: 'Marzo' },
@@ -129,6 +130,7 @@ export default function GastosClient({
     const [isCreateSubOpen, setIsCreateSubOpen] = useState(false);
     const [isCreatePayOpen, setIsCreatePayOpen] = useState(false);
     const [selectedYear, selectedMonthNum] = selectedMonth.split('-');
+    const isFullYear = selectedMonthNum === 'all';
     const currentYear = Number(currentMonth.split('-')[0]);
     const yearOptions = Array.from({ length: 7 }, (_, i) => String(currentYear - 3 + i));
 
@@ -201,7 +203,10 @@ export default function GastosClient({
 
             if (res.success) {
                 const expenseMonth = data.expense_date.slice(0, 7);
-                if (expenseMonth !== selectedMonth) navigateToMonth(expenseMonth);
+                const matchesActivePeriod = isFullYear
+                    ? data.expense_date.startsWith(`${selectedYear}-`)
+                    : expenseMonth === selectedMonth;
+                if (!matchesActivePeriod) navigateToMonth(expenseMonth);
                 else router.refresh();
                 setIsCreateOpen(false);
                 setEditingExpense(null);
@@ -347,18 +352,18 @@ export default function GastosClient({
                         </div>
                         <div>
                             <div className="text-[10px] text-slate-500 font-black uppercase tracking-widest">Periodo activo</div>
-                            <div className="text-white font-black text-lg capitalize">{monthLabel}</div>
+                            <div className={`text-white font-black text-lg ${isFullYear ? '' : 'capitalize'}`}>{monthLabel}</div>
                         </div>
                     </div>
                     <div className="flex flex-col sm:flex-row gap-2">
                         <div className="grid grid-cols-3 gap-2">
-                            <button onClick={() => navigateToMonth(previousMonth)} className="px-3 py-2 bg-black/20 border border-white/10 rounded-xl text-slate-400 hover:text-white hover:border-[#E2A049]/40 transition-colors flex items-center justify-center cursor-pointer" title="Mes anterior">
+                            <button onClick={() => navigateToMonth(previousMonth)} className="px-3 py-2 bg-black/20 border border-white/10 rounded-xl text-slate-400 hover:text-white hover:border-[#E2A049]/40 transition-colors flex items-center justify-center cursor-pointer" title={isFullYear ? 'Año anterior' : 'Mes anterior'}>
                                 <ArrowLeft size={16} />
                             </button>
                             <button onClick={() => navigateToMonth(currentMonth)} className="px-3 py-2 bg-black/20 border border-white/10 rounded-xl text-slate-300 hover:text-[#E2A049] hover:border-[#E2A049]/40 transition-colors text-xs font-black cursor-pointer">
                                 Este mes
                             </button>
-                            <button onClick={() => navigateToMonth(nextMonth)} className="px-3 py-2 bg-black/20 border border-white/10 rounded-xl text-slate-400 hover:text-white hover:border-[#E2A049]/40 transition-colors flex items-center justify-center cursor-pointer" title="Mes siguiente">
+                            <button onClick={() => navigateToMonth(nextMonth)} className="px-3 py-2 bg-black/20 border border-white/10 rounded-xl text-slate-400 hover:text-white hover:border-[#E2A049]/40 transition-colors flex items-center justify-center cursor-pointer" title={isFullYear ? 'Año siguiente' : 'Mes siguiente'}>
                                 <ArrowRight size={16} />
                             </button>
                         </div>
@@ -412,17 +417,17 @@ export default function GastosClient({
                         <div className="bg-[#1e2433] rounded-2xl border border-white/5 border-t-2 border-t-rose-400 p-4 shadow-xl">
                             <Receipt size={17} className="text-rose-400 mb-3" />
                             <div className="text-white text-lg md:text-xl font-black truncate" title={formatCLP(monthlyStats.total)}>{formatCLP(monthlyStats.total)}</div>
-                            <div className="text-slate-500 text-[10px] font-black uppercase tracking-widest">Gastos Total Mes</div>
+                            <div className="text-slate-500 text-[10px] font-black uppercase tracking-widest">{isFullYear ? 'Gastos Total Año' : 'Gastos Total Mes'}</div>
                         </div>
                         <div className="bg-[#1e2433] rounded-2xl border border-white/5 border-t-2 border-t-emerald-400 p-4 shadow-xl">
                             <Calculator size={17} className="text-emerald-400 mb-3" />
                             <div className="text-white text-lg md:text-xl font-black truncate" title={formatCLP(monthlyStats.revenue)}>{formatCLP(monthlyStats.revenue)}</div>
-                            <div className="text-slate-500 text-[10px] font-black uppercase tracking-widest">Ingresos del mes</div>
+                            <div className="text-slate-500 text-[10px] font-black uppercase tracking-widest">{isFullYear ? 'Ingresos del año' : 'Ingresos del mes'}</div>
                         </div>
                         <div className="bg-[#1e2433] rounded-2xl border border-white/5 border-t-2 border-t-[#E2A049] p-4 shadow-xl">
                             <PieChart size={17} className="text-[#E2A049] mb-3" />
                             <div className={`text-white text-lg md:text-xl font-black truncate ${monthlyStats.profit >= 0 ? 'text-sky-400' : 'text-rose-400'}`} title={formatCLP(monthlyStats.profit)}>{formatCLP(monthlyStats.profit)}</div>
-                            <div className="text-slate-500 text-[10px] font-black uppercase tracking-widest truncate">Utilidad del mes</div>
+                            <div className="text-slate-500 text-[10px] font-black uppercase tracking-widest truncate">{isFullYear ? 'Utilidad del año' : 'Utilidad del mes'}</div>
                         </div>
                     </div>
 

@@ -30,7 +30,7 @@ type RevenueRow = {
     total_price: number | string;
 };
 
-const MONTH_KEY_RE = /^\d{4}-(0[1-9]|1[0-2])$/;
+const PERIOD_KEY_RE = /^\d{4}-(0[1-9]|1[0-2]|all)$/;
 
 function getCurrentMonthKey() {
     const parts = new Intl.DateTimeFormat('en-CA', {
@@ -44,15 +44,25 @@ function getCurrentMonthKey() {
     return `${year}-${month}`;
 }
 
-function getMonthBounds(monthKey: string) {
-    const [year, month] = monthKey.split('-').map(Number);
-    const startDate = `${monthKey}-01`;
+function getPeriodBounds(periodKey: string) {
+    const [yearStr, monthPart] = periodKey.split('-');
+    if (monthPart === 'all') {
+        return { startDate: `${yearStr}-01-01`, endDate: `${yearStr}-12-31` };
+    }
+    const year = Number(yearStr);
+    const month = Number(monthPart);
+    const startDate = `${periodKey}-01`;
     const endDate = new Date(Date.UTC(year, month, 0)).toISOString().split('T')[0];
     return { startDate, endDate };
 }
 
-function getMonthLabel(monthKey: string) {
-    const [year, month] = monthKey.split('-').map(Number);
+function getPeriodLabel(periodKey: string) {
+    const [yearStr, monthPart] = periodKey.split('-');
+    if (monthPart === 'all') {
+        return `Año ${yearStr} (Todos los meses)`;
+    }
+    const year = Number(yearStr);
+    const month = Number(monthPart);
     return new Date(Date.UTC(year, month - 1, 1)).toLocaleDateString('es-CL', {
         month: 'long',
         year: 'numeric',
@@ -60,8 +70,13 @@ function getMonthLabel(monthKey: string) {
     });
 }
 
-function shiftMonth(monthKey: string, offset: number) {
-    const [year, month] = monthKey.split('-').map(Number);
+function shiftPeriod(periodKey: string, offset: number) {
+    const [yearStr, monthPart] = periodKey.split('-');
+    const year = Number(yearStr);
+    if (monthPart === 'all') {
+        return `${year + offset}-all`;
+    }
+    const month = Number(monthPart);
     const shifted = new Date(Date.UTC(year, month - 1 + offset, 1));
     return `${shifted.getUTCFullYear()}-${String(shifted.getUTCMonth() + 1).padStart(2, '0')}`;
 }
@@ -76,8 +91,8 @@ export default async function GastosPage({ searchParams }: { searchParams: Searc
     const db = createServerClient();
     const rawParams = await searchParams;
     const currentMonth = getCurrentMonthKey();
-    const selectedMonth = rawParams.month && MONTH_KEY_RE.test(rawParams.month) ? rawParams.month : currentMonth;
-    const { startDate, endDate } = getMonthBounds(selectedMonth);
+    const selectedMonth = rawParams.month && PERIOD_KEY_RE.test(rawParams.month) ? rawParams.month : currentMonth;
+    const { startDate, endDate } = getPeriodBounds(selectedMonth);
 
     // Categories and payment methods include inactive records for admin management.
     // Expenses are scoped to one month to keep Supabase payloads small.
@@ -135,9 +150,9 @@ export default async function GastosPage({ searchParams }: { searchParams: Searc
                 paymentMethods={payRes.data || []}
                 selectedMonth={selectedMonth}
                 currentMonth={currentMonth}
-                monthLabel={getMonthLabel(selectedMonth)}
-                previousMonth={shiftMonth(selectedMonth, -1)}
-                nextMonth={shiftMonth(selectedMonth, 1)}
+                monthLabel={getPeriodLabel(selectedMonth)}
+                previousMonth={shiftPeriod(selectedMonth, -1)}
+                nextMonth={shiftPeriod(selectedMonth, 1)}
                 monthlyStats={{
                     total: monthlyTotal,
                     count: monthlyCount,
