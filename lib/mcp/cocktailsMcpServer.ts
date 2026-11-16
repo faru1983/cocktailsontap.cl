@@ -359,6 +359,9 @@ export function createCocktailsMcpServer(ctx: CocktailsMcpContext = {}): McpServ
                     exactSummary = {
                         totalLiters: summary.totalLiters,
                         totalCocktails: summary.totalCocktails,
+                        avgCocktailsPerGuest:
+                            args.guests > 0 ? Number((summary.totalCocktails / args.guests).toFixed(1)) : 0,
+                        productsNormalSubtotalClp: summary.totalNormalPrice,
                         productsSubtotalClp: summary.totalOfferPrice,
                         discountClp: summary.totalDiscount,
                         shippingCostClp: summary.shippingCost,
@@ -375,6 +378,7 @@ export function createCocktailsMcpServer(ctx: CocktailsMcpContext = {}): McpServ
                             name: item.name,
                             size: item.selectedSize,
                             quantity: item.quantity,
+                            totalNormalPrice: item.totalNormalPrice,
                             totalOfferPrice: item.totalOfferPrice,
                         })),
                     };
