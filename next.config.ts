@@ -16,6 +16,7 @@ function getLocalDevOrigins(): string[] {
 const nextConfig: NextConfig = {
   allowedDevOrigins: getLocalDevOrigins(),
   experimental: {
+    agentUpgrade: 'security',
     serverActions: {
       bodySizeLimit: '6mb',
     },
