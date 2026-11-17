@@ -25,7 +25,6 @@ import BankTransferCard from '@/components/quote/BankTransferCard';
 import RegionComunaFields from '@/components/ui/RegionComunaFields';
 import ShippingDatePicker from '@/components/ui/ShippingDatePicker';
 import { formatQuoteAddress } from '@/lib/geo';
-import { buildWhatsAppMessageFromQuote, getWhatsAppUrl } from '@/lib/wizardLogic';
 import { WHATSAPP_URL } from '@/lib/config';
 import { WhatsappIcon } from '@/components/shared/icons';
 import { STATUS_CONFIG } from './quoteStatusConfig';
@@ -545,8 +544,8 @@ export default function EventQuoteView({ quote, comunas, regions, availableCockt
     if (showSuccessScreen || isNew) {
         const title = isNew ? "¡Cotización Recibida!" : "¡Reserva confirmada!";
         const subtitle = isNew 
-            ? "Hemos recibido tus datos correctamente. El resumen ha sido enviado a tu email y a nuestro equipo."
-            : `Te enviamos un email con todos los detalles y las instrucciones para el pago del ${advancePercentText}.`;
+            ? "Hemos recibido tus datos correctamente. Enviamos una copia a tu email y WhatsApp."
+            : `Te enviamos una copia a tu email y WhatsApp con los detalles e instrucciones para el pago del ${advancePercentText}.`;
 
         return (
             <div className="text-center py-8 sm:py-16 px-4 animate-fade-in">
@@ -609,15 +608,6 @@ export default function EventQuoteView({ quote, comunas, regions, availableCockt
                                 🚀 Confirmar Ahora
                                 <ArrowRight className="w-5 h-5 sm:w-6 sm:h-6 transition-transform group-hover:translate-x-1" />
                             </button>
-
-                            <a
-                                href={getWhatsAppUrl(buildWhatsAppMessageFromQuote({ ...quote, quote_items: items }))}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="mt-4 w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl bg-[#25D366] hover:bg-[#128c7e] text-white font-black text-sm no-underline transition-all active:scale-95 shadow-sm"
-                            >
-                                <WhatsappIcon className="w-4 h-4 fill-white" /> Enviar por WhatsApp
-                            </a>
 
                             <div className="flex items-center justify-center gap-4 sm:gap-6 mt-8 flex-wrap">
                                 <div className="flex items-center gap-1.5 text-[0.75rem] font-bold text-brand-text-muted">

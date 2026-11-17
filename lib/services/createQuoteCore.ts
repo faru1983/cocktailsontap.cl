@@ -8,11 +8,12 @@ import { after } from 'next/server';
 import { Resend } from 'resend';
 import { render } from '@react-email/components';
 import { CreateQuoteSchema } from '@/lib/types';
-import type { WizardState, CocktailForWizard, Comuna, QuoteItem, WizardSelection } from '@/lib/types';
+import type { WizardState, CocktailForWizard, Comuna, Quote, QuoteItem, WizardSelection } from '@/lib/types';
 import { ADMIN_EMAIL, FROM_EMAIL } from '@/lib/config';
 import { QuoteService } from '@/lib/services/quoteService';
 import { GoogleSyncService } from '@/lib/services/googleSyncService';
 import { SettingsService } from '@/lib/services/settingsService';
+import { notifyWebQuoteCreated } from '@/lib/services/deskcommService';
 import { resolveQuoteSource, type QuoteSource } from '@/lib/quoteSource';
 import { confirmQuoteCore } from '@/lib/services/confirmQuoteCore';
 import { validateConfirmNowState } from '@/lib/confirmNowValidation';
@@ -310,6 +311,12 @@ export async function createQuoteCore(input: CreateQuoteInput): Promise<CreateQu
                       createResult.quote
                   )
         );
+
+        if (source === 'web') {
+            tasks.push(
+                notifyWebQuoteCreated(fullQuote as Quote & { quote_items: QuoteItem[] })
+            );
+        }
 
         // Venta directa: Calendar solo tras registrar pago en admin (no al crear pedido).
 

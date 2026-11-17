@@ -43,8 +43,8 @@ export default function WizardSuccess({
 
                 <p className="text-brand-text-muted text-[0.85rem] sm:text-base md:text-lg mb-5 md:mb-10 max-w-lg mx-auto leading-relaxed">
                     {confirmed
-                        ? `Tu reserva quedó confirmada. Enviamos el comprobante${clientEmail ? ` a ${clientEmail}` : ' a tu correo'} y a nuestro equipo.`
-                        : 'Hemos recibido tus datos correctamente. El resumen ha sido enviado a tu email y a nuestro equipo.'}
+                        ? `Tu reserva quedó confirmada. Enviamos el comprobante${clientEmail ? ` a ${clientEmail}` : ' a tu correo'} y a tu WhatsApp.`
+                        : 'Hemos recibido tus datos correctamente. Enviamos una copia a tu email y WhatsApp.'}
                 </p>
 
                 <div className="bg-brand-light/50 border border-brand-border rounded-2xl sm:rounded-3xl p-4 sm:p-6 mb-6 relative group w-full overflow-hidden">

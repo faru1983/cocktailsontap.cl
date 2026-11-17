@@ -36,7 +36,7 @@
 - Tabla `clients` (UUID = persona / CAPI `external_id`). Matching vía `client_identifiers`.
 - `lifecycle_stage`: `curious` → `engaged` → `quoted` → `customer` (monotónico). `lost` solo manual en admin.
 - `intent`: `event` | `direct` | `unknown`. Historial en `client_stage_events`.
-- Bot (`whatsapp-cot`): welcome → `bot_started` (curious); al elegir Eventos/Barriles parchea `intent` (`event`|`direct`) sin subir de stage; Interesado sigue en transiciones de flujo (`intent_selected`).
+- Bot legado (`whatsapp-cot`, reemplazado por **DeskcommCRM** en `https://crm.cocktailsontap.cl`): DeskcommCRM ahora integra por MCP (`/api/mcp`, `lib/mcp/cocktailsMcpServer.ts`, respuestas `< 4.000` chars). Docs del CRM aparte en `C:\Webs\oracle\OPERACION-CRM.md`.
 - **CAPI solo desde `advanceClientStage`** (web / whatsapp / admin): Contact (engaged), Lead (quoted), Purchase (customer).
 
 ## Ultimos Cambios

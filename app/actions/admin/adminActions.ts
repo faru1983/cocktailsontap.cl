@@ -308,6 +308,23 @@ export async function addQuotePayment(
         emailWarning = 'Sin email de cliente';
     }
 
+    if (fullForEmail) {
+        try {
+            const { notifyQuotePaymentRegistered } = await import('@/lib/services/deskcommService');
+            const waRes = await notifyQuotePaymentRegistered(
+                fullForEmail as Quote,
+                payment.amount,
+                balanceAfter,
+                newPayments.length
+            );
+            if (!waRes.ok && waRes.error) {
+                console.warn('Payment registered WhatsApp warning:', waRes.error);
+            }
+        } catch (waErr) {
+            console.error('Payment registered WhatsApp failed:', waErr);
+        }
+    }
+
     revalidatePath(`/admin/quotes/${quoteId}`);
     return { success: true, emailWarning };
 }
@@ -416,6 +433,18 @@ export async function markDirectSaleInDelivery(
         if (!emailRes.ok) {
             emailWarning = emailRes.error || 'No se pudo enviar el email de despacho';
             console.error('Dispatch email failed:', emailWarning);
+        }
+    }
+
+    if (updated) {
+        try {
+            const { notifyDirectSaleDispatched } = await import('@/lib/services/deskcommService');
+            const waRes = await notifyDirectSaleDispatched(updated as Quote);
+            if (!waRes.ok && waRes.error) {
+                console.warn('Dispatch WhatsApp warning:', waRes.error);
+            }
+        } catch (waErr) {
+            console.error('Dispatch WhatsApp failed:', waErr);
         }
     }
 

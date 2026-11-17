@@ -25,7 +25,6 @@ import ProductCatalog from '@/components/catalog/ProductCatalog';
 import QuoteSummaryProducts, { QuoteSummaryData } from '@/components/quote/QuoteSummaryProducts';
 import QuoteSummaryReservation, { QuoteSummaryReservationData } from '@/components/quote/QuoteSummaryReservation';
 import BankTransferCard from '@/components/quote/BankTransferCard';
-import { buildWhatsAppMessageFromQuote, getWhatsAppUrl } from '@/lib/wizardLogic';
 import { WHATSAPP_URL } from '@/lib/config';
 import { resolveDispatchTrackingUrl, sumQuotePayments } from '@/lib/directSaleFulfillment';
 import { WhatsappIcon } from '@/components/shared/icons';
@@ -457,8 +456,8 @@ export default function DirectQuoteView({ quote, comunas, regions, availableCock
     if (showSuccessScreen || isNew) {
         const title = isNew ? "¡Pedido recibido!" : "¡Pedido confirmado!";
         const subtitle = isNew 
-            ? "Hemos registrado tu pedido correctamente. El resumen ha sido enviado a tu email y a nuestro equipo."
-            : "Te enviamos un email con todos los detalles y las instrucciones para el pago.";
+            ? "Hemos registrado tu pedido correctamente. Enviamos una copia a tu email y WhatsApp."
+            : "Te enviamos una copia a tu email y WhatsApp con los detalles e instrucciones para el pago.";
 
         return (
             <div className="text-center py-8 sm:py-16 animate-fade-in px-4">
@@ -476,21 +475,6 @@ export default function DirectQuoteView({ quote, comunas, regions, availableCock
                         variant="green"
                         footer={
                             <>
-                                {isNew && (
-                                    <>
-                                        <p className="text-[0.7rem] sm:text-[0.8rem] text-green-700 text-center font-bold leading-tight">
-                                            Opcional: envía el detalle de tu pedido a nuestro WhatsApp
-                                        </p>
-                                        <a
-                                            href={getWhatsAppUrl(buildWhatsAppMessageFromQuote({ ...quote, quote_items: items }))}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="w-full inline-flex justify-center items-center gap-1.5 px-4 py-2.5 bg-[#25D366] hover:bg-[#128c7e] text-white rounded-xl text-xs font-black transition-all active:scale-95 shadow-sm no-underline text-center"
-                                        >
-                                            <WhatsappIcon className="w-3.5 h-3.5 fill-white" /> Enviar pedido por WhatsApp
-                                        </a>
-                                    </>
-                                )}
                                 <p className="text-[0.7rem] sm:text-[0.8rem] text-green-700 text-center italic font-bold leading-tight">
                                     Envía tu comprobante por WhatsApp o Email para validar tu pedido:
                                 </p>

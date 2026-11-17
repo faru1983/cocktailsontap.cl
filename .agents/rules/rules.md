@@ -219,7 +219,7 @@ Define la arquitectura, reglas irrompibles, convenciones de código, esquema de 
   - createQuote evento → quoted + InitiateCheckout `initiateCheckout_{token}` (+ value + ítems); direct sale → customer + Purchase `purchase_{token}` (+ value + ítems)
   - confirmQuote → customer + Purchase `purchase_{token}` (+ value)
   - Admin cotización/venta manual = mismo flujo CAPI que web/WhatsApp (`action_source: phone_call`)
-- Bot WhatsApp (`whatsapp-cot`): `createContactViaApi` en welcome (curious) y al elegir menú (engaged). No habla con Meta; solo API CRM.
+- Bot WhatsApp anterior (`whatsapp-cot`, legado): usaba `createContactViaApi`. **Reemplazado por DeskcommCRM en Oracle** (`https://crm.cocktailsontap.cl`), que consume nuestro servidor MCP `app/api/mcp` (`lib/mcp/cocktailsMcpServer.ts`; respuestas compactadas `< 4.000` caracteres). Documentación operativa del CRM aparte en `C:\Webs\oracle\OPERACION-CRM.md`.
 - `POST /api/v1/contacts`: phone requerido; crea/resuelve persona + touchpoint; CAPI vía stage engine.
 
 ### `confirmQuote` — Confirmar Reserva

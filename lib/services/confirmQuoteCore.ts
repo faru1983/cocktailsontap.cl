@@ -9,6 +9,7 @@ import { Resend } from 'resend';
 import { ConfirmQuoteSchema, type Quote, type QuoteItem } from '@/lib/types';
 import { GoogleSyncService } from '@/lib/services/googleSyncService';
 import { SettingsService } from '@/lib/services/settingsService';
+import { notifyEventQuoteConfirmed } from '@/lib/services/deskcommService';
 import { createServerClient } from '@/lib/supabaseServer';
 import { fetchAllProductData } from '@/lib/serverData';
 import { resolveQuoteItemsFromCatalog } from '@/lib/catalogPricing';
@@ -446,6 +447,12 @@ export async function confirmQuoteCore(
             }
 
             revalidatePath(`/cotizar/${quoteToSync.token}`);
+
+            try {
+                await notifyEventQuoteConfirmed(quoteToSync);
+            } catch (waErr) {
+                console.error('[ConfirmQuote] Error DeskcommCRM/WhatsApp:', waErr);
+            }
         } catch (e) {
             console.error('[ConfirmQuote] Error general en after():', e);
         }
