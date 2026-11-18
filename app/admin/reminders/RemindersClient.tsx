@@ -47,6 +47,14 @@ import {
 
 type ReminderTrigger = 'draft_event' | 'anniversary_event' | 'anniversary_direct';
 
+type ReminderAutoChannel = 'email' | 'whatsapp' | 'both';
+
+const CHANNEL_LABELS: Record<ReminderAutoChannel, string> = {
+    email: 'Email',
+    whatsapp: 'WhatsApp',
+    both: 'Email + WhatsApp',
+};
+
 interface Template {
     id: string;
     name: string;
@@ -55,6 +63,7 @@ interface Template {
     type: string;
     trigger?: ReminderTrigger;
     auto_enabled?: boolean;
+    auto_channel?: string;
     days_before?: number;
 }
 
@@ -105,6 +114,7 @@ const emptyTemplate = (): Partial<Template> => ({
     type: 'both',
     trigger: 'draft_event',
     auto_enabled: false,
+    auto_channel: 'email',
     days_before: 7,
 });
 
@@ -150,11 +160,17 @@ export default function RemindersClient({
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
     const [editingTemplate, setEditingTemplate] = useState<Partial<Template> | null>(null);
     const [autoEnabledForm, setAutoEnabledForm] = useState(false);
+    const [autoChannelForm, setAutoChannelForm] = useState<ReminderAutoChannel>('email');
     const [triggerForm, setTriggerForm] = useState<ReminderTrigger>('draft_event');
 
-    const [batchModal, setBatchModal] = useState<{ show: boolean; templateId: string }>({
+    const [batchModal, setBatchModal] = useState<{
+        show: boolean;
+        templateId: string;
+        channel: ReminderAutoChannel;
+    }>({
         show: false,
         templateId: '',
+        channel: 'email',
     });
     const [waModal, setWaModal] = useState<{ show: boolean; quote: any; templateId: string }>({
         show: false,
@@ -269,6 +285,8 @@ export default function RemindersClient({
         const next = t ? { ...t } : emptyTemplate();
         setEditingTemplate(next);
         setAutoEnabledForm(Boolean(next.auto_enabled));
+        const ch = next.auto_channel;
+        setAutoChannelForm(ch === 'whatsapp' || ch === 'both' ? ch : 'email');
         setTriggerForm((next.trigger as ReminderTrigger) || 'draft_event');
     };
 
@@ -283,6 +301,7 @@ export default function RemindersClient({
             type: formData.get('type') as string,
             trigger: triggerForm,
             auto_enabled: autoEnabledForm,
+            auto_channel: autoChannelForm,
             days_before: Number(formData.get('days_before') || 7),
         };
 
@@ -375,15 +394,21 @@ export default function RemindersClient({
 
     const handleBatchSend = () => {
         if (selectedIds.length === 0) return showToast('Selecciona al menos una cotización', false);
-        setBatchModal({ show: true, templateId: emailTemplates[0]?.id || '' });
+        const defaultTpl = templates[0];
+        const ch = defaultTpl?.auto_channel;
+        setBatchModal({
+            show: true,
+            templateId: defaultTpl?.id || '',
+            channel: ch === 'whatsapp' || ch === 'both' ? ch : 'email',
+        });
     };
 
     const executeBatchSend = () => {
         startTransition(async () => {
-            const res = await sendBatchReminders(selectedIds, batchModal.templateId);
+            const res = await sendBatchReminders(selectedIds, batchModal.templateId, batchModal.channel);
             if (res.success) {
                 showToast('Proceso completado. Revisa Monitoreo.');
-                setBatchModal({ show: false, templateId: '' });
+                setBatchModal({ show: false, templateId: '', channel: 'email' });
                 setSelectedIds([]);
             } else showToast(res.error || 'Error', false);
         });
@@ -892,7 +917,8 @@ export default function RemindersClient({
                                                 </span>
                                                 {t.auto_enabled ? (
                                                     <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 font-bold flex items-center gap-1">
-                                                        <Zap size={10} /> Auto {t.days_before ?? 0}d
+                                                        <Zap size={10} /> Auto {t.days_before ?? 0}d ·{' '}
+                                                        {CHANNEL_LABELS[(t.auto_channel === 'whatsapp' || t.auto_channel === 'both' ? t.auto_channel : 'email')]}
                                                     </span>
                                                 ) : (
                                                     <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/5 text-slate-500 font-bold">
@@ -1257,7 +1283,10 @@ export default function RemindersClient({
                                             <div className="text-white text-sm font-bold truncate">{t.name}</div>
                                             <div className="text-slate-500 text-xs">
                                                 {TRIGGER_LABELS[t.trigger || 'draft_event']} · {t.days_before ?? 0}{' '}
-                                                días antes
+                                                días antes ·{' '}
+                                                <span className="text-emerald-400 font-semibold">
+                                                    {CHANNEL_LABELS[(t.auto_channel === 'whatsapp' || t.auto_channel === 'both' ? t.auto_channel : 'email')]}
+                                                </span>
                                             </div>
                                         </div>
                                         <Mail size={14} className="text-[#E2A049] shrink-0" />
@@ -1384,23 +1413,39 @@ export default function RemindersClient({
                                     onChange={(e) => setAutoEnabledForm(e.target.checked)}
                                 />
                                 <span className="text-sm text-white font-bold">
-                                    Envío automático por correo
+                                    Envío automático (Email y/o WhatsApp)
                                 </span>
                             </label>
 
                             {autoEnabledForm && (
-                                <div>
-                                    <label className="block text-slate-500 text-[10px] font-black uppercase tracking-widest mb-2 ml-1">
-                                        {daysBeforeHint}
-                                    </label>
-                                    <input
-                                        name="days_before"
-                                        type="number"
-                                        min={0}
-                                        max={365}
-                                        defaultValue={editingTemplate.days_before ?? 7}
-                                        className="w-40 bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-[#E2A049] text-sm"
-                                    />
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-slate-500 text-[10px] font-black uppercase tracking-widest mb-2 ml-1">
+                                            {daysBeforeHint}
+                                        </label>
+                                        <input
+                                            name="days_before"
+                                            type="number"
+                                            min={0}
+                                            max={365}
+                                            defaultValue={editingTemplate.days_before ?? 7}
+                                            className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-[#E2A049] text-sm"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-slate-500 text-[10px] font-black uppercase tracking-widest mb-2 ml-1">
+                                            Canal automático
+                                        </label>
+                                        <select
+                                            value={autoChannelForm}
+                                            onChange={(e) => setAutoChannelForm(e.target.value as ReminderAutoChannel)}
+                                            className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-[#E2A049] text-sm"
+                                        >
+                                            <option value="email">Solo Email</option>
+                                            <option value="whatsapp">Solo WhatsApp (Agente)</option>
+                                            <option value="both">Ambos (Email + WhatsApp)</option>
+                                        </select>
+                                    </div>
                                 </div>
                             )}
                             {!autoEnabledForm && (
@@ -1535,24 +1580,41 @@ export default function RemindersClient({
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
                     <div
                         className="absolute inset-0 bg-black/80 backdrop-blur-md"
-                        onClick={() => setBatchModal({ show: false, templateId: '' })}
+                        onClick={() => setBatchModal({ show: false, templateId: '', channel: 'email' })}
                     />
                     <div className="relative w-full max-w-md bg-[#1e2433] border border-white/10 rounded-3xl p-8 shadow-2xl">
                         <h2 className="text-white text-xl font-black mb-1">Envío Masivo</h2>
-                        <p className="text-slate-400 text-sm mb-8">
-                            Email a <span className="text-white font-black">{selectedIds.length}</span> contactos
+                        <p className="text-slate-400 text-sm mb-6">
+                            Enviar a <span className="text-white font-black">{selectedIds.length}</span> contactos
                             (omitidos se saltan).
                         </p>
+                        <label className="block text-slate-500 text-[10px] font-black uppercase tracking-widest mb-2 ml-1">
+                            Plantilla
+                        </label>
                         <select
-                            className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white outline-none text-sm mb-6"
+                            className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white outline-none text-sm mb-4"
                             value={batchModal.templateId}
                             onChange={(e) => setBatchModal((m) => ({ ...m, templateId: e.target.value }))}
                         >
-                            {emailTemplates.map((t) => (
+                            {templates.map((t) => (
                                 <option key={t.id} value={t.id}>
                                     {t.name}
                                 </option>
                             ))}
+                        </select>
+                        <label className="block text-slate-500 text-[10px] font-black uppercase tracking-widest mb-2 ml-1">
+                            Canal de envío
+                        </label>
+                        <select
+                            className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white outline-none text-sm mb-6"
+                            value={batchModal.channel}
+                            onChange={(e) =>
+                                setBatchModal((m) => ({ ...m, channel: e.target.value as ReminderAutoChannel }))
+                            }
+                        >
+                            <option value="email">Solo Email</option>
+                            <option value="whatsapp">Solo WhatsApp (Agente)</option>
+                            <option value="both">Ambos (Email + WhatsApp)</option>
                         </select>
                         <button
                             className="w-full bg-[#E2A049] text-black py-4 rounded-2xl font-black text-sm flex items-center justify-center gap-3 disabled:opacity-50"
@@ -1564,7 +1626,7 @@ export default function RemindersClient({
                         </button>
                         <button
                             className="w-full py-3 text-slate-600 text-xs font-bold mt-2"
-                            onClick={() => setBatchModal({ show: false, templateId: '' })}
+                            onClick={() => setBatchModal({ show: false, templateId: '', channel: 'email' })}
                         >
                             Abortar
                         </button>

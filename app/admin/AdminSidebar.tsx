@@ -13,6 +13,7 @@ import {
     BookOpen,
     BarChart3,
     Bell,
+    MessageSquare,
     Download,
     Settings,
     LogOut,
@@ -30,6 +31,7 @@ const navItems = [
     { href: '/admin/recetario', label: 'Recetario', icon: BookOpen },
     { href: '/admin/estadisticas', label: 'Estadísticas', icon: BarChart3 },
     { href: '/admin/reminders', label: 'Recordatorios', icon: Bell },
+    { href: '/admin/whatsapp', label: 'WhatsApp', icon: MessageSquare },
     { href: '/admin/exportar', label: 'Exportar', icon: Download },
     { href: '/admin/settings', label: 'Configuración', icon: Settings },
 ];

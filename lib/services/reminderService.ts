@@ -8,8 +8,10 @@ import { FROM_EMAIL, PROJECT_TIMEZONE, SITE_URL, WHATSAPP_LABEL, WHATSAPP_URL } 
 import { formatCurrency, VERCEL_REMINDERS_CRON_UTC_HOUR, escapeHtml } from '@/lib/utils';
 import { SettingsService } from '@/lib/services/settingsService';
 import { applyReminderBoldMarkup } from '@/lib/reminderMarkup';
+import { sendReminderWhatsappViaDeskcomm } from '@/lib/services/deskcommService';
 
 export type ReminderTrigger = 'draft_event' | 'anniversary_event' | 'anniversary_direct';
+export type ReminderAutoChannel = 'email' | 'whatsapp' | 'both';
 export type ReminderLogStatus = 'sent' | 'failed' | 'skipped';
 export type ReminderSource = 'manual' | 'cron';
 
@@ -62,6 +64,7 @@ export interface ReminderCandidate {
     quoteId: string;
     clientId: string | null;
     email: string | null;
+    phone: string | null;
     name: string;
     eventDate: string;
     totalPrice: number;
@@ -86,6 +89,7 @@ type QuoteRow = {
     client_name: string;
     client_lastname: string | null;
     client_email: string | null;
+    client_phone: string | null;
     event_date: string;
     total_price: number;
     token: string;
@@ -341,6 +345,7 @@ export async function getSuppressedEmailSet(): Promise<Set<string>> {
 async function alreadySent(opts: {
     templateId: string;
     targetDate: string;
+    channel?: 'email' | 'whatsapp';
     quoteId?: string | null;
     clientId?: string | null;
 }): Promise<boolean> {
@@ -350,7 +355,7 @@ async function alreadySent(opts: {
         .select('id')
         .eq('template_id', opts.templateId)
         .eq('target_date', opts.targetDate)
-        .eq('channel', 'email')
+        .eq('channel', opts.channel || 'email')
         .eq('status', 'sent')
         .limit(1);
 
@@ -424,6 +429,32 @@ export function renderReminderSubject(subject: string | null | undefined, vars: 
         .replace(/{nombre}/g, vars.nombre);
 }
 
+/** Renderiza variables {nombre} {fecha} {total} {link} {whatsapp} → texto WhatsApp. */
+export function renderReminderWhatsappText(
+    template: { content: string },
+    vars: {
+        nombre: string;
+        fecha: string;
+        total: string;
+        link: string;
+    }
+): string {
+    const withBold = applyReminderBoldMarkup(template.content, 'whatsapp');
+    return withBold
+        .replace(/\\n/g, '\n')
+        .replace(/{nombre}/g, vars.nombre)
+        .replace(/{fecha}/g, vars.fecha)
+        .replace(/{total}/g, vars.total)
+        .replace(/{link}/g, vars.link)
+        .replace(/{whatsapp}/g, WHATSAPP_LABEL)
+        .trim();
+}
+
+function normalizeAutoChannel(raw: string | null | undefined): ReminderAutoChannel {
+    if (raw === 'whatsapp' || raw === 'both') return raw;
+    return 'email';
+}
+
 async function sendOneEmail(opts: {
     to: string;
     subject: string;
@@ -446,10 +477,11 @@ async function sendOneEmail(opts: {
     }
 }
 
-/** Envío manual por lote (Pendientes). Respeta omitidos. */
+/** Envío manual por lote (Pendientes). Soporta email, whatsapp o both. Respeta omitidos. */
 export async function sendManualBatchReminders(
     quoteIds: string[],
-    templateId: string
+    templateId: string,
+    channelOverride?: ReminderAutoChannel
 ): Promise<{ success: boolean; results?: Array<{ quoteId: string; success: boolean; error?: string }>; error?: string }> {
     const db = createServerClient();
     const { data: template } = await db.from('reminder_templates').select('*').eq('id', templateId).single();
@@ -458,66 +490,67 @@ export async function sendManualBatchReminders(
     const { data: quotes } = await db.from('quotes').select('*').in('id', quoteIds);
     if (!quotes?.length) return { success: false, error: 'No se encontraron las cotizaciones.' };
 
+    const effectiveChannel: ReminderAutoChannel = channelOverride || normalizeAutoChannel(template.auto_channel);
+    const sendEmail = effectiveChannel === 'email' || effectiveChannel === 'both';
+    const sendWa = effectiveChannel === 'whatsapp' || effectiveChannel === 'both';
+
     const suppressed = await getSuppressedEmailSet();
     const today = todayYmdInSantiago();
     const results: Array<{ quoteId: string; success: boolean; error?: string }> = [];
 
-    const toSend: Array<{ quote: QuoteRow; email: string; subject: string; html: string }> = [];
-
     for (const quote of quotes as QuoteRow[]) {
         const email = normalizeReminderEmail(quote.client_email);
-        if (!email) {
-            await insertLog({
-                quote_id: quote.id,
-                template_id: template.id,
-                template_name: template.name,
-                channel: 'email',
-                client_id: quote.client_id,
-                status: 'skipped',
-                error: 'Sin email',
-                trigger: template.trigger,
-                target_date: quote.event_date || today,
-                source: 'manual',
-            });
-            results.push({ quoteId: quote.id, success: false, error: 'Sin email' });
-            continue;
-        }
-        if (suppressed.has(email)) {
-            await insertLog({
-                quote_id: quote.id,
-                template_id: template.id,
-                template_name: template.name,
-                channel: 'email',
-                client_id: quote.client_id,
-                recipient_email: email,
-                status: 'skipped',
-                error: 'Email en lista de omitidos',
-                trigger: template.trigger,
-                target_date: quote.event_date || today,
-                source: 'manual',
-            });
-            results.push({ quoteId: quote.id, success: false, error: 'Email omitido' });
-            continue;
-        }
-
+        const phone = (quote.client_phone || '').trim() || null;
         const eventDateStr = quote.event_date ? formatEventDateLong(quote.event_date) : 'por confirmar';
         const totalStr = formatCurrency(Number(quote.total_price) || 0);
         const linkHref = `${SITE_URL}/cotizar/${quote.token}`;
         const nombre = displayName(quote);
-        const html = renderReminderEmailHtml(template, {
-            nombre,
-            fecha: eventDateStr,
-            total: totalStr,
-            link: linkHref,
-            linkHref,
-        });
-        const subject = renderReminderSubject(template.subject, { nombre, fecha: eventDateStr });
-        toSend.push({ quote, email, subject, html });
-    }
 
-    if (toSend.length > 0) {
-        const sendResults = await Promise.all(
-            toSend.map(async ({ quote, email, subject, html }) => {
+        if (email && suppressed.has(email)) {
+            await insertLog({
+                quote_id: quote.id,
+                template_id: template.id,
+                template_name: template.name,
+                channel: sendEmail ? 'email' : 'whatsapp',
+                client_id: quote.client_id,
+                recipient_email: email,
+                status: 'skipped',
+                error: 'Cliente en lista de omitidos',
+                trigger: template.trigger,
+                target_date: quote.event_date || today,
+                source: 'manual',
+            });
+            results.push({ quoteId: quote.id, success: false, error: 'Cliente omitido' });
+            continue;
+        }
+
+        let anyOk = false;
+        const errors: string[] = [];
+
+        if (sendEmail) {
+            if (!email) {
+                await insertLog({
+                    quote_id: quote.id,
+                    template_id: template.id,
+                    template_name: template.name,
+                    channel: 'email',
+                    client_id: quote.client_id,
+                    status: 'skipped',
+                    error: 'Sin email',
+                    trigger: template.trigger,
+                    target_date: quote.event_date || today,
+                    source: 'manual',
+                });
+                errors.push('Sin email');
+            } else {
+                const html = renderReminderEmailHtml(template, {
+                    nombre,
+                    fecha: eventDateStr,
+                    total: totalStr,
+                    link: linkHref,
+                    linkHref,
+                });
+                const subject = renderReminderSubject(template.subject, { nombre, fecha: eventDateStr });
                 const sent = await sendOneEmail({ to: email, subject, html });
                 await insertLog({
                     quote_id: quote.id,
@@ -532,10 +565,61 @@ export async function sendManualBatchReminders(
                     target_date: quote.event_date || today,
                     source: 'manual',
                 });
-                return { quoteId: quote.id, success: sent.ok, error: sent.error };
-            })
-        );
-        results.push(...sendResults);
+                if (sent.ok) anyOk = true;
+                else if (sent.error) errors.push(`Email: ${sent.error}`);
+            }
+        }
+
+        if (sendWa) {
+            if (!phone) {
+                await insertLog({
+                    quote_id: quote.id,
+                    template_id: template.id,
+                    template_name: template.name,
+                    channel: 'whatsapp',
+                    client_id: quote.client_id,
+                    recipient_email: email || null,
+                    status: 'skipped',
+                    error: 'Sin teléfono',
+                    trigger: template.trigger,
+                    target_date: quote.event_date || today,
+                    source: 'manual',
+                });
+                errors.push('Sin teléfono');
+            } else {
+                const body = renderReminderWhatsappText(template, {
+                    nombre,
+                    fecha: eventDateStr,
+                    total: totalStr,
+                    link: linkHref,
+                });
+                const sentWa = await sendReminderWhatsappViaDeskcomm({
+                    quoteId: quote.id,
+                    phone,
+                    name: nombre,
+                    body,
+                    idempotencySeed: `reminder-manual:${template.id}:${quote.id}:${Date.now()}`,
+                    source: 'manual',
+                });
+                await insertLog({
+                    quote_id: quote.id,
+                    template_id: template.id,
+                    template_name: template.name,
+                    channel: 'whatsapp',
+                    client_id: quote.client_id,
+                    recipient_email: email || phone,
+                    status: sentWa.ok ? 'sent' : 'failed',
+                    error: sentWa.error || null,
+                    trigger: template.trigger,
+                    target_date: quote.event_date || today,
+                    source: 'manual',
+                });
+                if (sentWa.ok) anyOk = true;
+                else if (sentWa.error) errors.push(`WhatsApp: ${sentWa.error}`);
+            }
+        }
+
+        results.push({ quoteId: quote.id, success: anyOk, error: errors.join(' · ') || undefined });
     }
 
     return { success: true, results };
@@ -599,7 +683,7 @@ async function resolveDraftCandidates(
     const db = createServerClient();
     const { data, error } = await db
         .from('quotes')
-        .select('id, client_id, client_name, client_lastname, client_email, event_date, total_price, token, status, service_type, dispenser')
+        .select('id, client_id, client_name, client_lastname, client_email, client_phone, event_date, total_price, token, status, service_type, dispenser')
         .eq('status', 'draft')
         .gte('event_date', earliestEventDate)
         .lte('event_date', latestEventDate);
@@ -614,6 +698,7 @@ async function resolveDraftCandidates(
             quoteId: q.id,
             clientId: q.client_id,
             email: normalizeReminderEmail(q.client_email) || null,
+            phone: (q.client_phone || '').trim() || null,
             name: displayName(q),
             eventDate: q.event_date,
             totalPrice: Number(q.total_price) || 0,
@@ -635,7 +720,7 @@ async function resolveAnniversaryCandidates(
     const db = createServerClient();
     const { data, error } = await db
         .from('quotes')
-        .select('id, client_id, client_name, client_lastname, client_email, event_date, total_price, token, status, service_type, dispenser')
+        .select('id, client_id, client_name, client_lastname, client_email, client_phone, event_date, total_price, token, status, service_type, dispenser')
         .in('status', ['confirmed', 'completed'])
         .not('event_date', 'is', null)
         .order('event_date', { ascending: false });
@@ -661,6 +746,7 @@ async function resolveAnniversaryCandidates(
             quoteId: q.id,
             clientId: q.client_id,
             email: normalizeReminderEmail(q.client_email) || null,
+            phone: (q.client_phone || '').trim() || null,
             name: displayName(q),
             eventDate: q.event_date,
             totalPrice: Number(q.total_price) || 0,
@@ -678,38 +764,16 @@ async function processCandidate(
     source: ReminderSource
 ): Promise<'sent' | 'failed' | 'skipped'> {
     const tpl = c.template;
+    const channelMode = normalizeAutoChannel(tpl.auto_channel);
+    const wantsEmail = channelMode === 'email' || channelMode === 'both';
+    const wantsWa = channelMode === 'whatsapp' || channelMode === 'both';
 
-    if (await alreadySent({
-        templateId: tpl.id,
-        targetDate: c.targetDate,
-        quoteId: c.quoteId,
-        clientId: c.clientId,
-    })) {
-        return 'skipped';
-    }
-
-    if (!c.email) {
+    if (c.email && suppressed.has(c.email)) {
         await insertLog({
             quote_id: c.quoteId,
             template_id: tpl.id,
             template_name: tpl.name,
-            channel: 'email',
-            client_id: c.clientId,
-            status: 'skipped',
-            error: 'Sin email',
-            trigger: tpl.trigger,
-            target_date: c.targetDate,
-            source,
-        });
-        return 'skipped';
-    }
-
-    if (suppressed.has(c.email)) {
-        await insertLog({
-            quote_id: c.quoteId,
-            template_id: tpl.id,
-            template_name: tpl.name,
-            channel: 'email',
+            channel: wantsEmail ? 'email' : 'whatsapp',
             client_id: c.clientId,
             recipient_email: c.email,
             status: 'skipped',
@@ -724,30 +788,122 @@ async function processCandidate(
     const fecha = formatEventDateLong(c.eventDate);
     const linkHref = c.token ? `${SITE_URL}/cotizar/${c.token}` : `${SITE_URL}/cotizar`;
     const linkLabel = c.token ? linkHref : `${SITE_URL}/cotizar`;
-    const html = renderReminderEmailHtml(tpl, {
-        nombre: c.name,
-        fecha,
-        total: formatCurrency(c.totalPrice),
-        link: linkLabel,
-        linkHref,
-    });
-    const subject = renderReminderSubject(tpl.subject, { nombre: c.name, fecha });
-    const sent = await sendOneEmail({ to: c.email, subject, html });
+    const totalStr = formatCurrency(c.totalPrice);
 
-    await insertLog({
-        quote_id: c.quoteId,
-        template_id: tpl.id,
-        template_name: tpl.name,
-        channel: 'email',
-        client_id: c.clientId,
-        recipient_email: c.email,
-        status: sent.ok ? 'sent' : 'failed',
-        error: sent.error || null,
-        trigger: tpl.trigger,
-        target_date: c.targetDate,
-        source,
-    });
-    return sent.ok ? 'sent' : 'failed';
+    let sentCount = 0;
+    let failedCount = 0;
+
+    if (wantsEmail) {
+        const dupEmail = await alreadySent({
+            templateId: tpl.id,
+            targetDate: c.targetDate,
+            channel: 'email',
+            quoteId: c.quoteId,
+            clientId: c.clientId,
+        });
+        if (!dupEmail) {
+            if (!c.email) {
+                await insertLog({
+                    quote_id: c.quoteId,
+                    template_id: tpl.id,
+                    template_name: tpl.name,
+                    channel: 'email',
+                    client_id: c.clientId,
+                    status: 'skipped',
+                    error: 'Sin email',
+                    trigger: tpl.trigger,
+                    target_date: c.targetDate,
+                    source,
+                });
+            } else {
+                const html = renderReminderEmailHtml(tpl, {
+                    nombre: c.name,
+                    fecha,
+                    total: totalStr,
+                    link: linkLabel,
+                    linkHref,
+                });
+                const subject = renderReminderSubject(tpl.subject, { nombre: c.name, fecha });
+                const sent = await sendOneEmail({ to: c.email, subject, html });
+                await insertLog({
+                    quote_id: c.quoteId,
+                    template_id: tpl.id,
+                    template_name: tpl.name,
+                    channel: 'email',
+                    client_id: c.clientId,
+                    recipient_email: c.email,
+                    status: sent.ok ? 'sent' : 'failed',
+                    error: sent.error || null,
+                    trigger: tpl.trigger,
+                    target_date: c.targetDate,
+                    source,
+                });
+                if (sent.ok) sentCount += 1;
+                else failedCount += 1;
+            }
+        }
+    }
+
+    if (wantsWa) {
+        const dupWa = await alreadySent({
+            templateId: tpl.id,
+            targetDate: c.targetDate,
+            channel: 'whatsapp',
+            quoteId: c.quoteId,
+            clientId: c.clientId,
+        });
+        if (!dupWa) {
+            if (!c.phone) {
+                await insertLog({
+                    quote_id: c.quoteId,
+                    template_id: tpl.id,
+                    template_name: tpl.name,
+                    channel: 'whatsapp',
+                    client_id: c.clientId,
+                    recipient_email: c.email,
+                    status: 'skipped',
+                    error: 'Sin teléfono',
+                    trigger: tpl.trigger,
+                    target_date: c.targetDate,
+                    source,
+                });
+            } else {
+                const body = renderReminderWhatsappText(tpl, {
+                    nombre: c.name,
+                    fecha,
+                    total: totalStr,
+                    link: linkHref,
+                });
+                const sentWa = await sendReminderWhatsappViaDeskcomm({
+                    quoteId: c.quoteId,
+                    phone: c.phone,
+                    name: c.name,
+                    body,
+                    idempotencySeed: `reminder-cron:${tpl.id}:${c.quoteId}:${c.targetDate}`,
+                    source: 'cron',
+                });
+                await insertLog({
+                    quote_id: c.quoteId,
+                    template_id: tpl.id,
+                    template_name: tpl.name,
+                    channel: 'whatsapp',
+                    client_id: c.clientId,
+                    recipient_email: c.email || c.phone,
+                    status: sentWa.ok ? 'sent' : 'failed',
+                    error: sentWa.error || null,
+                    trigger: tpl.trigger,
+                    target_date: c.targetDate,
+                    source,
+                });
+                if (sentWa.ok) sentCount += 1;
+                else failedCount += 1;
+            }
+        }
+    }
+
+    if (sentCount > 0) return 'sent';
+    if (failedCount > 0) return 'failed';
+    return 'skipped';
 }
 
 /**

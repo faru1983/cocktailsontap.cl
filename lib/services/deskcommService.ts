@@ -1,16 +1,19 @@
 /**
  * Integración server-only con DeskcommCRM (https://crm.cocktailsontap.cl):
+ * - Lee interruptores desde site_settings (categoría 'whatsapp').
  * - Sincroniza contacto y lead en el embudo Pedidos vía Webhook Source.
  * - Actualiza monto CLP y mueve etapa cuando corresponde.
  * - Envía mensajes de WhatsApp por la sesión productiva (56962046212) con Idempotency-Key.
+ * - Registra cada envío/omisión/fallo en whatsapp_notification_logs.
  *
- * Todas las funciones son best-effort: registran errores en log y nunca
+ * Todas las funciones automáticas son best-effort: registran errores en log y nunca
  * interrumpen el flujo principal de cotización, confirmación o administración.
  */
 import { createHash } from 'node:crypto';
 import { getBankTransferCopyText, SITE_URL } from '@/lib/config';
-import { buildBlueExpressTrackingUrl } from '@/lib/directSaleFulfillment';
+import { buildBlueExpressTrackingUrl, getQuoteBalance } from '@/lib/directSaleFulfillment';
 import { normalizePhoneE164 } from '@/lib/phone';
+import { createServerClient } from '@/lib/supabaseServer';
 import type { Quote, QuoteItem } from '@/lib/types';
 import { formatCurrency } from '@/lib/utils';
 import { buildWhatsAppMessageFromQuote, formatEventDate } from '@/lib/wizardLogic';
@@ -21,6 +24,80 @@ const DEFAULT_CHANNEL_SESSION_ID = '86ee3fcc-2521-4649-ba75-01d665d1d6ea'; // 56
 const REQUEST_TIMEOUT_MS = 10_000;
 
 type QuoteWithOptionalItems = Quote & { quote_items?: QuoteItem[] };
+
+export type WhatsappEventType =
+    | 'web_event_quote'
+    | 'web_direct_order'
+    | 'event_confirmed'
+    | 'payment_registered'
+    | 'direct_dispatched'
+    | 'reminder_auto'
+    | 'reminder_manual'
+    | 'manual_resend'
+    | 'test';
+
+export type WhatsappLogStatus = 'sent' | 'failed' | 'skipped';
+export type WhatsappLogSource = 'auto' | 'manual' | 'cron';
+
+export interface WhatsappNotificationSettings {
+    enabled: boolean;
+    webEventQuote: boolean;
+    webDirectOrder: boolean;
+    eventConfirmed: boolean;
+    paymentRegistered: boolean;
+    directDispatched: boolean;
+    syncDeskcommLeads: boolean;
+}
+
+export interface WhatsappNotificationLogRow {
+    id: string;
+    quote_id: string | null;
+    event_type: string;
+    recipient_phone: string | null;
+    recipient_name: string | null;
+    message_preview: string | null;
+    status: WhatsappLogStatus;
+    error: string | null;
+    source: WhatsappLogSource;
+    created_at: string;
+    quotes?: {
+        token: string | null;
+        service_type: string | null;
+        status: string | null;
+        client_name: string | null;
+        client_lastname: string | null;
+    } | null;
+}
+
+const SETTING_KEYS = {
+    enabled: 'wa_notify_enabled',
+    webEventQuote: 'wa_notify_web_event_quote',
+    webDirectOrder: 'wa_notify_web_direct_order',
+    eventConfirmed: 'wa_notify_event_confirmed',
+    paymentRegistered: 'wa_notify_payment_registered',
+    directDispatched: 'wa_notify_direct_dispatched',
+    syncDeskcommLeads: 'wa_sync_deskcomm_leads',
+} as const;
+
+const SETTING_DESCRIPTIONS: Record<keyof WhatsappNotificationSettings, string> = {
+    enabled: 'Interruptor maestro para envíos automáticos de WhatsApp desde cocktailsontap.cl',
+    webEventQuote: 'Enviar copia por WhatsApp al cotizar un evento en la web',
+    webDirectOrder: 'Enviar resumen y datos bancarios por WhatsApp al pedir barriles 5L en la web',
+    eventConfirmed: 'Enviar confirmación y datos bancarios por WhatsApp al confirmar una reserva de evento',
+    paymentRegistered: 'Enviar comprobante por WhatsApp al registrar un pago o abono en /admin',
+    directDispatched: 'Enviar aviso de despacho y seguimiento por WhatsApp al marcar pedido en reparto',
+    syncDeskcommLeads: 'Registrar y avanzar leads en el embudo Pedidos de DeskcommCRM',
+};
+
+const DEFAULT_SETTINGS: WhatsappNotificationSettings = {
+    enabled: true,
+    webEventQuote: true,
+    webDirectOrder: true,
+    eventConfirmed: true,
+    paymentRegistered: true,
+    directDispatched: true,
+    syncDeskcommLeads: true,
+};
 
 interface DeskcommConfig {
     crmUrl: string;
@@ -39,6 +116,145 @@ function getDeskcommConfig(): DeskcommConfig | null {
     const webhookUrl = (process.env.DESKCOMM_CRM_WEBHOOK_URL || '').trim() || null;
 
     return { crmUrl, apiToken, channelSessionId, webhookUrl };
+}
+
+export function isDeskcommConfigured(): { configured: boolean; hasWebhook: boolean; crmUrl: string | null } {
+    const cfg = getDeskcommConfig();
+    return {
+        configured: Boolean(cfg),
+        hasWebhook: Boolean(cfg?.webhookUrl),
+        crmUrl: cfg?.crmUrl ?? null,
+    };
+}
+
+/** Lee todos los interruptores de WhatsApp desde site_settings (default true si falta alguno). */
+export async function getWhatsappNotificationSettings(): Promise<WhatsappNotificationSettings> {
+    try {
+        const db = createServerClient();
+        const { data, error } = await db
+            .from('site_settings')
+            .select('key, value, is_active')
+            .eq('category', 'whatsapp');
+
+        if (error || !data) return { ...DEFAULT_SETTINGS };
+
+        const map = new Map<string, { value: string; is_active: boolean }>();
+        for (const row of data as Array<{ key: string; value: string; is_active: boolean }>) {
+            map.set(row.key, row);
+        }
+
+        const readBool = (key: string, fallback: boolean): boolean => {
+            const row = map.get(key);
+            if (!row) return fallback;
+            if (!row.is_active) return false;
+            return String(row.value).trim().toLowerCase() === 'true';
+        };
+
+        return {
+            enabled: readBool(SETTING_KEYS.enabled, DEFAULT_SETTINGS.enabled),
+            webEventQuote: readBool(SETTING_KEYS.webEventQuote, DEFAULT_SETTINGS.webEventQuote),
+            webDirectOrder: readBool(SETTING_KEYS.webDirectOrder, DEFAULT_SETTINGS.webDirectOrder),
+            eventConfirmed: readBool(SETTING_KEYS.eventConfirmed, DEFAULT_SETTINGS.eventConfirmed),
+            paymentRegistered: readBool(SETTING_KEYS.paymentRegistered, DEFAULT_SETTINGS.paymentRegistered),
+            directDispatched: readBool(SETTING_KEYS.directDispatched, DEFAULT_SETTINGS.directDispatched),
+            syncDeskcommLeads: readBool(SETTING_KEYS.syncDeskcommLeads, DEFAULT_SETTINGS.syncDeskcommLeads),
+        };
+    } catch (err) {
+        console.error('[DeskcommCRM] Error leyendo settings WhatsApp:', err);
+        return { ...DEFAULT_SETTINGS };
+    }
+}
+
+export async function saveWhatsappNotificationSettings(
+    next: Partial<WhatsappNotificationSettings>
+): Promise<{ success: boolean; settings?: WhatsappNotificationSettings; error?: string }> {
+    try {
+        const current = await getWhatsappNotificationSettings();
+        const merged: WhatsappNotificationSettings = { ...current, ...next };
+        const db = createServerClient();
+
+        const rows = (Object.keys(SETTING_KEYS) as Array<keyof WhatsappNotificationSettings>).map((field) => ({
+            key: SETTING_KEYS[field],
+            value: merged[field] ? 'true' : 'false',
+            category: 'whatsapp',
+            is_active: true,
+            description: SETTING_DESCRIPTIONS[field],
+            updated_at: new Date().toISOString(),
+        }));
+
+        const { error } = await db.from('site_settings').upsert(rows, { onConflict: 'key' });
+        if (error) return { success: false, error: error.message };
+        return { success: true, settings: merged };
+    } catch (err) {
+        return { success: false, error: err instanceof Error ? err.message : String(err) };
+    }
+}
+
+async function logWhatsappNotification(entry: {
+    quoteId?: string | null;
+    eventType: WhatsappEventType;
+    recipientPhone?: string | null;
+    recipientName?: string | null;
+    messagePreview?: string | null;
+    status: WhatsappLogStatus;
+    error?: string | null;
+    source: WhatsappLogSource;
+}): Promise<void> {
+    try {
+        const db = createServerClient();
+        const preview = entry.messagePreview
+            ? entry.messagePreview.replace(/\s+/g, ' ').trim().slice(0, 220)
+            : null;
+        await db.from('whatsapp_notification_logs').insert({
+            quote_id: entry.quoteId ?? null,
+            event_type: entry.eventType,
+            recipient_phone: entry.recipientPhone ?? null,
+            recipient_name: entry.recipientName ?? null,
+            message_preview: preview,
+            status: entry.status,
+            error: entry.error ? entry.error.slice(0, 500) : null,
+            source: entry.source,
+        });
+    } catch (err) {
+        console.error('[DeskcommCRM] Error guardando whatsapp_notification_logs:', err);
+    }
+}
+
+export async function listWhatsappNotificationLogs(limit = 80): Promise<WhatsappNotificationLogRow[]> {
+    try {
+        const db = createServerClient();
+        const { data, error } = await db
+            .from('whatsapp_notification_logs')
+            .select('*, quotes(token, service_type, status, client_name, client_lastname)')
+            .order('created_at', { ascending: false })
+            .limit(limit);
+        if (error) {
+            console.error('[DeskcommCRM] listWhatsappNotificationLogs:', error.message);
+            return [];
+        }
+        return (data || []) as WhatsappNotificationLogRow[];
+    } catch (err) {
+        console.error('[DeskcommCRM] listWhatsappNotificationLogs exception:', err);
+        return [];
+    }
+}
+
+export async function clearWhatsappNotificationLogs(): Promise<{
+    success: boolean;
+    deleted?: number;
+    error?: string;
+}> {
+    try {
+        const db = createServerClient();
+        const { error, count } = await db
+            .from('whatsapp_notification_logs')
+            .delete({ count: 'exact' })
+            .not('id', 'is', null);
+        if (error) return { success: false, error: error.message };
+        return { success: true, deleted: count ?? 0 };
+    } catch (err) {
+        return { success: false, error: err instanceof Error ? err.message : String(err) };
+    }
 }
 
 /** Genera un UUID v4 determinístico a partir de una semilla para Idempotency-Key. */
@@ -79,6 +295,22 @@ function unwrapData(payload: Record<string, unknown> | null): Record<string, unk
     return payload;
 }
 
+function extractReadableError(
+    status: number,
+    data: Record<string, unknown> | null,
+    rawText: string
+): string {
+    const errObj = data?.error;
+    if (errObj && typeof errObj === 'object' && 'message' in errObj) {
+        const msg = String((errObj as { message?: unknown }).message || '').trim();
+        if (msg) return `HTTP ${status}: ${msg}`;
+    }
+    if (typeof data?.message === 'string' && data.message.trim()) {
+        return `HTTP ${status}: ${data.message.trim()}`;
+    }
+    return `HTTP ${status}: ${rawText.slice(0, 180) || 'Error desconocido'}`;
+}
+
 function getClientFullName(quote: Quote): string {
     return [quote.client_name, quote.client_lastname].filter(Boolean).join(' ').trim() || 'Cliente Web';
 }
@@ -108,6 +340,90 @@ function buildBankTransferWhatsappBlock(amount: number): string {
         '',
         'Cuando realices la transferencia, envíanos el comprobante por este mismo chat o al correo para validar tu fecha.',
     ].join('\n');
+}
+
+function buildQuoteCreatedMessage(quote: QuoteWithOptionalItems): string {
+    const isDirect = quote.service_type === 'direct' || quote.dispenser === 'desechable';
+    const firstName = getClientFirstName(quote);
+    const items = quote.quote_items || [];
+    const summaryText = buildWhatsAppMessageFromQuote({ ...quote, quote_items: items });
+
+    const intro = isDirect
+        ? `¡Hola ${firstName}! 👋\nRecibimos tu pedido de barriles en *Cocktails on Tap*. Aquí tienes el resumen y los datos para transferir:`
+        : `¡Hola ${firstName}! 👋\nAquí tienes una copia de tu cotización en *Cocktails on Tap*:`;
+
+    const parts = [intro, '', summaryText.trim()];
+    if (isDirect) {
+        parts.push('', buildBankTransferWhatsappBlock(quote.total_price || 0));
+    }
+    return parts.join('\n');
+}
+
+function buildEventConfirmedMessage(quote: QuoteWithOptionalItems): string {
+    const firstName = getClientFirstName(quote);
+    const items = quote.quote_items || [];
+    const summaryText = buildWhatsAppMessageFromQuote({ ...quote, quote_items: items });
+
+    return [
+        `¡Hola ${firstName}! ✅\nTu reserva en *Cocktails on Tap* quedó confirmada. Para asegurar tu fecha, realiza la transferencia del total:`,
+        '',
+        summaryText.trim(),
+        '',
+        buildBankTransferWhatsappBlock(quote.total_price || 0),
+    ].join('\n');
+}
+
+function buildPaymentRegisteredMessage(
+    quote: Quote,
+    paymentAmount: number,
+    balanceAfter: number
+): string {
+    const isDirect = quote.service_type === 'direct' || quote.dispenser === 'desechable';
+    const firstName = getClientFirstName(quote);
+    const paidInFull = balanceAfter <= 0;
+    const itemLabel = isDirect ? 'tu pedido de barriles' : 'tu reserva';
+    const dateLine = quote.event_date
+        ? `📅 ${isDirect ? 'Fecha estimada' : 'Evento'}: ${formatEventDate(quote.event_date)}`
+        : null;
+
+    const statusLine = paidInFull
+        ? `Tu ${isDirect ? 'pedido' : 'reserva'} quedó *100% pagado* ✅.`
+        : `Saldo pendiente actual: *${formatCurrency(balanceAfter)}*.`;
+
+    return [
+        `¡Hola ${firstName}! 💸`,
+        `Registramos un pago por *${formatCurrency(paymentAmount)}* para ${itemLabel}.`,
+        statusLine,
+        ...(dateLine ? [dateLine] : []),
+        '',
+        `*Ver comprobante actualizado:*\n${getQuoteUrl(quote.token)}`,
+    ].join('\n');
+}
+
+function buildDirectDispatchedMessage(quote: Quote): string {
+    const firstName = getClientFirstName(quote);
+    const trackingUrl =
+        quote.dispatch_tracking_url ||
+        (quote.dispatch_tracking_number
+            ? buildBlueExpressTrackingUrl(quote.dispatch_tracking_number)
+            : null);
+
+    const lines = [
+        `¡Hola ${firstName}! 📦`,
+        quote.dispatch_mode === 'own'
+            ? 'Tu pedido de *Cocktails on Tap* ya salió a reparto con nuestro equipo.'
+            : `Tu pedido de *Cocktails on Tap* fue despachado vía *${quote.dispatch_carrier_name || 'envío'}*.`,
+    ];
+
+    if (quote.dispatch_tracking_number) {
+        lines.push(`🔢 Código de seguimiento: *${quote.dispatch_tracking_number}*`);
+    }
+    if (trackingUrl) {
+        lines.push(`🔎 Seguir envío:\n${trackingUrl}`);
+    }
+
+    lines.push('', `*Detalle de tu pedido:*\n${getQuoteUrl(quote.token)}`);
+    return lines.join('\n');
 }
 
 async function moveLeadStageViaMcp(
@@ -225,15 +541,42 @@ export async function sendWhatsappMessageViaDeskcomm(params: {
     name?: string | null;
     body: string;
     idempotencySeed: string;
+    logMeta?: {
+        quoteId?: string | null;
+        eventType: WhatsappEventType;
+        source: WhatsappLogSource;
+    };
 }): Promise<{ ok: boolean; error?: string }> {
     const config = getDeskcommConfig();
     if (!config) {
-        return { ok: false, error: 'DeskcommCRM no configurado' };
+        const error = 'DeskcommCRM no configurado';
+        if (params.logMeta) {
+            await logWhatsappNotification({
+                ...params.logMeta,
+                recipientPhone: params.phone,
+                recipientName: params.name,
+                messagePreview: params.body,
+                status: 'failed',
+                error,
+            });
+        }
+        return { ok: false, error };
     }
 
     const normalizedPhone = normalizePhoneE164(params.phone);
     if (!normalizedPhone) {
-        return { ok: false, error: 'Teléfono inválido para WhatsApp' };
+        const error = 'Teléfono inválido para WhatsApp';
+        if (params.logMeta) {
+            await logWhatsappNotification({
+                ...params.logMeta,
+                recipientPhone: params.phone,
+                recipientName: params.name,
+                messagePreview: params.body,
+                status: 'failed',
+                error,
+            });
+        }
+        return { ok: false, error };
     }
 
     try {
@@ -254,8 +597,18 @@ export async function sendWhatsappMessageViaDeskcomm(params: {
         );
 
         if (!openRes.ok) {
-            const msg = `open-with-contact ${openRes.status}: ${openRes.rawText.slice(0, 200)}`;
-            console.error('[DeskcommCRM]', msg);
+            const msg = extractReadableError(openRes.status, openRes.data, openRes.rawText);
+            console.error('[DeskcommCRM] open-with-contact:', msg);
+            if (params.logMeta) {
+                await logWhatsappNotification({
+                    ...params.logMeta,
+                    recipientPhone: normalizedPhone,
+                    recipientName: params.name,
+                    messagePreview: params.body,
+                    status: 'failed',
+                    error: msg,
+                });
+            }
             return { ok: false, error: msg };
         }
 
@@ -263,7 +616,18 @@ export async function sendWhatsappMessageViaDeskcomm(params: {
         const conversationId =
             typeof openData?.conversation_id === 'string' ? openData.conversation_id : null;
         if (!conversationId) {
-            return { ok: false, error: 'Sin conversation_id desde DeskcommCRM' };
+            const msg = 'Sin conversation_id desde DeskcommCRM';
+            if (params.logMeta) {
+                await logWhatsappNotification({
+                    ...params.logMeta,
+                    recipientPhone: normalizedPhone,
+                    recipientName: params.name,
+                    messagePreview: params.body,
+                    status: 'failed',
+                    error: msg,
+                });
+            }
+            return { ok: false, error: msg };
         }
 
         const idempotencyKey = deterministicUuid(params.idempotencySeed);
@@ -282,15 +646,45 @@ export async function sendWhatsappMessageViaDeskcomm(params: {
         });
 
         if (!msgRes.ok) {
-            const msg = `messages ${msgRes.status}: ${msgRes.rawText.slice(0, 200)}`;
-            console.error('[DeskcommCRM]', msg);
+            const msg = extractReadableError(msgRes.status, msgRes.data, msgRes.rawText);
+            console.error('[DeskcommCRM] messages:', msg);
+            if (params.logMeta) {
+                await logWhatsappNotification({
+                    ...params.logMeta,
+                    recipientPhone: normalizedPhone,
+                    recipientName: params.name,
+                    messagePreview: params.body,
+                    status: 'failed',
+                    error: msg,
+                });
+            }
             return { ok: false, error: msg };
         }
 
+        if (params.logMeta) {
+            await logWhatsappNotification({
+                ...params.logMeta,
+                recipientPhone: normalizedPhone,
+                recipientName: params.name,
+                messagePreview: params.body,
+                status: 'sent',
+                error: null,
+            });
+        }
         return { ok: true };
     } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         console.error('[DeskcommCRM] Excepción enviando WhatsApp:', msg);
+        if (params.logMeta) {
+            await logWhatsappNotification({
+                ...params.logMeta,
+                recipientPhone: normalizedPhone,
+                recipientName: params.name,
+                messagePreview: params.body,
+                status: 'failed',
+                error: msg,
+            });
+        }
         return { ok: false, error: msg };
     }
 }
@@ -303,33 +697,41 @@ export async function notifyWebQuoteCreated(quote: QuoteWithOptionalItems): Prom
     const config = getDeskcommConfig();
     if (!config) return;
 
-    try {
-        await syncQuoteLeadToDeskcomm(config, quote, 'quoted');
-    } catch (err) {
-        console.error('[DeskcommCRM] Error sincronizando lead en creación:', err);
+    const settings = await getWhatsappNotificationSettings();
+    const isDirect = quote.service_type === 'direct' || quote.dispenser === 'desechable';
+    const eventType: WhatsappEventType = isDirect ? 'web_direct_order' : 'web_event_quote';
+
+    if (settings.syncDeskcommLeads) {
+        try {
+            await syncQuoteLeadToDeskcomm(config, quote, 'quoted');
+        } catch (err) {
+            console.error('[DeskcommCRM] Error sincronizando lead en creación:', err);
+        }
     }
 
     if (!quote.client_phone) return;
 
-    const isDirect = quote.service_type === 'direct' || quote.dispenser === 'desechable';
-    const firstName = getClientFirstName(quote);
-    const items = quote.quote_items || [];
-    const summaryText = buildWhatsAppMessageFromQuote({ ...quote, quote_items: items });
-
-    const intro = isDirect
-        ? `¡Hola ${firstName}! 👋\nRecibimos tu pedido de barriles en *Cocktails on Tap*. Aquí tienes el resumen y los datos para transferir:`
-        : `¡Hola ${firstName}! 👋\nAquí tienes una copia de tu cotización en *Cocktails on Tap*:`;
-
-    const parts = [intro, '', summaryText.trim()];
-    if (isDirect) {
-        parts.push('', buildBankTransferWhatsappBlock(quote.total_price || 0));
+    const flagEnabled = isDirect ? settings.webDirectOrder : settings.webEventQuote;
+    if (!settings.enabled || !flagEnabled) {
+        await logWhatsappNotification({
+            quoteId: quote.id,
+            eventType,
+            recipientPhone: quote.client_phone,
+            recipientName: getClientFullName(quote),
+            status: 'skipped',
+            error: 'Desactivado en configuración de WhatsApp',
+            source: 'auto',
+        });
+        return;
     }
 
+    const body = buildQuoteCreatedMessage(quote);
     await sendWhatsappMessageViaDeskcomm({
         phone: quote.client_phone,
         name: getClientFullName(quote),
-        body: parts.join('\n'),
+        body,
         idempotencySeed: `quote-created:${quote.id}`,
+        logMeta: { quoteId: quote.id, eventType, source: 'auto' },
     });
 }
 
@@ -340,31 +742,38 @@ export async function notifyEventQuoteConfirmed(quote: QuoteWithOptionalItems): 
     const config = getDeskcommConfig();
     if (!config) return;
 
-    try {
-        await syncQuoteLeadToDeskcomm(config, quote, 'won');
-    } catch (err) {
-        console.error('[DeskcommCRM] Error sincronizando lead en confirmación:', err);
+    const settings = await getWhatsappNotificationSettings();
+
+    if (settings.syncDeskcommLeads) {
+        try {
+            await syncQuoteLeadToDeskcomm(config, quote, 'won');
+        } catch (err) {
+            console.error('[DeskcommCRM] Error sincronizando lead en confirmación:', err);
+        }
     }
 
     if (!quote.client_phone) return;
 
-    const firstName = getClientFirstName(quote);
-    const items = quote.quote_items || [];
-    const summaryText = buildWhatsAppMessageFromQuote({ ...quote, quote_items: items });
+    if (!settings.enabled || !settings.eventConfirmed) {
+        await logWhatsappNotification({
+            quoteId: quote.id,
+            eventType: 'event_confirmed',
+            recipientPhone: quote.client_phone,
+            recipientName: getClientFullName(quote),
+            status: 'skipped',
+            error: 'Desactivado en configuración de WhatsApp',
+            source: 'auto',
+        });
+        return;
+    }
 
-    const body = [
-        `¡Hola ${firstName}! ✅\nTu reserva en *Cocktails on Tap* quedó confirmada. Para asegurar tu fecha, realiza la transferencia del total:`,
-        '',
-        summaryText.trim(),
-        '',
-        buildBankTransferWhatsappBlock(quote.total_price || 0),
-    ].join('\n');
-
+    const body = buildEventConfirmedMessage(quote);
     await sendWhatsappMessageViaDeskcomm({
         phone: quote.client_phone,
         name: getClientFullName(quote),
         body,
         idempotencySeed: `quote-confirmed:${quote.id}`,
+        logMeta: { quoteId: quote.id, eventType: 'event_confirmed', source: 'auto' },
     });
 }
 
@@ -376,12 +785,14 @@ export async function notifyQuotePaymentRegistered(
     paymentAmount: number,
     balanceAfter: number,
     paymentCount: number
-): Promise<{ ok: boolean; error?: string }> {
+): Promise<{ ok: boolean; skipped?: boolean; error?: string }> {
     const config = getDeskcommConfig();
     if (!config) return { ok: false, error: 'DeskcommCRM no configurado' };
 
+    const settings = await getWhatsappNotificationSettings();
     const isDirect = quote.service_type === 'direct' || quote.dispenser === 'desechable';
-    if (isDirect || balanceAfter <= 0) {
+
+    if (settings.syncDeskcommLeads && (isDirect || balanceAfter <= 0)) {
         try {
             await syncQuoteLeadToDeskcomm(config, quote, 'won');
         } catch (err) {
@@ -391,67 +802,185 @@ export async function notifyQuotePaymentRegistered(
 
     if (!quote.client_phone) return { ok: false, error: 'Sin teléfono de cliente' };
 
-    const firstName = getClientFirstName(quote);
-    const paidInFull = balanceAfter <= 0;
-    const itemLabel = isDirect ? 'tu pedido de barriles' : 'tu reserva';
-    const dateLine = quote.event_date
-        ? `📅 ${isDirect ? 'Fecha estimada' : 'Evento'}: ${formatEventDate(quote.event_date)}`
-        : null;
+    if (!settings.enabled || !settings.paymentRegistered) {
+        await logWhatsappNotification({
+            quoteId: quote.id,
+            eventType: 'payment_registered',
+            recipientPhone: quote.client_phone,
+            recipientName: getClientFullName(quote),
+            status: 'skipped',
+            error: 'Desactivado en configuración de WhatsApp',
+            source: 'auto',
+        });
+        return { ok: true, skipped: true };
+    }
 
-    const statusLine = paidInFull
-        ? `Tu ${isDirect ? 'pedido' : 'reserva'} quedó *100% pagado* ✅.`
-        : `Saldo pendiente actual: *${formatCurrency(balanceAfter)}*.`;
-
-    const lines = [
-        `¡Hola ${firstName}! 💸`,
-        `Registramos un pago por *${formatCurrency(paymentAmount)}* para ${itemLabel}.`,
-        statusLine,
-        ...(dateLine ? [dateLine] : []),
-        '',
-        `*Ver comprobante actualizado:*\n${getQuoteUrl(quote.token)}`,
-    ];
-
+    const body = buildPaymentRegisteredMessage(quote, paymentAmount, balanceAfter);
     return sendWhatsappMessageViaDeskcomm({
         phone: quote.client_phone,
         name: getClientFullName(quote),
-        body: lines.join('\n'),
+        body,
         idempotencySeed: `payment-registered:${quote.id}:${paymentCount}:${Math.round(paymentAmount)}`,
+        logMeta: { quoteId: quote.id, eventType: 'payment_registered', source: 'auto' },
     });
 }
 
 /**
  * Notifica por WhatsApp al marcar un pedido directo (Barriles 5L) en reparto desde /admin.
  */
-export async function notifyDirectSaleDispatched(quote: Quote): Promise<{ ok: boolean; error?: string }> {
+export async function notifyDirectSaleDispatched(
+    quote: Quote
+): Promise<{ ok: boolean; skipped?: boolean; error?: string }> {
     if (!quote.client_phone) return { ok: false, error: 'Sin teléfono de cliente' };
 
-    const firstName = getClientFirstName(quote);
-    const trackingUrl =
-        quote.dispatch_tracking_url ||
-        (quote.dispatch_tracking_number
-            ? buildBlueExpressTrackingUrl(quote.dispatch_tracking_number)
-            : null);
-
-    const lines = [
-        `¡Hola ${firstName}! 📦`,
-        quote.dispatch_mode === 'own'
-            ? 'Tu pedido de *Cocktails on Tap* ya salió a reparto con nuestro equipo.'
-            : `Tu pedido de *Cocktails on Tap* fue despachado vía *${quote.dispatch_carrier_name || 'envío'}*.`,
-    ];
-
-    if (quote.dispatch_tracking_number) {
-        lines.push(`🔢 Código de seguimiento: *${quote.dispatch_tracking_number}*`);
-    }
-    if (trackingUrl) {
-        lines.push(`🔎 Seguir envío:\n${trackingUrl}`);
+    const settings = await getWhatsappNotificationSettings();
+    if (!settings.enabled || !settings.directDispatched) {
+        await logWhatsappNotification({
+            quoteId: quote.id,
+            eventType: 'direct_dispatched',
+            recipientPhone: quote.client_phone,
+            recipientName: getClientFullName(quote),
+            status: 'skipped',
+            error: 'Desactivado en configuración de WhatsApp',
+            source: 'auto',
+        });
+        return { ok: true, skipped: true };
     }
 
-    lines.push('', `*Detalle de tu pedido:*\n${getQuoteUrl(quote.token)}`);
-
+    const body = buildDirectDispatchedMessage(quote);
     return sendWhatsappMessageViaDeskcomm({
         phone: quote.client_phone,
         name: getClientFullName(quote),
-        body: lines.join('\n'),
+        body,
         idempotencySeed: `direct-dispatched:${quote.id}:${quote.dispatch_tracking_number || 'own'}`,
+        logMeta: { quoteId: quote.id, eventType: 'direct_dispatched', source: 'auto' },
     });
+}
+
+/**
+ * Envía un recordatorio (cron o lote manual desde /admin/reminders) por WhatsApp vía DeskcommCRM.
+ */
+export async function sendReminderWhatsappViaDeskcomm(params: {
+    quoteId: string;
+    phone: string;
+    name: string;
+    body: string;
+    idempotencySeed: string;
+    source: 'cron' | 'manual';
+}): Promise<{ ok: boolean; error?: string }> {
+    if (params.source === 'cron') {
+        const settings = await getWhatsappNotificationSettings();
+        if (!settings.enabled) {
+            const error = 'Notificaciones WhatsApp pausadas (interruptor maestro)';
+            await logWhatsappNotification({
+                quoteId: params.quoteId,
+                eventType: 'reminder_auto',
+                recipientPhone: params.phone,
+                recipientName: params.name,
+                messagePreview: params.body,
+                status: 'skipped',
+                error,
+                source: 'cron',
+            });
+            return { ok: false, error };
+        }
+    }
+
+    return sendWhatsappMessageViaDeskcomm({
+        phone: params.phone,
+        name: params.name,
+        body: params.body,
+        idempotencySeed: params.idempotencySeed,
+        logMeta: {
+            quoteId: params.quoteId,
+            eventType: params.source === 'cron' ? 'reminder_auto' : 'reminder_manual',
+            source: params.source,
+        },
+    });
+}
+
+/** Envío de prueba desde /admin/whatsapp. */
+export async function sendTestWhatsappViaDeskcomm(
+    phone: string,
+    customMessage?: string
+): Promise<{ ok: boolean; error?: string }> {
+    const body =
+        customMessage?.trim() ||
+        '✅ *Prueba de notificación Cocktails on Tap*\nEste mensaje confirma que el envío automático desde tu panel /admin hacia WhatsApp está operativo.';
+
+    return sendWhatsappMessageViaDeskcomm({
+        phone,
+        name: 'Prueba Admin',
+        body,
+        idempotencySeed: `test-wa:${phone}:${Date.now()}`,
+        logMeta: { quoteId: null, eventType: 'test', source: 'manual' },
+    });
+}
+
+export type ResendQuoteWhatsappMode = 'auto' | 'quote' | 'confirmed' | 'payment' | 'dispatch';
+
+/**
+ * Reenvío manual explícito desde /admin/quotes/[id] o desde el historial /admin/whatsapp.
+ * Ignora el bloqueo de interruptores automáticos (es acción humana explícita) y usa semilla fresca.
+ */
+export async function resendQuoteWhatsapp(
+    quote: QuoteWithOptionalItems,
+    mode: ResendQuoteWhatsappMode = 'auto'
+): Promise<{ ok: boolean; sentKind?: string; error?: string }> {
+    if (!quote.client_phone) {
+        return { ok: false, error: 'El cliente no tiene número de teléfono registrado.' };
+    }
+
+    const isDirect = quote.service_type === 'direct' || quote.dispenser === 'desechable';
+    const payments = Array.isArray(quote.payments) ? quote.payments : [];
+    const lastPayment = payments.length > 0 ? payments[payments.length - 1] : null;
+    const balance = getQuoteBalance(quote);
+
+    let effectiveMode: Exclude<ResendQuoteWhatsappMode, 'auto'>;
+    if (mode !== 'auto') {
+        effectiveMode = mode;
+    } else if (isDirect && quote.status === 'in_delivery') {
+        effectiveMode = 'dispatch';
+    } else if (lastPayment && balance <= 0) {
+        effectiveMode = 'payment';
+    } else if (!isDirect && quote.status === 'confirmed') {
+        effectiveMode = 'confirmed';
+    } else if (lastPayment) {
+        effectiveMode = 'payment';
+    } else {
+        effectiveMode = 'quote';
+    }
+
+    let body = '';
+    let sentKind = 'cotización';
+    if (effectiveMode === 'dispatch') {
+        body = buildDirectDispatchedMessage(quote);
+        sentKind = 'aviso de despacho';
+    } else if (effectiveMode === 'payment') {
+        if (!lastPayment) {
+            return { ok: false, error: 'Esta cotización aún no tiene pagos registrados para reenviar.' };
+        }
+        body = buildPaymentRegisteredMessage(quote, Number(lastPayment.amount) || 0, balance);
+        sentKind = 'comprobante de pago';
+    } else if (effectiveMode === 'confirmed' && !isDirect) {
+        body = buildEventConfirmedMessage(quote);
+        sentKind = 'confirmación de reserva';
+    } else {
+        body = buildQuoteCreatedMessage(quote);
+        sentKind = isDirect ? 'resumen de pedido' : 'cotización';
+    }
+
+    const res = await sendWhatsappMessageViaDeskcomm({
+        phone: quote.client_phone,
+        name: getClientFullName(quote),
+        body,
+        idempotencySeed: `manual-resend:${quote.id}:${effectiveMode}:${Date.now()}`,
+        logMeta: {
+            quoteId: quote.id,
+            eventType: 'manual_resend',
+            source: 'manual',
+        },
+    });
+
+    return { ...res, sentKind };
 }

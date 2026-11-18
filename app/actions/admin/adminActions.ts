@@ -240,7 +240,7 @@ export async function updateQuoteItemsAdmin(
 export async function addQuotePayment(
     quoteId: string,
     payment: { date: string; amount: number; note: string }
-): Promise<{ success: boolean; error?: string; emailWarning?: string }> {
+): Promise<{ success: boolean; error?: string; emailWarning?: string; whatsappWarning?: string }> {
     await checkAuth();
     const db = createServerClient();
     const { data: quote, error: fetchErr } = await db
@@ -308,6 +308,7 @@ export async function addQuotePayment(
         emailWarning = 'Sin email de cliente';
     }
 
+    let whatsappWarning: string | undefined;
     if (fullForEmail) {
         try {
             const { notifyQuotePaymentRegistered } = await import('@/lib/services/deskcommService');
@@ -318,15 +319,18 @@ export async function addQuotePayment(
                 newPayments.length
             );
             if (!waRes.ok && waRes.error) {
+                whatsappWarning = waRes.error;
                 console.warn('Payment registered WhatsApp warning:', waRes.error);
             }
         } catch (waErr) {
+            whatsappWarning = waErr instanceof Error ? waErr.message : 'Error enviando WhatsApp';
             console.error('Payment registered WhatsApp failed:', waErr);
         }
     }
 
     revalidatePath(`/admin/quotes/${quoteId}`);
-    return { success: true, emailWarning };
+    revalidatePath('/admin/whatsapp');
+    return { success: true, emailWarning, whatsappWarning };
 }
 
 export type MarkInDeliveryInput =
@@ -346,7 +350,7 @@ export type MarkInDeliveryInput =
 export async function markDirectSaleInDelivery(
     quoteId: string,
     input: MarkInDeliveryInput
-): Promise<{ success: boolean; error?: string; emailWarning?: string }> {
+): Promise<{ success: boolean; error?: string; emailWarning?: string; whatsappWarning?: string }> {
     await checkAuth();
     const db = createServerClient();
 
@@ -436,21 +440,25 @@ export async function markDirectSaleInDelivery(
         }
     }
 
+    let whatsappWarning: string | undefined;
     if (updated) {
         try {
             const { notifyDirectSaleDispatched } = await import('@/lib/services/deskcommService');
             const waRes = await notifyDirectSaleDispatched(updated as Quote);
             if (!waRes.ok && waRes.error) {
+                whatsappWarning = waRes.error;
                 console.warn('Dispatch WhatsApp warning:', waRes.error);
             }
         } catch (waErr) {
+            whatsappWarning = waErr instanceof Error ? waErr.message : 'Error enviando WhatsApp';
             console.error('Dispatch WhatsApp failed:', waErr);
         }
     }
 
     revalidatePath('/admin/quotes');
     revalidatePath(`/admin/quotes/${quoteId}`);
-    return { success: true, emailWarning };
+    revalidatePath('/admin/whatsapp');
+    return { success: true, emailWarning, whatsappWarning };
 }
 
 export async function deleteQuotePayment(quoteId: string, index: number): Promise<{ success: boolean; error?: string }> {
@@ -1107,6 +1115,7 @@ export async function saveReminderTemplate(data: {
     type: string;
     trigger?: string;
     auto_enabled?: boolean;
+    auto_channel?: string;
     days_before?: number;
 }): Promise<{ success: boolean; error?: string; template?: any }> {
     await checkAuth();
@@ -1114,6 +1123,11 @@ export async function saveReminderTemplate(data: {
     const trigger = data.trigger || 'draft_event';
     const allowed = new Set(['draft_event', 'anniversary_event', 'anniversary_direct']);
     if (!allowed.has(trigger)) return { success: false, error: 'Trigger inválido.' };
+
+    const allowedChannels = new Set(['email', 'whatsapp', 'both']);
+    const autoChannel = allowedChannels.has(String(data.auto_channel || ''))
+        ? String(data.auto_channel)
+        : 'email';
 
     const days = Math.min(365, Math.max(0, Math.trunc(Number(data.days_before ?? 7))));
     const payload: Record<string, unknown> = {
@@ -1124,7 +1138,7 @@ export async function saveReminderTemplate(data: {
         trigger,
         auto_enabled: Boolean(data.auto_enabled),
         days_before: days,
-        auto_channel: 'email',
+        auto_channel: autoChannel,
     };
     if (data.id) payload.id = data.id;
 
@@ -1152,12 +1166,14 @@ export async function deleteReminderTemplate(id: string): Promise<{ success: boo
 // ── Batch Send Email Reminders ──────────────────────────────────────────
 export async function sendBatchReminders(
     quoteIds: string[],
-    templateId: string
+    templateId: string,
+    channel?: 'email' | 'whatsapp' | 'both'
 ): Promise<{ success: boolean; results?: any; error?: string }> {
     await checkAuth();
     const { sendManualBatchReminders } = await import('@/lib/services/reminderService');
-    const res = await sendManualBatchReminders(quoteIds, templateId);
+    const res = await sendManualBatchReminders(quoteIds, templateId, channel);
     revalidatePath('/admin/reminders');
+    revalidatePath('/admin/whatsapp');
     return res;
 }
 
@@ -1693,3 +1709,65 @@ export async function syncQuoteToCalendarAdmin(quoteId: string): Promise<{ succe
         return { success: false, error: e.message };
     }
 }
+
+// ── WhatsApp Notifications Control Center (/admin/whatsapp & /admin/quotes/[id]) ──
+
+export async function saveWhatsappNotificationSettingsAction(
+    settings: Partial<import('@/lib/services/deskcommService').WhatsappNotificationSettings>
+): Promise<{
+    success: boolean;
+    settings?: import('@/lib/services/deskcommService').WhatsappNotificationSettings;
+    error?: string;
+}> {
+    await checkAuth();
+    const { saveWhatsappNotificationSettings } = await import('@/lib/services/deskcommService');
+    const res = await saveWhatsappNotificationSettings(settings);
+    revalidatePath('/admin/whatsapp');
+    return res;
+}
+
+export async function sendTestWhatsappAction(
+    phone: string,
+    customMessage?: string
+): Promise<{ success: boolean; error?: string }> {
+    await checkAuth();
+    const { sendTestWhatsappViaDeskcomm } = await import('@/lib/services/deskcommService');
+    const res = await sendTestWhatsappViaDeskcomm(phone, customMessage);
+    revalidatePath('/admin/whatsapp');
+    if (!res.ok) return { success: false, error: res.error || 'No se pudo enviar la prueba.' };
+    return { success: true };
+}
+
+export async function resendQuoteWhatsappAction(
+    quoteId: string,
+    mode: import('@/lib/services/deskcommService').ResendQuoteWhatsappMode = 'auto'
+): Promise<{ success: boolean; sentKind?: string; error?: string }> {
+    await checkAuth();
+    const db = createServerClient();
+    const { data: quote, error: fetchErr } = await db
+        .from('quotes')
+        .select('*, quote_items(*)')
+        .eq('id', quoteId)
+        .single();
+    if (fetchErr || !quote) return { success: false, error: 'Cotización no encontrada.' };
+
+    const { resendQuoteWhatsapp } = await import('@/lib/services/deskcommService');
+    const res = await resendQuoteWhatsapp(quote as Quote & { quote_items?: import('@/lib/types').QuoteItem[] }, mode);
+    revalidatePath('/admin/whatsapp');
+    revalidatePath(`/admin/quotes/${quoteId}`);
+    if (!res.ok) return { success: false, error: res.error || 'Error al enviar WhatsApp.' };
+    return { success: true, sentKind: res.sentKind };
+}
+
+export async function clearWhatsappLogsAction(): Promise<{
+    success: boolean;
+    deleted?: number;
+    error?: string;
+}> {
+    await checkAuth();
+    const { clearWhatsappNotificationLogs } = await import('@/lib/services/deskcommService');
+    const res = await clearWhatsappNotificationLogs();
+    revalidatePath('/admin/whatsapp');
+    return res;
+}
+

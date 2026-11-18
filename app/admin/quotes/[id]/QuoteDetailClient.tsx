@@ -14,6 +14,7 @@ import {
     syncQuoteToCalendarAdmin,
     deleteQuotePermanent,
     markDirectSaleInDelivery,
+    resendQuoteWhatsappAction,
 } from '@/app/actions/admin/adminActions';
 import { SITE_URL } from '@/lib/config';
 import type { QuoteItem, Product, Quote, QuoteStatus } from '@/lib/types';
@@ -38,6 +39,7 @@ import {
     ArrowLeft,
     Calendar,
     Package,
+    MessageSquare,
 } from 'lucide-react';
 import { sourceBadge, normalizeQuoteSource } from '@/lib/quoteSource';
 import QuoteOperationalSummary from './QuoteOperationalSummary';
@@ -254,6 +256,19 @@ export default function QuoteDetailClient({
         });
     };
 
+    const handleManualWhatsapp = () => {
+        if (!quote.client_phone) {
+            showToast('El cliente no tiene número de WhatsApp registrado', false);
+            return;
+        }
+        if (!confirm('¿Enviar copia/comprobante actualizado al WhatsApp del cliente a través del agente?')) return;
+        startTransition(async () => {
+            const res = await resendQuoteWhatsappAction(String(quote.id), 'auto');
+            if (res.success) showToast(`WhatsApp (${res.sentKind || 'aviso'}) enviado correctamente`);
+            else showToast(res.error || 'Error al enviar WhatsApp', false);
+        });
+    };
+
     const handleManualCalendar = () => {
         if (!confirm('¿Sincronizar con Google Calendar? (Se crearán/actualizarán los eventos)')) return;
         startTransition(async () => {
@@ -283,8 +298,13 @@ export default function QuoteDetailClient({
                 setShowPayModal(false);
                 setPayNoteType('partial');
                 setPayCustomNote('');
-                if (res.emailWarning) showToast(`Pago registrado (email: ${res.emailWarning})`, false);
-                else showToast('Pago registrado y email enviado');
+                if (res.emailWarning || res.whatsappWarning) {
+                    const warns = [
+                        res.emailWarning ? `email: ${res.emailWarning}` : null,
+                        res.whatsappWarning ? `WhatsApp: ${res.whatsappWarning}` : null,
+                    ].filter(Boolean).join(' · ');
+                    showToast(`Pago registrado (${warns})`, false);
+                } else showToast('Pago registrado, email y WhatsApp enviados');
             } else showToast(res.error || 'Error', false);
         });
     };
@@ -302,8 +322,13 @@ export default function QuoteDetailClient({
             if (res.success) {
                 const updatedPayments: QuotePayment[] = [...(quote.payments || []), p];
                 setQuote((q) => ({ ...q, payments: updatedPayments }));
-                if (res.emailWarning) showToast(`Pago registrado (${res.emailWarning})`, false);
-                else showToast('Transferencia total registrada y email enviado');
+                if (res.emailWarning || res.whatsappWarning) {
+                    const warns = [
+                        res.emailWarning ? `email: ${res.emailWarning}` : null,
+                        res.whatsappWarning ? `WhatsApp: ${res.whatsappWarning}` : null,
+                    ].filter(Boolean).join(' · ');
+                    showToast(`Pago registrado (${warns})`, false);
+                } else showToast('Transferencia total registrada, email y WhatsApp enviados');
             } else showToast(res.error || 'Error', false);
         });
     };
@@ -322,8 +347,13 @@ export default function QuoteDetailClient({
             if (res.success) {
                 const updatedPayments: QuotePayment[] = [...(quote.payments || []), p];
                 setQuote((q) => ({ ...q, payments: updatedPayments }));
-                if (res.emailWarning) showToast(`Abono registrado (${res.emailWarning})`, false);
-                else showToast('Abono del 50% registrado y email enviado');
+                if (res.emailWarning || res.whatsappWarning) {
+                    const warns = [
+                        res.emailWarning ? `email: ${res.emailWarning}` : null,
+                        res.whatsappWarning ? `WhatsApp: ${res.whatsappWarning}` : null,
+                    ].filter(Boolean).join(' · ');
+                    showToast(`Abono registrado (${warns})`, false);
+                } else showToast('Abono del 50% registrado, email y WhatsApp enviados');
             } else showToast(res.error || 'Error', false);
         });
     };
@@ -368,8 +398,13 @@ export default function QuoteDetailClient({
                 setTrackingNumber('');
                 setCustomCarrierName('');
                 setCustomTrackingUrl('');
-                if (res.emailWarning) showToast(`En reparto (email: ${res.emailWarning})`, false);
-                else showToast('Marcado en reparto y email enviado');
+                if (res.emailWarning || res.whatsappWarning) {
+                    const warns = [
+                        res.emailWarning ? `email: ${res.emailWarning}` : null,
+                        res.whatsappWarning ? `WhatsApp: ${res.whatsappWarning}` : null,
+                    ].filter(Boolean).join(' · ');
+                    showToast(`En reparto (${warns})`, false);
+                } else showToast('Marcado en reparto, email y WhatsApp enviados');
             } else showToast(res.error || 'Error', false);
         });
     };
@@ -774,6 +809,21 @@ export default function QuoteDetailClient({
                     >
                         <Mail size={14} />
                         Email {emailTypeLabel}
+                    </button>
+                    <button
+                        type="button"
+                        onClick={handleManualWhatsapp}
+                        disabled={isPending || isEditing || !quote.client_phone}
+                        style={{
+                            ...actionBtnStyle('ghost'),
+                            background: 'rgba(37,211,102,0.14)',
+                            border: '1px solid rgba(37,211,102,0.3)',
+                            color: '#4ade80',
+                            opacity: isPending || isEditing || !quote.client_phone ? 0.45 : 1,
+                        }}
+                    >
+                        <MessageSquare size={14} />
+                        WhatsApp {emailTypeLabel}
                     </button>
                     <button
                         type="button"
