@@ -336,7 +336,7 @@ export const CreateQuoteSchema = z
             .object({
                 contact: z.object({
                     firstName: z.string().min(2, 'Nombre muy corto'),
-                    lastName: z.string().min(2, 'Apellido muy corto'),
+                    lastName: z.string().trim().optional().default(''),
                     email: z
                         .string()
                         .trim()
@@ -395,6 +395,14 @@ export const CreateQuoteSchema = z
             });
         }
         if (!data.confirmNow || data.state.dispenser === 'desechable') return;
+        const lastName = (data.state.contact.lastName || '').trim();
+        if (lastName.length < 2) {
+            ctx.addIssue({
+                code: 'custom',
+                message: 'Apellido muy corto',
+                path: ['state', 'contact', 'lastName'],
+            });
+        }
         const address = (data.state.contact.address || '').trim();
         if (address.length < 5) {
             ctx.addIssue({
