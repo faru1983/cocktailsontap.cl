@@ -158,7 +158,7 @@ export async function createQuoteCore(input: CreateQuoteInput): Promise<CreateQu
                     const dateErr = validateDirectSaleDate(state.eventData.date, directConfig);
                     if (dateErr) return { success: false, error: dateErr };
                 }
-            } else if (state.serviceType === 'event') {
+            } else if (state.serviceType === 'event' && (wantsConfirmNow || source !== 'whatsapp')) {
                 const eventConfig = comunas[0]?.shippingMethodsConfig?.own_events;
                 const dateErr = validateShippingDate(state.eventData.date, eventConfig, 5);
                 if (dateErr) return { success: false, error: dateErr };
