@@ -3,7 +3,7 @@ import { OptionalPhoneSchema, RequiredPhoneSchema } from '@/lib/phone';
 
 const IntegrationClientSchema = z.object({
     firstName: z.string().min(2, 'Nombre muy corto'),
-    lastName: z.string().min(2, 'Apellido muy corto'),
+    lastName: z.string().trim().max(120).optional().default(''),
     email: z.string().email('Email inválido'),
     phone: OptionalPhoneSchema.optional().default(''),
     address: z.string().optional().default(''),
@@ -21,49 +21,69 @@ const IntegrationItemSchema = z.object({
 });
 
 /** POST /api/v1/quotes — cotización evento (draft) o reserva confirmada (`confirmNow`). */
-export const IntegrationEventQuoteSchema = z.object({
-    source: z.string().min(1).max(64).optional(),
-    /** Igual que el wizard/admin: true confirma la reserva en el mismo request. */
-    confirmNow: z.boolean().optional().default(false),
-    client: IntegrationClientSchema,
-    event: z.object({
-        type: z.string().optional().default(''),
-        otherType: z.string().optional().default(''),
-        date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Fecha inválida'),
-        startTime: z.string().optional().default(''),
-        pickupDate: z.string().optional().default(''),
-        pickupTime: z.string().optional().default(''),
-    }),
-    consumption: z
-        .object({
-            guests: z.coerce.number().min(0).optional().default(0),
-            drinksPerPerson: z.coerce.number().min(0).optional().default(0),
-        })
-        .optional()
-        .default({ guests: 0, drinksPerPerson: 0 }),
-    dispenser: z.enum(['portatil', 'muro']),
-    items: z.array(IntegrationItemSchema).min(1, 'Selecciona al menos un producto'),
-    ctwaClid: z.string().max(512).optional(),
-    fbc: z.string().max(512).optional(),
-    fbp: z.string().max(512).optional(),
-});
+export const IntegrationEventQuoteSchema = z
+    .object({
+        source: z.string().min(1).max(64).optional(),
+        /** Igual que el wizard/admin: true confirma la reserva en el mismo request. */
+        confirmNow: z.boolean().optional().default(false),
+        client: IntegrationClientSchema,
+        event: z.object({
+            type: z.string().optional().default(''),
+            otherType: z.string().optional().default(''),
+            date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Fecha inválida'),
+            startTime: z.string().optional().default(''),
+            pickupDate: z.string().optional().default(''),
+            pickupTime: z.string().optional().default(''),
+        }),
+        consumption: z
+            .object({
+                guests: z.coerce.number().min(0).optional().default(0),
+                drinksPerPerson: z.coerce.number().min(0).optional().default(0),
+            })
+            .optional()
+            .default({ guests: 0, drinksPerPerson: 0 }),
+        dispenser: z.enum(['portatil', 'muro']),
+        items: z.array(IntegrationItemSchema).min(1, 'Selecciona al menos un producto'),
+        ctwaClid: z.string().max(512).optional(),
+        fbc: z.string().max(512).optional(),
+        fbp: z.string().max(512).optional(),
+    })
+    .superRefine((data, ctx) => {
+        if (data.confirmNow && data.client.lastName.trim().length < 2) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                path: ['client', 'lastName'],
+                message: 'Apellido muy corto',
+            });
+        }
+    });
 
 /** POST /api/v1/direct-sales — venta desechable (confirmed). */
-export const IntegrationDirectSaleSchema = z.object({
-    source: z.string().min(1).max(64).optional(),
-    client: IntegrationClientSchema,
-    event: z.object({
-        date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Fecha inválida'),
-        startTime: z.string().optional().default(''),
-        pickupDate: z.string().optional().default(''),
-        pickupTime: z.string().optional().default(''),
-    }),
-    items: z.array(IntegrationItemSchema).min(1, 'Selecciona al menos un producto'),
-    comments: z.string().optional().default(''),
-    ctwaClid: z.string().max(512).optional(),
-    fbc: z.string().max(512).optional(),
-    fbp: z.string().max(512).optional(),
-});
+export const IntegrationDirectSaleSchema = z
+    .object({
+        source: z.string().min(1).max(64).optional(),
+        client: IntegrationClientSchema,
+        event: z.object({
+            date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Fecha inválida'),
+            startTime: z.string().optional().default(''),
+            pickupDate: z.string().optional().default(''),
+            pickupTime: z.string().optional().default(''),
+        }),
+        items: z.array(IntegrationItemSchema).min(1, 'Selecciona al menos un producto'),
+        comments: z.string().optional().default(''),
+        ctwaClid: z.string().max(512).optional(),
+        fbc: z.string().max(512).optional(),
+        fbp: z.string().max(512).optional(),
+    })
+    .superRefine((data, ctx) => {
+        if (data.client.lastName.trim().length < 2) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                path: ['client', 'lastName'],
+                message: 'Apellido muy corto',
+            });
+        }
+    });
 
 /** POST /api/v1/contacts — primer contacto / upsert persona (phone-first). */
 export const IntegrationContactSchema = z.object({
