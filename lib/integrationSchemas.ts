@@ -2,9 +2,9 @@ import { z } from 'zod';
 import { OptionalPhoneSchema, RequiredPhoneSchema } from '@/lib/phone';
 
 const IntegrationClientSchema = z.object({
-    firstName: z.string().min(2, 'Nombre muy corto'),
+    firstName: z.string().trim().min(2, 'Nombre muy corto'),
     lastName: z.string().trim().max(120).optional().default(''),
-    email: z.string().email('Email inválido'),
+    email: z.string().trim().email('Email inválido'),
     phone: OptionalPhoneSchema.optional().default(''),
     address: z.string().optional().default(''),
     /** Código de región (RM, V, IV…). Si falta, se infiere por el nombre de comuna. */

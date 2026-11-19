@@ -152,21 +152,30 @@ export function applyConfirmNowPickupDefault(state: WizardState): void {
  * Ajusta `contact.region` al código real de la comuna (nombres únicos a nivel país).
  * Si la comuna es "Otra" o no está en catálogo, usa la región enviada o RM.
  */
+function normalizeComunaKey(v: string): string {
+    return v.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
+}
+
 export function applyContactRegionFromCatalog(state: WizardState, comunas: Comuna[]): void {
     const comunaName = (state.contact.comuna || '').trim();
     const requested = (state.contact.region || '').trim();
     const requestedCode = requested ? resolveRegionCode(requested, comunas) : '';
 
-    if (comunaName && comunaName !== 'Otra') {
+    if (comunaName && normalizeComunaKey(comunaName) !== 'otra') {
+        const needle = normalizeComunaKey(comunaName);
         if (requestedCode) {
-            const inRegion = comunas.find((c) => c.regionCode === requestedCode && c.name === comunaName);
+            const inRegion = comunas.find(
+                (c) => c.regionCode === requestedCode && normalizeComunaKey(c.name) === needle
+            );
             if (inRegion) {
+                state.contact.comuna = inRegion.name;
                 state.contact.region = requestedCode;
                 return;
             }
         }
-        const byName = comunas.find((c) => c.name === comunaName);
+        const byName = comunas.find((c) => normalizeComunaKey(c.name) === needle);
         if (byName) {
+            state.contact.comuna = byName.name;
             state.contact.region = byName.regionCode;
             return;
         }

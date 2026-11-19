@@ -84,6 +84,29 @@ export const QuoteService = {
 
         const emailTrimmed = state.contact.email?.trim().toLowerCase() || '';
 
+        // Resolver event_type_id contra la tabla event_types para no violar la FK con textos libres
+        const normalizeText = (v: string) =>
+            v.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
+
+        let resolvedEventTypeId: string | null = null;
+        let resolvedEventTypeOther: string | null = state.eventData.otherType?.trim() || null;
+        const rawEventType = (state.eventData.type || '').trim();
+        if (rawEventType) {
+            const { data: eventTypes } = await db.from('event_types').select('id, name');
+            const needle = normalizeText(rawEventType);
+            const matched = (eventTypes ?? []).find(
+                (et) => normalizeText(et.id) === needle || normalizeText(et.name) === needle
+            );
+            if (matched && normalizeText(matched.id) !== 'otro') {
+                resolvedEventTypeId = matched.id;
+                resolvedEventTypeOther = null;
+            } else {
+                resolvedEventTypeId = null;
+                resolvedEventTypeOther =
+                    resolvedEventTypeOther || (needle === 'otro' ? null : rawEventType);
+            }
+        }
+
         // Insert quote
         const { data: quote, error: quoteError } = await db
             .from('quotes')
@@ -97,8 +120,8 @@ export const QuoteService = {
                 client_address: state.contact.address.trim() || null,
                 comments: state.contact.comments?.trim() || null,
 
-                event_type_id: state.eventData.type === 'Otro' ? null : state.eventData.type || null,
-                event_type_other: state.eventData.type === 'Otro' ? state.eventData.otherType : null,
+                event_type_id: resolvedEventTypeId,
+                event_type_other: resolvedEventTypeOther,
                 event_date: state.eventData.date,
                 start_time: state.eventData.startTime || null,
                 pickup_date: state.eventData.pickupDate || null,
