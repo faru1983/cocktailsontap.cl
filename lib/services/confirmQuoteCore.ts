@@ -194,6 +194,11 @@ export async function confirmQuoteCore(
             (quote.manual_discount || 0);
 
         const normalizedPhone = normalizePhoneE164(data.client_phone) || data.client_phone;
+        const resolvedClientName = data.client_name?.trim() || quote.client_name;
+        const resolvedClientEmail =
+            data.client_email !== undefined
+                ? data.client_email.trim().toLowerCase() || null
+                : quote.client_email;
         const resolvedRegionName =
             resolveRegionShortName(data.region_name || quote.region_name, catalogRes.comunas) ??
             quote.region_name ??
@@ -201,7 +206,9 @@ export async function confirmQuoteCore(
 
         const updatePayload = {
             status: 'confirmed' as const,
+            client_name: resolvedClientName,
             client_lastname: data.client_lastname,
+            client_email: resolvedClientEmail,
             client_phone: normalizedPhone,
             client_address: data.client_address,
             comuna_name: data.comuna_name,
@@ -290,9 +297,9 @@ export async function confirmQuoteCore(
                 await syncClientFromContact(
                     quote.client_id,
                     {
-                        firstName: quote.client_name,
+                        firstName: resolvedClientName,
                         lastName: data.client_lastname,
-                        email: quote.client_email,
+                        email: resolvedClientEmail,
                         phone: normalizedPhone,
                     },
                     quote.source === 'admin' || quote.source === 'whatsapp' ? quote.source : 'web'
@@ -353,6 +360,8 @@ export async function confirmQuoteCore(
         quoteToSync = {
             ...quote,
             ...data,
+            client_name: resolvedClientName,
+            client_email: resolvedClientEmail,
             client_phone: normalizedPhone,
             region_name: resolvedRegionName,
             status: 'confirmed',

@@ -41,6 +41,18 @@
 
 ## Ultimos Cambios
 
+### 19-11-2026 — Auto-guardado Inmediato y Edición Completa en Cotizaciones Borrador (`/cotizar/[token]`)
+
+- **Persistencia automática Zero Trust para borradores (`updateDraftQuote.ts` y `updateDraftQuoteCore.ts`)**:
+  - Creados el Server Action [`app/actions/updateDraftQuote.ts`](file:///c:/Webs/cocktailsontap.cl/app/actions/updateDraftQuote.ts) (con rate limit dedicado de 120 req/10 min por IP) y el servicio de dominio [`lib/services/updateDraftQuoteCore.ts`](file:///c:/Webs/cocktailsontap.cl/lib/services/updateDraftQuoteCore.ts) respaldado por `UpdateDraftQuoteSchema` en [`lib/types.ts`](file:///c:/Webs/cocktailsontap.cl/lib/types.ts).
+  - **Seguridad y Zero Trust Financials**: bloquea estrictamente actualizaciones si `quotes.status !== 'draft'`, recalcula precios/totales en servidor contra `product_prices` vía `resolveQuoteItemsFromCatalog` y `calculateSummaryData`, preserva ítems personalizados fijados por admin (`product_id: null`) sin permitir alteración de precios, mantiene `manual_discount` y `shipping_label` (`"Por Pagar"`), y sincroniza `quote_items` por diferencia (preservando UUIDs).
+  - **Salvaguarda de carrito vacío**: solo guarda cuando existe al menos 1 producto en la cotización (mostrando aviso al cliente si deja el carrito vacío temporalmente).
+  - **Sin efectos secundarios intrusivos**: el autoguardado de `draft` no envía emails, WhatsApp, Calendar ni CAPI ni muta `clients`; invalida caché vía `revalidatePath` en `/cotizar/[token]` y `/admin/quotes/[id]`.
+- **Edición completa de datos y productos con autoguardado en vista pública ([`EventQuoteView.tsx`](file:///c:/Webs/cocktailsontap.cl/components/quote/EventQuoteView.tsx) y [`DirectQuoteView.tsx`](file:///c:/Webs/cocktailsontap.cl/components/quote/DirectQuoteView.tsx))**:
+  - Creados el hook [`hooks/useDraftQuoteAutoSave.ts`](file:///c:/Webs/cocktailsontap.cl/hooks/useDraftQuoteAutoSave.ts) (cola secuencial sin condiciones de carrera, guardado inmediato en ~300 ms para productos/selectores/dispensador, debounce de ~700 ms + `onBlur` para texto libre, y `flushNow()` previo a confirmar) y el indicador visual [`components/quote/DraftSaveBadge.tsx`](file:///c:/Webs/cocktailsontap.cl/components/quote/DraftSaveBadge.tsx).
+  - Habilitada la edición de **Nombre, Apellido y Email** (además de celular, ubicación, dirección, fecha, horario, retiro, temática, invitados, comentarios, productos y dispensador) y propagada también en `ConfirmQuoteSchema` / [`confirmQuoteCore.ts`](file:///c:/Webs/cocktailsontap.cl/lib/services/confirmQuoteCore.ts) y [`lib/fpixel.ts`](file:///c:/Webs/cocktailsontap.cl/lib/fpixel.ts).
+  - Corregida la validación cliente de `canHaveMuro` en [`EventQuoteView.tsx`](file:///c:/Webs/cocktailsontap.cl/components/quote/EventQuoteView.tsx) a la regla vigente (`MURO_MIN_LITERS = 60` y `MURO_COMPATIBLE_SIZES = [20, 30]`) y evitado el cambio forzado de Muro a Portátil cuando el volumen baja temporalmente al intercambiar barriles.
+
 ### 13-11-2026 — Simplificación de Retiro de Eventos (Día Siguiente por Defecto 12:00 a 14:00 hrs)
 
 - **Eliminación de selección de rango horario para clientes (`EventWizardCheckoutModal.tsx` y `EventQuoteView.tsx`)**:

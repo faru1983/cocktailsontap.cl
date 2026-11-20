@@ -454,6 +454,8 @@ export const CreateQuoteSchema = z
 
 export const ConfirmQuoteSchema = z.object({
     token: z.string(),
+    client_name: z.string().trim().min(2, 'Nombre es obligatorio').max(120).optional(),
+    client_email: z.string().trim().email('Email inválido').max(180).optional(),
     client_phone: RequiredPhoneSchema,
     client_lastname: z.string().min(2, 'Apellido es obligatorio'),
     client_address: z.string().min(5, 'Dirección inválida'),
@@ -481,6 +483,50 @@ export const ConfirmQuoteSchema = z.object({
     fbc: z.string().nullable().optional(),
     fbp: z.string().nullable().optional(),
 });
+
+/** Guardado automático de borrador en vista pública `/cotizar/[token]` (Zero Trust en precios). */
+export const UpdateDraftQuoteSchema = z.object({
+    token: z.string().min(1),
+    client_name: z.string().trim().max(120).optional(),
+    client_lastname: z.string().trim().max(120).nullable().optional(),
+    client_email: z.string().trim().max(180).nullable().optional(),
+    client_phone: z.string().trim().max(40).nullable().optional(),
+    client_address: z.string().trim().max(300).nullable().optional(),
+    region_name: z.string().trim().max(120).nullable().optional(),
+    comuna_name: z.string().trim().max(120).nullable().optional(),
+    comuna_other: z.string().trim().max(120).nullable().optional(),
+    guests: z.coerce.number().int().min(0).max(50000).optional(),
+    event_type_id: z.string().max(120).nullable().optional(),
+    event_type_other: z.string().trim().max(120).nullable().optional(),
+    event_date: z
+        .string()
+        .regex(/^\d{4}-\d{2}-\d{2}$/)
+        .nullable()
+        .optional()
+        .or(z.literal('')),
+    start_time: z.string().max(20).nullable().optional(),
+    pickup_date: z
+        .string()
+        .regex(/^\d{4}-\d{2}-\d{2}$/)
+        .nullable()
+        .optional()
+        .or(z.literal('')),
+    pickup_time: z.string().max(30).nullable().optional(),
+    comments: z.string().max(2000).nullable().optional(),
+    dispenser: z.enum(['portatil', 'muro', 'desechable']),
+    items: z
+        .array(
+            z.object({
+                id: z.string().optional(),
+                product_id: z.string().nullable().optional(),
+                size: z.string().min(1),
+                quantity: z.coerce.number().int().min(1),
+            })
+        )
+        .min(1, 'Agrega al menos un producto para guardar los cambios.'),
+});
+
+export type UpdateDraftQuoteInput = z.infer<typeof UpdateDraftQuoteSchema>;
 
 export const QuoteStatusSchema = z.enum([
     'draft',

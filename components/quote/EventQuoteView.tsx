@@ -1,14 +1,16 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { formatCurrency, copyToClipboard } from '@/lib/utils';
 import { isValidPhoneE164, normalizePhoneE164 } from '@/lib/phone';
 import PhoneInput from '@/components/ui/PhoneInput';
-import { formatEventDate, calculateMaxPickupDate, isAllowedEventPickupDate, EVENT_DEFAULT_NEXT_DAY_PICKUP_TIME, getTodayString, resolveShipping, isEventBarrelSizeLabelCompatible, getSizeLiters } from '@/lib/wizardLogic';
+import { formatEventDate, calculateMaxPickupDate, isAllowedEventPickupDate, EVENT_DEFAULT_NEXT_DAY_PICKUP_TIME, resolveShipping, isEventBarrelSizeLabelCompatible, getSizeLiters } from '@/lib/wizardLogic';
 import { confirmQuote } from '@/app/actions/confirmQuote';
-import { MURO_INSTALLATION_COST, PORTATIL_MIN_LITERS, MURO_MIN_LITERS } from '@/lib/config';
-import { getMinSelectableDate, validateShippingDate } from '@/lib/shippingMethods';
+import { MURO_INSTALLATION_COST, PORTATIL_MIN_LITERS, MURO_MIN_LITERS, MURO_COMPATIBLE_SIZES } from '@/lib/config';
+import { validateShippingDate } from '@/lib/shippingMethods';
+import { useDraftQuoteAutoSave } from '@/hooks/useDraftQuoteAutoSave';
+import DraftSaveBadge from '@/components/quote/DraftSaveBadge';
 import {
     CheckCircle, Clock, XCircle, AlertCircle, ShoppingCart,
     Calendar, Users, MapPin, User, Mail, Phone, MessageSquare, Loader2, Lock,
@@ -16,7 +18,7 @@ import {
 } from 'lucide-react';
 import * as fp from '@/lib/fpixel';
 import { getClientMetaAttribution } from '@/lib/attribution';
-import type { Quote, QuoteItem, Comuna, Region, CocktailForWizard, EventType, Product, ICart } from '@/lib/types';
+import type { Quote, QuoteItem, Comuna, Region, CocktailForWizard, EventType, Product, ICart, UpdateDraftQuoteInput } from '@/lib/types';
 import { DEFAULT_REGION_CODE } from '@/lib/types';
 import ProductCatalog from '@/components/catalog/ProductCatalog';
 import QuoteSummaryProducts, { QuoteSummaryData } from '@/components/quote/QuoteSummaryProducts';
@@ -66,8 +68,10 @@ export default function EventQuoteView({ quote, comunas, regions, availableCockt
     const eventCategories = useMemo(() => categories.filter(c => c !== 'Otros'), [categories]);
 
     // State para datos editables
-    const [phone, setPhone] = useState(() => normalizePhoneE164(quote.client_phone ?? '') ?? '');
+    const [firstName, setFirstName] = useState(quote.client_name ?? '');
     const [lastName, setLastName] = useState(quote.client_lastname ?? '');
+    const [email, setEmail] = useState(quote.client_email ?? '');
+    const [phone, setPhone] = useState(() => normalizePhoneE164(quote.client_phone ?? '') ?? '');
     const [address, setAddress] = useState(quote.client_address ?? '');
     const [eventDate, setEventDate] = useState(quote.event_date ?? '');
     const [startTime, setStartTime] = useState(quote.start_time ?? '');
@@ -82,6 +86,16 @@ export default function EventQuoteView({ quote, comunas, regions, availableCockt
     const [items, setItems] = useState<QuoteItem[]>(quote.quote_items);
     const [dispenser, setDispenser] = useState<'portatil' | 'muro'>((quote.dispenser as string) === 'muro' ? 'muro' : 'portatil');
 
+    // Metadatos del último estado persistido en servidor (para alinear envío/override con el backend)
+    const [savedMeta, setSavedMeta] = useState({
+        comuna_name: quote.comuna_name ?? '',
+        region_code: initialRegionCode,
+        shipping_cost: quote.shipping_cost,
+        shipping_label: quote.shipping_label ?? null,
+        total_liters: quote.total_liters ?? 0,
+        total_offer_price: quote.total_offer_price ?? 0,
+    });
+
     const [isConfirming, setIsConfirming] = useState(false);
     const [confirmError, setConfirmError] = useState('');
     const [confirmed, setConfirmed] = useState(quote.status === 'confirmed');
@@ -90,6 +104,97 @@ export default function EventQuoteView({ quote, comunas, regions, availableCockt
     const [clientUrl, setClientUrl] = useState('');
 
     const isDraft = quote.status === 'draft' && !confirmed;
+
+    const currentRegionShortName = useMemo(
+        () => regions.find((r) => r.code === regionCode)?.shortName || quote.region_name || null,
+        [regions, regionCode, quote.region_name]
+    );
+
+    const draftPayload: UpdateDraftQuoteInput = useMemo(
+        () => ({
+            token: quote.token,
+            client_name: firstName,
+            client_lastname: lastName,
+            client_email: email,
+            client_phone: phone,
+            client_address: address,
+            region_name: currentRegionShortName,
+            comuna_name: comuna,
+            comuna_other: comunaOther,
+            guests,
+            event_type_id: eventType || null,
+            event_type_other: otherType,
+            event_date: eventDate,
+            start_time: startTime,
+            pickup_date: pickupDate,
+            pickup_time: pickupTime,
+            comments,
+            dispenser,
+            items: items
+                .filter((i) => i.quantity > 0)
+                .map((i) => ({
+                    id: i.id,
+                    product_id: i.product_id || null,
+                    size: i.size,
+                    quantity: i.quantity,
+                })),
+        }),
+        [
+            quote.token,
+            firstName,
+            lastName,
+            email,
+            phone,
+            address,
+            currentRegionShortName,
+            comuna,
+            comunaOther,
+            guests,
+            eventType,
+            otherType,
+            eventDate,
+            startTime,
+            pickupDate,
+            pickupTime,
+            comments,
+            dispenser,
+            items,
+        ]
+    );
+
+    const handleDraftSaved = useCallback(
+        (res: Parameters<NonNullable<Parameters<typeof useDraftQuoteAutoSave>[0]['onSaved']>>[0]) => {
+            if (res.items && res.items.length > 0) {
+                setItems(res.items);
+            }
+            if (res.quote) {
+                const nextRegCode =
+                    regions.find(
+                        (r) => r.shortName === res.quote?.region_name || r.name === res.quote?.region_name
+                    )?.code || regionCode;
+                setSavedMeta({
+                    comuna_name: res.quote.comuna_name ?? '',
+                    region_code: nextRegCode,
+                    shipping_cost: res.quote.shipping_cost,
+                    shipping_label: res.quote.shipping_label ?? null,
+                    total_liters: res.quote.total_liters,
+                    total_offer_price: res.quote.total_offer_price,
+                });
+            }
+        },
+        [regions, regionCode]
+    );
+
+    const handleNotDraft = useCallback(() => {
+        router.refresh();
+    }, [router]);
+
+    const { saveStatus, saveError, flushNow, flushOnBlur } = useDraftQuoteAutoSave({
+        enabled: isDraft,
+        payload: draftPayload,
+        onSaved: handleDraftSaved,
+        onNotDraft: handleNotDraft,
+    });
 
     const statusCfg = STATUS_CONFIG[quote.status] ?? STATUS_CONFIG.draft;
     const StatusIcon = statusCfg.icon;
@@ -115,8 +220,8 @@ export default function EventQuoteView({ quote, comunas, regions, availableCockt
         setShowSuccessScreen(isConfirmedParam);
     }, [isConfirmedParam]);
 
-    // Lógica de Muro de Coctelería
-    const canHaveMuro = useMemo(() => {
+    // Lógica de Muro de Coctelería (Regla oficial: >= MURO_MIN_LITERS y solo formatos MURO_COMPATIBLE_SIZES)
+    const muroEligibility = useMemo(() => {
         let liters = 0;
         let hasIncompatible = false;
 
@@ -126,24 +231,25 @@ export default function EventQuoteView({ quote, comunas, regions, availableCockt
 
             if (priceData && priceData.unit === 'L') {
                 liters += priceData.sizeValue * item.quantity;
-                if (priceData.sizeValue === 5) hasIncompatible = true;
+                if (!MURO_COMPATIBLE_SIZES.includes(priceData.sizeValue)) hasIncompatible = true;
             } else if (!priceData) {
-                // Fallback structured data in item (if priceData not found because product was deleted)
-                if (item.unit_id || item.size_value) {
-                    // We don't have the unit abbreviation here easily without a join, 
-                    // but we can check if it's likely liters (legacy was mostly L)
-                    // or just check our new is_disposable flag (which indicates 5L usually)
-                    liters += (item.size_value || 0) * item.quantity;
-                    if (item.is_disposable || item.size_value === 5) hasIncompatible = true;
-                } else if (item.size.includes('5L')) {
-                    // Fallback para items guardados sin metadata legacy
-                    hasIncompatible = true;
+                const parsedLiters = item.size_value || getSizeLiters(item.size);
+                if (parsedLiters > 0) {
+                    liters += parsedLiters * item.quantity;
+                    if (item.is_disposable || !MURO_COMPATIBLE_SIZES.includes(parsedLiters)) {
+                        hasIncompatible = true;
+                    }
                 }
             }
         });
 
-        return liters >= 30 && !hasIncompatible;
+        return {
+            hasIncompatible,
+            canHaveMuro: liters >= MURO_MIN_LITERS && !hasIncompatible,
+        };
     }, [items, availableCocktails]);
+
+    const canHaveMuro = muroEligibility.canHaveMuro;
 
     // ─── Cálculos dinámicos ──────────────────────────────────────────────────
 
@@ -180,39 +286,67 @@ export default function EventQuoteView({ quote, comunas, regions, availableCockt
             }
         });
 
-        // Recalcular envío dinámicamente (región + override comuna)
+        // Recalcular envío dinámicamente (región + override comuna + subtotal/litros)
         const resolved = resolveShipping({
             serviceType: 'event',
             regionCode,
             comunaName: comuna,
             totalLiters,
             comunas,
+            subtotal: totalOffer,
         });
 
+        const locationChanged = comuna !== savedMeta.comuna_name || regionCode !== savedMeta.region_code;
+        const itemsMetricsChanged =
+            totalLiters !== savedMeta.total_liters || totalOffer !== savedMeta.total_offer_price;
+
         let shipping: number;
-        const locationChanged = comuna !== quote.comuna_name || regionCode !== initialRegionCode;
-        if (locationChanged) {
-            // El cliente cambió la ubicación: recalcular desde cero
-            shipping = resolved.isPending ? 0 : resolved.shippingCost;
+        let shippingLabel: string;
+
+        if (savedMeta.shipping_label === 'Por Pagar' && !locationChanged) {
+            shipping = savedMeta.shipping_cost ?? 0;
+            shippingLabel = 'Por Pagar';
+        } else if (!locationChanged && !itemsMetricsChanged) {
+            shipping = savedMeta.shipping_cost;
+            shippingLabel =
+                comuna === 'Otra' && shipping === 0
+                    ? 'Pendiente de factibilidad'
+                    : shipping === 0
+                      ? (savedMeta.shipping_label ?? '¡Gratis!')
+                      : formatCurrency(shipping);
         } else {
-            // Misma ubicación: respetar el valor guardado en DB (puede ser un override del admin)
-            shipping = quote.shipping_cost;
+            shipping = resolved.isPending ? 0 : resolved.shippingCost;
+            shippingLabel = resolved.shippingLabel;
         }
 
         const installationCost = dispenser === 'muro' ? MURO_INSTALLATION_COST : 0;
-        const totalFinal = totalOffer + shipping + (isDraft ? installationCost : quote.installation_cost) - (quote.manual_discount || 0);
+        const totalFinal = Math.max(
+            0,
+            totalOffer + shipping + (isDraft ? installationCost : quote.installation_cost) - (quote.manual_discount || 0)
+        );
         const totalDiscount = totalNormal - totalOffer;
         const totalCocktails = totalLiters * 5;
 
-        return { totalNormal, totalOffer, totalFinal, totalLiters, totalCocktails, shipping, totalDiscount, installationCost, shippingCarrier: resolved.shippingCarrier };
+        return {
+            totalNormal,
+            totalOffer,
+            totalFinal,
+            totalLiters,
+            totalCocktails,
+            shipping,
+            shippingLabel,
+            totalDiscount,
+            installationCost,
+            shippingCarrier: resolved.shippingCarrier,
+        };
     };
 
-    // Auto-ajuste de dispensador (Solo en borrador para validación del cliente)
+    // Auto-ajuste de dispensador: solo bajar a portátil si hay barriles incompatibles con Muro (5L/10L)
     useEffect(() => {
-        if (isDraft && !canHaveMuro && dispenser === 'muro') {
+        if (isDraft && muroEligibility.hasIncompatible && dispenser === 'muro') {
             setDispenser('portatil');
         }
-    }, [canHaveMuro, dispenser, isDraft]);
+    }, [muroEligibility.hasIncompatible, dispenser, isDraft]);
 
     // ─── Meta Pixel: Lead al crear cotización (dedupe con CAPI) ──────────────
     useEffect(() => {
@@ -250,11 +384,13 @@ export default function EventQuoteView({ quote, comunas, regions, availableCockt
     const isNextDayPickup = Boolean(pickupDate && eventDate && pickupDate === nextPickupDate);
     const pickupChoice: 'same' | 'next' | '' = isSameDayPickup ? 'same' : isNextDayPickup ? 'next' : '';
 
-    const validateAllFields = () => {
+    const validateAllFields = (): Record<string, boolean> => {
         const errors: Record<string, boolean> = {};
         
-        if (!isValidPhoneE164(phone)) errors.phone = true;
+        if (firstName.trim().length < 2) errors.firstName = true;
         if (lastName.trim().length < 2) errors.lastName = true;
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) errors.email = true;
+        if (!isValidPhoneE164(phone)) errors.phone = true;
         if (address.trim().length < 5) errors.address = true;
         if (!comuna || comuna === '...') errors.comuna = true;
         const eventMethodConfig = comunas[0]?.shippingMethodsConfig?.own_events;
@@ -284,18 +420,18 @@ export default function EventQuoteView({ quote, comunas, regions, availableCockt
         if (totals.totalLiters < minRequiredLiters) errors.liters = true;
 
         setValidationErrors(errors);
-        return Object.keys(errors).length === 0;
+        return errors;
     };
 
     const handlePreConfirm = () => {
-        const isValid = validateAllFields();
-        if (isValid) {
+        const errors = validateAllFields();
+        if (Object.keys(errors).length === 0) {
             setAcceptedTerms(false);
             setShowConfirmModal(true);
             setConfirmError('');
         } else {
             // Scroll al primer error
-            const firstErrorField = Object.keys(validationErrors)[0] || 'phone';
+            const firstErrorField = Object.keys(errors)[0] || 'firstName';
             const element = document.getElementById(`field-${firstErrorField}`);
             if (element) {
                 element.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -344,7 +480,7 @@ export default function EventQuoteView({ quote, comunas, regions, availableCockt
             totalOfferPrice: totals.totalOffer,
             totalDiscount: totals.totalDiscount,
             shippingCost: totals.shipping,
-            shippingLabel: comuna === 'Otra' && totals.shipping === 0 ? 'Pendiente de factibilidad' : (totals.shipping === 0 ? (quote.shipping_label ?? '¡Gratis!') : formatCurrency(totals.shipping)),
+            shippingLabel: totals.shippingLabel,
             shippingCarrier: totals.shippingCarrier,
             installationCost: isDraft ? totals.installationCost : quote.installation_cost,
             dispenserLabel: dispenser === 'muro' ? 'Muro de Coctelería' : 'Dispensador Portátil',
@@ -353,14 +489,14 @@ export default function EventQuoteView({ quote, comunas, regions, availableCockt
             guests: guests,
             canHaveMuro: canHaveMuro
         };
-    }, [items, totals, guests, dispenser, canHaveMuro]);
+    }, [items, totals, guests, dispenser, canHaveMuro, isDraft, quote.installation_cost, quote.manual_discount]);
 
     const reservationData: QuoteSummaryReservationData = useMemo(() => {
-        const fullName = `${quote.client_name}${quote.client_lastname ? ' ' + quote.client_lastname : ''}`;
+        const fullName = `${firstName}${lastName ? ' ' + lastName : ''}`.trim();
         const regionDisplay = regions.find((r) => r.code === regionCode)?.shortName || quote.region_name || '';
         return {
             clientName: fullName,
-            clientEmail: quote.client_email || '',
+            clientEmail: email || '',
             clientPhone: phone,
             addressDisplay: formatQuoteAddress({
                 client_address: address,
@@ -377,7 +513,7 @@ export default function EventQuoteView({ quote, comunas, regions, availableCockt
             comments: comments,
             isDirect: false
         };
-    }, [quote.client_name, quote.client_lastname, quote.client_email, quote.region_name, phone, address, comuna, comunaOther, regionCode, regions, eventType, otherType, eventTypes, guests, eventDate, startTime, pickupDate, pickupTime, comments]);
+    }, [firstName, lastName, email, quote.region_name, phone, address, comuna, comunaOther, regionCode, regions, eventType, otherType, eventTypes, guests, eventDate, startTime, pickupDate, pickupTime, comments]);
 
     // 1. Mapeamos availableCocktails a Product (para el modal)
     const mappedProducts: Product[] = useMemo(() => availableCocktails
@@ -466,15 +602,19 @@ export default function EventQuoteView({ quote, comunas, regions, availableCockt
     };
 
     const handleConfirm = async () => {
-        if (!validateAllFields()) return;
+        if (Object.keys(validateAllFields()).length > 0) return;
 
         setIsConfirming(true);
         setConfirmError('');
+        // Asegurar que no quede ningún autoguardado en vuelo antes de confirmar
+        await flushNow();
         const attribution = getClientMetaAttribution();
         const result = await confirmQuote({
             token: quote.token,
+            client_name: firstName.trim(),
+            client_email: email.trim().toLowerCase(),
             client_phone: phone,
-            client_lastname: lastName,
+            client_lastname: lastName.trim(),
             client_address: address,
             comuna_name: comuna,
             region_name: regions.find(r => r.code === regionCode)?.shortName || quote.region_name || null,
@@ -522,7 +662,9 @@ export default function EventQuoteView({ quote, comunas, regions, availableCockt
                 content_type: 'product',
                 order_id: quote.token
             }, fp.quotePixelUserData(quote, {
+                em: email || undefined,
                 ph: phone || undefined,
+                fn: firstName || undefined,
                 ln: lastName || undefined,
                 ct: comuna && comuna !== 'Otra' ? comuna : (comunaOther || undefined),
             }));
@@ -677,11 +819,15 @@ export default function EventQuoteView({ quote, comunas, regions, availableCockt
                             {statusCfg.label}
                         </span>
                     </div>
-                    <h1 className="text-xl sm:text-2xl font-black text-brand-text">Cotización de {quote.client_name}{quote.client_lastname ? ` ${quote.client_lastname}` : ''}</h1>
+                    <h1 className="text-xl sm:text-2xl font-black text-brand-text">Cotización de {firstName}{lastName ? ` ${lastName}` : ''}</h1>
                     <p className="text-brand-text-muted text-[0.8rem] sm:text-[0.9rem]">Creada el {new Date(quote.created_at).toLocaleDateString('es-CL', { day: '2-digit', month: 'long', year: 'numeric' })}</p>
                 </div>
 
-                {!isDraft && (
+                {isDraft ? (
+                    <div className="self-start sm:self-auto">
+                        <DraftSaveBadge status={saveStatus} error={saveError} onRetry={() => void flushNow()} />
+                    </div>
+                ) : (
                     <div className="inline-flex sm:flex items-center gap-2 text-green-700 font-bold bg-green-50 px-4 py-2 rounded-xl border border-green-200 self-start sm:self-auto shadow-sm">
                         <Lock className="w-4 h-4" /> Reserva cerrada / Confirmada
                     </div>
@@ -695,11 +841,11 @@ export default function EventQuoteView({ quote, comunas, regions, availableCockt
                 </div>
                 <div>
                     <p className={`text-[0.8rem] font-black uppercase tracking-[0.15em] mb-1 ${isDraft ? 'text-primary' : 'text-brand-text'}`}>
-                        {isDraft ? 'Revisa antes de confirmar' : 'Información de tu Reserva'}
+                        {isDraft ? 'Revisa y edita antes de confirmar' : 'Información de tu Reserva'}
                     </p>
                     <p className="text-brand-text-muted text-[0.875rem] leading-relaxed font-medium">
                         {isDraft ? (
-                            <>Verifica los cócteles y los demas datos del evento. Todos los campos son obligatorios para asegurar tu reserva.</>
+                            <>Puedes modificar los cócteles y cualquier dato del evento — tus cambios se guardan automáticamente. Todos los campos obligatorios deben estar completos para confirmar tu reserva.</>
                         ) : (
                             <>Tus detalles han sido registrados exitosamente. Esta página es tu comprobante oficial del servicio. Si necesitas realizar cualquier cambio de último minuto, contáctanos directamente.</>
                         )}
@@ -778,35 +924,68 @@ export default function EventQuoteView({ quote, comunas, regions, availableCockt
                 <QuoteSummaryReservation data={reservationData} />
             ) : (
                 <div className="bg-white rounded-[1.5rem] border border-brand-border p-4 sm:p-6 shadow-sm">
-                    <div className="flex items-center justify-between mb-4 pb-2 border-b border-brand-border/50">
+                    <div className="flex flex-wrap items-center justify-between gap-2 mb-4 pb-2 border-b border-brand-border/50">
                         <h2 className="text-[0.65rem] font-black text-primary uppercase tracking-[0.2em]">Información de Reserva</h2>
-                        <span className="text-[0.6rem] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded border border-amber-100 uppercase">Modo Edición</span>
+                        <DraftSaveBadge status={saveStatus} error={saveError} onRetry={() => void flushNow()} />
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
                         {/* Columna 1: Datos de Contacto */}
                         <div className="space-y-4">
                             <div className="grid grid-cols-2 gap-4">
-                                <div className="flex flex-col gap-0.5">
-                                    <label className="text-[0.65rem] font-black text-brand-text-muted flex items-center gap-1.5 uppercase">
-                                        <User className="w-3 h-3" /> Nombre
+                                <div className="flex flex-col gap-1">
+                                    <label htmlFor="field-firstName" className="text-[0.65rem] font-black text-brand-text-muted flex items-center gap-1.5 uppercase">
+                                        <User className="w-3 h-3" /> Nombre <span className="text-red-500">*</span>
                                     </label>
-                                    <p className="text-[0.9rem] text-brand-text font-bold truncate">{quote.client_name}</p>
+                                    <input
+                                        id="field-firstName"
+                                        type="text"
+                                        value={firstName}
+                                        onChange={(e) => {
+                                            setFirstName(e.target.value);
+                                            setValidationErrors(prev => ({ ...prev, firstName: false }));
+                                        }}
+                                        onBlur={flushOnBlur}
+                                        placeholder="Tu nombre"
+                                        className={`w-full px-3 py-2.5 bg-slate-50 border rounded-xl text-[0.95rem] font-bold focus:outline-none focus:border-primary focus:bg-white transition-all shadow-sm ${validationErrors.firstName ? 'border-red-500 bg-red-50/30' : 'border-brand-border'}`}
+                                    />
                                 </div>
 
                                 <div className="flex flex-col gap-1">
-                                    <label className="text-[0.65rem] font-black text-brand-text-muted flex items-center gap-1.5 uppercase">
-                                        <User className="w-3 h-3" /> Apellido
+                                    <label htmlFor="field-lastName" className="text-[0.65rem] font-black text-brand-text-muted flex items-center gap-1.5 uppercase">
+                                        <User className="w-3 h-3" /> Apellido <span className="text-red-500">*</span>
                                     </label>
-                                    <p id="field-lastName" className="text-[0.9rem] text-brand-text font-bold truncate">{lastName}</p>
+                                    <input
+                                        id="field-lastName"
+                                        type="text"
+                                        value={lastName}
+                                        onChange={(e) => {
+                                            setLastName(e.target.value);
+                                            setValidationErrors(prev => ({ ...prev, lastName: false }));
+                                        }}
+                                        onBlur={flushOnBlur}
+                                        placeholder="Tu apellido"
+                                        className={`w-full px-3 py-2.5 bg-slate-50 border rounded-xl text-[0.95rem] font-bold focus:outline-none focus:border-primary focus:bg-white transition-all shadow-sm ${validationErrors.lastName ? 'border-red-500 bg-red-50/30' : 'border-brand-border'}`}
+                                    />
                                 </div>
                             </div>
 
-                            <div className="flex flex-col gap-0.5">
-                                <label className="text-[0.65rem] font-black text-brand-text-muted flex items-center gap-1.5 uppercase">
-                                    <Mail className="w-3 h-3" /> Email
+                            <div className="flex flex-col gap-1">
+                                <label htmlFor="field-email" className="text-[0.65rem] font-black text-brand-text-muted flex items-center gap-1.5 uppercase">
+                                    <Mail className="w-3 h-3" /> Email <span className="text-red-500">*</span>
                                 </label>
-                                <p className="text-[0.9rem] text-brand-text font-bold truncate" title={quote.client_email || ''}>{quote.client_email}</p>
+                                <input
+                                    id="field-email"
+                                    type="email"
+                                    value={email}
+                                    onChange={(e) => {
+                                        setEmail(e.target.value);
+                                        setValidationErrors(prev => ({ ...prev, email: false }));
+                                    }}
+                                    onBlur={flushOnBlur}
+                                    placeholder="tu@correo.cl"
+                                    className={`w-full px-3 py-2.5 bg-slate-50 border rounded-xl text-[0.95rem] font-bold focus:outline-none focus:border-primary focus:bg-white transition-all shadow-sm ${validationErrors.email ? 'border-red-500 bg-red-50/30' : 'border-brand-border'}`}
+                                />
                             </div>
 
                             <div className="flex flex-col gap-1">
@@ -818,6 +997,7 @@ export default function EventQuoteView({ quote, comunas, regions, availableCockt
                                         value={phone}
                                         onFocus={() => setValidationErrors(prev => ({ ...prev, phone: false }))}
                                         onChange={(e164) => setPhone(e164)}
+                                        onBlur={flushOnBlur}
                                         className={`w-full px-3 py-2.5 bg-slate-50 border rounded-xl text-[0.95rem] font-bold focus:outline-none focus:border-primary focus:bg-white transition-all shadow-sm ${validationErrors.phone ? 'border-red-500 bg-red-50/30' : 'border-brand-border'}`}
                                     />
                                 </div>
@@ -857,6 +1037,7 @@ export default function EventQuoteView({ quote, comunas, regions, availableCockt
                                         setAddress(e.target.value);
                                         setValidationErrors(prev => ({ ...prev, address: false }));
                                     }}
+                                    onBlur={flushOnBlur}
                                     placeholder="Calle, Número, Depto..."
                                     className={`w-full px-3 py-2.5 bg-slate-50 border rounded-xl text-[0.95rem] font-bold focus:outline-none focus:border-primary focus:bg-white transition-all shadow-sm ${validationErrors.address ? 'border-red-500 bg-red-50/30' : 'border-brand-border'}`}
                                 />
@@ -905,6 +1086,7 @@ export default function EventQuoteView({ quote, comunas, regions, availableCockt
                                                 setGuests(parseInt(e.target.value) || 0);
                                                 setValidationErrors(prev => ({ ...prev, guests: false }));
                                             }}
+                                            onBlur={flushOnBlur}
                                             className={`w-full px-3 py-2.5 bg-slate-50 border rounded-xl text-[0.95rem] font-bold focus:outline-none focus:border-primary focus:bg-white transition-all shadow-sm pr-12 ${validationErrors.guests ? 'border-red-500 bg-red-50/30' : 'border-brand-border'}`}
                                         />
                                         <div className="absolute right-3 top-1/2 -translate-y-1/2 text-[0.7rem] text-brand-text-muted font-bold pointer-events-none">
@@ -925,6 +1107,7 @@ export default function EventQuoteView({ quote, comunas, regions, availableCockt
                                             setOtherType(e.target.value);
                                             setValidationErrors(prev => ({ ...prev, otherType: false }));
                                         }}
+                                        onBlur={flushOnBlur}
                                         placeholder="Ej: Aniversario..."
                                         className={`w-full px-3 py-2.5 bg-slate-50 border rounded-xl text-[0.95rem] font-bold focus:outline-none focus:border-primary focus:bg-white transition-all shadow-sm ${validationErrors.otherType ? 'border-red-500 bg-red-50/30' : 'border-brand-border'}`}
                                     />
@@ -1039,6 +1222,7 @@ export default function EventQuoteView({ quote, comunas, regions, availableCockt
                         <textarea
                             value={comments}
                             onChange={(e) => setComments(e.target.value)}
+                            onBlur={flushOnBlur}
                             placeholder="Notas adicionales..."
                             rows={2}
                             className="w-full px-3 py-2 bg-slate-50 border border-brand-border rounded-xl text-[0.9rem] font-bold focus:outline-none focus:border-primary focus:bg-white transition-all shadow-sm resize-none"
@@ -1055,6 +1239,13 @@ export default function EventQuoteView({ quote, comunas, regions, availableCockt
                 onAddProductsClick={() => setShowCatalog(true)}
                 onChangeDispenser={() => setDispenser(prev => prev === 'muro' ? 'portatil' : 'muro')}
             />
+
+            {isDraft && saveStatus === 'empty_items' && (
+                <div className="-mt-2 bg-amber-50 border border-amber-200 text-amber-800 px-4 py-3 rounded-2xl text-[0.8rem] font-bold flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 shrink-0 text-amber-600" />
+                    <span>Agrega al menos un producto para guardar los cambios en tu cotización.</span>
+                </div>
+            )}
 
             {/* Catálogo Modal (Full Screen Mobile) */}
             {showCatalog && (
@@ -1121,7 +1312,8 @@ export default function EventQuoteView({ quote, comunas, regions, availableCockt
                         </div>
 
                         {/* Footer del Modal con botón de cierre/finalizar */}
-                        <div className="p-6 border-t border-brand-border bg-slate-50 flex justify-end">
+                        <div className="p-4 sm:p-6 border-t border-brand-border bg-slate-50 flex flex-wrap items-center justify-between gap-3">
+                            <DraftSaveBadge status={saveStatus} error={saveError} onRetry={() => void flushNow()} />
                             <button
                                 onClick={() => setShowCatalog(false)}
                                 className="px-8 py-3 bg-brand-text text-white font-black rounded-xl shadow-lg hover:bg-black transition-all transform active:scale-95"
@@ -1231,7 +1423,7 @@ export default function EventQuoteView({ quote, comunas, regions, availableCockt
                                         
                                         <div className="text-center font-black mb-6 uppercase tracking-[0.3em] border-b-2 border-brand-border/30 pb-3 text-brand-text text-[0.75rem]">CONTRATO DE SERVICIO</div>
                                         <p className="mb-4">
-                                            Entre <strong>Cocktails on Tap Chile</strong>, en adelante “El Arrendador”, y don/doña: <strong>{quote.client_name} {lastName}</strong>, en adelante “El Arrendatario”, se acuerda lo siguiente:
+                                            Entre <strong>Cocktails on Tap Chile</strong>, en adelante “El Arrendador”, y don/doña: <strong>{firstName} {lastName}</strong>, en adelante “El Arrendatario”, se acuerda lo siguiente:
                                         </p>
                                         <p className="font-black text-brand-text mb-2 mt-4">1. Objeto del contrato</p>
                                         <p className="mb-4">El Arrendador proporcionará al Arrendatario un servicio de cócteles listos para servir en formato autoservicio, incluyendo barriles, dispensadores y cristalería.</p>

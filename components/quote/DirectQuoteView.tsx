@@ -1,14 +1,15 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { formatCurrency, copyToClipboard } from '@/lib/utils';
 import { isValidPhoneE164, normalizePhoneE164 } from '@/lib/phone';
 import PhoneInput from '@/components/ui/PhoneInput';
-import { formatEventDate, getTodayString, getMinDateString, getSizeLiters, resolveShipping, DIRECT_SALE_MIN_DISPATCH_OFFSET_DAYS, validateDirectSaleDate } from '@/lib/wizardLogic';
-import { getMinSelectableDate } from '@/lib/shippingMethods';
+import { formatEventDate, getSizeLiters, resolveShipping, DIRECT_SALE_MIN_DISPATCH_OFFSET_DAYS, validateDirectSaleDate } from '@/lib/wizardLogic';
 import { getDirectSaleDateFieldCopy } from '@/lib/blueExpress';
 import { confirmQuote } from '@/app/actions/confirmQuote';
+import { useDraftQuoteAutoSave } from '@/hooks/useDraftQuoteAutoSave';
+import DraftSaveBadge from '@/components/quote/DraftSaveBadge';
 import {
     CheckCircle, Clock, XCircle, AlertCircle, ShoppingCart,
     Calendar, MapPin, User, Mail, Phone, MessageSquare, Loader2, Lock,
@@ -16,7 +17,7 @@ import {
 } from 'lucide-react';
 import * as fp from '@/lib/fpixel';
 import { getClientMetaAttribution } from '@/lib/attribution';
-import type { Quote, QuoteItem, Comuna, Region, CocktailForWizard, EventType, Product, ICart } from '@/lib/types';
+import type { Quote, QuoteItem, Comuna, Region, CocktailForWizard, EventType, Product, ICart, UpdateDraftQuoteInput } from '@/lib/types';
 import { DEFAULT_REGION_CODE } from '@/lib/types';
 import RegionComunaFields from '@/components/ui/RegionComunaFields';
 import ShippingDatePicker from '@/components/ui/ShippingDatePicker';
@@ -59,8 +60,10 @@ export default function DirectQuoteView({ quote, comunas, regions, availableCock
     const [selectedCategory, setSelectedCategory] = useState(categories[0] || 'Todos');
 
     // State para datos editables (Simplificado para Venta Directa)
-    const [phone, setPhone] = useState(() => normalizePhoneE164(quote.client_phone ?? '') ?? '');
+    const [firstName, setFirstName] = useState(quote.client_name ?? '');
     const [lastName, setLastName] = useState(quote.client_lastname ?? '');
+    const [email, setEmail] = useState(quote.client_email ?? '');
+    const [phone, setPhone] = useState(() => normalizePhoneE164(quote.client_phone ?? '') ?? '');
     const [address, setAddress] = useState(quote.client_address ?? '');
     const [eventDate, setEventDate] = useState(quote.event_date ?? '');
     const [comments, setComments] = useState(quote.comments ?? '');
@@ -68,6 +71,15 @@ export default function DirectQuoteView({ quote, comunas, regions, availableCock
     const [comunaOther, setComunaOther] = useState(quote.comuna_other ?? '');
     const [regionCode, setRegionCode] = useState(initialRegionCode);
     const [items, setItems] = useState<QuoteItem[]>(quote.quote_items);
+
+    const [savedMeta, setSavedMeta] = useState({
+        comuna_name: quote.comuna_name ?? '',
+        region_code: initialRegionCode,
+        shipping_cost: quote.shipping_cost,
+        shipping_label: quote.shipping_label ?? null,
+        total_liters: quote.total_liters ?? 0,
+        total_offer_price: quote.total_offer_price ?? 0,
+    });
 
     const [isConfirming, setIsConfirming] = useState(false);
     const [confirmError, setConfirmError] = useState('');
@@ -81,6 +93,90 @@ export default function DirectQuoteView({ quote, comunas, regions, availableCock
     const isDraft = quote.status === 'draft' && !confirmed;
     const statusCfg = STATUS_CONFIG[quote.status] ?? STATUS_CONFIG.draft;
     const StatusIcon = statusCfg.icon;
+
+    const currentRegionShortName = useMemo(
+        () => regions.find((r) => r.code === regionCode)?.shortName || quote.region_name || null,
+        [regions, regionCode, quote.region_name]
+    );
+
+    const draftPayload: UpdateDraftQuoteInput = useMemo(
+        () => ({
+            token: quote.token,
+            client_name: firstName,
+            client_lastname: lastName,
+            client_email: email,
+            client_phone: phone,
+            client_address: address,
+            region_name: currentRegionShortName,
+            comuna_name: comuna,
+            comuna_other: comunaOther,
+            guests: 0,
+            event_type_id: null,
+            event_type_other: '',
+            event_date: eventDate,
+            start_time: '',
+            pickup_date: '',
+            pickup_time: '',
+            comments,
+            dispenser: 'desechable',
+            items: items
+                .filter((i) => i.quantity > 0)
+                .map((i) => ({
+                    id: i.id,
+                    product_id: i.product_id || null,
+                    size: i.size,
+                    quantity: i.quantity,
+                })),
+        }),
+        [
+            quote.token,
+            firstName,
+            lastName,
+            email,
+            phone,
+            address,
+            currentRegionShortName,
+            comuna,
+            comunaOther,
+            eventDate,
+            comments,
+            items,
+        ]
+    );
+
+    const handleDraftSaved = useCallback(
+        (res: Parameters<NonNullable<Parameters<typeof useDraftQuoteAutoSave>[0]['onSaved']>>[0]) => {
+            if (res.items && res.items.length > 0) {
+                setItems(res.items);
+            }
+            if (res.quote) {
+                const nextRegCode =
+                    regions.find(
+                        (r) => r.shortName === res.quote?.region_name || r.name === res.quote?.region_name
+                    )?.code || regionCode;
+                setSavedMeta({
+                    comuna_name: res.quote.comuna_name ?? '',
+                    region_code: nextRegCode,
+                    shipping_cost: res.quote.shipping_cost,
+                    shipping_label: res.quote.shipping_label ?? null,
+                    total_liters: res.quote.total_liters,
+                    total_offer_price: res.quote.total_offer_price,
+                });
+            }
+        },
+        [regions, regionCode]
+    );
+
+    const handleNotDraft = useCallback(() => {
+        router.refresh();
+    }, [router]);
+
+    const { saveStatus, saveError, flushNow, flushOnBlur } = useDraftQuoteAutoSave({
+        enabled: isDraft,
+        payload: draftPayload,
+        onSaved: handleDraftSaved,
+        onNotDraft: handleNotDraft,
+    });
 
     // Bloquear scroll cuando hay modal abierto
     useEffect(() => {
@@ -168,22 +264,36 @@ export default function DirectQuoteView({ quote, comunas, regions, availableCock
             comunaName: comuna,
             totalLiters,
             comunas,
+            subtotal: totalOffer,
         });
+        const locationChanged = comuna !== savedMeta.comuna_name || regionCode !== savedMeta.region_code;
+        const itemsMetricsChanged =
+            totalLiters !== savedMeta.total_liters || totalOffer !== savedMeta.total_offer_price;
+
         let shipping: number;
-        const locationChanged = comuna !== quote.comuna_name || regionCode !== initialRegionCode;
-        if (locationChanged) {
-            // El cliente cambió la ubicación: recalcular desde cero
-            shipping = resolved.isPending ? 0 : resolved.shippingCost;
+        let shippingLabel: string;
+
+        if (savedMeta.shipping_label === 'Por Pagar' && !locationChanged) {
+            shipping = savedMeta.shipping_cost ?? 0;
+            shippingLabel = 'Por Pagar';
+        } else if (!locationChanged && !itemsMetricsChanged) {
+            shipping = savedMeta.shipping_cost ?? resolved.shippingCost;
+            shippingLabel =
+                comuna === 'Otra' && shipping === 0
+                    ? 'Pendiente de factibilidad'
+                    : shipping === 0
+                      ? (savedMeta.shipping_label ?? '¡Gratis!')
+                      : formatCurrency(shipping);
         } else {
-            // Misma ubicación: respetar el valor guardado en DB (puede ser un override del admin)
-            shipping = quote.shipping_cost ?? resolved.shippingCost;
+            shipping = resolved.isPending ? 0 : resolved.shippingCost;
+            shippingLabel = resolved.shippingLabel;
         }
 
-        const totalFinal = totalOffer + shipping - (quote.manual_discount || 0);
+        const totalFinal = Math.max(0, totalOffer + shipping - (quote.manual_discount || 0));
         const totalDiscount = totalNormal - totalOffer;
         const totalCocktails = totalLiters * 5;
 
-        return { totalNormal, totalOffer, totalFinal, totalLiters, totalCocktails, shipping, totalDiscount, shippingCarrier: resolved.shippingCarrier };
+        return { totalNormal, totalOffer, totalFinal, totalLiters, totalCocktails, shipping, shippingLabel, totalDiscount, shippingCarrier: resolved.shippingCarrier };
     };
 
     const totals = calculateTotals();
@@ -196,11 +306,13 @@ export default function DirectQuoteView({ quote, comunas, regions, availableCock
     const advanceAmount = totals.totalFinal; // Siempre 100%
     const advancePercentText = '100%';
 
-    const validateAllFields = () => {
+    const validateAllFields = (): Record<string, boolean> => {
         const errors: Record<string, boolean> = {};
         
-        if (!isValidPhoneE164(phone)) errors.phone = true;
+        if (firstName.trim().length < 2) errors.firstName = true;
         if (lastName.trim().length < 2) errors.lastName = true;
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) errors.email = true;
+        if (!isValidPhoneE164(phone)) errors.phone = true;
         if (address.trim().length < 5) errors.address = true;
         if (!comuna || comuna === '...') errors.comuna = true;
         if (!eventDate) errors.eventDate = true;
@@ -229,23 +341,23 @@ export default function DirectQuoteView({ quote, comunas, regions, availableCock
         }
 
         setValidationErrors(errors);
-        return Object.keys(errors).length === 0;
+        return errors;
     };
 
     const handlePreConfirm = () => {
-        const isValid = validateAllFields();
-        if (isValid) {
+        const errors = validateAllFields();
+        if (Object.keys(errors).length === 0) {
             setAcceptedTerms(false);
             setShowConfirmModal(true);
             setConfirmError('');
         } else {
-            if (validationErrors.noCocktail) {
+            if (errors.noCocktail) {
                 setConfirmError('Para realizar un despacho, debes incluir al menos un cóctel en tu pedido (no solo complementos).');
                 const productsSection = document.getElementById('products-summary-section');
                 if (productsSection) productsSection.scrollIntoView({ behavior: 'smooth' });
                 return;
             }
-            const firstErrorField = Object.keys(validationErrors)[0] || 'phone';
+            const firstErrorField = Object.keys(errors)[0] || 'firstName';
             const element = document.getElementById(`field-${firstErrorField}`);
             if (element) element.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
@@ -280,7 +392,7 @@ export default function DirectQuoteView({ quote, comunas, regions, availableCock
             totalOfferPrice: totals.totalOffer,
             totalDiscount: totals.totalDiscount,
             shippingCost: totals.shipping,
-            shippingLabel: comuna === 'Otra' && totals.shipping === 0 ? 'Pendiente de factibilidad' : (totals.shipping === 0 ? (quote.shipping_label ?? '¡Gratis!') : formatCurrency(totals.shipping)),
+            shippingLabel: totals.shippingLabel,
             shippingCarrier: totals.shippingCarrier,
             installationCost: 0,
             dispenserLabel: 'Barril Desechable',
@@ -289,14 +401,14 @@ export default function DirectQuoteView({ quote, comunas, regions, availableCock
             guests: 0, // No aplica
             canHaveMuro: false
         };
-    }, [items, totals, comuna]);
+    }, [items, totals, quote.manual_discount]);
 
     const reservationData: QuoteSummaryReservationData = useMemo(() => {
-        const fullName = `${quote.client_name}${lastName ? ' ' + lastName : ''}`;
+        const fullName = `${firstName}${lastName ? ' ' + lastName : ''}`.trim();
         const regionDisplay = regions.find((r) => r.code === regionCode)?.shortName || quote.region_name || '';
         return {
             clientName: fullName,
-            clientEmail: quote.client_email || '',
+            clientEmail: email || '',
             clientPhone: phone,
             addressDisplay: formatQuoteAddress({
                 client_address: address,
@@ -314,7 +426,7 @@ export default function DirectQuoteView({ quote, comunas, regions, availableCock
             isDirect: true,
             deliveryEstimateLabel: quote.delivery_estimate_label || null
         };
-    }, [quote.client_name, lastName, quote.client_email, quote.region_name, phone, address, comuna, comunaOther, regionCode, regions, eventDate, comments]);
+    }, [firstName, lastName, email, quote.region_name, quote.delivery_estimate_label, phone, address, comuna, comunaOther, regionCode, regions, eventDate, comments]);
 
     const mappedProducts: Product[] = useMemo(() => availableCocktails.map(c => ({
         id: c.id,
@@ -385,14 +497,17 @@ export default function DirectQuoteView({ quote, comunas, regions, availableCock
     };
 
     const handleConfirm = async () => {
-        if (!validateAllFields()) return;
+        if (Object.keys(validateAllFields()).length > 0) return;
         setIsConfirming(true);
         setConfirmError('');
+        await flushNow();
         const attribution = getClientMetaAttribution();
         const result = await confirmQuote({
             token: quote.token,
+            client_name: firstName.trim(),
+            client_email: email.trim().toLowerCase(),
             client_phone: phone,
-            client_lastname: lastName,
+            client_lastname: lastName.trim(),
             client_address: address,
             comuna_name: comuna,
             region_name: regions.find(r => r.code === regionCode)?.shortName || quote.region_name || null,
@@ -440,7 +555,9 @@ export default function DirectQuoteView({ quote, comunas, regions, availableCock
                 content_type: 'product',
                 order_id: quote.token
             }, fp.quotePixelUserData(quote, {
+                em: email || undefined,
                 ph: phone || undefined,
+                fn: firstName || undefined,
                 ln: lastName || undefined,
                 ct: comuna && comuna !== 'Otra' ? comuna : (comunaOther || undefined),
             }));
@@ -544,11 +661,15 @@ export default function DirectQuoteView({ quote, comunas, regions, availableCock
                             {statusCfg.label}
                         </span>
                     </div>
-                    <h1 className="text-xl sm:text-2xl font-black text-brand-text">Pedido de {quote.client_name}{lastName ? ` ${lastName}` : ''}</h1>
+                    <h1 className="text-xl sm:text-2xl font-black text-brand-text">Pedido de {firstName}{lastName ? ` ${lastName}` : ''}</h1>
                     <p className="text-brand-text-muted text-[0.8rem] sm:text-[0.9rem]">Creado el {new Date(quote.created_at).toLocaleDateString('es-CL', { day: '2-digit', month: 'long', year: 'numeric' })}</p>
                 </div>
 
-                {!isDraft && (
+                {isDraft ? (
+                    <div className="self-start sm:self-auto">
+                        <DraftSaveBadge status={saveStatus} error={saveError} onRetry={() => void flushNow()} />
+                    </div>
+                ) : (
                     <div className="inline-flex sm:flex items-center gap-2 text-green-700 font-bold bg-green-50 px-4 py-2 rounded-xl border border-green-200 self-start sm:self-auto shadow-sm">
                         <Lock className="w-4 h-4" /> Venta Cerrada / Confirmada
                     </div>
@@ -563,11 +684,11 @@ export default function DirectQuoteView({ quote, comunas, regions, availableCock
                 </div>
                 <div>
                     <p className={`text-[0.8rem] font-black uppercase tracking-[0.15em] mb-1 ${isDraft ? 'text-primary' : 'text-brand-text'}`}>
-                        {isDraft ? 'Revisa tus datos' : 'Información de tu Pedido'}
+                        {isDraft ? 'Revisa y edita tus datos' : 'Información de tu Pedido'}
                     </p>
                     <p className="text-brand-text-muted text-[0.875rem] leading-relaxed font-medium">
                         {isDraft ? (
-                            <>Verifica los productos y la dirección de entrega. Confirma para asegurar tu disponibilidad.</>
+                            <>Puedes modificar los productos y tus datos de entrega — los cambios se guardan automáticamente. Confirma cuando estés listo para asegurar tu disponibilidad.</>
                         ) : (
                             <>Tu pedido ha sido confirmado exitosamente. Esta página es tu comprobante oficial.</>
                         )}
@@ -679,27 +800,65 @@ export default function DirectQuoteView({ quote, comunas, regions, availableCock
                 <QuoteSummaryReservation data={reservationData} />
             ) : (
                 <div className="bg-white rounded-[1.5rem] border border-brand-border p-4 sm:p-6 shadow-sm">
-                    <div className="flex items-center justify-between mb-4 pb-2 border-b border-brand-border/50">
+                    <div className="flex flex-wrap items-center justify-between gap-2 mb-4 pb-2 border-b border-brand-border/50">
                         <h2 className="text-[0.65rem] font-black text-primary uppercase tracking-[0.2em]">Detalles de Entrega</h2>
+                        <DraftSaveBadge status={saveStatus} error={saveError} onRetry={() => void flushNow()} />
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
                         <div className="space-y-4">
                             <div className="grid grid-cols-2 gap-4">
-                                <div className="flex flex-col gap-0.5">
-                                    <label className="text-[0.65rem] font-black text-brand-text-muted flex items-center gap-1.5 uppercase"><User className="w-3 h-3" /> Nombre</label>
-                                    <p className="text-[0.9rem] text-brand-text font-bold truncate">{quote.client_name}</p>
+                                <div className="flex flex-col gap-1">
+                                    <label htmlFor="field-firstName" className="text-[0.65rem] font-black text-brand-text-muted flex items-center gap-1.5 uppercase">
+                                        <User className="w-3 h-3" /> Nombre <span className="text-red-500">*</span>
+                                    </label>
+                                    <input
+                                        id="field-firstName"
+                                        type="text"
+                                        value={firstName}
+                                        onChange={(e) => {
+                                            setFirstName(e.target.value);
+                                            setValidationErrors(prev => ({ ...prev, firstName: false }));
+                                        }}
+                                        onBlur={flushOnBlur}
+                                        placeholder="Tu nombre"
+                                        className={`w-full px-3 py-2.5 bg-slate-50 border rounded-xl text-[0.95rem] font-bold focus:outline-none focus:border-primary focus:bg-white transition-all shadow-sm ${validationErrors.firstName ? 'border-red-500 bg-red-50/30' : 'border-brand-border'}`}
+                                    />
                                 </div>
                                 <div className="flex flex-col gap-1">
-                                    <label className="text-[0.65rem] font-black text-brand-text-muted flex items-center gap-1.5 uppercase">
-                                        <User className="w-3 h-3" /> Apellido
+                                    <label htmlFor="field-lastName" className="text-[0.65rem] font-black text-brand-text-muted flex items-center gap-1.5 uppercase">
+                                        <User className="w-3 h-3" /> Apellido <span className="text-red-500">*</span>
                                     </label>
-                                    <p id="field-lastName" className="text-[0.9rem] text-brand-text font-bold truncate">{lastName}</p>
+                                    <input
+                                        id="field-lastName"
+                                        type="text"
+                                        value={lastName}
+                                        onChange={(e) => {
+                                            setLastName(e.target.value);
+                                            setValidationErrors(prev => ({ ...prev, lastName: false }));
+                                        }}
+                                        onBlur={flushOnBlur}
+                                        placeholder="Tu apellido"
+                                        className={`w-full px-3 py-2.5 bg-slate-50 border rounded-xl text-[0.95rem] font-bold focus:outline-none focus:border-primary focus:bg-white transition-all shadow-sm ${validationErrors.lastName ? 'border-red-500 bg-red-50/30' : 'border-brand-border'}`}
+                                    />
                                 </div>
                             </div>
-                            <div className="flex flex-col gap-0.5">
-                                <label className="text-[0.65rem] font-black text-brand-text-muted flex items-center gap-1.5 uppercase"><Mail className="w-3 h-3" /> Email</label>
-                                <p className="text-[0.9rem] text-brand-text font-bold truncate">{quote.client_email}</p>
+                            <div className="flex flex-col gap-1">
+                                <label htmlFor="field-email" className="text-[0.65rem] font-black text-brand-text-muted flex items-center gap-1.5 uppercase">
+                                    <Mail className="w-3 h-3" /> Email <span className="text-red-500">*</span>
+                                </label>
+                                <input
+                                    id="field-email"
+                                    type="email"
+                                    value={email}
+                                    onChange={(e) => {
+                                        setEmail(e.target.value);
+                                        setValidationErrors(prev => ({ ...prev, email: false }));
+                                    }}
+                                    onBlur={flushOnBlur}
+                                    placeholder="tu@correo.cl"
+                                    className={`w-full px-3 py-2.5 bg-slate-50 border rounded-xl text-[0.95rem] font-bold focus:outline-none focus:border-primary focus:bg-white transition-all shadow-sm ${validationErrors.email ? 'border-red-500 bg-red-50/30' : 'border-brand-border'}`}
+                                />
                             </div>
                             <div className="flex flex-col gap-1">
                                 <label className="text-[0.65rem] font-black text-brand-text-muted flex items-center gap-1.5 uppercase"><Phone className="w-3 h-3" /> Celular <span className="text-red-500">*</span></label>
@@ -708,7 +867,8 @@ export default function DirectQuoteView({ quote, comunas, regions, availableCock
                                     value={phone}
                                     onFocus={() => setValidationErrors(prev => ({ ...prev, phone: false }))}
                                     onChange={(e164) => setPhone(e164)}
-                                    className={`w-full px-3 py-2.5 bg-slate-50 border rounded-xl text-[0.95rem] font-bold focus:outline-none focus:border-primary shadow-sm ${validationErrors.phone ? 'border-red-500 bg-red-50/30' : 'border-brand-border'}`}
+                                    onBlur={flushOnBlur}
+                                    className={`w-full px-3 py-2.5 bg-slate-50 border rounded-xl text-[0.95rem] font-bold focus:outline-none focus:border-primary focus:bg-white transition-all shadow-sm ${validationErrors.phone ? 'border-red-500 bg-red-50/30' : 'border-brand-border'}`}
                                 />
                             </div>
                         </div>
@@ -737,7 +897,7 @@ export default function DirectQuoteView({ quote, comunas, regions, availableCock
                             />
                             <div className="flex flex-col gap-1">
                                 <label className="text-[0.65rem] font-black text-brand-text-muted flex items-center gap-1.5 uppercase"><MapPin className="w-3 h-3" /> Dirección <span className="text-red-500">*</span></label>
-                                <input id="field-address" type="text" value={address} onChange={(e) => { setAddress(e.target.value); setValidationErrors(prev => ({ ...prev, address: false })); }} placeholder="Calle, Número, Depto..." className={`w-full px-3 py-2.5 bg-slate-50 border rounded-xl text-[0.95rem] font-bold focus:outline-none focus:border-primary shadow-sm ${validationErrors.address ? 'border-red-500 bg-red-50/30' : 'border-brand-border'}`} />
+                                <input id="field-address" type="text" value={address} onChange={(e) => { setAddress(e.target.value); setValidationErrors(prev => ({ ...prev, address: false })); }} onBlur={flushOnBlur} placeholder="Calle, Número, Depto..." className={`w-full px-3 py-2.5 bg-slate-50 border rounded-xl text-[0.95rem] font-bold focus:outline-none focus:border-primary focus:bg-white transition-all shadow-sm ${validationErrors.address ? 'border-red-500 bg-red-50/30' : 'border-brand-border'}`} />
                             </div>
                             <div className="flex flex-col">
                                 <ShippingDatePicker
@@ -758,15 +918,38 @@ export default function DirectQuoteView({ quote, comunas, regions, availableCock
                             </div>
                         </div>
                     </div>
+
+                    <div className="mt-4 pt-4 border-t border-brand-border/50">
+                        <label className="text-[0.65rem] font-black text-brand-text-muted flex items-center gap-1.5 uppercase mb-1.5">
+                            <MessageSquare className="w-3 h-3" /> Comentarios
+                        </label>
+                        <textarea
+                            value={comments}
+                            onChange={(e) => setComments(e.target.value)}
+                            onBlur={flushOnBlur}
+                            placeholder="Indicaciones de entrega o notas adicionales..."
+                            rows={2}
+                            className="w-full px-3 py-2 bg-slate-50 border border-brand-border rounded-xl text-[0.9rem] font-bold focus:outline-none focus:border-primary focus:bg-white transition-all shadow-sm resize-none"
+                        />
+                    </div>
                 </div>
             )}
 
-            <QuoteSummaryProducts
-                data={summaryData}
-                isEditable={isDraft}
-                onUpdateQuantity={onSummaryUpdateQuantity}
-                onAddProductsClick={() => setShowCatalog(true)}
-            />
+            <div id="products-summary-section">
+                <QuoteSummaryProducts
+                    data={summaryData}
+                    isEditable={isDraft}
+                    onUpdateQuantity={onSummaryUpdateQuantity}
+                    onAddProductsClick={() => setShowCatalog(true)}
+                />
+            </div>
+
+            {isDraft && saveStatus === 'empty_items' && (
+                <div className="-mt-2 bg-amber-50 border border-amber-200 text-amber-800 px-4 py-3 rounded-2xl text-[0.8rem] font-bold flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 shrink-0 text-amber-600" />
+                    <span>Agrega al menos un producto para guardar los cambios en tu pedido.</span>
+                </div>
+            )}
 
 
 
@@ -791,7 +974,8 @@ export default function DirectQuoteView({ quote, comunas, regions, availableCock
                             </div>
                         </div>
                         <div className="flex-1 overflow-y-auto p-6"><ProductCatalog products={filteredCocktails} activeCategory={selectedCategory} cart={quoteCart} /></div>
-                        <div className="p-6 border-t border-brand-border bg-slate-50 flex justify-end">
+                        <div className="p-4 sm:p-6 border-t border-brand-border bg-slate-50 flex flex-wrap items-center justify-between gap-3">
+                            <DraftSaveBadge status={saveStatus} error={saveError} onRetry={() => void flushNow()} />
                             <button onClick={() => setShowCatalog(false)} className="px-8 py-3 bg-brand-text text-white font-black rounded-xl">Listo</button>
                         </div>
                     </div>

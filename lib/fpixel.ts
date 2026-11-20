@@ -77,6 +77,7 @@ export interface QuotePixelContact {
 }
 
 export interface QuotePixelExtras {
+  em?: string;
   ph?: string;
   fn?: string;
   ln?: string;
@@ -93,7 +94,8 @@ export function quotePixelUserData(
 ): FBUserData {
   const data: FBUserData = {};
   if (quote.client_id?.trim()) data.external_id = quote.client_id.trim();
-  if (quote.client_email?.trim()) data.em = quote.client_email;
+  if (extras.em?.trim()) data.em = extras.em;
+  else if (quote.client_email?.trim()) data.em = quote.client_email;
   if (extras.ph) data.ph = extras.ph;
   if (extras.fn?.trim()) data.fn = extras.fn;
   else if (quote.client_name?.trim()) data.fn = quote.client_name;
