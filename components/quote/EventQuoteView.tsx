@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useMemo, useEffect, useCallback } from 'react';
+import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { formatCurrency, copyToClipboard, normalizeEmail, normalizePersonName } from '@/lib/utils';
+import { formatCurrency, copyToClipboard, evaluateGoogleEventAddress, normalizeEmail, normalizePersonName } from '@/lib/utils';
 import { AddressAutocomplete } from '@/components/ui/AddressAutocomplete';
 import { isValidPhoneE164, normalizePhoneE164 } from '@/lib/phone';
 import PhoneInput from '@/components/ui/PhoneInput';
@@ -99,6 +100,8 @@ export default function EventQuoteView({ quote, comunas, regions, availableCockt
 
     const [isConfirming, setIsConfirming] = useState(false);
     const [confirmError, setConfirmError] = useState('');
+    const [outOfRmError, setOutOfRmError] = useState<string | null>(null);
+    const [lastValidAddress, setLastValidAddress] = useState(quote.client_address ?? '');
     const [confirmed, setConfirmed] = useState(quote.status === 'confirmed');
     const [acceptedTerms, setAcceptedTerms] = useState(false);
     const [validationErrors, setValidationErrors] = useState<Record<string, boolean>>({});
@@ -118,7 +121,7 @@ export default function EventQuoteView({ quote, comunas, regions, availableCockt
             client_lastname: lastName,
             client_email: email,
             client_phone: phone,
-            client_address: address,
+            client_address: outOfRmError ? lastValidAddress : address,
             region_name: currentRegionShortName,
             comuna_name: comuna,
             comuna_other: comunaOther,
@@ -148,6 +151,8 @@ export default function EventQuoteView({ quote, comunas, regions, availableCockt
             email,
             phone,
             address,
+            outOfRmError,
+            lastValidAddress,
             currentRegionShortName,
             comuna,
             comunaOther,
@@ -401,7 +406,7 @@ export default function EventQuoteView({ quote, comunas, regions, availableCockt
         if (lastName.trim().length < 2) errors.lastName = true;
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) errors.email = true;
         if (!isValidPhoneE164(phone)) errors.phone = true;
-        if (address.trim().length < 5) errors.address = true;
+        if (outOfRmError || address.trim().length < 5) errors.address = true;
         if (!comuna || comuna === '...') errors.comuna = true;
         const eventMethodConfig = comunas[0]?.shippingMethodsConfig?.own_events;
         if (!eventDate) {
@@ -1059,15 +1064,59 @@ export default function EventQuoteView({ quote, comunas, regions, availableCockt
                                 <AddressAutocomplete
                                     id="field-address"
                                     value={address}
-                                    comuna={comuna}
                                     onChange={(val) => {
                                         setAddress(val);
+                                        setOutOfRmError(null);
+                                        setLastValidAddress(val);
                                         setValidationErrors(prev => ({ ...prev, address: false }));
+                                    }}
+                                    onSelectAddressDetails={(details) => {
+                                        const result = evaluateGoogleEventAddress(
+                                            details.comunaCandidates,
+                                            details.regionName,
+                                            comunas,
+                                            regions
+                                        );
+                                        if (result.status === 'matched') {
+                                            setRegionCode(result.comuna.regionCode);
+                                            setComuna(result.comuna.name);
+                                            setComunaOther('');
+                                            setOutOfRmError(null);
+                                            setLastValidAddress(details.address);
+                                            setValidationErrors((prev) => ({
+                                                ...prev,
+                                                comuna: false,
+                                                comunaOther: false,
+                                                address: false,
+                                            }));
+                                        } else if (result.status === 'outside_rm') {
+                                            setOutOfRmError(
+                                                'Los eventos con dispensador operan exclusivamente en la Región Metropolitana (52 comunas).'
+                                            );
+                                            setValidationErrors((prev) => ({ ...prev, address: true }));
+                                        } else {
+                                            setOutOfRmError(null);
+                                            setLastValidAddress(details.address);
+                                        }
                                     }}
                                     onBlur={flushOnBlur}
                                     placeholder="Calle, Número, Depto..."
-                                    className={`w-full px-3 py-2.5 bg-slate-50 border rounded-xl text-[0.95rem] font-bold focus:outline-none focus:border-primary focus:bg-white transition-all shadow-sm ${validationErrors.address ? 'border-red-500 bg-red-50/30' : 'border-brand-border'}`}
+                                    className={`w-full px-3 py-2.5 bg-slate-50 border rounded-xl text-[0.95rem] font-bold focus:outline-none focus:border-primary focus:bg-white transition-all shadow-sm ${validationErrors.address || outOfRmError ? 'border-red-500 bg-red-50/30' : 'border-brand-border'}`}
                                 />
+                                {outOfRmError && (
+                                    <div className="mt-1.5 rounded-xl border border-red-200 bg-red-50/70 p-2.5 text-xs text-red-700 space-y-1">
+                                        <p className="font-semibold flex items-start gap-1.5">
+                                            <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5 text-red-500" />
+                                            <span>{outOfRmError}</span>
+                                        </p>
+                                        <p className="text-[11px] text-slate-600 pl-5">
+                                            ¿Tu evento es en otra región?{' '}
+                                            <Link href="/barriles" className="font-bold text-primary hover:underline">
+                                                Compra barriles desechables de 5L con envío a todo Chile →
+                                            </Link>
+                                        </p>
+                                    </div>
+                                )}
                             </div>
                         </div>
 

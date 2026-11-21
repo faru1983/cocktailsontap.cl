@@ -267,3 +267,50 @@ export function resolveEligibleComunaFromGoogle<
     );
     return matchComunaFromGoogle(comunaCandidates, regionHint, eligible);
 }
+
+export type GoogleEventAddressResult<TComuna> =
+    | { status: 'matched'; comuna: TComuna }
+    | { status: 'outside_rm' }
+    | { status: 'unknown' };
+
+/**
+ * Evalúa si una dirección elegida desde Google Places pertenece a la RM (eventos),
+ * está claramente fuera de la RM, o requiere selección manual.
+ */
+export function evaluateGoogleEventAddress<
+    TComuna extends { name: string; isActive: boolean; regionCode: string; regionName?: string; regionShortName?: string },
+    TRegion extends { code: string; isActive: boolean; availableForDirect: boolean; availableForEvents: boolean }
+>(
+    comunaCandidates: string[],
+    regionName: string | null | undefined,
+    comunas: TComuna[],
+    regions: TRegion[]
+): GoogleEventAddressResult<TComuna> {
+    const matchedRm = resolveEligibleComunaFromGoogle(
+        comunaCandidates,
+        regionName,
+        comunas,
+        regions,
+        'event'
+    );
+    if (matchedRm) {
+        return { status: 'matched', comuna: matchedRm };
+    }
+
+    const matchedOtherRegion = resolveEligibleComunaFromGoogle(
+        comunaCandidates,
+        regionName,
+        comunas,
+        regions,
+        'direct'
+    );
+    const regionNorm = (regionName || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase();
+    const clearlyOutsideRm =
+        Boolean(matchedOtherRegion) ||
+        (Boolean(regionNorm) && !regionNorm.includes('metropolitana'));
+
+    return clearlyOutsideRm ? { status: 'outside_rm' } : { status: 'unknown' };
+}

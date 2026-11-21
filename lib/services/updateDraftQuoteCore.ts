@@ -246,6 +246,27 @@ export async function updateDraftQuoteCore(formData: unknown): Promise<UpdateDra
                 ? data.comuna_name?.trim() || null
                 : quote.comuna_name;
 
+        if (!isDirectSale && data.comuna_name !== undefined && nextComuna) {
+            const eventRegionCodes = new Set(
+                catalogRes.regions
+                    .filter((r) => r.isActive && r.availableForEvents)
+                    .map((r) => r.code)
+            );
+            const matchedEventComuna = catalogRes.comunas.find(
+                (c) =>
+                    c.isActive &&
+                    (eventRegionCodes.size === 0 || eventRegionCodes.has(c.regionCode)) &&
+                    c.name.toLowerCase() === nextComuna.toLowerCase()
+            );
+            if (!matchedEventComuna) {
+                return {
+                    success: false,
+                    code: 'VALIDATION',
+                    error: 'Los eventos con dispensador operan exclusivamente en la Región Metropolitana (52 comunas).',
+                };
+            }
+        }
+
         const nextComunaOther =
             nextComuna === 'Otra'
                 ? data.comuna_other !== undefined

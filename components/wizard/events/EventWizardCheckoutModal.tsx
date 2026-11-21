@@ -4,7 +4,7 @@ import React, { useMemo, useState } from 'react';
 import Link from 'next/link';
 import type { useWizard } from '@/hooks/useWizard';
 import { DEFAULT_REGION_CODE, type Comuna, type Region, type EventType } from '@/lib/types';
-import { formatCurrency, normalizeEmail, normalizePersonName, resolveEligibleComunaFromGoogle } from '@/lib/utils';
+import { formatCurrency, evaluateGoogleEventAddress, normalizeEmail, normalizePersonName } from '@/lib/utils';
 import { AddressAutocomplete } from '@/components/ui/AddressAutocomplete';
 import PhoneInput from '@/components/ui/PhoneInput';
 import RegionComunaFields from '@/components/ui/RegionComunaFields';
@@ -665,39 +665,20 @@ export default function EventWizardCheckoutModal({
                                                         }
                                                     }}
                                                     onSelectAddressDetails={(details) => {
-                                                        const matchedRm = resolveEligibleComunaFromGoogle(
+                                                        const result = evaluateGoogleEventAddress(
                                                             details.comunaCandidates,
                                                             details.regionName,
                                                             comunas,
-                                                            regions,
-                                                            'event'
+                                                            regions
                                                         );
-                                                        if (matchedRm) {
-                                                            updateContact('region', matchedRm.regionCode);
-                                                            updateContact('comuna', matchedRm.name);
+                                                        if (result.status === 'matched') {
+                                                            updateContact('region', result.comuna.regionCode);
+                                                            updateContact('comuna', result.comuna.name);
                                                             clearError('comuna');
                                                             clearError('address');
                                                             setOutOfRmError(null);
                                                             setShowManualRegionComuna(false);
-                                                            return;
-                                                        }
-
-                                                        const matchedOtherRegion = resolveEligibleComunaFromGoogle(
-                                                            details.comunaCandidates,
-                                                            details.regionName,
-                                                            comunas,
-                                                            regions,
-                                                            'direct'
-                                                        );
-                                                        const regionNorm = (details.regionName || '')
-                                                            .normalize('NFD')
-                                                            .replace(/[\u0300-\u036f]/g, '')
-                                                            .toLowerCase();
-                                                        const clearlyOutsideRm =
-                                                            Boolean(matchedOtherRegion) ||
-                                                            (Boolean(regionNorm) && !regionNorm.includes('metropolitana'));
-
-                                                        if (clearlyOutsideRm) {
+                                                        } else if (result.status === 'outside_rm') {
                                                             resetEventAddressAndLocation(false);
                                                             setShowManualRegionComuna(false);
                                                             setOutOfRmError(
