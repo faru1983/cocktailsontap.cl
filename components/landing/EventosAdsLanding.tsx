@@ -19,7 +19,7 @@ import {
 } from '@/lib/config';
 import { createQuote } from '@/app/actions/createQuote';
 import { getClientMetaAttribution } from '@/lib/attribution';
-import { trackOnce } from '@/lib/fpixel';
+import { trackOnce, quotePixelUserData } from '@/lib/fpixel';
 import { isValidPhoneE164, isChilePrefixOnly } from '@/lib/phone';
 import { validateShippingDate } from '@/lib/shippingMethods';
 import PhoneInput from '@/components/ui/PhoneInput';
@@ -666,14 +666,32 @@ export default function EventosAdsLanding({ cocktails, comunas, regions, eventTy
             }
 
             // Deduplicación exacta con CAPI server-side (lead_TOKEN)
-            trackOnce(`lead_${result.token}`, 'Lead', {
-                content_name: 'Cotización Eventos Landing Ads',
-                content_category: 'Eventos',
-                value: result.totalPrice || summaryData.totalPrice,
-                currency: 'CLP',
-                service: 'eventos',
-                cta_channel: 'quote',
-            });
+            trackOnce(
+                `lead_${result.token}`,
+                'Lead',
+                {
+                    content_name: 'Cotización Eventos Landing Ads',
+                    content_category: 'Eventos',
+                    value: result.totalPrice || summaryData.totalPrice,
+                    currency: 'CLP',
+                    service: 'eventos',
+                    cta_channel: 'quote',
+                    order_id: result.token,
+                },
+                quotePixelUserData(
+                    {
+                        client_email: email.trim(),
+                        client_name: firstName.trim(),
+                    },
+                    {
+                        em: email.trim(),
+                        ph: phone.trim(),
+                        fn: firstName.trim(),
+                        ln: lastName.trim(),
+                        ct: comuna.trim() || undefined,
+                    }
+                )
+            );
 
             window.location.href = `/cotizar/${result.token}?new=true`;
         } catch (err) {

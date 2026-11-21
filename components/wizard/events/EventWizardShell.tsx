@@ -8,6 +8,7 @@ import type { CocktailForWizard, EventType, Comuna, Region } from '@/lib/types';
 import { createQuote } from '@/app/actions/createQuote';
 import { validateConfirmNowState } from '@/lib/confirmNowValidation';
 import { calculateLiveQuoterSuggestion } from '@/lib/wizardLogic';
+import { MURO_MIN_LITERS } from '@/lib/config';
 
 import EventStepGuests from './EventStepGuests';
 import EventStepDrinks from './EventStepDrinks';
@@ -102,7 +103,7 @@ export default function EventWizardShell({ cocktails, eventTypes, comunas, regio
             dispenserOverride ||
             (state.dispenser && state.dispenser !== 'desechable'
                 ? state.dispenser
-                : suggestedLiters >= 40
+                : suggestedLiters >= MURO_MIN_LITERS
                   ? 'muro'
                   : 'portatil');
         updateDispenser(nextDispenser);

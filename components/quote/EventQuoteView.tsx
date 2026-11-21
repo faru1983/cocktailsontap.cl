@@ -45,7 +45,7 @@ interface Props {
 export default function EventQuoteView({ quote, comunas, regions, availableCocktails, categories, eventTypes, isNew }: Props) {
     const router = useRouter();
     const searchParams = useSearchParams();
-    const isConfirmedParam = searchParams.get('confirmed') === 'true';
+    const isConfirmedParam = searchParams.get('confirmed') === 'true' || searchParams.get('confirmed') === '1';
 
     const [showConfirmModal, setShowConfirmModal] = useState(false);
     const [showSuccessScreen, setShowSuccessScreen] = useState(isConfirmedParam);
@@ -348,7 +348,7 @@ export default function EventQuoteView({ quote, comunas, regions, availableCockt
         }
     }, [muroEligibility.hasIncompatible, dispenser, isDraft]);
 
-    // ─── Meta Pixel: Lead al crear cotización (dedupe con CAPI) ──────────────
+    // ─── Meta Pixel: Lead al crear cotización (o Purchase si se confirmó al crear) ─
     useEffect(() => {
         if (isNew) {
             const totals = calculateTotals();
@@ -357,21 +357,29 @@ export default function EventQuoteView({ quote, comunas, regions, availableCockt
                 item_price: item.offer_price_at_time,
                 quantity: item.quantity
             }));
-            fp.trackOnce(`lead_${quote.token}`, 'Lead', {
-                content_name: 'Cotización Eventos',
-                ...fp.metaLineParams('event', fp.META_SERVICE_EVENTOS),
-                value: totals.totalFinal,
-                currency: 'CLP',
-                contents,
-                content_ids: contents.map(c => c.id),
-                num_items: contents.reduce((sum, c) => sum + c.quantity, 0),
-                content_type: 'product',
-                order_id: quote.token
-            }, fp.quotePixelUserData(quote, {
-                ph: phone || undefined,
-                ln: lastName || undefined,
-                ct: comuna && comuna !== 'Otra' ? comuna : (comunaOther || undefined),
-            }));
+            const isConfirmedOnCreate = quote.status === 'confirmed';
+            fp.trackOnce(
+                isConfirmedOnCreate ? `purchase_${quote.token}` : `lead_${quote.token}`,
+                isConfirmedOnCreate ? 'Purchase' : 'Lead',
+                {
+                    content_name: isConfirmedOnCreate ? 'Reserva Eventos Confirmada' : 'Cotización Eventos',
+                    ...fp.metaLineParams('event', fp.META_SERVICE_EVENTOS),
+                    value: totals.totalFinal,
+                    currency: 'CLP',
+                    contents,
+                    content_ids: contents.map(c => c.id),
+                    num_items: contents.reduce((sum, c) => sum + c.quantity, 0),
+                    content_type: 'product',
+                    order_id: quote.token
+                },
+                fp.quotePixelUserData(quote, {
+                    em: email || undefined,
+                    ph: phone || undefined,
+                    fn: firstName || undefined,
+                    ln: lastName || undefined,
+                    ct: comuna && comuna !== 'Otra' ? comuna : (comunaOther || undefined),
+                })
+            );
         }
     }, [isNew]); // trackOnce evita re-disparo en refresh
 

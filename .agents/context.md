@@ -41,6 +41,17 @@
 
 ## Ultimos Cambios
 
+### 21-11-2026 — Alineación de Señales Meta Pixel/CAPI en Eventos y Limpieza MCP
+
+- **Consistencia Pixel vs CAPI en confirmación inmediata ([`EventQuoteView.tsx`](file:///c:/Webs/cocktailsontap.cl/components/quote/EventQuoteView.tsx))**:
+  - Actualizado `isConfirmedParam` para aceptar tanto `?confirmed=true` como `?confirmed=1` (emitido por [`EventWizardShell.tsx`](file:///c:/Webs/cocktailsontap.cl/components/wizard/events/EventWizardShell.tsx)).
+  - En el `useEffect` de primera vista (`isNew`), si `quote.status === 'confirmed'`, el navegador ahora dispara **`Purchase`** (`purchase_${token}`) en lugar de `Lead`, quedando 1:1 con la señal CAPI server-side de [`confirmQuoteCore.ts`](file:///c:/Webs/cocktailsontap.cl/lib/services/confirmQuoteCore.ts).
+- **Advanced Matching en `/lp/eventos` ([`EventosAdsLanding.tsx`](file:///c:/Webs/cocktailsontap.cl/components/landing/EventosAdsLanding.tsx))**:
+  - Agregado `quotePixelUserData(...)` (`em`, `ph`, `fn`, `ln`, `ct`) y `order_id` al disparo de Pixel `Lead` (`lead_${token}`).
+- **Alineación a reglas vigentes ([`EventWizardShell.tsx`](file:///c:/Webs/cocktailsontap.cl/components/wizard/events/EventWizardShell.tsx) y [`cocktailsMcpServer.ts`](file:///c:/Webs/cocktailsontap.cl/lib/mcp/cocktailsMcpServer.ts))**:
+  - Reemplazado el umbral de respaldo `>= 40` por `MURO_MIN_LITERS` (`60L`) en `handleNextFromProposal`.
+  - Actualizado el mensaje de comuna no encontrada en `get_catalog_and_delivery` eliminando la mención obsoleta a `"Otra"`.
+
 ### 19-11-2026 — Auto-guardado Inmediato y Edición Completa en Cotizaciones Borrador (`/cotizar/[token]`)
 
 - **Persistencia automática Zero Trust para borradores (`updateDraftQuote.ts` y `updateDraftQuoteCore.ts`)**:

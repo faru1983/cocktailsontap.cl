@@ -217,7 +217,7 @@ export function createCocktailsMcpServer(ctx: CocktailsMcpContext = {}): McpServ
                         deliveryLookup = {
                             found: false,
                             requestedComuna: args.comuna,
-                            note: 'Comuna no encontrada en el listado exacto; usa "Otra" si corresponde o verifica ortografía.',
+                            note: 'Comuna no encontrada en el listado exacto; verifica la ortografía o confirma si pertenece a la Región Metropolitana.',
                         };
                     }
                 }
