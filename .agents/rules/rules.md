@@ -133,8 +133,8 @@ Define la arquitectura, reglas irrompibles, convenciones de código, esquema de 
 | `client_stage_events` | Historial de avances de etapa CRM | `from_stage`, `to_stage`, `reason`, `source`, `meta_event_sent` |
 | `client_merge_logs` | Auditoría de merges (auto o manual) | `from_client_id`, `into_client_id`, `reason`, `details` |
 | `quotes` | Cotizaciones (draft/confirmed/completed/cancelled) | `token` (unique, auto-gen), `client_id` FK |
-| `quote_items` | Items de cada cotización con precios congelados | `quote_id` FK, `product_id` FK nullable |
-| `products` | Catálogo de cócteles | `is_active`, `display_order`, `category_id` FK, `hide_from_recipes` (true = no aparece en Recetario; extras de venta sin BOM) |
+| `quote_items` | Items de cada cotización con precios congelados | `quote_id` FK, `product_id` FK nullable, `variant` nullable (mezclador/opción elegida) |
+| `products` | Catálogo de cócteles | `is_active`, `display_order`, `category_id` FK, `hide_from_recipes` (true = no aparece en Recetario; extras de venta sin BOM), `variant_config` jsonb nullable |
 | `product_prices` | Precios por tamaño (5L, 10L, 20L, 30L) | `product_id` FK, `size`, `price`, `offer_price` |
 | `categories` | Categorías de productos | `is_active`, `display_order` |
 | `regions` | Regiones de Chile (tarifas + transporte) | `code`, flags eventos/barriles, `cost` / `direct_sale_delivery_cost` / `free_from`, `shipping_carrier` (`own`\|`blue_express`), `blue_express_zone` (`centro`\|`extremo`) |

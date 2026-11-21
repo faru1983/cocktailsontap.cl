@@ -492,6 +492,7 @@ export default function QuoteOperationalSummary({
             product_name?: string;
             size?: string;
             quantity?: number;
+            variant?: string | null;
             offer_price_at_time?: number;
             size_value?: number | null;
         }[] | null;
@@ -1247,7 +1248,7 @@ export default function QuoteOperationalSummary({
                                                 ) : (
                                                     <div style={{ flex: 1, minWidth: '120px' }}>
                                                         <div style={{ color: TEXT, fontSize: '14px', fontWeight: 700 }}>
-                                                            {item.product_name}
+                                                            {item.product_name}{item.variant ? ` (${item.variant})` : ''}{item.variant ? ` (${item.variant})` : ''}
                                                         </div>
                                                         <div style={{ color: MUTED, fontSize: '12px' }}>{item.size}</div>
                                                     </div>
@@ -1318,7 +1319,7 @@ export default function QuoteOperationalSummary({
                                                             Personalizado
                                                         </span>
                                                     )}
-                                                    {item.product_name}
+                                                    {item.product_name}{item.variant ? ` (${item.variant})` : ''}
                                                 </span>
                                                 <span style={{ textAlign: 'right', flexShrink: 0 }}>
                                                     <span style={{ color: TEXT, fontSize: '13px', fontWeight: 800 }}>

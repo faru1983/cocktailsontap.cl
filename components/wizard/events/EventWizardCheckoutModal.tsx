@@ -3,7 +3,7 @@
 import React, { useMemo, useState } from 'react';
 import type { useWizard } from '@/hooks/useWizard';
 import type { Comuna, Region, EventType } from '@/lib/types';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, normalizeEmail, normalizePersonName } from '@/lib/utils';
 import PhoneInput from '@/components/ui/PhoneInput';
 import RegionComunaFields from '@/components/ui/RegionComunaFields';
 import ShippingDatePicker from '@/components/ui/ShippingDatePicker';
@@ -87,7 +87,10 @@ export default function EventWizardCheckoutModal({
     };
 
     const handleEmailBlur = () => {
-        const email = state.contact.email.trim();
+        const email = normalizeEmail(state.contact.email);
+        if (email !== state.contact.email) {
+            updateContact('email', email);
+        }
         if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
             setErrors((prev) => ({
                 ...prev,
@@ -182,6 +185,12 @@ export default function EventWizardCheckoutModal({
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
+        const firstName = normalizePersonName(state.contact.firstName);
+        const lastName = normalizePersonName(state.contact.lastName);
+        const email = normalizeEmail(state.contact.email);
+        if (firstName !== state.contact.firstName) updateContact('firstName', firstName);
+        if (lastName !== state.contact.lastName) updateContact('lastName', lastName);
+        if (email !== state.contact.email) updateContact('email', email);
         if (!validateForm()) return;
         onConfirm({ confirmNow });
     };
@@ -346,6 +355,7 @@ export default function EventWizardCheckoutModal({
                                                     autoComplete="given-name"
                                                     className={getInputCls(Boolean(errors.firstName))}
                                                     value={state.contact.firstName}
+                                                    onBlur={(e) => updateContact('firstName', normalizePersonName(e.target.value))}
                                                     onChange={(e) => {
                                                         updateContact('firstName', e.target.value);
                                                         if (e.target.value.trim().length >= 2) clearError('firstName');
@@ -370,6 +380,7 @@ export default function EventWizardCheckoutModal({
                                                     autoComplete="family-name"
                                                     className={getInputCls(Boolean(errors.lastName))}
                                                     value={state.contact.lastName}
+                                                    onBlur={(e) => updateContact('lastName', normalizePersonName(e.target.value))}
                                                     onChange={(e) => {
                                                         updateContact('lastName', e.target.value);
                                                         if (e.target.value.trim().length >= 2) clearError('lastName');
@@ -398,7 +409,7 @@ export default function EventWizardCheckoutModal({
                                                     className={getInputCls(Boolean(errors.email))}
                                                     value={state.contact.email}
                                                     onChange={(e) => {
-                                                        updateContact('email', e.target.value);
+                                                        updateContact('email', e.target.value.toLowerCase());
                                                         if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e.target.value.trim())) clearError('email');
                                                     }}
                                                     onBlur={handleEmailBlur}

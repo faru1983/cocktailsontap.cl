@@ -43,6 +43,7 @@ export interface QuoteItemForProduction {
     size_value: number | null;
     size?: string | null;
     is_disposable?: boolean | null;
+    variant?: string | null;
 }
 
 export interface ProductionLine {
@@ -319,19 +320,21 @@ export function aggregateFromQuotes(
             }
             continue;
         }
+        const variant = typeof item.variant === 'string' && item.variant.trim() ? item.variant.trim() : null;
+        const productKey = variant ? `${item.product_id}::${variant}` : item.product_id;
         const addLiters = sizeVal * qty;
-        litersByProductId[item.product_id] = (litersByProductId[item.product_id] || 0) + addLiters;
-        const breakdown = sizeBreakdownByProductId[item.product_id] || {};
+        litersByProductId[productKey] = (litersByProductId[productKey] || 0) + addLiters;
+        const breakdown = sizeBreakdownByProductId[productKey] || {};
         breakdown[sizeVal] = (breakdown[sizeVal] || 0) + qty;
-        sizeBreakdownByProductId[item.product_id] = breakdown;
+        sizeBreakdownByProductId[productKey] = breakdown;
 
-        const scoped = scopedLitersByProductId[item.product_id] || { disposable: 0, event: 0 };
+        const scoped = scopedLitersByProductId[productKey] || { disposable: 0, event: 0 };
         if (isDisposableQuoteItem(item)) {
             scoped.disposable += addLiters;
         } else {
             scoped.event += addLiters;
         }
-        scopedLitersByProductId[item.product_id] = scoped;
+        scopedLitersByProductId[productKey] = scoped;
     }
 
     return { litersByProductId, sizeBreakdownByProductId, scopedLitersByProductId, skipped };
@@ -368,25 +371,29 @@ export function scaleProduction(
     const scaledRecipes: ScaledRecipe[] = [];
     const skipped: string[] = [];
 
-    for (const [productId, liters] of Object.entries(litersByProductId)) {
+    for (const [productKey, liters] of Object.entries(litersByProductId)) {
         if (liters <= 0) continue;
-        const recipe = recipeByProduct.get(productId);
+        const sepIdx = productKey.indexOf('::');
+        const baseProductId = sepIdx >= 0 ? productKey.slice(0, sepIdx) : productKey;
+        const variant = sepIdx >= 0 ? productKey.slice(sepIdx + 2) : null;
+        const recipe = recipeByProduct.get(baseProductId);
         if (!recipe || recipe.is_active === false) {
-            skipped.push(productId);
+            skipped.push(baseProductId);
             continue;
         }
-        const name = recipe.products?.name || productId;
+        const baseName = recipe.products?.name || baseProductId;
+        const name = variant ? `${baseName} (${variant})` : baseName;
         const roundedLiters = roundQty(liters);
-        const sizeBreakdown = sizeBreakdownByProductId?.[productId];
-        litersByProduct[productId] = {
-            productId,
+        const sizeBreakdown = sizeBreakdownByProductId?.[productKey];
+        litersByProduct[productKey] = {
+            productId: productKey,
             name,
             liters: roundedLiters,
             ...(sizeBreakdown && Object.keys(sizeBreakdown).length > 0 ? { sizeBreakdown } : {}),
         };
 
         const base = Number(recipe.base_liters) || 5;
-        const scoped = scopedLitersByProductId?.[productId];
+        const scoped = scopedLitersByProductId?.[productKey];
         const recipeLines: ScaledRecipeLine[] = [];
 
         for (const item of recipe.recipe_items || []) {
@@ -403,16 +410,20 @@ export function scaleProduction(
 
             const factor = litersForItem / base;
             const qty = Number(item.qty_base) * factor;
+            const isVariantBebida = Boolean(variant) && String(ing.category) === 'Bebida';
+            const ingKey = isVariantBebida ? `${ing.id}::${variant}` : ing.id;
+            const ingDisplayName = isVariantBebida ? variant! : ing.name;
+
             recipeLines.push({
-                ingredientId: ing.id,
-                name: ing.name,
+                ingredientId: ingKey,
+                name: ingDisplayName,
                 category: String(ing.category),
                 qty: roundQty(qty),
                 unit: String(ing.format_unit),
                 formatQty: Number(ing.format_qty) || 0,
             });
 
-            const existing = ingredientTotals.get(ing.id);
+            const existing = ingredientTotals.get(ingKey);
             if (existing) {
                 existing.qty = roundQty(existing.qty + qty, 4);
                 existing.packs = existing.formatQty > 0 ? roundQty(existing.qty / existing.formatQty, 4) : 0;
@@ -421,9 +432,9 @@ export function scaleProduction(
                 const formatQty = Number(ing.format_qty) || 0;
                 const formatPrice = Number(ing.format_price) || 0;
                 const packs = formatQty > 0 ? roundQty(qty / formatQty, 4) : 0;
-                ingredientTotals.set(ing.id, {
-                    ingredientId: ing.id,
-                    name: ing.name,
+                ingredientTotals.set(ingKey, {
+                    ingredientId: ingKey,
+                    name: ingDisplayName,
                     category: String(ing.category),
                     qty: roundQty(qty, 4),
                     unit: String(ing.format_unit),
@@ -438,7 +449,7 @@ export function scaleProduction(
 
         recipeLines.sort((a, b) => compareIngredientDisplayOrder(a.name, b.name));
         scaledRecipes.push({
-            productId,
+            productId: productKey,
             name,
             liters: roundedLiters,
             items: recipeLines,

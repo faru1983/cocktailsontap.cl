@@ -122,6 +122,7 @@ export function createCocktailsMcpServer(ctx: CocktailsMcpContext = {}): McpServ
                         name: p.name,
                         category: p.category,
                         description: p.description,
+                        variant_config: p.variant_config,
                         sizes: p.sizes.filter((s) => {
                             if (serviceType === 'direct') return s.isDisposable;
                             if (serviceType === 'event') return !s.isDisposable;
@@ -139,6 +140,7 @@ export function createCocktailsMcpServer(ctx: CocktailsMcpContext = {}): McpServ
                           name: p.name,
                           category: p.category,
                           ...(includeDesc ? { desc: p.description.slice(0, 80) } : {}),
+                          ...(p.variant_config ? { variants: p.variant_config } : {}),
                           sizes: p.sizes.map((s) => ({
                               size: s.size,
                               liters: s.sizeValue,
@@ -155,7 +157,8 @@ export function createCocktailsMcpServer(ctx: CocktailsMcpContext = {}): McpServ
                           const prices = p.sizes
                               .map((s) => `${s.sizeValue}${s.unit}:$${s.offerPrice ?? s.price}`)
                               .join(',');
-                          acc[cat].push(`${p.name} [${prices}]`);
+                          const variantNote = p.variant_config ? ` (${p.variant_config.options.join('/')})` : '';
+                          acc[cat].push(`${p.name}${variantNote} [${prices}]`);
                           return acc;
                       }, {})
                     : undefined;
@@ -293,6 +296,7 @@ export function createCocktailsMcpServer(ctx: CocktailsMcpContext = {}): McpServ
                             productId: z.string().min(1),
                             size: z.string().min(1),
                             quantity: z.number().int().min(1).max(50),
+                            variant: z.string().max(120).optional().describe('Variante/mezclador opcional (ej. Coca Zero, Sprite). Si se omite usa la opción por defecto.'),
                         })
                     )
                     .optional()
@@ -437,6 +441,7 @@ export function createCocktailsMcpServer(ctx: CocktailsMcpContext = {}): McpServ
                             productId: z.string().min(1),
                             size: z.string().min(1),
                             quantity: z.number().int().min(1).max(50),
+                            variant: z.string().max(120).optional().describe('Variante/mezclador opcional (ej. Coca Zero, Sprite). Si se omite usa la opción por defecto.'),
                         })
                     )
                     .min(1),
@@ -544,6 +549,7 @@ export function createCocktailsMcpServer(ctx: CocktailsMcpContext = {}): McpServ
                             productId: z.string().min(1),
                             size: z.string().min(1),
                             quantity: z.number().int().min(1).max(50),
+                            variant: z.string().max(120).optional().describe('Variante/mezclador opcional (ej. Coca Zero, Sprite). Si se omite usa la opción por defecto.'),
                         })
                     )
                     .min(1),

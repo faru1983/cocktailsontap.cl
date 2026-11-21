@@ -1,9 +1,11 @@
+import { resolveProductVariant } from '@/lib/catalogPricing';
 import { createServerClient } from '@/lib/supabaseServer';
 import type { WizardState, CocktailForWizard, Comuna, Quote, QuoteItem } from '@/lib/types';
 import type { QuoteSource } from '@/lib/quoteSource';
 import { calculateSummaryData } from '@/lib/wizardLogic';
 import { resolveRegionShortName } from '@/lib/wizardLogic';
 import { normalizePhoneE164 } from '@/lib/phone';
+import { normalizeEmail, normalizePersonName } from '@/lib/utils';
 import { resolveOrCreateClient, type ClientTouchSource } from '@/lib/services/clientService';
 
 interface CreateQuoteResult {
@@ -24,15 +26,15 @@ export const QuoteService = {
      * Resolve/create person via clientService (phone-first + multi-identifiers).
      */
     async upsertClient(state: WizardState, source: QuoteSource = 'web'): Promise<string | null> {
-        const emailTrimmed = state.contact.email?.trim().toLowerCase() || '';
+        const emailTrimmed = normalizeEmail(state.contact.email);
         const phone = normalizePhoneE164(state.contact.phone || '') || '';
 
         if (!emailTrimmed && !phone) return null;
 
         try {
             const result = await resolveOrCreateClient({
-                firstName: state.contact.firstName,
-                lastName: state.contact.lastName,
+                firstName: normalizePersonName(state.contact.firstName),
+                lastName: normalizePersonName(state.contact.lastName) || undefined,
                 email: emailTrimmed || null,
                 phone: phone || null,
                 source: source as ClientTouchSource,
@@ -82,7 +84,7 @@ export const QuoteService = {
         
         const finalTotalPrice = data.totalOfferPrice + finalShipping + finalInstallation - finalDiscount;
 
-        const emailTrimmed = state.contact.email?.trim().toLowerCase() || '';
+        const emailTrimmed = normalizeEmail(state.contact.email);
 
         // Resolver event_type_id contra la tabla event_types para no violar la FK con textos libres
         const normalizeText = (v: string) =>
@@ -113,8 +115,8 @@ export const QuoteService = {
             .insert({
                 status: state.serviceType === 'direct' ? 'confirmed' : 'draft',
                 client_id: clientId,
-                client_name: state.contact.firstName.trim(),
-                client_lastname: state.contact.lastName?.trim() || null,
+                client_name: normalizePersonName(state.contact.firstName),
+                client_lastname: normalizePersonName(state.contact.lastName) || null,
                 client_email: emailTrimmed || null,
                 client_phone: normalizePhoneE164(state.contact.phone) || null,
                 client_address: state.contact.address.trim() || null,
@@ -174,6 +176,7 @@ export const QuoteService = {
                 unit_id: isCustom ? null : priceData.unitId,
                 is_disposable: isCustom ? false : priceData.isDisposable,
                 quantity: sel.quantity,
+                variant: isCustom || !cocktail ? null : resolveProductVariant(sel.variant, cocktail),
                 price_at_time: isCustom ? (sel.customPrice || 0) : priceData.price,
                 offer_price_at_time:
                     isAdmin && sel.customPrice !== undefined

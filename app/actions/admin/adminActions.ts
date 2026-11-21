@@ -36,7 +36,11 @@ async function checkAuth() {
 }
 
 // ── Update Quote Status ──────────────────────────────────────────────────────
-export async function updateQuoteStatus(quoteId: string, status: string): Promise<{ success: boolean; error?: string }> {
+export async function updateQuoteStatus(
+    quoteId: string,
+    status: string,
+    options?: { skipReview?: boolean }
+): Promise<{ success: boolean; error?: string; reviewSent?: boolean }> {
     await checkAuth();
     const parsed = QuoteStatusSchema.safeParse(status);
     if (!parsed.success) return { success: false, error: 'Estado inválido.' };
@@ -52,13 +56,14 @@ export async function updateQuoteStatus(quoteId: string, status: string): Promis
     if (error) return { success: false, error: error.message };
 
     // If marking as completed, check review settings for auto mode
-    if (status === 'completed') {
-        await maybeAutoSendReview(quoteId, db);
+    let reviewSent = false;
+    if (status === 'completed' && !options?.skipReview) {
+        reviewSent = await maybeAutoSendReview(quoteId, db);
     }
 
     revalidatePath('/admin/quotes');
     revalidatePath(`/admin/quotes/${quoteId}`);
-    return { success: true };
+    return { success: true, reviewSent };
 }
 
 // ── Delete Quote Permanent ──────────────────────────────────────────────────
@@ -120,6 +125,7 @@ export async function updateQuoteItemsAdmin(
             unit_id?: string | null;
             is_disposable?: boolean | null;
             quantity: number;
+            variant?: string | null;
             price_at_time: number;
             offer_price_at_time: number;
         }[];
@@ -183,6 +189,7 @@ export async function updateQuoteItemsAdmin(
                 product_name: item.product_name,
                 size: item.size || 'Servicio',
                 quantity: item.quantity,
+                variant: isCustom ? null : (item.variant ?? null),
                 price_at_time: item.price_at_time ?? item.offer_price_at_time,
                 offer_price_at_time: item.offer_price_at_time,
                 quote_id: quoteId,
@@ -239,7 +246,8 @@ export async function updateQuoteItemsAdmin(
 // ── Manage Payments ────────────────────────────────────────────────────────
 export async function addQuotePayment(
     quoteId: string,
-    payment: { date: string; amount: number; note: string }
+    payment: { date: string; amount: number; note: string },
+    options?: { skipNotifications?: boolean }
 ): Promise<{ success: boolean; error?: string; emailWarning?: string; whatsappWarning?: string }> {
     await checkAuth();
     const db = createServerClient();
@@ -284,47 +292,51 @@ export async function addQuotePayment(
         }
     }
 
-    // 2. Envío de Email de confirmación de pago (Eventos y Venta Directa)
-    const { getQuoteBalance } = await import('@/lib/directSaleFulfillment');
-    const { sendPaymentRegisteredEmail } = await import('@/lib/services/paymentEmailService');
-
-    const balanceAfter = getQuoteBalance({
-        payments: newPayments,
-        total_price: quote.total_price,
-    });
-
-    const { data: fullForEmail } = await db.from('quotes').select('*').eq('id', quoteId).single();
-    if (fullForEmail?.client_email) {
-        const emailRes = await sendPaymentRegisteredEmail(
-            fullForEmail as Quote,
-            payment.amount,
-            balanceAfter
-        );
-        if (!emailRes.ok) {
-            emailWarning = emailRes.error || 'No se pudo enviar el email de pago';
-            console.error('Payment registered email failed:', emailWarning);
-        }
-    } else {
-        emailWarning = 'Sin email de cliente';
-    }
-
+    // 2. Envío de Email y WhatsApp de confirmación de pago (Eventos y Venta Directa)
+    const skipNotifications = Boolean(options?.skipNotifications);
     let whatsappWarning: string | undefined;
-    if (fullForEmail) {
-        try {
-            const { notifyQuotePaymentRegistered } = await import('@/lib/services/deskcommService');
-            const waRes = await notifyQuotePaymentRegistered(
+
+    if (!skipNotifications) {
+        const { getQuoteBalance } = await import('@/lib/directSaleFulfillment');
+        const { sendPaymentRegisteredEmail } = await import('@/lib/services/paymentEmailService');
+
+        const balanceAfter = getQuoteBalance({
+            payments: newPayments,
+            total_price: quote.total_price,
+        });
+
+        const { data: fullForEmail } = await db.from('quotes').select('*').eq('id', quoteId).single();
+        if (fullForEmail?.client_email) {
+            const emailRes = await sendPaymentRegisteredEmail(
                 fullForEmail as Quote,
                 payment.amount,
-                balanceAfter,
-                newPayments.length
+                balanceAfter
             );
-            if (!waRes.ok && waRes.error) {
-                whatsappWarning = waRes.error;
-                console.warn('Payment registered WhatsApp warning:', waRes.error);
+            if (!emailRes.ok) {
+                emailWarning = emailRes.error || 'No se pudo enviar el email de pago';
+                console.error('Payment registered email failed:', emailWarning);
             }
-        } catch (waErr) {
-            whatsappWarning = waErr instanceof Error ? waErr.message : 'Error enviando WhatsApp';
-            console.error('Payment registered WhatsApp failed:', waErr);
+        } else {
+            emailWarning = 'Sin email de cliente';
+        }
+
+        if (fullForEmail) {
+            try {
+                const { notifyQuotePaymentRegistered } = await import('@/lib/services/deskcommService');
+                const waRes = await notifyQuotePaymentRegistered(
+                    fullForEmail as Quote,
+                    payment.amount,
+                    balanceAfter,
+                    newPayments.length
+                );
+                if (!waRes.ok && waRes.error) {
+                    whatsappWarning = waRes.error;
+                    console.warn('Payment registered WhatsApp warning:', waRes.error);
+                }
+            } catch (waErr) {
+                whatsappWarning = waErr instanceof Error ? waErr.message : 'Error enviando WhatsApp';
+                console.error('Payment registered WhatsApp failed:', waErr);
+            }
         }
     }
 
@@ -1593,16 +1605,18 @@ export async function updateSiteSetting(id: string, data: { value: string; is_ac
 }
 
 // Helper: auto-send review if setting is 'auto' (skips if already sent via sendReviewEmail)
-async function maybeAutoSendReview(quoteId: string, db: any) {
+async function maybeAutoSendReview(quoteId: string, db: any): Promise<boolean> {
     try {
         const { data } = await db.from('admin_settings').select('value').eq('key', 'review_mode').single();
         if (data?.value === 'auto') {
-            await sendReviewEmail(quoteId);
+            const res = await sendReviewEmail(quoteId);
+            return Boolean(res.success);
         }
     } catch (err) {
         // Never block status updates if review email fails
         console.error(`[maybeAutoSendReview] quote ${quoteId}:`, err);
     }
+    return false;
 }
 
 // ── Manual Sync & Email Triggers ───────────────────────────────────────────

@@ -9,6 +9,7 @@ import type {
     Region,
     SupabaseProduct,
     MeasurementUnit,
+    ProductVariantConfig,
 } from './types';
 import { isBlueExpressZone, parseBlueExpressRates, parseBlueExpressTransitDays, BLUE_EXPRESS_TRANSIT_SETTING_KEY, type BlueExpressHomeRates, type BlueExpressTransitTimes } from './blueExpress';
 import { parseShippingMethodsConfig, SHIPPING_METHODS_SETTING_KEY, type ShippingMethodsSettings } from './shippingMethods';
@@ -30,6 +31,25 @@ function resolveImage(imageUrl: string | null): string {
 
 function numOrNull(v: number | null | undefined): number | null {
     return v === null || v === undefined ? null : Number(v);
+}
+
+/** Normaliza `variant_config` desde JSONB asegurando opciones limpias y default válido. */
+export function normalizeVariantConfig(raw: unknown): ProductVariantConfig | null {
+    if (!raw || typeof raw !== 'object') return null;
+    const obj = raw as Record<string, unknown>;
+    const rawOptions = Array.isArray(obj.options) ? obj.options : [];
+    const options = Array.from(
+        new Set(
+            rawOptions
+                .map((o) => (typeof o === 'string' ? o.trim() : ''))
+                .filter((o) => o.length > 0)
+        )
+    );
+    if (options.length === 0) return null;
+    const label = typeof obj.label === 'string' && obj.label.trim() ? obj.label.trim() : 'Elige una opción';
+    const rawDefault = typeof obj.default === 'string' ? obj.default.trim() : '';
+    const defaultOpt = options.includes(rawDefault) ? rawDefault : options[0];
+    return { label, default: defaultOpt, options };
 }
 
 // ─── Fetch con caché (revalida cada 5 minutos) ────────────────────────────────
@@ -76,7 +96,7 @@ export const fetchAllProductData = unstable_cache(
                 .from('products')
                 .select(
                     `
-                id, name, description, image_url, pdp_metadata,
+                id, name, description, image_url, pdp_metadata, variant_config,
                 categories ( name ),
                 product_prices ( 
                     size, size_value, unit_id, is_disposable, price, offer_price, display_order, is_active, image_url,
@@ -192,6 +212,7 @@ export const fetchAllProductData = unstable_cache(
                 sizes,
                 selectedSize: sizes[0]?.size ?? '',
                 pdp_metadata: p.pdp_metadata || null,
+                variant_config: normalizeVariantConfig(p.variant_config),
             };
         });
 
@@ -201,6 +222,7 @@ export const fetchAllProductData = unstable_cache(
             category: p.category,
             desc: p.description,
             image: p.image,
+            variant_config: p.variant_config ?? null,
             prices: p.sizes.reduce(
                 (acc, s) => {
                     acc[s.size] = {

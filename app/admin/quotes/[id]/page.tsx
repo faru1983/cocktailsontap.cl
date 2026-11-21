@@ -19,8 +19,18 @@ export default async function QuoteDetailPage({ params }: { params: Params }) {
     if (!quote) notFound();
 
     const { data: eventTypes } = await db.from('event_types').select('*').order('display_order');
+    const { data: reviewSetting } = await db.from('admin_settings').select('value').eq('key', 'review_mode').single();
     const { fetchAllProductData } = await import('@/lib/serverData');
     const { products, comunas, regions } = await fetchAllProductData();
 
-    return <QuoteDetailClient quote={quote} allProducts={products} eventTypes={eventTypes || []} comunas={comunas} regions={regions} />;
+    return (
+        <QuoteDetailClient
+            quote={quote}
+            allProducts={products}
+            eventTypes={eventTypes || []}
+            comunas={comunas}
+            regions={regions}
+            reviewMode={reviewSetting?.value || 'manual'}
+        />
+    );
 }

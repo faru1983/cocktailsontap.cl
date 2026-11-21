@@ -108,16 +108,17 @@ export function useWizard(cocktails: CocktailForWizard[], comunas: Comuna[], cat
         setState((prev) => ({ ...prev, contact: { ...prev.contact, [key]: value } }));
     }, []);
 
-    const updateQuantity = useCallback((id: string, size: string, delta: number) => {
+    const updateQuantity = useCallback((id: string, size: string, delta: number, variant?: string | null) => {
         setState((prev) => {
-            const idx = prev.selections.findIndex((s) => s.id === id && s.size === size);
+            const normVar = variant ?? null;
+            const idx = prev.selections.findIndex((s) => s.id === id && s.size === size && (s.variant ?? null) === normVar);
             let next: WizardSelection[];
             if (idx >= 0) {
                 next = [...prev.selections];
                 next[idx] = { ...next[idx], quantity: next[idx].quantity + delta };
                 if (next[idx].quantity <= 0) next.splice(idx, 1);
             } else if (delta > 0) {
-                next = [...prev.selections, { id, size, quantity: 1 }];
+                next = [...prev.selections, { id, size, quantity: 1, ...(normVar ? { variant: normVar } : {}) }];
             } else {
                 next = prev.selections;
             }

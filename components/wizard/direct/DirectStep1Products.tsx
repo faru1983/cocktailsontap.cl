@@ -50,6 +50,7 @@ export default function DirectStep1Products({ wizard, cocktails, categories }: P
             description: c.desc,
             image: c.image,
             category: c.category,
+            variant_config: c.variant_config ?? null,
             selectedSize: existingSelection?.size, 
             sizes: Object.entries(c.prices)
                 .filter(([_, p]) => p.isDisposable || c.category === 'Otros') // Permitir Otros o productos desechables
@@ -68,16 +69,22 @@ export default function DirectStep1Products({ wizard, cocktails, categories }: P
 
     // 2. Objeto de "carrito" adaptado al Wizard
     const wizardCart: ICart = {
-        addItem: (id, name, size, price, offer, sizeValue, unitId, isDisposable, image) => updateQuantity(id, size, 1),
-        removeItem: (id, size) => {
-            const current = state.selections.find(s => s.id === id && s.size === size)?.quantity ?? 0;
-            updateQuantity(id, size, -current);
+        addItem: (id, name, size, price, offer, sizeValue, unitId, isDisposable, image, variant) =>
+            updateQuantity(id, size, 1, variant),
+        removeItem: (id, size, variant) => {
+            const normVar = variant ?? null;
+            const current = state.selections.find(s => s.id === id && s.size === size && (s.variant ?? null) === normVar)?.quantity ?? 0;
+            updateQuantity(id, size, -current, normVar);
         },
-        updateQuantity: (id, size, newQty) => {
-            const current = state.selections.find(s => s.id === id && s.size === size)?.quantity ?? 0;
-            updateQuantity(id, size, newQty - current);
+        updateQuantity: (id, size, newQty, variant) => {
+            const normVar = variant ?? null;
+            const current = state.selections.find(s => s.id === id && s.size === size && (s.variant ?? null) === normVar)?.quantity ?? 0;
+            updateQuantity(id, size, newQty - current, normVar);
         },
-        getQuantity: (id, size) => state.selections.find(s => s.id === id && s.size === size)?.quantity ?? 0
+        getQuantity: (id, size, variant) => {
+            const normVar = variant ?? null;
+            return state.selections.find(s => s.id === id && s.size === size && (s.variant ?? null) === normVar)?.quantity ?? 0;
+        },
     };
 
     return (

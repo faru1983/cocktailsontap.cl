@@ -489,8 +489,13 @@ export function calculateEstimatedProposal(
  * Función pura que calcula todos los precios, descuentos, envíos e instalaciones.
  * Se utiliza tanto en el Wizard como en la vista de Cotización.
  */
+export function formatProductWithVariant(name: string, variant?: string | null): string {
+    const v = typeof variant === 'string' ? variant.trim() : '';
+    return v ? `${name} (${v})` : name;
+}
+
 export interface SummaryData {
-    items: (Omit<CocktailForWizard, 'prices'> & { selectedSize: string; quantity: number; totalNormalPrice: number; totalOfferPrice: number })[];
+    items: (Omit<CocktailForWizard, 'prices'> & { selectedSize: string; variant?: string | null; quantity: number; totalNormalPrice: number; totalOfferPrice: number })[];
     totalNormalPrice: number;
     totalOfferPrice: number;
     totalDiscount: number;
@@ -564,7 +569,11 @@ export function calculateSummaryData(
             totalLiters += priceData.sizeValue * s.quantity;
         }
         
-        return { ...cocktail, selectedSize: s.size, quantity: s.quantity, totalNormalPrice: itemNormal, totalOfferPrice: itemOffer, priceData };
+        const variant = cocktail.variant_config?.options?.length
+            ? (s.variant && cocktail.variant_config.options.includes(s.variant) ? s.variant : cocktail.variant_config.default)
+            : null;
+
+        return { ...cocktail, selectedSize: s.size, variant, quantity: s.quantity, totalNormalPrice: itemNormal, totalOfferPrice: itemOffer, priceData };
     });
 
     // Lógica dinámica de Envío (región + override comuna; pendiente si no hay tarifa)
@@ -718,7 +727,7 @@ export function buildWhatsAppMessage(state: WizardState, data: SummaryData, toke
     // 4. Productos
     const itemsText = data.items.map((s) => {
         const hasOffer = s.totalNormalPrice > s.totalOfferPrice;
-        return `• x${s.quantity} ${s.name} (${s.selectedSize}): ${hasOffer ? `~$${N.format(s.totalNormalPrice)}~ ` : ''}*$${N.format(s.totalOfferPrice)}*`;
+        return `• x${s.quantity} ${formatProductWithVariant(s.name, s.variant)} (${s.selectedSize}): ${hasOffer ? `~$${N.format(s.totalNormalPrice)}~ ` : ''}*$${N.format(s.totalOfferPrice)}*`;
     }).join('\n');
 
     msg += `*PRODUCTOS:*\n${itemsText}\n\n`;
@@ -840,7 +849,7 @@ export function buildWhatsAppMessageFromQuote(quote: Quote & { quote_items: Quot
         const normal = item.price_at_time * item.quantity;
         const offer = item.offer_price_at_time * item.quantity;
         const hasOffer = normal > offer;
-        return `• x${item.quantity} ${item.product_name} (${item.size}): ${hasOffer ? `~$${N.format(normal)}~ ` : ''}*$${N.format(offer)}*`;
+        return `• x${item.quantity} ${formatProductWithVariant(item.product_name, item.variant)} (${item.size}): ${hasOffer ? `~$${N.format(normal)}~ ` : ''}*$${N.format(offer)}*`;
     }).join('\n');
 
     msg += `*PRODUCTOS:*\n${itemsText}\n\n`;

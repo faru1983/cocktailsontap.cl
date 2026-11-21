@@ -11,7 +11,7 @@ import {
     getWhatsAppUrl,
     isEventBarrelSizeLabelCompatible,
 } from '@/lib/wizardLogic';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, normalizeEmail, normalizePersonName } from '@/lib/utils';
 import {
     MURO_MIN_LITERS,
     PORTATIL_MIN_LITERS,
@@ -216,6 +216,7 @@ export default function EventosAdsLanding({ cocktails, comunas, regions, eventTy
     const [flavorFilter, setFlavorFilter] = useState<'all' | 'Cocktails' | 'Combinados' | 'Mocktails'>('all');
     const [flavorSearch, setFlavorSearch] = useState('');
     const [manualSelections, setManualSelections] = useState<WizardSelection[] | null>(null);
+    const [drawerVariants, setDrawerVariants] = useState<Record<string, string>>({});
 
     // Formulario de contacto
     const [firstName, setFirstName] = useState('');
@@ -530,24 +531,29 @@ export default function EventosAdsLanding({ cocktails, comunas, regions, eventTy
         }
     };
 
-    const handleQuantityChange = (cocktailId: string, sizeLabel: string, delta: number) => {
+    const handleQuantityChange = (cocktailId: string, sizeLabel: string, delta: number, variant?: string | null) => {
+        const prod = cocktails.find((c) => c.id === cocktailId);
+        const normVar = prod?.variant_config?.options?.length
+            ? (variant && prod.variant_config.options.includes(variant) ? variant : prod.variant_config.default)
+            : null;
         const source = manualSelections !== null ? manualSelections : autoSelections;
         const copy = source.map((item) => ({ ...item }));
-        const idx = copy.findIndex((s) => s.id === cocktailId && s.size === sizeLabel);
+        const idx = copy.findIndex((s) => s.id === cocktailId && s.size === sizeLabel && (s.variant ?? null) === normVar);
 
         if (idx >= 0) {
             const nextQty = copy[idx].quantity + delta;
             if (nextQty <= 0) copy.splice(idx, 1);
             else copy[idx].quantity = nextQty;
         } else if (delta > 0) {
-            copy.push({ id: cocktailId, size: sizeLabel, quantity: 1 });
+            copy.push({ id: cocktailId, size: sizeLabel, quantity: 1, ...(normVar ? { variant: normVar } : {}) });
         }
         setManualSelections(copy);
     };
 
-    const handleRemoveItem = (cocktailId: string, sizeLabel: string) => {
+    const handleRemoveItem = (cocktailId: string, sizeLabel: string, variant?: string | null) => {
+        const normVar = variant ?? null;
         const source = manualSelections !== null ? manualSelections : autoSelections;
-        setManualSelections(source.filter((s) => !(s.id === cocktailId && s.size === sizeLabel)));
+        setManualSelections(source.filter((s) => !(s.id === cocktailId && s.size === sizeLabel && (s.variant ?? null) === normVar)));
     };
 
     const clearFieldError = (key: string) => {
@@ -626,9 +632,9 @@ export default function EventosAdsLanding({ cocktails, comunas, regions, eventTy
                         drinksPerPerson,
                     },
                     contact: {
-                        firstName: firstName.trim(),
-                        lastName: lastName.trim(),
-                        email: email.trim(),
+                        firstName: normalizePersonName(firstName),
+                        lastName: normalizePersonName(lastName),
+                        email: normalizeEmail(email),
                         phone: phone.trim(),
                         address: '',
                         region,
@@ -1710,17 +1716,22 @@ export default function EventosAdsLanding({ cocktails, comunas, regions, eventTy
                                                 const cups = litersNum * sel.quantity * 5;
                                                 return (
                                                     <div
-                                                        key={`${sel.id}-${sel.size}`}
+                                                        key={`${sel.id}-${sel.size}-${sel.variant || ''}`}
                                                         className="p-3 rounded-2xl bg-zinc-950 border border-white/10 hover:border-primary/40 flex items-center justify-between gap-3 text-xs transition-colors"
                                                     >
                                                         <div className="min-w-0 flex-1">
                                                             <div className="flex items-center gap-1.5 flex-wrap">
                                                                 <span className="font-black text-white text-sm truncate">
-                                                                    {prod?.name || 'Cóctel'}
+                                                                    {prod?.name || 'Cóctel'}{sel.variant ? ` (${sel.variant})` : ''}
                                                                 </span>
                                                                 <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-white/10 text-zinc-300">
                                                                     {sel.size}
                                                                 </span>
+                                                                {sel.variant && (
+                                                                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-primary/20 text-primary border border-primary/30">
+                                                                        {sel.variant}
+                                                                    </span>
+                                                                )}
                                                             </div>
                                                             <span className="text-[11px] text-zinc-400 block mt-0.5">
                                                                 {sel.quantity * litersNum}L = ~{cups} copas
@@ -1732,7 +1743,7 @@ export default function EventosAdsLanding({ cocktails, comunas, regions, eventTy
                                                                 <button
                                                                     type="button"
                                                                     aria-label={`Quitar ${sel.size} de ${prod?.name}`}
-                                                                    onClick={() => handleQuantityChange(sel.id, sel.size, -1)}
+                                                                    onClick={() => handleQuantityChange(sel.id, sel.size, -1, sel.variant)}
                                                                     className="w-6 h-6 rounded-lg bg-white/10 hover:bg-white/20 text-white flex items-center justify-center cursor-pointer active:scale-95"
                                                                 >
                                                                     <Minus className="w-3 h-3" />
@@ -1743,7 +1754,7 @@ export default function EventosAdsLanding({ cocktails, comunas, regions, eventTy
                                                                 <button
                                                                     type="button"
                                                                     aria-label={`Agregar ${sel.size} de ${prod?.name}`}
-                                                                    onClick={() => handleQuantityChange(sel.id, sel.size, 1)}
+                                                                    onClick={() => handleQuantityChange(sel.id, sel.size, 1, sel.variant)}
                                                                     className="w-6 h-6 rounded-lg bg-white/10 hover:bg-white/20 text-white flex items-center justify-center cursor-pointer active:scale-95"
                                                                 >
                                                                     <Plus className="w-3 h-3" />
@@ -1753,7 +1764,7 @@ export default function EventosAdsLanding({ cocktails, comunas, regions, eventTy
                                                             <button
                                                                 type="button"
                                                                 aria-label={`Eliminar ${prod?.name} de la barra`}
-                                                                onClick={() => handleRemoveItem(sel.id, sel.size)}
+                                                                onClick={() => handleRemoveItem(sel.id, sel.size, sel.variant)}
                                                                 className="w-7 h-7 rounded-lg bg-white/5 hover:bg-red-500/20 text-zinc-400 hover:text-red-400 flex items-center justify-center transition-colors cursor-pointer"
                                                                 title="Quitar de mi barra"
                                                             >
@@ -1851,6 +1862,12 @@ export default function EventosAdsLanding({ cocktails, comunas, regions, eventTy
 
                                                     const isSelected = totalSelectedForThis > 0;
 
+                                                    const activeVariant = c.variant_config?.options?.length
+                                                        ? (drawerVariants[c.id] && c.variant_config.options.includes(drawerVariants[c.id])
+                                                            ? drawerVariants[c.id]
+                                                            : c.variant_config.default)
+                                                        : null;
+
                                                     return (
                                                         <div
                                                             key={c.id}
@@ -1901,17 +1918,47 @@ export default function EventosAdsLanding({ cocktails, comunas, regions, eventTy
                                                                 </p>
                                                             </div>
 
+                                                            {/* Selector de variante/bebida si aplica */}
+                                                            {c.variant_config?.options?.length ? (
+                                                                <div className="pt-2 border-t border-white/[0.06] flex items-center justify-between gap-2">
+                                                                    <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 shrink-0">
+                                                                        {c.variant_config.label}:
+                                                                    </span>
+                                                                    <select
+                                                                        aria-label={c.variant_config.label}
+                                                                        value={activeVariant || c.variant_config.default}
+                                                                        onChange={(e) =>
+                                                                            setDrawerVariants((prev) => ({
+                                                                                ...prev,
+                                                                                [c.id]: e.target.value,
+                                                                            }))
+                                                                        }
+                                                                        className="flex-1 min-w-0 px-2.5 py-1.5 rounded-lg bg-zinc-900 border border-white/15 text-xs font-bold text-primary outline-none focus:border-primary cursor-pointer"
+                                                                    >
+                                                                        {c.variant_config.options.map((opt) => (
+                                                                            <option key={opt} value={opt}>{opt}</option>
+                                                                        ))}
+                                                                    </select>
+                                                                </div>
+                                                            ) : null}
+
                                                             {/* Selectores de tamaño compatible con el dispensador activo */}
                                                             <div className="pt-2.5 border-t border-white/[0.08] flex items-center justify-between gap-2 flex-wrap">
                                                                 {compatibleSizes.map(([sizeLabel]) => {
                                                                     const qty =
                                                                         currentSelections.find(
-                                                                            (s) => s.id === c.id && s.size === sizeLabel
+                                                                            (s) => s.id === c.id && s.size === sizeLabel && (s.variant ?? null) === activeVariant
                                                                         )?.quantity || 0;
                                                                     const liters = parseInt(sizeLabel, 10);
                                                                     const cups = liters * 5;
 
-                                                                    return (
+                                                                    const activeVariant = c.variant_config?.options?.length
+                                                        ? (drawerVariants[c.id] && c.variant_config.options.includes(drawerVariants[c.id])
+                                                            ? drawerVariants[c.id]
+                                                            : c.variant_config.default)
+                                                        : null;
+
+                                                    return (
                                                                         <div
                                                                             key={sizeLabel}
                                                                             className={`flex items-center justify-between gap-2 flex-1 p-2 rounded-xl border ${
@@ -1933,7 +1980,7 @@ export default function EventosAdsLanding({ cocktails, comunas, regions, eventTy
                                                                                 <button
                                                                                     type="button"
                                                                                     aria-label={`Quitar ${sizeLabel} de ${c.name}`}
-                                                                                    onClick={() => handleQuantityChange(c.id, sizeLabel, -1)}
+                                                                                    onClick={() => handleQuantityChange(c.id, sizeLabel, -1, activeVariant)}
                                                                                     className="w-7 h-7 rounded-lg bg-white/10 hover:bg-white/20 text-white flex items-center justify-center cursor-pointer active:scale-95 disabled:opacity-30"
                                                                                     disabled={qty === 0}
                                                                                 >
@@ -1945,7 +1992,7 @@ export default function EventosAdsLanding({ cocktails, comunas, regions, eventTy
                                                                                 <button
                                                                                     type="button"
                                                                                     aria-label={`Agregar ${sizeLabel} de ${c.name}`}
-                                                                                    onClick={() => handleQuantityChange(c.id, sizeLabel, 1)}
+                                                                                    onClick={() => handleQuantityChange(c.id, sizeLabel, 1, activeVariant)}
                                                                                     className="w-7 h-7 rounded-lg bg-primary hover:bg-amber-300 text-slate-950 font-bold flex items-center justify-center cursor-pointer active:scale-95"
                                                                                 >
                                                                                     <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
@@ -2031,7 +2078,7 @@ export default function EventosAdsLanding({ cocktails, comunas, regions, eventTy
                                                             <strong className="text-primary font-bold">
                                                                 {sel.quantity}x {sel.size}
                                                             </strong>{' '}
-                                                            {prod?.name || 'Cóctel'}
+                                                            {prod?.name || 'Cóctel'}{sel.variant ? ` (${sel.variant})` : ''}
                                                         </span>
                                                         <span className="text-[0.7rem] text-zinc-400 shrink-0 font-mono">
                                                             {cups} copas
@@ -2097,6 +2144,7 @@ export default function EventosAdsLanding({ cocktails, comunas, regions, eventTy
                                             aria-invalid={Boolean(errors.firstName)}
                                             aria-describedby={errors.firstName ? 'lp-first-name-err' : undefined}
                                             value={firstName}
+                                            onBlur={(e) => setFirstName(normalizePersonName(e.target.value))}
                                             onChange={(e) => {
                                                 setFirstName(e.target.value);
                                                 clearFieldError('firstName');
@@ -2135,6 +2183,7 @@ export default function EventosAdsLanding({ cocktails, comunas, regions, eventTy
                                             aria-invalid={Boolean(errors.lastName)}
                                             aria-describedby={errors.lastName ? 'lp-last-name-err' : undefined}
                                             value={lastName}
+                                            onBlur={(e) => setLastName(normalizePersonName(e.target.value))}
                                             onChange={(e) => {
                                                 setLastName(e.target.value);
                                                 clearFieldError('lastName');
@@ -2308,8 +2357,9 @@ export default function EventosAdsLanding({ cocktails, comunas, regions, eventTy
                                         aria-invalid={Boolean(errors.email)}
                                         aria-describedby={errors.email ? 'lp-email-err' : undefined}
                                         value={email}
+                                        onBlur={(e) => setEmail(normalizeEmail(e.target.value))}
                                         onChange={(e) => {
-                                            setEmail(e.target.value);
+                                            setEmail(e.target.value.toLowerCase());
                                             clearFieldError('email');
                                         }}
                                         placeholder="tu@correo.cl"

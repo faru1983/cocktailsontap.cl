@@ -4,7 +4,20 @@ export type ConfirmLineInput = {
     product_id: string | null;
     size: string;
     quantity: number;
+    variant?: string | null;
 };
+
+/** Resuelve la variante contra `variant_config` del producto (Zero Trust). */
+export function resolveProductVariant(
+    requestedVariant: string | null | undefined,
+    cocktail: Pick<CocktailForWizard, 'variant_config'>
+): string | null {
+    const config = cocktail.variant_config;
+    if (!config || !config.options || config.options.length === 0) return null;
+    const trimmed = typeof requestedVariant === 'string' ? requestedVariant.trim() : '';
+    if (trimmed && config.options.includes(trimmed)) return trimmed;
+    return config.default || config.options[0];
+}
 
 /**
  * Resuelve líneas de cotización contra el catálogo del servidor (Zero Trust).
@@ -36,6 +49,7 @@ export function resolveQuoteItemsFromCatalog(
             unit_id: priceData.unitId,
             is_disposable: priceData.isDisposable,
             quantity: line.quantity,
+            variant: resolveProductVariant(line.variant, cocktail),
             price_at_time: priceData.price,
             offer_price_at_time: priceData.offerPrice,
         });

@@ -10,6 +10,7 @@ export interface AdminCreateQuoteInput {
     state: WizardState;
     confirmNow?: boolean;
     skipEmail?: boolean;
+    skipWhatsapp?: boolean;
     overrides?: {
         shippingCost?: number;
         installationCost?: number;
@@ -33,6 +34,7 @@ export async function createQuoteAdmin(input: AdminCreateQuoteInput): Promise<Cr
         comunas,
         confirmNow: input.confirmNow,
         skipEmail: input.skipEmail,
+        skipWhatsapp: input.skipWhatsapp,
         overrides: input.overrides,
         isAdmin: true,
         source: 'admin',

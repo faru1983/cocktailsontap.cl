@@ -82,6 +82,8 @@ export default function ProductDetailView({ product, relatedProducts, availableA
     }, [product.sizes, priceInfo, product.image]);
 
     // Estado local
+    const variantConfig = product.variant_config?.options?.length ? product.variant_config : null;
+    const [selectedVariant, setSelectedVariant] = useState<string | null>(variantConfig ? variantConfig.default : null);
     const [quantity, setQuantity] = useState(1);
     const [addonQuantities, setAddonQuantities] = useState<Record<string, number>>({});
     const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -202,22 +204,26 @@ export default function ProductDetailView({ product, relatedProducts, availableA
     const saveToSharedCart = () => {
         try {
             const saved = localStorage.getItem('cot_direct_selections');
-            let currentSelections: Array<{ id: string; size: string; quantity: number }> = [];
+            let currentSelections: Array<{ id: string; size: string; quantity: number; variant?: string | null }> = [];
             if (saved) {
                 currentSelections = JSON.parse(saved);
             }
 
             const targetSize = priceInfo?.size || '5L';
+            const normVar = selectedVariant ?? null;
 
             // Actualizar o agregar el barril principal
-            const existingIndex = currentSelections.findIndex(s => s.id === product.id && s.size === targetSize);
+            const existingIndex = currentSelections.findIndex(
+                s => s.id === product.id && s.size === targetSize && (s.variant ?? null) === normVar
+            );
             if (existingIndex >= 0) {
                 currentSelections[existingIndex].quantity += quantity;
             } else {
                 currentSelections.push({
                     id: product.id,
                     size: targetSize,
-                    quantity: quantity
+                    quantity: quantity,
+                    ...(normVar ? { variant: normVar } : {}),
                 });
             }
 
@@ -585,6 +591,22 @@ export default function ProductDetailView({ product, relatedProducts, availableA
 
                     {/* Panel de Compra y Botones CTA */}
                     <div className="bg-white border-2 border-primary/20 rounded-3xl p-6 shadow-md mb-8">
+                        {variantConfig && (
+                            <div className="mb-4 pb-4 border-b border-brand-border/60">
+                                <label className="block text-xs font-bold uppercase tracking-wider text-brand-text-muted mb-1.5">
+                                    {variantConfig.label}
+                                </label>
+                                <select
+                                    value={selectedVariant || variantConfig.default}
+                                    onChange={(e) => setSelectedVariant(e.target.value)}
+                                    className="w-full sm:max-w-xs p-3 rounded-xl border border-brand-border bg-white text-sm font-bold text-brand-text outline-none cursor-pointer appearance-none bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20width%3D%2224%22%20height%3D%2224%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cpath%20d%3D%22M7%2010L12%2015L17%2010%22%20stroke%3D%22%231e293b%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%2F%3E%3C%2Fsvg%3E')] bg-no-repeat bg-[position:calc(100%-0.75rem)_center] pr-10 hover:border-primary focus:border-primary focus:ring-1 focus:ring-primary"
+                                >
+                                    {variantConfig.options.map((opt) => (
+                                        <option key={opt} value={opt}>{opt}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
                         <div className="flex flex-col sm:flex-row items-center gap-4 mb-4">
                             {/* Selector de Cantidad de Barriles */}
                             <div className="flex items-center justify-between border border-brand-border rounded-2xl p-1 bg-slate-50 w-full sm:w-auto shrink-0">

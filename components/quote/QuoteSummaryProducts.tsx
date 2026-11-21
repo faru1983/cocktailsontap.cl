@@ -9,6 +9,7 @@ export interface QuoteSummaryItem {
     id: string; // For Wizard this is productId, for QuoteView this is QuoteItem.id
     name: string;
     selectedSize: string;
+    variant?: string | null;
     quantity: number;
     totalNormalPrice: number;
     totalOfferPrice: number;
@@ -35,7 +36,7 @@ export interface QuoteSummaryData {
 interface Props {
     data: QuoteSummaryData;
     isEditable?: boolean;
-    onUpdateQuantity?: (id: string, size: string, delta: number) => void;
+    onUpdateQuantity?: (id: string, size: string, delta: number, variant?: string | null) => void;
     onAddProductsClick?: () => void;
     onChangeDispenser?: () => void;
     compact?: boolean;
@@ -73,14 +74,14 @@ export default function QuoteSummaryProducts({ data, isEditable = false, onUpdat
                 {data.items.length > 0 ? (
                     <div className="flex flex-col gap-4">
                         {data.items.map((item) => (
-                            <div key={`${item.id}_${item.selectedSize}`} className={`bg-white rounded-xl border border-brand-border shadow-[0_2px_8px_rgba(0,0,0,0.02)] flex flex-col transition-transform hover:-translate-y-[2px] hover:shadow-[0_4px_12px_rgba(0,0,0,0.05)] hover:border-primary/30 ${compact ? 'p-3 gap-2' : 'p-4 gap-3'}`}>
+                            <div key={`${item.id}_${item.selectedSize}_${item.variant || ''}`} className={`bg-white rounded-xl border border-brand-border shadow-[0_2px_8px_rgba(0,0,0,0.02)] flex flex-col transition-transform hover:-translate-y-[2px] hover:shadow-[0_4px_12px_rgba(0,0,0,0.05)] hover:border-primary/30 ${compact ? 'p-3 gap-2' : 'p-4 gap-3'}`}>
                                 <div className="flex justify-between items-start gap-3">
                                     <div className="flex items-start gap-2 flex-1 min-w-0">
                                         {isEditable && onUpdateQuantity && (
                                             <button
                                                 type="button"
                                                 className={`rounded-full bg-[#fee2e2] text-[#ef4444] border-none font-bold flex items-center justify-center cursor-pointer transition-colors hover:bg-[#ef4444] hover:text-white shrink-0 mt-0.5 ${compact ? 'min-w-[22px] h-[22px] text-[0.75rem]' : 'min-w-[28px] h-[28px] text-[0.9rem]'}`}
-                                                onClick={() => onUpdateQuantity(item.id, item.selectedSize, -item.quantity)}
+                                                onClick={() => onUpdateQuantity(item.id, item.selectedSize, -item.quantity, item.variant)}
                                             >
                                                 ✕
                                             </button>
@@ -95,12 +96,17 @@ export default function QuoteSummaryProducts({ data, isEditable = false, onUpdat
                                     </div>
                                 </div>
                                 <div className={`flex justify-between items-center ${compact ? 'pl-[30px]' : 'pl-[40px]'}`}>
-                                    <span className={`text-brand-text-muted font-bold bg-[#f1f5f9] rounded-md ${compact ? 'text-[0.75rem] px-2 py-0.5' : 'text-[0.85rem] px-2.5 py-1'}`}>{item.selectedSize}</span>
+                                    <div className="flex flex-wrap items-center gap-1.5">
+                                        <span className={`text-brand-text-muted font-bold bg-[#f1f5f9] rounded-md ${compact ? 'text-[0.75rem] px-2 py-0.5' : 'text-[0.85rem] px-2.5 py-1'}`}>{item.selectedSize}</span>
+                                        {item.variant && (
+                                            <span className={`text-amber-800 font-bold bg-amber-50 border border-amber-200 rounded-md ${compact ? 'text-[0.7rem] px-2 py-0.5' : 'text-[0.8rem] px-2.5 py-1'}`}>{item.variant}</span>
+                                        )}
+                                    </div>
                                     {isEditable && onUpdateQuantity ? (
                                         <QuantitySelector
                                             compact
                                             value={item.quantity}
-                                            onChange={(delta) => onUpdateQuantity(item.id, item.selectedSize, delta)}
+                                            onChange={(delta) => onUpdateQuantity(item.id, item.selectedSize, delta, item.variant)}
                                             min={0}
                                         />
                                     ) : (

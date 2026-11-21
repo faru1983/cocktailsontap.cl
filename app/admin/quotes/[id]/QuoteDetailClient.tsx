@@ -126,12 +126,14 @@ export default function QuoteDetailClient({
     eventTypes,
     comunas,
     regions,
+    reviewMode = 'manual',
 }: {
     quote: QuoteDetail;
     allProducts: Product[];
     eventTypes: { id: string; name: string }[];
     comunas: Comuna[];
     regions: Region[];
+    reviewMode?: string;
 }) {
     const [quote, setQuote] = useState<QuoteDetail>(initial);
     const [isPending, startTransition] = useTransition();
@@ -153,6 +155,10 @@ export default function QuoteDetailClient({
     const [showPayModal, setShowPayModal] = useState(false);
     const [payNoteType, setPayNoteType] = useState<'full' | 'partial' | 'custom'>('partial');
     const [payCustomNote, setPayCustomNote] = useState('');
+    const [notifyClientOnPay, setNotifyClientOnPay] = useState(true);
+
+    const [showCompleteModal, setShowCompleteModal] = useState(false);
+    const [sendReviewOnComplete, setSendReviewOnComplete] = useState(true);
 
     const [showEmailModal, setShowEmailModal] = useState(false);
     const [emailForm, setEmailForm] = useState({ subject: '', body: '' });
@@ -184,12 +190,38 @@ export default function QuoteDetailClient({
     };
 
     const handleStatusChange = (newStatus: string) => {
+        if (newStatus === 'completed' && reviewMode === 'auto' && !quote.review_email_sent) {
+            setSendReviewOnComplete(true);
+            setShowCompleteModal(true);
+            return;
+        }
         if (!confirm(`¿Cambiar estado a "${statusBadge[newStatus]?.label}"?`)) return;
         startTransition(async () => {
             const res = await updateQuoteStatus(String(quote.id), newStatus);
             if (res.success) {
-                setQuote((q) => ({ ...q, status: newStatus as QuoteStatus }));
+                setQuote((q) => ({
+                    ...q,
+                    status: newStatus as QuoteStatus,
+                    ...(res.reviewSent ? { review_email_sent: true } : {}),
+                }));
                 showToast('Estado actualizado');
+            } else showToast(res.error || 'Error', false);
+        });
+    };
+
+    const handleConfirmComplete = () => {
+        startTransition(async () => {
+            const res = await updateQuoteStatus(String(quote.id), 'completed', {
+                skipReview: !sendReviewOnComplete,
+            });
+            if (res.success) {
+                setQuote((q) => ({
+                    ...q,
+                    status: 'completed' as QuoteStatus,
+                    ...(res.reviewSent ? { review_email_sent: true } : {}),
+                }));
+                setShowCompleteModal(false);
+                showToast(res.reviewSent ? 'Cotización completada y reseña enviada' : 'Estado actualizado');
             } else showToast(res.error || 'Error', false);
         });
     };
@@ -291,14 +323,19 @@ export default function QuoteDetailClient({
         if (!p.amount || !p.date) return;
 
         startTransition(async () => {
-            const res = await addQuotePayment(String(quote.id), p);
+            const res = await addQuotePayment(String(quote.id), p, {
+                skipNotifications: !notifyClientOnPay,
+            });
             if (res.success) {
                 const updatedPayments: QuotePayment[] = [...(quote.payments || []), p];
                 setQuote((q) => ({ ...q, payments: updatedPayments }));
                 setShowPayModal(false);
                 setPayNoteType('partial');
                 setPayCustomNote('');
-                if (res.emailWarning || res.whatsappWarning) {
+                setNotifyClientOnPay(true);
+                if (!notifyClientOnPay) {
+                    showToast('Pago registrado (sin notificar al cliente)');
+                } else if (res.emailWarning || res.whatsappWarning) {
                     const warns = [
                         res.emailWarning ? `email: ${res.emailWarning}` : null,
                         res.whatsappWarning ? `WhatsApp: ${res.whatsappWarning}` : null,
@@ -485,6 +522,7 @@ export default function QuoteDetailClient({
                 unit_id: sizeMeta?.unitId ?? null,
                 is_disposable: sizeMeta?.isDisposable ?? /desechable/i.test(size),
                 quantity: 1,
+                variant: p.variant_config?.options?.length ? p.variant_config.default : null,
                 price_at_time: price,
                 offer_price_at_time: offer,
             } as QuoteItem,
@@ -890,7 +928,10 @@ export default function QuoteDetailClient({
                 onAddCustomItem={handleAddCustomItem}
                 onRemoveItem={handleRemoveItem}
                 onUpdateItem={updateItem}
-                onRegisterPayment={() => setShowPayModal(true)}
+                onRegisterPayment={() => {
+                    setNotifyClientOnPay(true);
+                    setShowPayModal(true);
+                }}
                 onQuickFullPayment={handleQuickFullPayment}
                 onQuickPartialPayment={handleQuickPartialPayment}
                 onDeletePayment={handleDeletePayment}
@@ -947,7 +988,24 @@ export default function QuoteDetailClient({
                                 )}
                             </div>
                         </div>
-                        <div style={{ display: 'flex', gap: '10px', marginTop: '24px' }}>
+                        <label className="flex items-center justify-between gap-3 cursor-pointer mt-4 p-3 rounded-xl border border-white/10 bg-black/20">
+                            <span className="text-xs text-slate-300 leading-snug">
+                                <strong className="text-white font-bold block">Notificar al cliente</strong>
+                                <span className="block text-[11px] text-slate-400 mt-0.5">
+                                    Envía email y WhatsApp de confirmación de pago.
+                                </span>
+                            </span>
+                            <span className="relative inline-flex items-center shrink-0">
+                                <input
+                                    type="checkbox"
+                                    className="sr-only peer"
+                                    checked={notifyClientOnPay}
+                                    onChange={(e) => setNotifyClientOnPay(e.target.checked)}
+                                />
+                                <span className="w-10 h-5 bg-white/10 rounded-full peer peer-checked:bg-[#E2A049] transition-colors after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-5" />
+                            </span>
+                        </label>
+                        <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
                             <button type="button" className="flex-1 inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-[13px] font-bold cursor-pointer bg-white/5 text-slate-400 border border-white/10 hover:bg-white/10 transition-colors" onClick={() => setShowPayModal(false)}>
                                 Cancelar
                             </button>
@@ -956,6 +1014,52 @@ export default function QuoteDetailClient({
                             </button>
                         </div>
                     </form>
+                </div>
+            )}
+
+            {/* Modal confirmar completada (cuando auto-reseña está activa) */}
+            {showCompleteModal && (
+                <div className="fixed inset-0 bg-black/70 z-[1000] flex items-center justify-center backdrop-blur-sm p-5">
+                    <div className="bg-[#1e2433] border border-white/10 rounded-[20px] w-full max-w-[440px] p-7 shadow-2xl">
+                        <h2 style={{ color: '#f1f5f9', fontSize: '18px', margin: '0 0 10px' }}>¿Cambiar estado a &quot;Completada&quot;?</h2>
+                        <p className="text-xs text-slate-400 mb-5 leading-relaxed">
+                            El envío automático de reseñas está activo en configuración.
+                        </p>
+                        <label className="flex items-center justify-between gap-3 cursor-pointer p-3.5 rounded-xl border border-white/10 bg-black/20">
+                            <span className="text-xs text-slate-300 leading-snug">
+                                <strong className="text-white font-bold block">Enviar correo de reseña al cliente</strong>
+                                <span className="block text-[11px] text-slate-400 mt-0.5">
+                                    Desactívalo si no quieres solicitar reseña en este caso.
+                                </span>
+                            </span>
+                            <span className="relative inline-flex items-center shrink-0">
+                                <input
+                                    type="checkbox"
+                                    className="sr-only peer"
+                                    checked={sendReviewOnComplete}
+                                    onChange={(e) => setSendReviewOnComplete(e.target.checked)}
+                                />
+                                <span className="w-10 h-5 bg-white/10 rounded-full peer peer-checked:bg-[#E2A049] transition-colors after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-5" />
+                            </span>
+                        </label>
+                        <div style={{ display: 'flex', gap: '10px', marginTop: '22px' }}>
+                            <button
+                                type="button"
+                                className="flex-1 inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-[13px] font-bold cursor-pointer bg-white/5 text-slate-400 border border-white/10 hover:bg-white/10 transition-colors"
+                                onClick={() => setShowCompleteModal(false)}
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                type="button"
+                                disabled={isPending}
+                                onClick={handleConfirmComplete}
+                                className="flex-1 inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-[13px] font-bold cursor-pointer border-none bg-[#E2A049] text-[#1a1a2e] hover:bg-[#c88830] transition-colors disabled:opacity-50"
+                            >
+                                {isPending ? '...' : 'Confirmar'}
+                            </button>
+                        </div>
+                    </div>
                 </div>
             )}
 

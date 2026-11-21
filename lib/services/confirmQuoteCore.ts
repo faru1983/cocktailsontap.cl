@@ -13,6 +13,7 @@ import { notifyEventQuoteConfirmed } from '@/lib/services/deskcommService';
 import { createServerClient } from '@/lib/supabaseServer';
 import { fetchAllProductData } from '@/lib/serverData';
 import { resolveQuoteItemsFromCatalog } from '@/lib/catalogPricing';
+import { normalizeEmail, normalizePersonName } from '@/lib/utils';
 import {
     calculateSummaryData,
     EVENT_DEFAULT_NEXT_DAY_PICKUP_TIME,
@@ -34,6 +35,8 @@ export interface ConfirmQuoteResult {
 export interface ConfirmQuoteCoreOptions {
     /** Si true, no envía emails (admin skipEmail); sí sincroniza Google + CRM. */
     skipEmail?: boolean;
+    /** Si true, no envía aviso WhatsApp automático al cliente al confirmar. */
+    skipWhatsapp?: boolean;
     /**
      * Solo cotización manual admin: permite confirmar eventos por debajo del mínimo
      * de litros (10L portátil / reglas de muro). No usar en web ni API pública.
@@ -194,10 +197,15 @@ export async function confirmQuoteCore(
             (quote.manual_discount || 0);
 
         const normalizedPhone = normalizePhoneE164(data.client_phone) || data.client_phone;
-        const resolvedClientName = data.client_name?.trim() || quote.client_name;
+        const resolvedClientName = data.client_name?.trim()
+            ? normalizePersonName(data.client_name)
+            : normalizePersonName(quote.client_name) || quote.client_name;
+        const resolvedClientLastname = data.client_lastname !== undefined
+            ? normalizePersonName(data.client_lastname) || null
+            : quote.client_lastname;
         const resolvedClientEmail =
             data.client_email !== undefined
-                ? data.client_email.trim().toLowerCase() || null
+                ? normalizeEmail(data.client_email) || null
                 : quote.client_email;
         const resolvedRegionName =
             resolveRegionShortName(data.region_name || quote.region_name, catalogRes.comunas) ??
@@ -207,7 +215,7 @@ export async function confirmQuoteCore(
         const updatePayload = {
             status: 'confirmed' as const,
             client_name: resolvedClientName,
-            client_lastname: data.client_lastname,
+            client_lastname: resolvedClientLastname,
             client_email: resolvedClientEmail,
             client_phone: normalizedPhone,
             client_address: data.client_address,
@@ -268,6 +276,7 @@ export async function confirmQuoteCore(
             unit_id: item.unit_id || null,
             is_disposable: Boolean(item.is_disposable),
             quantity: item.quantity,
+            variant: item.variant || null,
             price_at_time: item.price_at_time,
             offer_price_at_time: item.offer_price_at_time,
         }));
@@ -298,7 +307,7 @@ export async function confirmQuoteCore(
                     quote.client_id,
                     {
                         firstName: resolvedClientName,
-                        lastName: data.client_lastname,
+                        lastName: resolvedClientLastname,
                         email: resolvedClientEmail,
                         phone: normalizedPhone,
                     },
@@ -379,6 +388,7 @@ export async function confirmQuoteCore(
     }
 
     const skipEmail = Boolean(options.skipEmail);
+    const skipWhatsapp = Boolean(options.skipWhatsapp);
 
     after(async () => {
         console.log('[ConfirmQuote] Ejecutando tareas post-respuesta...');
@@ -457,10 +467,12 @@ export async function confirmQuoteCore(
 
             revalidatePath(`/cotizar/${quoteToSync.token}`);
 
-            try {
-                await notifyEventQuoteConfirmed(quoteToSync);
-            } catch (waErr) {
-                console.error('[ConfirmQuote] Error DeskcommCRM/WhatsApp:', waErr);
+            if (!skipWhatsapp) {
+                try {
+                    await notifyEventQuoteConfirmed(quoteToSync);
+                } catch (waErr) {
+                    console.error('[ConfirmQuote] Error DeskcommCRM/WhatsApp:', waErr);
+                }
             }
         } catch (e) {
             console.error('[ConfirmQuote] Error general en after():', e);

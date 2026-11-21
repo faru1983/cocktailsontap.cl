@@ -23,6 +23,7 @@ export async function GET(request: Request) {
             id: c.id,
             name: c.name,
             category: c.category,
+            ...(c.variant_config ? { variants: c.variant_config } : {}),
             sizes: Object.entries(c.prices).map(([size, meta]) => ({
                 size,
                 sizeValue: meta.sizeValue,

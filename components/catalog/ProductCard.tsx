@@ -26,6 +26,8 @@ interface Particle {
 
 export default function ProductCard({ product, cart, allowDetailLink = false }: ProductCardProps) {
     const [selectedSize, setSelectedSize] = useState(product.selectedSize || product.sizes[0]?.size || '');
+    const variantConfig = product.variant_config?.options?.length ? product.variant_config : null;
+    const [selectedVariant, setSelectedVariant] = useState<string | null>(variantConfig ? variantConfig.default : null);
     const [particles, setParticles] = useState<Particle[]>([]);
 
     const sizeInfo = product.sizes.find((s) => s.size === selectedSize) ?? product.sizes[0];
@@ -35,7 +37,7 @@ export default function ProductCard({ product, cart, allowDetailLink = false }: 
     const displayImage = sizeInfo.image || product.image;
 
     const hasOffer = sizeInfo.offerPrice < sizeInfo.price;
-    const quantity = cart.getQuantity(product.id, selectedSize);
+    const quantity = cart.getQuantity(product.id, selectedSize, selectedVariant);
     const drinkYield = getDrinkYieldInfo(sizeInfo.offerPrice, sizeInfo.sizeValue, sizeInfo.unit);
 
     const handleSizeChange = (newSize: string) => {
@@ -53,7 +55,8 @@ export default function ProductCard({ product, cart, allowDetailLink = false }: 
             sizeInfo.sizeValue,
             sizeInfo.unitId,
             sizeInfo.isDisposable,
-            displayImage
+            displayImage,
+            selectedVariant
         );
 
         // Meta Pixel AddToCart
@@ -178,6 +181,19 @@ export default function ProductCard({ product, cart, allowDetailLink = false }: 
                     </select>
                 )}
 
+                {variantConfig && (
+                    <select
+                        aria-label={variantConfig.label}
+                        className="w-full p-2.5 rounded-xl border border-brand-border bg-white text-[0.85rem] font-medium text-brand-text mb-4 outline-none transition-colors duration-200 cursor-pointer appearance-none bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20width%3D%2224%22%20height%3D%2224%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cpath%20d%3D%22M7%2010L12%2015L17%2010%22%20stroke%3D%22%231e293b%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%2F%3E%3C%2Fsvg%3E')] bg-no-repeat bg-[position:calc(100%-0.75rem)_center] pr-9 hover:border-primary focus:border-primary focus:ring-1 focus:ring-primary"
+                        value={selectedVariant || variantConfig.default}
+                        onChange={(e) => setSelectedVariant(e.target.value)}
+                    >
+                        {variantConfig.options.map((opt) => (
+                            <option key={opt} value={opt}>{opt}</option>
+                        ))}
+                    </select>
+                )}
+
                 <div className={`flex flex-row items-baseline justify-center gap-2 font-extrabold text-[#059669] text-[1.3rem] min-h-[2rem] leading-none ${drinkYield ? 'mb-1' : 'mb-4'}`}>
                     {quantity > 0 ? (
                         <>
@@ -218,7 +234,7 @@ export default function ProductCard({ product, cart, allowDetailLink = false }: 
                     <div className="flex w-full items-center justify-center bg-white">
                         <QuantitySelector
                             value={quantity}
-                            onChange={(delta) => cart.updateQuantity(product.id, selectedSize, quantity + delta)}
+                            onChange={(delta) => cart.updateQuantity(product.id, selectedSize, quantity + delta, selectedVariant)}
                             min={0}
                             className="w-full max-w-[180px] h-full"
                             compact={false}

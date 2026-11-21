@@ -18,6 +18,7 @@ const IntegrationItemSchema = z.object({
     productId: z.string().min(1),
     size: z.string().min(1),
     quantity: z.coerce.number().int().min(1),
+    variant: z.string().max(120).nullable().optional(),
 });
 
 /** POST /api/v1/quotes — cotización evento (draft) o reserva confirmada (`confirmNow`). */

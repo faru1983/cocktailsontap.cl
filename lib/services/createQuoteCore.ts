@@ -18,6 +18,7 @@ import { resolveQuoteSource, type QuoteSource } from '@/lib/quoteSource';
 import { confirmQuoteCore } from '@/lib/services/confirmQuoteCore';
 import { validateConfirmNowState } from '@/lib/confirmNowValidation';
 import { stripClientPricing } from '@/lib/catalogPricing';
+import { normalizeEmail, normalizePersonName } from '@/lib/utils';
 import { resolveRegionShortName, validateDirectSaleDate, resolveDirectSaleCarrier, EVENT_DEFAULT_NEXT_DAY_PICKUP_TIME } from '@/lib/wizardLogic';
 import { validateShippingDate } from '@/lib/shippingMethods';
 
@@ -26,6 +27,7 @@ export interface CreateQuoteInput {
     cocktails: CocktailForWizard[];
     comunas: Comuna[];
     skipEmail?: boolean;
+    skipWhatsapp?: boolean;
     isAdmin?: boolean;
     /** Si true (evento), confirma la reserva en el mismo request. */
     confirmNow?: boolean;
@@ -55,7 +57,9 @@ function buildConfirmPayload(state: WizardState, token: string, items: QuoteItem
     return {
         token,
         client_phone: state.contact.phone,
-        client_lastname: state.contact.lastName.trim(),
+        client_name: normalizePersonName(state.contact.firstName),
+        client_lastname: normalizePersonName(state.contact.lastName),
+        client_email: normalizeEmail(state.contact.email),
         client_address: state.contact.address.trim(),
         region_name: resolveRegionShortName(state.contact.region, comunas),
         comuna_name: state.contact.comuna,
@@ -269,6 +273,7 @@ export async function createQuoteCore(input: CreateQuoteInput): Promise<CreateQu
                 confirmPayload,
                 {
                     skipEmail: Boolean(skipEmail),
+                    skipWhatsapp: Boolean(input.skipWhatsapp),
                     allowAdminMinLitersOverride: Boolean(isAdmin),
                     clientIp: input.clientIp || null,
                     clientUserAgent: input.clientUserAgent || null,
@@ -312,7 +317,7 @@ export async function createQuoteCore(input: CreateQuoteInput): Promise<CreateQu
                   )
         );
 
-        if (source === 'web') {
+        if (source === 'web' && !input.skipWhatsapp) {
             tasks.push(
                 notifyWebQuoteCreated(fullQuote as Quote & { quote_items: QuoteItem[] })
             );

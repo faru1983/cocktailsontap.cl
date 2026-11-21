@@ -248,7 +248,8 @@ export default function ProductsClient({
                 category_id: categories[0]?.id || '', 
                 is_active: true, 
                 hide_from_recipes: false,
-                pdp_metadata
+                pdp_metadata,
+                variant_config: null,
             },
             prices: prod ? p_normalize(prod.product_prices) : [{ size: '', size_value: 0, unit_id: measurementUnits.find(u => u.abbreviation === 'L')?.id || '', is_disposable: false, price: 0, offer_price: null }]
         });
@@ -950,6 +951,115 @@ export default function ProductsClient({
                                             );
                                         })}
                                     </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="pt-4 border-t border-white/5 space-y-3">
+                        <div className="flex items-center justify-between px-1">
+                            <div>
+                                <h4 className="text-white text-xs font-black uppercase tracking-widest">Variantes / Mezclador</h4>
+                                <p className="text-[10px] text-slate-400">Opcional (ej. bebida en combinados o tónica en Gin Tonic)</p>
+                            </div>
+                            <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    className="accent-[#E2A049] w-4 h-4"
+                                    checked={Boolean(modalProduct.data?.variant_config?.options?.length)}
+                                    onChange={(e) => {
+                                        if (e.target.checked) {
+                                            setModalProduct({
+                                                ...modalProduct,
+                                                data: {
+                                                    ...modalProduct.data,
+                                                    variant_config: {
+                                                        label: 'Elige tu bebida',
+                                                        default: 'Coca Original',
+                                                        options: ['Coca Original', 'Coca Zero', 'Sprite', 'Sprite Zero'],
+                                                    },
+                                                },
+                                            });
+                                        } else {
+                                            setModalProduct({
+                                                ...modalProduct,
+                                                data: { ...modalProduct.data, variant_config: null },
+                                            });
+                                        }
+                                    }}
+                                />
+                                <span>Habilitar</span>
+                            </label>
+                        </div>
+
+                        {modalProduct.data?.variant_config && (
+                            <div className="bg-black/20 p-4 rounded-xl border border-white/5 space-y-3">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    <div>
+                                        <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Etiqueta del selector</label>
+                                        <input
+                                            type="text"
+                                            className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-[#E2A049]"
+                                            value={modalProduct.data.variant_config.label || ''}
+                                            onChange={(e) =>
+                                                setModalProduct({
+                                                    ...modalProduct,
+                                                    data: {
+                                                        ...modalProduct.data,
+                                                        variant_config: { ...modalProduct.data.variant_config, label: e.target.value },
+                                                    },
+                                                })
+                                            }
+                                            placeholder="Ej. Elige tu bebida"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Opción por defecto</label>
+                                        <select
+                                            className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-[#E2A049]"
+                                            value={modalProduct.data.variant_config.default || ''}
+                                            onChange={(e) =>
+                                                setModalProduct({
+                                                    ...modalProduct,
+                                                    data: {
+                                                        ...modalProduct.data,
+                                                        variant_config: { ...modalProduct.data.variant_config, default: e.target.value },
+                                                    },
+                                                })
+                                            }
+                                        >
+                                            {(modalProduct.data.variant_config.options || []).map((opt: string) => (
+                                                <option key={opt} value={opt}>{opt}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Opciones (separadas por coma)</label>
+                                    <input
+                                        type="text"
+                                        className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-[#E2A049]"
+                                        value={(modalProduct.data.variant_config.options || []).join(', ')}
+                                        onChange={(e) => {
+                                            const opts = e.target.value
+                                                .split(',')
+                                                .map((s) => s.trim())
+                                                .filter(Boolean);
+                                            const currentDef = modalProduct.data.variant_config.default;
+                                            setModalProduct({
+                                                ...modalProduct,
+                                                data: {
+                                                    ...modalProduct.data,
+                                                    variant_config: {
+                                                        ...modalProduct.data.variant_config,
+                                                        options: opts,
+                                                        default: opts.includes(currentDef) ? currentDef : (opts[0] || ''),
+                                                    },
+                                                },
+                                            });
+                                        }}
+                                        placeholder="Coca Original, Coca Zero, Sprite, Sprite Zero"
+                                    />
                                 </div>
                             </div>
                         )}

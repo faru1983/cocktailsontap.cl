@@ -98,6 +98,7 @@ export function mapEventQuoteToWizardState(dto: IntegrationEventQuoteInput): Wiz
         id: i.productId,
         size: i.size,
         quantity: i.quantity,
+        ...(i.variant ? { variant: i.variant } : {}),
     }));
     return state;
 }
@@ -131,6 +132,7 @@ export function mapDirectSaleToWizardState(dto: IntegrationDirectSaleInput): Wiz
         id: i.productId,
         size: i.size,
         quantity: i.quantity,
+        ...(i.variant ? { variant: i.variant } : {}),
     }));
     return state;
 }

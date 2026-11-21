@@ -12,12 +12,19 @@ export interface MeasurementUnit {
     is_active: boolean;
 }
 
+export interface ProductVariantConfig {
+    label: string;
+    default: string;
+    options: string[];
+}
+
 export interface SupabaseProduct {
     id: string;
     name: string;
     description: string;
     image_url: string | null;
     pdp_metadata?: PdpMetadata | null;
+    variant_config?: ProductVariantConfig | null;
     categories: { name: string } | null;
     product_prices: {
         size: string;
@@ -74,6 +81,7 @@ export interface Product {
     sizes: ProductPrice[];
     selectedSize?: string;
     pdp_metadata?: PdpMetadata | null;
+    variant_config?: ProductVariantConfig | null;
 }
 
 export interface CocktailForWizard {
@@ -82,6 +90,7 @@ export interface CocktailForWizard {
     category: string;
     desc: string;
     image: string;
+    variant_config?: ProductVariantConfig | null;
     prices: Record<string, { 
         price: number; 
         offerPrice: number;
@@ -157,6 +166,7 @@ export interface WizardSelection {
     id: string;
     size: string;
     quantity: number;
+    variant?: string | null;
     customPrice?: number;
     customName?: string;
 }
@@ -202,10 +212,10 @@ export interface WizardState {
 }
 
 export interface ICart {
-    addItem: (productId: string, productName: string, size: string, price: number, offerPrice: number, sizeValue: number, unitId: string | null, isDisposable: boolean, image?: string) => void;
-    removeItem: (productId: string, size: string) => void;
-    updateQuantity: (productId: string, size: string, quantity: number) => void;
-    getQuantity: (productId: string, size: string) => number;
+    addItem: (productId: string, productName: string, size: string, price: number, offerPrice: number, sizeValue: number, unitId: string | null, isDisposable: boolean, image?: string, variant?: string | null) => void;
+    removeItem: (productId: string, size: string, variant?: string | null) => void;
+    updateQuantity: (productId: string, size: string, quantity: number, variant?: string | null) => void;
+    getQuantity: (productId: string, size: string, variant?: string | null) => number;
 }
 
 // ─── Sistema de Cotizaciones Persistente ──────────────────────────────────────
@@ -254,6 +264,7 @@ export interface QuoteItem {
     unit_id: string | null;
     is_disposable: boolean | null;
     quantity: number;
+    variant?: string | null;
     price_at_time: number;
     offer_price_at_time: number;
 }
@@ -477,6 +488,7 @@ export const ConfirmQuoteSchema = z.object({
                 product_id: z.string().nullable().optional(),
                 size: z.string().min(1),
                 quantity: z.coerce.number().min(1),
+                variant: z.string().max(120).nullable().optional(),
             })
         )
         .min(1, 'Debe haber al menos un producto'),
@@ -521,6 +533,7 @@ export const UpdateDraftQuoteSchema = z.object({
                 product_id: z.string().nullable().optional(),
                 size: z.string().min(1),
                 quantity: z.coerce.number().int().min(1),
+                variant: z.string().max(120).nullable().optional(),
             })
         )
         .min(1, 'Agrega al menos un producto para guardar los cambios.'),
@@ -597,6 +610,15 @@ export const PdpMetadataSchema = z.object({
     related_product_ids: z.array(z.string().uuid()).optional().nullable(),
 }).optional().nullable();
 
+export const ProductVariantConfigSchema = z
+    .object({
+        label: z.string().trim().min(1).max(80),
+        default: z.string().trim().min(1).max(80),
+        options: z.array(z.string().trim().min(1).max(80)).min(1),
+    })
+    .nullable()
+    .optional();
+
 export const ProductSaveSchema = z.object({
     id: z.string().uuid().optional().nullable(),
     name: z.string().min(1).max(120),
@@ -607,6 +629,7 @@ export const ProductSaveSchema = z.object({
     hide_from_recipes: z.boolean().optional(),
     image_url: z.string().max(500).nullable().optional(),
     pdp_metadata: PdpMetadataSchema,
+    variant_config: ProductVariantConfigSchema,
 });
 
 /** Recetario — insumos y recetas */

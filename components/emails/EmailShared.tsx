@@ -80,7 +80,7 @@ export const ItemsTable: React.FC<{ items: QuoteItem[] }> = ({ items }) => (
         return (
           <tr key={idx}>
             <td style={{ padding: '10px 0', borderBottom: `1px solid ${borderColor}`, fontSize: '14px', color: brandDark }}>
-              <strong>{item.product_name}</strong> <span style={{ color: gray }}>({item.size})</span>
+              <strong>{item.product_name}{item.variant ? ` (${item.variant})` : ''}</strong> <span style={{ color: gray }}>({item.size})</span>
             </td>
             <td style={{ padding: '10px 0', borderBottom: `1px solid ${borderColor}`, textAlign: 'center', color: gray, fontSize: '14px' }}>
               x{item.quantity}

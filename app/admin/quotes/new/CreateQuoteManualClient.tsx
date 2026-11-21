@@ -134,7 +134,7 @@ export default function CreateQuoteManualClient({ allProducts, comunas, regions,
 
     const [serviceType, setServiceType] = useState<'event' | 'direct'>(initialServiceType);
     const [dispenser, setDispenser] = useState<'portatil' | 'muro'>('portatil');
-    const [selections, setSelections] = useState<{ id: string; size: string; quantity: number; customPrice?: number; customName?: string }[]>([]);
+    const [selections, setSelections] = useState<{ id: string; size: string; quantity: number; variant?: string | null; customPrice?: number; customName?: string }[]>([]);
     const [showCustomForm, setShowCustomForm] = useState(false);
     const [customName, setCustomName] = useState('');
     const [customPrice, setCustomPrice] = useState('');
@@ -148,6 +148,7 @@ export default function CreateQuoteManualClient({ allProducts, comunas, regions,
         status: string;
     } | null>(null);
     const [confirmNow, setConfirmNow] = useState(false);
+    const [notifyClient, setNotifyClient] = useState(true);
 
     // ─── 2. Reactive Calculations (Single Source of Truth) ─────────────────────
     
@@ -225,37 +226,46 @@ export default function CreateQuoteManualClient({ allProducts, comunas, regions,
     };
 
     const handleAddProduct = (p: Product, size: string) => {
+        const defaultVar = p.variant_config?.options?.length ? p.variant_config.default : null;
         setSelections(prev => {
-            const existing = prev.find(s => s.id === p.id && s.size === size);
+            const existing = prev.find(s => s.id === p.id && s.size === size && (s.variant ?? null) === defaultVar);
             if (existing) {
-                return prev.map(s => s.id === p.id && s.size === size ? { ...s, quantity: s.quantity + 1 } : s);
+                return prev.map(s => s.id === p.id && s.size === size && (s.variant ?? null) === defaultVar ? { ...s, quantity: s.quantity + 1 } : s);
             }
             const price = p.sizes.find(sz => sz.size === size)?.offerPrice;
-            return [...prev, { id: p.id, size, quantity: 1, customPrice: price }];
+            return [...prev, { id: p.id, size, quantity: 1, ...(defaultVar ? { variant: defaultVar } : {}), customPrice: price }];
         });
         setSearchTerm('');
     };
 
-    const handleRemoveProduct = (id: string, size: string) => {
-        setSelections(prev => prev.filter(s => !(s.id === id && s.size === size)));
+    const handleRemoveProduct = (id: string, size: string, variant?: string | null) => {
+        const normVar = variant ?? null;
+        setSelections(prev => prev.filter(s => !(s.id === id && s.size === size && (s.variant ?? null) === normVar)));
     };
 
-    const updateQuantity = (id: string, size: string, delta: number) => {
+    const updateQuantity = (id: string, size: string, delta: number, variant?: string | null) => {
+        const normVar = variant ?? null;
         setSelections(prev => prev.map(s => 
-            s.id === id && s.size === size ? { ...s, quantity: Math.max(1, (s.quantity || 0) + delta) } : s
+            s.id === id && s.size === size && (s.variant ?? null) === normVar ? { ...s, quantity: Math.max(1, (s.quantity || 0) + delta) } : s
         ));
     };
 
-    const setDirectQuantity = (id: string, size: string, qty: number) => {
+    const setDirectQuantity = (id: string, size: string, qty: number, variant?: string | null) => {
+        const normVar = variant ?? null;
         setSelections(prev => prev.map(s => 
-            s.id === id && s.size === size ? { ...s, quantity: qty } : s
+            s.id === id && s.size === size && (s.variant ?? null) === normVar ? { ...s, quantity: qty } : s
         ));
     };
 
-    const updatePrice = (id: string, size: string, newPrice: number) => {
+    const updatePrice = (id: string, size: string, newPrice: number, variant?: string | null) => {
+        const normVar = variant ?? null;
         setSelections(prev => prev.map(s => 
-            s.id === id && s.size === size ? { ...s, customPrice: isNaN(newPrice) ? 0 : newPrice } : s
+            s.id === id && s.size === size && (s.variant ?? null) === normVar ? { ...s, customPrice: isNaN(newPrice) ? 0 : newPrice } : s
         ));
+    };
+
+    const updateVariant = (idx: number, nextVariant: string) => {
+        setSelections(prev => prev.map((s, i) => (i === idx ? { ...s, variant: nextVariant } : s)));
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -283,6 +293,8 @@ export default function CreateQuoteManualClient({ allProducts, comunas, regions,
             const res = await createQuoteAdmin({
                 state: stateToSubmit,
                 confirmNow: serviceType === 'event' && confirmNow,
+                skipEmail: !notifyClient,
+                skipWhatsapp: !notifyClient,
                 overrides: {
                     ...(shippingPorPagar ? { shippingCost: 0, shippingLabel: 'Por Pagar' } : shippingOverride !== undefined ? { shippingCost: shippingOverride } : {}),
                     ...(serviceType === 'event' && installationOverride !== undefined && { installationCost: installationOverride }),
@@ -326,8 +338,12 @@ export default function CreateQuoteManualClient({ allProducts, comunas, regions,
                 </h1>
                 <p className="text-slate-400 mb-10 leading-relaxed text-sm">
                     {isConfirmed
-                        ? 'La reserva quedó confirmada y se envió el email al cliente. Puedes avisar también por WhatsApp si lo deseas.'
-                        : 'La cotización se generó y se envió por email al cliente. Comparte el link si necesitas contactarlo por otro canal.'}
+                        ? notifyClient
+                            ? 'La reserva quedó confirmada y se enviaron las notificaciones automáticas al cliente. Puedes avisar también por WhatsApp si lo deseas.'
+                            : 'La reserva quedó confirmada sin enviar notificaciones automáticas al cliente.'
+                        : notifyClient
+                            ? 'La cotización se generó y se envió por email al cliente. Comparte el link si necesitas contactarlo por otro canal.'
+                            : 'La cotización se generó sin enviar correo automático al cliente. Puedes compartir el link manualmente si lo deseas.'}
                 </p>
 
                 <div className="grid grid-cols-1 gap-4">
@@ -852,10 +868,10 @@ export default function CreateQuoteManualClient({ allProducts, comunas, regions,
                         <div className="space-y-4 mb-10 pr-1">
                             {selections.length === 0 ? (
                                 <div className="text-center py-10 text-slate-600 text-[10px] font-black uppercase tracking-widest border-2 border-dashed border-white/5 rounded-3xl opacity-50">Sin productos</div>
-                            ) : selections.map(s => {
+                            ) : selections.map((s, idx) => {
                                 const product = allProducts.find(p => p.id === s.id);
                                 return (
-                                    <div key={s.id + s.size} className="p-3.5 bg-black/25 rounded-2xl border border-white/5 group hover:border-[#E2A049]/20 transition-all flex flex-col gap-2.5">
+                                    <div key={`${s.id}-${s.size}-${s.variant || ''}-${idx}`} className="p-3.5 bg-black/25 rounded-2xl border border-white/5 group hover:border-[#E2A049]/20 transition-all flex flex-col gap-2.5">
                                         {/* Fila 1: Badge, Nombre, Formato y Botón Borrar */}
                                         <div className="flex items-start justify-between gap-2">
                                             <div className="min-w-0 flex-1">
@@ -869,15 +885,28 @@ export default function CreateQuoteManualClient({ allProducts, comunas, regions,
                                                         {s.customName || product?.name || 'Producto Desconocido'}
                                                     </span>
                                                 </div>
-                                                <div className="text-slate-500 text-[10px] font-black uppercase tracking-widest mt-1">
-                                                    {s.size}
+                                                <div className="flex items-center gap-2 flex-wrap mt-1">
+                                                    <span className="text-slate-500 text-[10px] font-black uppercase tracking-widest">
+                                                        {s.size}
+                                                    </span>
+                                                    {product?.variant_config?.options?.length ? (
+                                                        <select
+                                                            value={s.variant || product.variant_config.default}
+                                                            onChange={(e) => updateVariant(idx, e.target.value)}
+                                                            className="bg-black/40 border border-white/10 rounded-lg px-2 py-0.5 text-[10px] font-bold text-[#E2A049] outline-none focus:border-[#E2A049]"
+                                                        >
+                                                            {product.variant_config.options.map((opt) => (
+                                                                <option key={opt} value={opt}>{opt}</option>
+                                                            ))}
+                                                        </select>
+                                                    ) : null}
                                                 </div>
                                             </div>
 
                                             {/* Eliminar */}
                                             <button 
                                                 type="button" 
-                                                onClick={() => handleRemoveProduct(s.id, s.size)} 
+                                                onClick={() => handleRemoveProduct(s.id, s.size, s.variant)} 
                                                 className="text-rose-500/40 hover:text-rose-500 p-1.5 hover:bg-rose-500/10 rounded-lg transition-colors shrink-0"
                                                 title="Eliminar producto"
                                             >
@@ -893,7 +922,7 @@ export default function CreateQuoteManualClient({ allProducts, comunas, regions,
                                                 <input 
                                                     type="number"
                                                     value={s.customPrice ?? 0}
-                                                    onChange={(e) => updatePrice(s.id, s.size, parseInt(e.target.value))}
+                                                    onChange={(e) => updatePrice(s.id, s.size, parseInt(e.target.value), s.variant)}
                                                     className="bg-transparent w-20 outline-none focus:text-white transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none font-mono"
                                                     title="Precio unitario"
                                                 />
@@ -901,7 +930,7 @@ export default function CreateQuoteManualClient({ allProducts, comunas, regions,
 
                                             {/* Controles de Cantidad */}
                                             <div className="flex items-center gap-1 bg-black/60 rounded-xl p-0.5 border border-white/5 focus-within:border-[#E2A049]/40 transition-colors">
-                                                <button type="button" onClick={() => updateQuantity(s.id, s.size, -1)} className="w-7 h-7 flex items-center justify-center text-slate-500 hover:text-white transition-colors" title="Disminuir">-</button>
+                                                <button type="button" onClick={() => updateQuantity(s.id, s.size, -1, s.variant)} className="w-7 h-7 flex items-center justify-center text-slate-500 hover:text-white transition-colors" title="Disminuir">-</button>
                                                 <input
                                                     type="number"
                                                     min="1"
@@ -909,17 +938,17 @@ export default function CreateQuoteManualClient({ allProducts, comunas, regions,
                                                     onChange={(e) => {
                                                         const raw = e.target.value;
                                                         const parsed = raw === '' ? 0 : parseInt(raw, 10);
-                                                        setDirectQuantity(s.id, s.size, isNaN(parsed) ? 0 : Math.max(0, parsed));
+                                                        setDirectQuantity(s.id, s.size, isNaN(parsed) ? 0 : Math.max(0, parsed), s.variant);
                                                     }}
                                                     onBlur={() => {
                                                         if (!s.quantity || s.quantity < 1) {
-                                                            setDirectQuantity(s.id, s.size, 1);
+                                                            setDirectQuantity(s.id, s.size, 1, s.variant);
                                                         }
                                                     }}
                                                     className="bg-transparent text-xs font-black text-[#E2A049] w-12 text-center outline-none focus:text-white transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                                     title="Cantidad editable"
                                                 />
-                                                <button type="button" onClick={() => updateQuantity(s.id, s.size, 1)} className="w-7 h-7 flex items-center justify-center text-slate-500 hover:text-white transition-colors" title="Aumentar">+</button>
+                                                <button type="button" onClick={() => updateQuantity(s.id, s.size, 1, s.variant)} className="w-7 h-7 flex items-center justify-center text-slate-500 hover:text-white transition-colors" title="Aumentar">+</button>
                                             </div>
                                         </div>
                                     </div>
@@ -1041,11 +1070,30 @@ export default function CreateQuoteManualClient({ allProducts, comunas, regions,
                                     <span className="text-[11px] text-slate-300 leading-snug">
                                         <strong className="text-white font-black">Crear como reserva confirmada</strong>
                                         <span className="block text-slate-500 mt-0.5">
-                                            Requiere dirección, hora de inicio y retiro. Sincroniza Calendar/CRM (sin email automático).
+                                            Requiere dirección, hora de inicio y retiro. Sincroniza Calendar/CRM y envía confirmación si la notificación está activa.
                                         </span>
                                     </span>
                                 </label>
                             )}
+                            <label className="flex items-center justify-between gap-3 cursor-pointer mb-5 p-3 rounded-xl border border-white/10 bg-black/20">
+                                <span className="text-[11px] text-slate-300 leading-snug">
+                                    <strong className="text-white font-black block">Notificar al cliente al crear</strong>
+                                    <span className="block text-slate-500 mt-0.5">
+                                        {serviceType === 'event' && confirmNow
+                                            ? 'Envía email y WhatsApp automático de confirmación.'
+                                            : 'Envía email automático con el resumen al cliente.'}
+                                    </span>
+                                </span>
+                                <span className="relative inline-flex items-center shrink-0">
+                                    <input
+                                        type="checkbox"
+                                        className="sr-only peer"
+                                        checked={notifyClient}
+                                        onChange={(e) => setNotifyClient(e.target.checked)}
+                                    />
+                                    <span className="w-10 h-5 bg-white/10 rounded-full peer peer-checked:bg-[#E2A049] transition-colors after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-5" />
+                                </span>
+                            </label>
                             <button type="submit" disabled={isPending} className="w-full bg-[#E2A049] hover:bg-[#f0b05b] text-[#1a1a2e] py-5 rounded-2xl font-black text-[11px] uppercase tracking-widest active:scale-[0.98] transition-all shadow-xl shadow-[#E2A049]/10 flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-wait">
                                 {isPending ? 'Procesando...' : <><Save size={20} /> {serviceType === 'direct' ? 'Generar Pedido' : confirmNow ? 'Confirmar Reserva' : 'Generar Cotización'}</>}
                             </button>

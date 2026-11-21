@@ -41,6 +41,37 @@
 
 ## Ultimos Cambios
 
+### 21-11-2026 — Normalización de Nombres y Correos en Formularios y Servicios
+
+- **Helpers compartidos ([`lib/utils.ts`](file:///c:/Webs/cocktailsontap.cl/lib/utils.ts))**:
+  - Agregados `normalizePersonName` (Title Case por palabra respetando tildes/`ñ` en español, colapsando espacios) y `normalizeEmail` (recorte y minúsculas).
+- **Wizards, Landing y Cotización Pública**:
+  - Aplicada normalización visual en `onBlur` (y en vivo a minúsculas para email en `onChange`) + antes de enviar en [`DirectWizardCheckoutModal.tsx`](file:///c:/Webs/cocktailsontap.cl/components/wizard/direct/DirectWizardCheckoutModal.tsx), [`EventWizardCheckoutModal.tsx`](file:///c:/Webs/cocktailsontap.cl/components/wizard/events/EventWizardCheckoutModal.tsx), [`EventosAdsLanding.tsx`](file:///c:/Webs/cocktailsontap.cl/components/landing/EventosAdsLanding.tsx), [`EventQuoteView.tsx`](file:///c:/Webs/cocktailsontap.cl/components/quote/EventQuoteView.tsx) y [`DirectQuoteView.tsx`](file:///c:/Webs/cocktailsontap.cl/components/quote/DirectQuoteView.tsx).
+- **Respaldo Server-Side**:
+  - Reforzada normalización al persistir clientes y cotizaciones en [`quoteService.ts`](file:///c:/Webs/cocktailsontap.cl/lib/services/quoteService.ts), [`createQuoteCore.ts`](file:///c:/Webs/cocktailsontap.cl/lib/services/createQuoteCore.ts), [`confirmQuoteCore.ts`](file:///c:/Webs/cocktailsontap.cl/lib/services/confirmQuoteCore.ts) y [`updateDraftQuoteCore.ts`](file:///c:/Webs/cocktailsontap.cl/lib/services/updateDraftQuoteCore.ts).
+
+### 21-11-2026 — Control Opcional de Notificaciones Automáticas en `/admin`
+
+- **Creación manual en `/admin/quotes/new` ([`CreateQuoteManualClient.tsx`](file:///c:/Webs/cocktailsontap.cl/app/admin/quotes/new/CreateQuoteManualClient.tsx), [`createQuoteAdmin.ts`](file:///c:/Webs/cocktailsontap.cl/app/actions/admin/createQuoteAdmin.ts), [`createQuoteCore.ts`](file:///c:/Webs/cocktailsontap.cl/lib/services/createQuoteCore.ts), [`confirmQuoteCore.ts`](file:///c:/Webs/cocktailsontap.cl/lib/services/confirmQuoteCore.ts))**:
+  - Agregado interruptor **"Notificar al cliente al crear"** (activado por defecto) que controla `skipEmail` y el nuevo flag `skipWhatsapp`. Al desactivarlo, se omite el email y el WhatsApp automático de confirmación (`confirmNow`), manteniendo la sincronización de Calendar y CRM.
+- **Cambio de estado a `completed` ([`QuoteDetailClient.tsx`](file:///c:/Webs/cocktailsontap.cl/app/admin/quotes/[id]/QuoteDetailClient.tsx), [`page.tsx`](file:///c:/Webs/cocktailsontap.cl/app/admin/quotes/[id]/page.tsx), [`adminActions.ts`](file:///c:/Webs/cocktailsontap.cl/app/actions/admin/adminActions.ts))**:
+  - Si `review_mode === 'auto'` y `review_email_sent` es falso, al pulsar `Completada` se abre un modal de confirmación propio con el interruptor **"Enviar correo de reseña al cliente"** (activado por defecto), conectado a `updateQuoteStatus(..., { skipReview })`.
+- **Registro de pagos ([`QuoteDetailClient.tsx`](file:///c:/Webs/cocktailsontap.cl/app/admin/quotes/[id]/QuoteDetailClient.tsx), [`adminActions.ts`](file:///c:/Webs/cocktailsontap.cl/app/actions/admin/adminActions.ts))**:
+  - Agregado interruptor **"Notificar al cliente"** (activado por defecto) dentro del modal **Registrar pago**, conectado a `addQuotePayment(..., { skipNotifications })` para omitir email y WhatsApp cuando se desactiva. Los botones rápidos (*Transferencia total* y *Abono 50%*) mantienen el flujo directo con notificación.
+
+### 21-11-2026 — Variantes / Mezcladores Configurables por Producto (`variant_config` + `quote_items.variant`)
+
+- **Base de datos (`supabase/migrations/20261121000000_product_variants.sql`)**:
+  - Agregada columna `products.variant_config` (`jsonb`: `{ label, default, options }`) y `quote_items.variant` (`text`).
+  - Preconfigurados los productos de categoría `Combinados` con `"Elige tu bebida"`: `Coca Original` (por defecto), `Coca Zero`, `Sprite` y `Sprite Zero`.
+- **Catálogo, Precios Zero Trust y APIs**:
+  - `lib/serverData.ts` (`normalizeVariantConfig`), `lib/catalogPricing.ts` (`resolveProductVariant` en `resolveQuoteItemsFromCatalog`), `app/api/v1/catalog/route.ts`, `lib/integrationSchemas.ts`, `lib/integrationMapper.ts` y `lib/mcp/cocktailsMcpServer.ts`.
+- **Web, Cotizaciones, WhatsApp, Emails y Calendar**:
+  - Selector desplegable compacto en `ProductCard.tsx` (`/barriles`, `/eventos`, `/cotizar/[token]`), `ProductDetailView.tsx` (`/barriles/[slug]`, sincronizado con `cot_direct_selections`), `EventosAdsLanding.tsx` (`/lp/eventos`), `QuoteSummaryProducts.tsx`, `useWizard.ts`, `DirectQuoteView.tsx`, `EventQuoteView.tsx`, `lib/wizardLogic.ts`, `EmailShared.tsx` y `lib/utils.ts` (`formatQuoteItemCalendarLine`).
+- **Admin y Recetario (`/admin/products`, `/admin/quotes`, `/admin/recetario`)**:
+  - Editor de `variant_config` en `ProductsClient.tsx`, soporte en `CreateQuoteManualClient.tsx`, `QuoteDetailClient.tsx`, `QuoteOperationalSummary.tsx` y `adminActions.ts`.
+  - `lib/services/productionService.ts` (`aggregateFromQuotes` + `scaleProduction`) separa los litros por variante y desglosa el insumo de categoría `Bebida` por variante elegida en listas de producción/compras.
+
 ### 21-11-2026 — Alineación de Señales Meta Pixel/CAPI en Eventos y Limpieza MCP
 
 - **Consistencia Pixel vs CAPI en confirmación inmediata ([`EventQuoteView.tsx`](file:///c:/Webs/cocktailsontap.cl/components/quote/EventQuoteView.tsx))**:

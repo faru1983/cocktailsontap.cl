@@ -13,13 +13,15 @@ export function formatCurrency(n: number) {
 export function formatQuoteItemCalendarLine(item: {
     size: string;
     product_name: string;
+    variant?: string | null;
     quantity: number;
     offer_price_at_time: number;
 }): string {
     const sizeParts = item.size.split(' - ').map((p) => p.trim()).filter(Boolean);
     const baseSize = sizeParts[0] || item.size;
     const sizeSuffix = sizeParts.slice(1).join(' - ');
-    const productLabel = sizeSuffix ? `${sizeSuffix} ${item.product_name}`.trim() : item.product_name;
+    const nameWithVariant = item.variant ? `${item.product_name} (${item.variant})` : item.product_name;
+    const productLabel = sizeSuffix ? `${sizeSuffix} ${nameWithVariant}`.trim() : nameWithVariant;
     return `${baseSize} (x${item.quantity}) ${productLabel} ${formatCurrency(item.offer_price_at_time * item.quantity)}`;
 }
 
@@ -157,4 +159,26 @@ export function escapeHtml(str: string | null | undefined): string {
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#039;');
+}
+
+/**
+ * Normaliza nombres y apellidos a Title Case (primera letra de cada palabra en mayúscula).
+ * Colapsa espacios múltiples y recorta extremos. Ej: "  jUAN  pablo " -> "Juan Pablo".
+ */
+export function normalizePersonName(value: string | null | undefined): string {
+    if (!value) return '';
+    return value
+        .trim()
+        .replace(/\s+/g, ' ')
+        .replace(/\p{L}+/gu, (word) =>
+            word.charAt(0).toLocaleUpperCase('es') + word.slice(1).toLocaleLowerCase('es')
+        );
+}
+
+/**
+ * Normaliza correos electrónicos: recorta espacios y convierte a minúsculas.
+ */
+export function normalizeEmail(value: string | null | undefined): string {
+    if (!value) return '';
+    return value.trim().toLowerCase();
 }

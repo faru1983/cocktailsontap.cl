@@ -8,14 +8,14 @@ import QuoteSummaryProducts, { type QuoteSummaryData } from '@/components/quote/
 interface Props {
     data: QuoteSummaryData;
     isEditable?: boolean;
-    onUpdateQuantity?: (id: string, size: string, delta: number) => void;
+    onUpdateQuantity?: (id: string, size: string, delta: number, variant?: string | null) => void;
     onAddProductsClick?: () => void;
     onChangeDispenser?: () => void;
     hasComuna?: boolean;
 }
 
 /**
- * Carrito del checkout: accordion colapsado en móvil, listado completo en desktop.
+ * Carrito del checkout: accordion abierto por defecto en móvil (colapsable), listado completo en desktop.
  */
 export default function CheckoutCartSection({
     data,
@@ -25,7 +25,7 @@ export default function CheckoutCartSection({
     onChangeDispenser,
     hasComuna,
 }: Props) {
-    const [open, setOpen] = useState(false);
+    const [open, setOpen] = useState(true);
     const itemLabel = data.items.length === 1 ? 'ítem' : 'ítems';
 
     const listProps = {
@@ -43,6 +43,7 @@ export default function CheckoutCartSection({
             <div className="lg:hidden">
                 <button
                     type="button"
+                    aria-expanded={open}
                     onClick={() => setOpen((v) => !v)}
                     className="w-full flex items-center justify-between gap-3 bg-white rounded-2xl border border-brand-border px-4 py-3 text-left cursor-pointer"
                 >

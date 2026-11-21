@@ -15,6 +15,7 @@ import {
     resolveRegionShortName,
 } from '@/lib/wizardLogic';
 import { isValidPhoneE164, normalizePhoneE164 } from '@/lib/phone';
+import { normalizeEmail, normalizePersonName } from '@/lib/utils';
 
 export interface UpdateDraftQuoteResult {
     success: boolean;
@@ -121,12 +122,13 @@ export async function updateDraftQuoteCore(formData: unknown): Promise<UpdateDra
         const existingCustomItems = existingItems.filter((i) => !i.product_id);
 
         // Consolidar líneas de catálogo duplicadas (mismo product_id + size)
-        const catalogMap = new Map<string, { product_id: string; size: string; quantity: number }>();
+        const catalogMap = new Map<string, { product_id: string; size: string; quantity: number; variant?: string | null }>();
         const customLines: { id?: string; size: string; quantity: number }[] = [];
 
         for (const line of data.items) {
             if (line.product_id) {
-                const key = `${line.product_id}::${line.size}`;
+                const variantKey = (line.variant || '').trim();
+                const key = `${line.product_id}::${line.size}::${variantKey}`;
                 const prev = catalogMap.get(key);
                 if (prev) {
                     prev.quantity += line.quantity;
@@ -135,6 +137,7 @@ export async function updateDraftQuoteCore(formData: unknown): Promise<UpdateDra
                         product_id: line.product_id,
                         size: line.size,
                         quantity: line.quantity,
+                        variant: line.variant ?? null,
                     });
                 }
             } else {
@@ -200,17 +203,17 @@ export async function updateDraftQuoteCore(formData: unknown): Promise<UpdateDra
         // 2. Normalizar datos de contacto, ubicación y evento (sin romper si un campo de texto está a medio escribir)
         const nextClientName =
             data.client_name !== undefined && data.client_name.trim().length > 0
-                ? data.client_name.trim()
+                ? normalizePersonName(data.client_name)
                 : quote.client_name;
 
         const nextClientLastname =
             data.client_lastname !== undefined
-                ? data.client_lastname?.trim() || null
+                ? normalizePersonName(data.client_lastname) || null
                 : quote.client_lastname;
 
         let nextClientEmail: string | null = quote.client_email;
         if (data.client_email !== undefined) {
-            const trimmedEmail = (data.client_email || '').trim().toLowerCase();
+            const trimmedEmail = normalizeEmail(data.client_email);
             if (trimmedEmail === '') {
                 nextClientEmail = null;
             } else if (EMAIL_RE.test(trimmedEmail)) {
@@ -317,6 +320,7 @@ export async function updateDraftQuoteCore(formData: unknown): Promise<UpdateDra
                     id: i.product_id || 'manual',
                     size: i.size,
                     quantity: i.quantity,
+                    variant: i.variant ?? null,
                     customPrice: i.offer_price_at_time,
                     customName: i.product_name,
                 })),
@@ -435,7 +439,8 @@ export async function updateDraftQuoteCore(formData: unknown): Promise<UpdateDra
                 (ex) =>
                     !usedExistingIds.has(ex.id) &&
                     ex.product_id === item.product_id &&
-                    ex.size === item.size
+                    ex.size === item.size &&
+                    (ex.variant || null) === (item.variant || null)
             );
 
             const rowPayload = {
@@ -447,6 +452,7 @@ export async function updateDraftQuoteCore(formData: unknown): Promise<UpdateDra
                 unit_id: item.unit_id || null,
                 is_disposable: Boolean(item.is_disposable),
                 quantity: item.quantity,
+                variant: item.variant || null,
                 price_at_time: item.price_at_time,
                 offer_price_at_time: item.offer_price_at_time,
             };
@@ -457,7 +463,8 @@ export async function updateDraftQuoteCore(formData: unknown): Promise<UpdateDra
                     existingMatch.quantity !== rowPayload.quantity ||
                     existingMatch.price_at_time !== rowPayload.price_at_time ||
                     existingMatch.offer_price_at_time !== rowPayload.offer_price_at_time ||
-                    existingMatch.product_name !== rowPayload.product_name;
+                    existingMatch.product_name !== rowPayload.product_name ||
+                    (existingMatch.variant || null) !== (rowPayload.variant || null);
                 if (changed) {
                     updates.push({ id: existingMatch.id, payload: rowPayload });
                 }

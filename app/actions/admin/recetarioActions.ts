@@ -324,6 +324,7 @@ export type ProductionQuoteRow = {
         size_value: number | null;
         size: string;
         is_disposable?: boolean | null;
+        variant?: string | null;
     }[];
 };
 
@@ -353,7 +354,8 @@ export async function getConfirmedQuotesForProduction(range: QuoteRange = 'week'
                 quantity,
                 size_value,
                 size,
-                is_disposable
+                is_disposable,
+                variant
             )
         `)
         .eq('status', 'confirmed')

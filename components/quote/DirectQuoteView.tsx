@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { formatCurrency, copyToClipboard } from '@/lib/utils';
+import { formatCurrency, copyToClipboard, normalizeEmail, normalizePersonName } from '@/lib/utils';
 import { isValidPhoneE164, normalizePhoneE164 } from '@/lib/phone';
 import PhoneInput from '@/components/ui/PhoneInput';
 import { formatEventDate, getSizeLiters, resolveShipping, DIRECT_SALE_MIN_DISPATCH_OFFSET_DAYS, validateDirectSaleDate } from '@/lib/wizardLogic';
@@ -126,6 +126,7 @@ export default function DirectQuoteView({ quote, comunas, regions, availableCock
                     product_id: i.product_id || null,
                     size: i.size,
                     quantity: i.quantity,
+                    variant: i.variant ?? null,
                 })),
         }),
         [
@@ -382,6 +383,7 @@ export default function DirectQuoteView({ quote, comunas, regions, availableCock
                 id: i.id!,
                 name: i.product_name,
                 selectedSize: i.size,
+                variant: i.variant ?? null,
                 quantity: i.quantity,
                 totalNormalPrice: i.price_at_time * i.quantity,
                 totalOfferPrice: i.offer_price_at_time * i.quantity
@@ -434,6 +436,7 @@ export default function DirectQuoteView({ quote, comunas, regions, availableCock
         description: c.desc,
         image: c.image,
         category: c.category,
+        variant_config: c.variant_config ?? null,
         sizes: Object.entries(c.prices)
             .filter(([size]) => size.includes('desechable') || c.category === 'Otros') // Desechables o complementos
             .map(([size, p]) => ({
@@ -449,10 +452,11 @@ export default function DirectQuoteView({ quote, comunas, regions, availableCock
     })).filter(p => p.sizes.length > 0), [availableCocktails]);
 
     const quoteCart: ICart = {
-        addItem: (productId, productName, size, price, offerPrice, sizeValue, unitId, isDisposable, image) => {
+        addItem: (productId, productName, size, price, offerPrice, sizeValue, unitId, isDisposable, image, variant) => {
+            const normVar = variant ?? null;
             setItems(prev => {
-                const existing = prev.find(i => i.product_id === productId && i.size === size);
-                if (existing) return prev.map(i => (i.product_id === productId && i.size === size) ? { ...i, quantity: i.quantity + 1 } : i);
+                const existing = prev.find(i => i.product_id === productId && i.size === size && (i.variant ?? null) === normVar);
+                if (existing) return prev.map(i => (i.product_id === productId && i.size === size && (i.variant ?? null) === normVar) ? { ...i, quantity: i.quantity + 1 } : i);
                 return [...prev, {
                     id: `temp-${Date.now()}`,
                     quote_id: quote.id,
@@ -463,17 +467,22 @@ export default function DirectQuoteView({ quote, comunas, regions, availableCock
                     unit_id: unitId,
                     is_disposable: isDisposable,
                     quantity: 1,
+                    variant: normVar,
                     price_at_time: price,
                     offer_price_at_time: offerPrice
                 }];
             });
         },
-        removeItem: (productId, size) => setItems(prev => prev.filter(i => !(i.product_id === productId && i.size === size))),
-        updateQuantity: (productId, size, quantity) => {
-            if (quantity <= 0) { quoteCart.removeItem(productId, size); return; }
+        removeItem: (productId, size, variant) => {
+            const normVar = variant ?? null;
+            setItems(prev => prev.filter(i => !(i.product_id === productId && i.size === size && (i.variant ?? null) === normVar)));
+        },
+        updateQuantity: (productId, size, quantity, variant) => {
+            const normVar = variant ?? null;
+            if (quantity <= 0) { quoteCart.removeItem(productId, size, normVar); return; }
             setItems(prev => {
-                const existing = prev.find(i => i.product_id === productId && i.size === size);
-                if (existing) return prev.map(i => (i.product_id === productId && i.size === size) ? { ...i, quantity } : i);
+                const existing = prev.find(i => i.product_id === productId && i.size === size && (i.variant ?? null) === normVar);
+                if (existing) return prev.map(i => (i.product_id === productId && i.size === size && (i.variant ?? null) === normVar) ? { ...i, quantity } : i);
                 const cocktail = availableCocktails.find(c => c.id === productId);
                 if (!cocktail) return prev;
                 const prices = cocktail.prices[size];
@@ -488,12 +497,16 @@ export default function DirectQuoteView({ quote, comunas, regions, availableCock
                     unit_id: prices.unitId,
                     is_disposable: prices.isDisposable,
                     quantity: quantity,
+                    variant: normVar,
                     price_at_time: prices.price,
                     offer_price_at_time: prices.offerPrice
                 }];
             });
         },
-        getQuantity: (productId, size) => items.find(i => i.product_id === productId && i.size === size)?.quantity ?? 0
+        getQuantity: (productId, size, variant) => {
+            const normVar = variant ?? null;
+            return items.find(i => i.product_id === productId && i.size === size && (i.variant ?? null) === normVar)?.quantity ?? 0;
+        }
     };
 
     const handleConfirm = async () => {
@@ -504,10 +517,10 @@ export default function DirectQuoteView({ quote, comunas, regions, availableCock
         const attribution = getClientMetaAttribution();
         const result = await confirmQuote({
             token: quote.token,
-            client_name: firstName.trim(),
-            client_email: email.trim().toLowerCase(),
+            client_name: normalizePersonName(firstName),
+            client_email: normalizeEmail(email),
             client_phone: phone,
-            client_lastname: lastName.trim(),
+            client_lastname: normalizePersonName(lastName),
             client_address: address,
             comuna_name: comuna,
             region_name: regions.find(r => r.code === regionCode)?.shortName || quote.region_name || null,
@@ -524,6 +537,7 @@ export default function DirectQuoteView({ quote, comunas, regions, availableCock
                 product_id: item.product_id || null,
                 size: item.size,
                 quantity: item.quantity,
+                variant: item.variant ?? null,
             })),
             dispenser: 'desechable',
             fbc: attribution.fbc,
@@ -820,7 +834,10 @@ export default function DirectQuoteView({ quote, comunas, regions, availableCock
                                             setFirstName(e.target.value);
                                             setValidationErrors(prev => ({ ...prev, firstName: false }));
                                         }}
-                                        onBlur={flushOnBlur}
+                                        onBlur={(e) => {
+                                            setFirstName(normalizePersonName(e.target.value));
+                                            flushOnBlur();
+                                        }}
                                         placeholder="Tu nombre"
                                         className={`w-full px-3 py-2.5 bg-slate-50 border rounded-xl text-[0.95rem] font-bold focus:outline-none focus:border-primary focus:bg-white transition-all shadow-sm ${validationErrors.firstName ? 'border-red-500 bg-red-50/30' : 'border-brand-border'}`}
                                     />
@@ -837,7 +854,10 @@ export default function DirectQuoteView({ quote, comunas, regions, availableCock
                                             setLastName(e.target.value);
                                             setValidationErrors(prev => ({ ...prev, lastName: false }));
                                         }}
-                                        onBlur={flushOnBlur}
+                                        onBlur={(e) => {
+                                            setLastName(normalizePersonName(e.target.value));
+                                            flushOnBlur();
+                                        }}
                                         placeholder="Tu apellido"
                                         className={`w-full px-3 py-2.5 bg-slate-50 border rounded-xl text-[0.95rem] font-bold focus:outline-none focus:border-primary focus:bg-white transition-all shadow-sm ${validationErrors.lastName ? 'border-red-500 bg-red-50/30' : 'border-brand-border'}`}
                                     />
@@ -852,10 +872,13 @@ export default function DirectQuoteView({ quote, comunas, regions, availableCock
                                     type="email"
                                     value={email}
                                     onChange={(e) => {
-                                        setEmail(e.target.value);
+                                        setEmail(e.target.value.toLowerCase());
                                         setValidationErrors(prev => ({ ...prev, email: false }));
                                     }}
-                                    onBlur={flushOnBlur}
+                                    onBlur={(e) => {
+                                        setEmail(normalizeEmail(e.target.value));
+                                        flushOnBlur();
+                                    }}
                                     placeholder="tu@correo.cl"
                                     className={`w-full px-3 py-2.5 bg-slate-50 border rounded-xl text-[0.95rem] font-bold focus:outline-none focus:border-primary focus:bg-white transition-all shadow-sm ${validationErrors.email ? 'border-red-500 bg-red-50/30' : 'border-brand-border'}`}
                                 />
