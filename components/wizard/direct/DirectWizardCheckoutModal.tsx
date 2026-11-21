@@ -1,9 +1,11 @@
 'use client';
 
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import type { useWizard } from '@/hooks/useWizard';
-import type { Comuna, Region } from '@/lib/types';
-import { formatCurrency, normalizeEmail, normalizePersonName } from '@/lib/utils';
+import { DEFAULT_REGION_CODE, type Comuna, type Region } from '@/lib/types';
+import { formatCurrency, normalizeEmail, normalizePersonName, resolveEligibleComunaFromGoogle } from '@/lib/utils';
+import { GOOGLE_MAPS_API_KEY } from '@/lib/config';
+import { AddressAutocomplete } from '@/components/ui/AddressAutocomplete';
 import PhoneInput from '@/components/ui/PhoneInput';
 import RegionComunaFields from '@/components/ui/RegionComunaFields';
 import ShippingDatePicker from '@/components/ui/ShippingDatePicker';
@@ -37,6 +39,9 @@ export default function DirectWizardCheckoutModal({
 }: Props) {
     const { state, updateContact, updateEventData, updateDeliveryEstimate } = wizard;
     const [showComments, setShowComments] = useState(Boolean(state.contact.comments));
+    const [showRegionComuna, setShowRegionComuna] = useState(
+        () => !GOOGLE_MAPS_API_KEY || Boolean(state.contact.otherComuna)
+    );
     const [dateError, setDateError] = useState<string | null>(null);
     const [localError, setLocalError] = useState('');
     const [errors, setErrors] = useState<Record<string, string>>({});
@@ -48,6 +53,21 @@ export default function DirectWizardCheckoutModal({
             delete next[field];
             return next;
         });
+    };
+
+    const resetShippingLocation = (clearAddress = true) => {
+        if (clearAddress) {
+            updateContact('address', '');
+            clearError('address');
+        }
+        updateContact('region', DEFAULT_REGION_CODE);
+        updateContact('comuna', '');
+        updateContact('otherComuna', '');
+        updateEventData('date', '');
+        updateDeliveryEstimate?.(undefined);
+        clearError('comuna');
+        clearError('date');
+        setDateError(null);
     };
 
     const handlePhoneBlur = () => {
@@ -91,6 +111,7 @@ export default function DirectWizardCheckoutModal({
         : methodsConfig?.own_direct;
 
     const isBlueExpress = summaryData.shippingCarrier === 'blue_express';
+    const prevIsBlueExpressRef = useRef(isBlueExpress);
     const selectedComuna = comunas.find((c) => c.name.toLowerCase() === (state.contact.comuna || '').toLowerCase());
     const beZone = selectedComuna?.blueExpressZone || selectedComuna?.regionBlueExpressZone;
     const transitDays = getBlueExpressTransitDays(
@@ -120,10 +141,13 @@ export default function DirectWizardCheckoutModal({
                 deliveryEstimateLabel: beSchedule.dateRangeLabel,
                 deliveryEstimateDays: beSchedule.estimatedDaysLabel,
             });
-            setDateError(null);
         } else {
+            if (prevIsBlueExpressRef.current) {
+                updateEventData('date', '');
+            }
             updateDeliveryEstimate?.(undefined);
         }
+        prevIsBlueExpressRef.current = isBlueExpress;
     }, [isBlueExpress, beSchedule, state.eventData.date, updateEventData, updateDeliveryEstimate]);
 
     const minDate = getMinSelectableDate(activeMethodConfig, DIRECT_SALE_MIN_DISPATCH_OFFSET_DAYS);
@@ -159,12 +183,13 @@ export default function DirectWizardCheckoutModal({
         }
         if (!state.contact.comuna.trim()) {
             newErrors.comuna = 'Selecciona tu comuna.';
+            setShowRegionComuna(true);
         }
         if (!state.contact.address?.trim() || state.contact.address.trim().length < 5) {
             newErrors.address = 'Ingresa una dirección completa (mín. 5 caracteres).';
         }
 
-        if (!isBlueExpress) {
+        if (!isBlueExpress && hasComuna) {
             const dateErr = validateDirectSaleDate(state.eventData.date, activeMethodConfig);
             if (dateErr) {
                 newErrors.date = dateErr;
@@ -394,41 +419,42 @@ export default function DirectWizardCheckoutModal({
                                         </div>
                                     </div>
 
-                                    <RegionComunaFields
-                                        regions={regions}
-                                        comunas={comunas}
-                                        serviceType="direct"
-                                        regionCode={state.contact.region || 'RM'}
-                                        comuna={state.contact.comuna}
-                                        otherComuna={state.contact.otherComuna}
-                                        comunaError={errors.comuna}
-                                        comunaId="field-comuna"
-                                        onRegionChange={(code) => {
-                                            updateContact('region', code);
-                                            clearError('comuna');
-                                        }}
-                                        onComunaChange={(name) => {
-                                            updateContact('comuna', name);
-                                            clearError('comuna');
-                                            setDateError(null);
-                                        }}
-                                        onOtherComunaChange={(v) => {
-                                            updateContact('otherComuna', v);
-                                            if (v.trim()) clearError('comuna');
-                                        }}
-                                    />
-
                                     <div>
                                         <label className="block font-bold mb-1 text-brand-text text-[0.8rem]">Dirección <span className="text-primary">*</span></label>
-                                        <input
+                                        <AddressAutocomplete
                                             id="field-address"
-                                            type="text" required placeholder="Calle 123 Depto 456"
-                                            autoComplete="street-address"
+                                            required
+                                            comuna={state.contact.comuna}
                                             className={getInputCls(Boolean(errors.address))}
                                             value={state.contact.address}
-                                            onChange={(e) => {
-                                                updateContact('address', e.target.value);
+                                            onChange={(val) => {
+                                                updateContact('address', val);
                                                 clearError('address');
+                                                if (!val.trim() && !showRegionComuna) {
+                                                    resetShippingLocation(false);
+                                                }
+                                            }}
+                                            onSelectAddressDetails={(details) => {
+                                                const matched = resolveEligibleComunaFromGoogle(
+                                                    details.comunaCandidates,
+                                                    details.regionName,
+                                                    comunas,
+                                                    regions,
+                                                    'direct'
+                                                );
+                                                if (matched) {
+                                                    updateContact('region', matched.regionCode);
+                                                    updateContact('comuna', matched.name);
+                                                    clearError('comuna');
+                                                    setDateError(null);
+                                                    setShowRegionComuna(false);
+                                                } else {
+                                                    setShowRegionComuna(true);
+                                                }
+                                            }}
+                                            onManualModeChange={(isManual) => {
+                                                resetShippingLocation(true);
+                                                setShowRegionComuna(isManual);
                                             }}
                                         />
                                         {errors.address && (
@@ -439,8 +465,35 @@ export default function DirectWizardCheckoutModal({
                                         )}
                                     </div>
 
-                                    <div>
-                                        {isBlueExpress ? (
+                                    {showRegionComuna && (
+                                        <RegionComunaFields
+                                            regions={regions}
+                                            comunas={comunas}
+                                            serviceType="direct"
+                                            regionCode={state.contact.region || 'RM'}
+                                            comuna={state.contact.comuna}
+                                            otherComuna={state.contact.otherComuna}
+                                            comunaError={errors.comuna}
+                                            comunaId="field-comuna"
+                                            onRegionChange={(code) => {
+                                                updateContact('region', code);
+                                                clearError('comuna');
+                                            }}
+                                            onComunaChange={(name) => {
+                                                updateContact('comuna', name);
+                                                clearError('comuna');
+                                                setDateError(null);
+                                            }}
+                                            onOtherComunaChange={(v) => {
+                                                updateContact('otherComuna', v);
+                                                if (v.trim()) clearError('comuna');
+                                            }}
+                                        />
+                                    )}
+
+                                    {hasComuna && (
+                                        <div>
+                                            {isBlueExpress ? (
                                             <div className="bg-amber-500/5 border border-amber-500/20 rounded-2xl p-4 transition-all">
                                                 <div className="flex items-center gap-2 mb-2">
                                                     <Truck className="w-5 h-5 text-primary shrink-0" />
@@ -487,7 +540,8 @@ export default function DirectWizardCheckoutModal({
                                                 )}
                                             </>
                                         )}
-                                    </div>
+                                        </div>
+                                    )}
 
                                     {showComments ? (
                                         <div>

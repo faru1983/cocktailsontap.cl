@@ -3,6 +3,7 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { formatCurrency, copyToClipboard, normalizeEmail, normalizePersonName } from '@/lib/utils';
+import { AddressAutocomplete } from '@/components/ui/AddressAutocomplete';
 import { isValidPhoneE164, normalizePhoneE164 } from '@/lib/phone';
 import PhoneInput from '@/components/ui/PhoneInput';
 import { formatEventDate, getSizeLiters, resolveShipping, DIRECT_SALE_MIN_DISPATCH_OFFSET_DAYS, validateDirectSaleDate } from '@/lib/wizardLogic';
@@ -920,7 +921,7 @@ export default function DirectQuoteView({ quote, comunas, regions, availableCock
                             />
                             <div className="flex flex-col gap-1">
                                 <label className="text-[0.65rem] font-black text-brand-text-muted flex items-center gap-1.5 uppercase"><MapPin className="w-3 h-3" /> Dirección <span className="text-red-500">*</span></label>
-                                <input id="field-address" type="text" value={address} onChange={(e) => { setAddress(e.target.value); setValidationErrors(prev => ({ ...prev, address: false })); }} onBlur={flushOnBlur} placeholder="Calle, Número, Depto..." className={`w-full px-3 py-2.5 bg-slate-50 border rounded-xl text-[0.95rem] font-bold focus:outline-none focus:border-primary focus:bg-white transition-all shadow-sm ${validationErrors.address ? 'border-red-500 bg-red-50/30' : 'border-brand-border'}`} />
+                                <AddressAutocomplete id="field-address" value={address} comuna={comuna} onChange={(val) => { setAddress(val); setValidationErrors(prev => ({ ...prev, address: false })); }} onBlur={flushOnBlur} placeholder="Calle, Número, Depto..." className={`w-full px-3 py-2.5 bg-slate-50 border rounded-xl text-[0.95rem] font-bold focus:outline-none focus:border-primary focus:bg-white transition-all shadow-sm ${validationErrors.address ? 'border-red-500 bg-red-50/30' : 'border-brand-border'}`} />
                             </div>
                             <div className="flex flex-col">
                                 <ShippingDatePicker

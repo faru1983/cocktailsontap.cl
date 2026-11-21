@@ -42,9 +42,10 @@ interface Props {
     compact?: boolean;
     hideTotals?: boolean;
     hasComuna?: boolean;
+    pendingShippingLabel?: string;
 }
 
-export default function QuoteSummaryProducts({ data, isEditable = false, onUpdateQuantity, onAddProductsClick, onChangeDispenser, compact = false, hideTotals = false, hasComuna = true }: Props) {
+export default function QuoteSummaryProducts({ data, isEditable = false, onUpdateQuantity, onAddProductsClick, onChangeDispenser, compact = false, hideTotals = false, hasComuna = true, pendingShippingLabel }: Props) {
 
     return (
         <div className={`bg-white rounded-[20px] border border-brand-border shadow-[0_4px_20px_rgba(0,0,0,0.05)] ${compact ? 'p-4 sm:p-5 mb-4' : 'p-4 sm:p-8 mb-6'}`}>
@@ -158,6 +159,7 @@ export default function QuoteSummaryProducts({ data, isEditable = false, onUpdat
                     onChangeDispenser={onChangeDispenser}
                     compact={compact}
                     hasComuna={hasComuna}
+                    pendingShippingLabel={pendingShippingLabel}
                 />
             )}
         </div>

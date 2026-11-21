@@ -182,3 +182,88 @@ export function normalizeEmail(value: string | null | undefined): string {
     if (!value) return '';
     return value.trim().toLowerCase();
 }
+
+function normalizeGeoToken(value: string): string {
+    return value
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .replace(/^(comuna de|ciudad de|region de|region metropolitana de|region)\s+/i, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+/**
+ * Busca la comuna oficial más precisa a partir de los componentes devueltos por Google Places.
+ */
+export function matchComunaFromGoogle<
+    T extends { name: string; regionName?: string; regionShortName?: string }
+>(
+    comunaCandidates: string[],
+    regionHint: string | null | undefined,
+    comunas: T[]
+): T | null {
+    const normalizedCandidates = comunaCandidates
+        .map((c) => normalizeGeoToken(c))
+        .filter(Boolean);
+    if (normalizedCandidates.length === 0 || comunas.length === 0) return null;
+
+    const normalizedRegion = regionHint ? normalizeGeoToken(regionHint) : '';
+    const regionMatches = (c: T) => {
+        if (!normalizedRegion) return true;
+        const rName = c.regionName ? normalizeGeoToken(c.regionName) : '';
+        const rShort = c.regionShortName ? normalizeGeoToken(c.regionShortName) : '';
+        return (
+            (rName && (rName.includes(normalizedRegion) || normalizedRegion.includes(rName))) ||
+            (rShort && (rShort.includes(normalizedRegion) || normalizedRegion.includes(rShort)))
+        );
+    };
+
+    // 1. Match exacto (priorizando coincidencia de región si hubiera homónimos)
+    for (const candidate of normalizedCandidates) {
+        const exact = comunas.filter((c) => normalizeGeoToken(c.name) === candidate);
+        if (exact.length > 0) {
+            return exact.find(regionMatches) || exact[0];
+        }
+    }
+
+    // 2. Fallback: candidato contiene el nombre oficial de la comuna (nombres largos primero)
+    const byLength = [...comunas].sort((a, b) => b.name.length - a.name.length);
+    for (const candidate of normalizedCandidates) {
+        const partial = byLength.filter((c) => {
+            const name = normalizeGeoToken(c.name);
+            return name.length >= 4 && candidate.includes(name);
+        });
+        if (partial.length > 0) {
+            return partial.find(regionMatches) || partial[0];
+        }
+    }
+
+    return null;
+}
+
+/**
+ * Resuelve la comuna elegible para un tipo de servicio ('direct' | 'event') a partir de Google Places.
+ */
+export function resolveEligibleComunaFromGoogle<
+    TComuna extends { name: string; isActive: boolean; regionCode: string; regionName?: string; regionShortName?: string },
+    TRegion extends { code: string; isActive: boolean; availableForDirect: boolean; availableForEvents: boolean }
+>(
+    comunaCandidates: string[],
+    regionHint: string | null | undefined,
+    comunas: TComuna[],
+    regions: TRegion[],
+    serviceType: 'direct' | 'event'
+): TComuna | null {
+    const activeRegions = new Set(
+        regions
+            .filter((r) =>
+                r.isActive && (serviceType === 'event' ? r.availableForEvents : r.availableForDirect)
+            )
+            .map((r) => r.code)
+    );
+    const eligible = comunas.filter(
+        (c) => c.isActive && (activeRegions.size === 0 || activeRegions.has(c.regionCode))
+    );
+    return matchComunaFromGoogle(comunaCandidates, regionHint, eligible);
+}

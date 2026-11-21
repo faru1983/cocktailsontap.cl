@@ -41,6 +41,20 @@
 
 ## Ultimos Cambios
 
+### 21-11-2026 — Autocompletado de Direcciones con Google Places (New) + Modo Manual
+
+- **Configuración y Carga Bajo Demanda ([`lib/config.ts`](file:///c:/Webs/cocktailsontap.cl/lib/config.ts), [`lib/googleMapsLoader.ts`](file:///c:/Webs/cocktailsontap.cl/lib/googleMapsLoader.ts))**:
+  - Agregada `GOOGLE_MAPS_API_KEY` (`NEXT_PUBLIC_GOOGLE_MAPS_API_KEY`) y loader asíncrono bajo demanda de `google.maps.importLibrary('places')` (`language=es`, `region=CL`).
+- **Componente Reutilizable ([`components/ui/AddressAutocomplete.tsx`](file:///c:/Webs/cocktailsontap.cl/components/ui/AddressAutocomplete.tsx))**:
+  - Usa `AutocompleteSuggestion.fetchAutocompleteSuggestions` + `AutocompleteSessionToken` + `Place.fetchFields({ fields: ['formattedAddress', 'addressComponents'] })` restringido a Chile (`cl`), priorizando la comuna seleccionada.
+  - Al elegir una dirección de Google, extrae calle y número y habilita un sub-campo opcional para **Depto / Casa / Torre / Referencia** (combinado en `client_address`).
+  - Incluye botón explícito *"¿No encuentras tu dirección? Escríbela manualmente"* (y vuelta a *"Buscar dirección con Google"*), más fallback automático a modo manual si falta la API Key o falla la carga.
+- **Integración en Formularios**:
+  - Conectado en [`DirectWizardCheckoutModal.tsx`](file:///c:/Webs/cocktailsontap.cl/components/wizard/direct/DirectWizardCheckoutModal.tsx) (modo minimalista en `/barriles`: oculta Región/Comuna y fecha/Blue Express hasta resolver comuna, autocompleta ambos vía `resolveEligibleComunaFromGoogle` en [`lib/utils.ts`](file:///c:/Webs/cocktailsontap.cl/lib/utils.ts) incluyendo comuna y región en la línea de dirección, reinicia envío/fecha al borrar la dirección o alternar manual ↔ Google, y despliega/oculta selectores manuales según el modo activo).
+  - Conectado en [`EventWizardCheckoutModal.tsx`](file:///c:/Webs/cocktailsontap.cl/components/wizard/events/EventWizardCheckoutModal.tsx): al marcar **"Confirmar reserva ahora"** oculta los selectores superiores de Región/Comuna, autocompleta y valida estrictamente las **52 comunas de la Región Metropolitana** (bloqueando direcciones fuera de RM con enlace directo a `/barriles`), y al desmarcar **"Confirmar reserva ahora"** reinicia dirección, comuna, horarios y aceptación de contrato volviendo a la vista de cotización.
+  - Conectado en [`EventQuoteView.tsx`](file:///c:/Webs/cocktailsontap.cl/components/quote/EventQuoteView.tsx) y [`DirectQuoteView.tsx`](file:///c:/Webs/cocktailsontap.cl/components/quote/DirectQuoteView.tsx).
+  - [`QuoteSummaryTotals.tsx`](file:///c:/Webs/cocktailsontap.cl/components/quote/QuoteSummaryTotals.tsx) / [`QuoteSummaryProducts.tsx`](file:///c:/Webs/cocktailsontap.cl/components/quote/QuoteSummaryProducts.tsx) / [`CheckoutCartSection.tsx`](file:///c:/Webs/cocktailsontap.cl/components/quote/CheckoutCartSection.tsx): muestran `"Ingresa dirección para calcular"` en venta directa o cuando se confirma reserva en `/eventos` sin dirección aún.
+
 ### 21-11-2026 — Normalización de Nombres y Correos en Formularios y Servicios
 
 - **Helpers compartidos ([`lib/utils.ts`](file:///c:/Webs/cocktailsontap.cl/lib/utils.ts))**:

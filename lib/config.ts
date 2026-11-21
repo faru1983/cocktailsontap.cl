@@ -122,3 +122,7 @@ export function isBankTransferMonoField(label: string): boolean {
  * Leer process.env en lib/services/metaCapiService.ts (no exportar el token aquí;
  * un const a nivel de módulo se inlinea vacío en el build de Vercel).
  */
+
+
+/** Google Maps / Places API Key (pública, restringida por dominio HTTP referrer). */
+export const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY?.trim() ?? '';

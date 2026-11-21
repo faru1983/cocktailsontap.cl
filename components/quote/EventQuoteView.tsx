@@ -3,6 +3,7 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { formatCurrency, copyToClipboard, normalizeEmail, normalizePersonName } from '@/lib/utils';
+import { AddressAutocomplete } from '@/components/ui/AddressAutocomplete';
 import { isValidPhoneE164, normalizePhoneE164 } from '@/lib/phone';
 import PhoneInput from '@/components/ui/PhoneInput';
 import { formatEventDate, calculateMaxPickupDate, isAllowedEventPickupDate, EVENT_DEFAULT_NEXT_DAY_PICKUP_TIME, resolveShipping, isEventBarrelSizeLabelCompatible, getSizeLiters } from '@/lib/wizardLogic';
@@ -1055,12 +1056,12 @@ export default function EventQuoteView({ quote, comunas, regions, availableCockt
                                 <label className="text-[0.65rem] font-black text-brand-text-muted flex items-center gap-1.5 uppercase">
                                     <MapPin className="w-3 h-3" /> Dirección <span className="text-red-500">*</span>
                                 </label>
-                                <input
+                                <AddressAutocomplete
                                     id="field-address"
-                                    type="text"
                                     value={address}
-                                    onChange={(e) => {
-                                        setAddress(e.target.value);
+                                    comuna={comuna}
+                                    onChange={(val) => {
+                                        setAddress(val);
                                         setValidationErrors(prev => ({ ...prev, address: false }));
                                     }}
                                     onBlur={flushOnBlur}

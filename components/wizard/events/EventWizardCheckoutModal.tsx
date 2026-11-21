@@ -1,16 +1,18 @@
 'use client';
 
 import React, { useMemo, useState } from 'react';
+import Link from 'next/link';
 import type { useWizard } from '@/hooks/useWizard';
-import type { Comuna, Region, EventType } from '@/lib/types';
-import { formatCurrency, normalizeEmail, normalizePersonName } from '@/lib/utils';
+import { DEFAULT_REGION_CODE, type Comuna, type Region, type EventType } from '@/lib/types';
+import { formatCurrency, normalizeEmail, normalizePersonName, resolveEligibleComunaFromGoogle } from '@/lib/utils';
+import { AddressAutocomplete } from '@/components/ui/AddressAutocomplete';
 import PhoneInput from '@/components/ui/PhoneInput';
 import RegionComunaFields from '@/components/ui/RegionComunaFields';
 import ShippingDatePicker from '@/components/ui/ShippingDatePicker';
 import { X, Loader2, Calendar, Users, CheckCircle, FileText, User, AlertCircle, Clock } from 'lucide-react';
 import CheckoutCartSection from '@/components/quote/CheckoutCartSection';
 import QuoteSummaryTotals from '@/components/quote/QuoteSummaryTotals';
-import { PORTATIL_MIN_LITERS, MURO_MIN_LITERS } from '@/lib/config';
+import { PORTATIL_MIN_LITERS, MURO_MIN_LITERS, GOOGLE_MAPS_API_KEY } from '@/lib/config';
 import { validateConfirmNowState } from '@/lib/confirmNowValidation';
 import { calculateMaxPickupDate, EVENT_DEFAULT_NEXT_DAY_PICKUP_TIME, getMinDateString, isAllowedEventPickupDate } from '@/lib/wizardLogic';
 import { getMinSelectableDate, validateShippingDate } from '@/lib/shippingMethods';
@@ -40,6 +42,10 @@ export default function EventWizardCheckoutModal({
     const { state, updateContact, updateEventData } = wizard;
     const [confirmNow, setConfirmNow] = useState(false);
     const [acceptedTerms, setAcceptedTerms] = useState(false);
+    const [showManualRegionComuna, setShowManualRegionComuna] = useState(
+        () => !GOOGLE_MAPS_API_KEY || Boolean(state.contact.otherComuna)
+    );
+    const [outOfRmError, setOutOfRmError] = useState<string | null>(null);
     const [localError, setLocalError] = useState('');
     const [errors, setErrors] = useState<Record<string, string>>({});
     const [showComments, setShowComments] = useState(Boolean(state.contact.comments));
@@ -74,6 +80,30 @@ export default function EventWizardCheckoutModal({
             return next;
         });
         setLocalError('');
+    };
+
+    const resetEventAddressAndLocation = (clearAddress = true) => {
+        if (clearAddress) {
+            updateContact('address', '');
+            clearError('address');
+        }
+        updateContact('region', DEFAULT_REGION_CODE);
+        updateContact('comuna', '');
+        updateContact('otherComuna', '');
+        clearError('comuna');
+        setOutOfRmError(null);
+    };
+
+    const resetConfirmNowFields = () => {
+        resetEventAddressAndLocation(true);
+        updateEventData('startTime', '');
+        updateEventData('pickupDate', '');
+        updateEventData('pickupTime', '');
+        setAcceptedTerms(false);
+        setShowManualRegionComuna(!GOOGLE_MAPS_API_KEY);
+        clearError('startTime');
+        clearError('pickupDate');
+        clearError('terms');
     };
 
     const handlePhoneBlur = () => {
@@ -120,7 +150,10 @@ export default function EventWizardCheckoutModal({
             newErrors.phone = 'Ingresa tu celular de 9 dígitos (ej: +56 9 1234 5678).';
         }
         if (!state.contact.comuna.trim()) {
-            newErrors.comuna = 'Selecciona tu comuna.';
+            newErrors.comuna = confirmNow
+                ? 'Selecciona tu comuna en la Región Metropolitana.'
+                : 'Selecciona tu comuna.';
+            if (confirmNow) setShowManualRegionComuna(true);
         }
 
         // 2. Evento
@@ -140,7 +173,9 @@ export default function EventWizardCheckoutModal({
 
         // 3. Confirm Now
         if (confirmNow) {
-            if (!state.contact.address?.trim() || state.contact.address.trim().length < 5) {
+            if (outOfRmError) {
+                newErrors.address = outOfRmError;
+            } else if (!state.contact.address?.trim() || state.contact.address.trim().length < 5) {
                 newErrors.address = 'Ingresa una dirección completa (mín. 5 caracteres).';
             }
             if (!state.eventData.startTime?.trim()) {
@@ -223,7 +258,12 @@ export default function EventWizardCheckoutModal({
         >
             {opts.showTotals && (
                 <div className="mb-4">
-                    <QuoteSummaryTotals data={summaryForView} compact hasComuna={hasComuna} />
+                    <QuoteSummaryTotals
+                        data={summaryForView}
+                        compact
+                        hasComuna={hasComuna}
+                        pendingShippingLabel={confirmNow ? 'Ingresa dirección para calcular' : 'Elige comuna para calcular'}
+                    />
                 </div>
             )}
             {!minLitersMet && (
@@ -323,6 +363,7 @@ export default function EventWizardCheckoutModal({
                                 onUpdateQuantity={wizard.updateQuantity}
                                 onAddProductsClick={onClose}
                                 hasComuna={hasComuna}
+                                pendingShippingLabel={confirmNow ? 'Ingresa dirección para calcular' : 'Elige comuna para calcular'}
                             />
                         </div>
 
@@ -446,28 +487,30 @@ export default function EventWizardCheckoutModal({
                                             </div>
                                         </div>
 
-                                        <RegionComunaFields
-                                            regions={regions}
-                                            comunas={comunas}
-                                            serviceType="event"
-                                            regionCode={state.contact.region || 'RM'}
-                                            comuna={state.contact.comuna}
-                                            otherComuna={state.contact.otherComuna}
-                                            comunaError={errors.comuna}
-                                            comunaId="field-comuna"
-                                            onRegionChange={(code) => {
-                                                updateContact('region', code);
-                                                clearError('comuna');
-                                            }}
-                                            onComunaChange={(name) => {
-                                                updateContact('comuna', name);
-                                                clearError('comuna');
-                                            }}
-                                            onOtherComunaChange={(v) => {
-                                                updateContact('otherComuna', v);
-                                                if (v.trim()) clearError('comuna');
-                                            }}
-                                        />
+                                        {!confirmNow && (
+                                            <RegionComunaFields
+                                                regions={regions}
+                                                comunas={comunas}
+                                                serviceType="event"
+                                                regionCode={state.contact.region || 'RM'}
+                                                comuna={state.contact.comuna}
+                                                otherComuna={state.contact.otherComuna}
+                                                comunaError={errors.comuna}
+                                                comunaId="field-comuna"
+                                                onRegionChange={(code) => {
+                                                    updateContact('region', code);
+                                                    clearError('comuna');
+                                                }}
+                                                onComunaChange={(name) => {
+                                                    updateContact('comuna', name);
+                                                    clearError('comuna');
+                                                }}
+                                                onOtherComunaChange={(v) => {
+                                                    updateContact('otherComuna', v);
+                                                    if (v.trim()) clearError('comuna');
+                                                }}
+                                            />
+                                        )}
                                     </div>
 
                                     {/* 2. Detalles del Evento */}
@@ -573,9 +616,14 @@ export default function EventWizardCheckoutModal({
                                                 className="mt-0.5 w-5 h-5 accent-primary shrink-0"
                                                 checked={confirmNow}
                                                 onChange={(e) => {
-                                                    setConfirmNow(e.target.checked);
+                                                    const checked = e.target.checked;
+                                                    setConfirmNow(checked);
                                                     setLocalError('');
-                                                    if (e.target.checked) {
+                                                    if (checked) {
+                                                        if (!state.contact.address.trim()) {
+                                                            resetEventAddressAndLocation(true);
+                                                        }
+                                                        setShowManualRegionComuna(!GOOGLE_MAPS_API_KEY);
                                                         const eventDate = state.eventData.date;
                                                         const next = calculateMaxPickupDate(eventDate);
                                                         const current = state.eventData.pickupDate;
@@ -583,6 +631,8 @@ export default function EventWizardCheckoutModal({
                                                             updateEventData('pickupDate', '');
                                                             updateEventData('pickupTime', '');
                                                         }
+                                                    } else {
+                                                        resetConfirmNowFields();
                                                     }
                                                 }}
                                             />
@@ -599,28 +649,118 @@ export default function EventWizardCheckoutModal({
                                         <div className="flex flex-col gap-3.5 pt-1 animate-fade-in border-t border-brand-border mt-1">
                                             <div>
                                                 <label className="block font-bold mb-1 text-brand-text text-[0.8rem]">
-                                                    Dirección <span className="text-primary">*</span>
+                                                    Dirección en Región Metropolitana <span className="text-primary">*</span>
                                                 </label>
-                                                <input
+                                                <AddressAutocomplete
                                                     id="field-address"
-                                                    type="text"
                                                     required={confirmNow}
-                                                    placeholder="Calle, número, depto..."
-                                                    autoComplete="street-address"
-                                                    className={getInputCls(Boolean(errors.address))}
+                                                    className={getInputCls(Boolean(errors.address || outOfRmError))}
                                                     value={state.contact.address}
-                                                    onChange={(e) => {
-                                                        updateContact('address', e.target.value);
+                                                    onChange={(val) => {
+                                                        updateContact('address', val);
                                                         clearError('address');
+                                                        setOutOfRmError(null);
+                                                        if (!val.trim() && !showManualRegionComuna) {
+                                                            resetEventAddressAndLocation(false);
+                                                        }
+                                                    }}
+                                                    onSelectAddressDetails={(details) => {
+                                                        const matchedRm = resolveEligibleComunaFromGoogle(
+                                                            details.comunaCandidates,
+                                                            details.regionName,
+                                                            comunas,
+                                                            regions,
+                                                            'event'
+                                                        );
+                                                        if (matchedRm) {
+                                                            updateContact('region', matchedRm.regionCode);
+                                                            updateContact('comuna', matchedRm.name);
+                                                            clearError('comuna');
+                                                            clearError('address');
+                                                            setOutOfRmError(null);
+                                                            setShowManualRegionComuna(false);
+                                                            return;
+                                                        }
+
+                                                        const matchedOtherRegion = resolveEligibleComunaFromGoogle(
+                                                            details.comunaCandidates,
+                                                            details.regionName,
+                                                            comunas,
+                                                            regions,
+                                                            'direct'
+                                                        );
+                                                        const regionNorm = (details.regionName || '')
+                                                            .normalize('NFD')
+                                                            .replace(/[\u0300-\u036f]/g, '')
+                                                            .toLowerCase();
+                                                        const clearlyOutsideRm =
+                                                            Boolean(matchedOtherRegion) ||
+                                                            (Boolean(regionNorm) && !regionNorm.includes('metropolitana'));
+
+                                                        if (clearlyOutsideRm) {
+                                                            resetEventAddressAndLocation(false);
+                                                            setShowManualRegionComuna(false);
+                                                            setOutOfRmError(
+                                                                'Los eventos con dispensador operan exclusivamente en la Región Metropolitana (52 comunas).'
+                                                            );
+                                                        } else {
+                                                            setOutOfRmError(null);
+                                                            setShowManualRegionComuna(true);
+                                                        }
+                                                    }}
+                                                    onManualModeChange={(isManual) => {
+                                                        resetEventAddressAndLocation(true);
+                                                        setShowManualRegionComuna(isManual);
                                                     }}
                                                 />
-                                                {errors.address && (
+                                                {outOfRmError ? (
+                                                    <div className="mt-2 rounded-xl border border-red-200 bg-red-50/70 p-2.5 text-xs text-red-700 space-y-1">
+                                                        <p className="font-semibold flex items-start gap-1.5">
+                                                            <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5 text-red-500" />
+                                                            <span>{outOfRmError}</span>
+                                                        </p>
+                                                        <p className="text-[11px] text-slate-600 pl-5">
+                                                            ¿Tu evento es en otra región?{' '}
+                                                            <Link
+                                                                href="/barriles"
+                                                                onClick={onClose}
+                                                                className="font-bold text-primary hover:underline"
+                                                            >
+                                                                Compra barriles desechables de 5L con envío a todo Chile →
+                                                            </Link>
+                                                        </p>
+                                                    </div>
+                                                ) : errors.address ? (
                                                     <p className="mt-1 text-xs text-red-500 font-medium flex items-center gap-1">
                                                         <AlertCircle className="w-3.5 h-3.5 shrink-0" />
                                                         {errors.address}
                                                     </p>
-                                                )}
+                                                ) : null}
                                             </div>
+                                            {showManualRegionComuna && (
+                                                <RegionComunaFields
+                                                    regions={regions}
+                                                    comunas={comunas}
+                                                    serviceType="event"
+                                                    regionCode={state.contact.region || 'RM'}
+                                                    comuna={state.contact.comuna}
+                                                    otherComuna={state.contact.otherComuna}
+                                                    comunaError={errors.comuna}
+                                                    comunaId="field-comuna"
+                                                    onRegionChange={(code) => {
+                                                        updateContact('region', code);
+                                                        clearError('comuna');
+                                                    }}
+                                                    onComunaChange={(name) => {
+                                                        updateContact('comuna', name);
+                                                        clearError('comuna');
+                                                    }}
+                                                    onOtherComunaChange={(v) => {
+                                                        updateContact('otherComuna', v);
+                                                        if (v.trim()) clearError('comuna');
+                                                    }}
+                                                />
+                                            )}
                                             <div className="grid grid-cols-2 gap-3">
                                                 <div>
                                                     <label className="block font-bold mb-1 text-brand-text text-[0.8rem]">

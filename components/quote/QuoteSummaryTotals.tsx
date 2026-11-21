@@ -10,6 +10,8 @@ interface Props {
     compact?: boolean;
     /** Sin comuna: no mostrar una tarifa de RM por defecto. */
     hasComuna?: boolean;
+    /** Texto opcional cuando falta comuna/dirección. */
+    pendingShippingLabel?: string;
 }
 
 /**
@@ -22,12 +24,13 @@ export default function QuoteSummaryTotals({
     onChangeDispenser,
     compact = false,
     hasComuna = true,
+    pendingShippingLabel,
 }: Props) {
     const isDesechable = data.dispenserLabel.toLowerCase().includes('desechable');
     const shippingPending = !hasComuna || data.shippingLabel === 'Por calcular';
     const shippingName = data.shippingCarrier === 'blue_express' ? 'Blue Express' : 'Transporte';
     const shippingValue = shippingPending
-        ? 'Elige comuna para calcular'
+        ? (pendingShippingLabel || (isDesechable ? 'Ingresa dirección para calcular' : 'Elige comuna para calcular'))
         : data.shippingLabel;
 
     return (

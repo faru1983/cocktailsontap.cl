@@ -12,6 +12,7 @@ interface Props {
     onAddProductsClick?: () => void;
     onChangeDispenser?: () => void;
     hasComuna?: boolean;
+    pendingShippingLabel?: string;
 }
 
 /**
@@ -24,6 +25,7 @@ export default function CheckoutCartSection({
     onAddProductsClick,
     onChangeDispenser,
     hasComuna,
+    pendingShippingLabel,
 }: Props) {
     const [open, setOpen] = useState(true);
     const itemLabel = data.items.length === 1 ? 'ítem' : 'ítems';
@@ -36,6 +38,7 @@ export default function CheckoutCartSection({
         onChangeDispenser,
         compact: true,
         hasComuna,
+        pendingShippingLabel,
     };
 
     return (
