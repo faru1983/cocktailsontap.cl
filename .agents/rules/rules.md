@@ -41,7 +41,7 @@ Define la arquitectura, reglas irrompibles, convenciones de código, esquema de 
 - **Integraciones**: Google APIs SDK — People API (Contacts), Calendar API
 - **Type Safety**: TypeScript + Zod (schemas en `lib/types.ts`)
 - **Icons**: lucide-react (exclusivamente)
-- **Analytics**: Google Analytics + Meta Pixel (`lib/fpixel.ts`) + Meta CAPI server (`lib/services/metaCapiService.ts`). Pixel browser solo en `cocktailsontap.cl` (no `/admin`, no `*.vercel.app`, no localhost). Conversiones con `trackOnce` + `eventID` estable; CAPI con el mismo `event_id` cuando aplica. Landings `/eventos` y `/barriles` = Pixel `ViewContent` (`service`); cotización = `InitiateCheckout`; venta/confirmación = `Purchase`; Interesado WA = `Contact`. PageView no se etiqueta.
+- **Analytics**: Google Analytics + Meta Pixel (`lib/fpixel.ts`) + Meta CAPI server (`lib/services/metaCapiService.ts`). Pixel browser solo en `cocktailsontap.cl` (no `/admin`, no `*.vercel.app`, no localhost). Conversiones con `trackOnce` + `eventID` estable; CAPI con el mismo `event_id` cuando aplica. Landings `/eventos` y `/barriles` = Pixel `ViewContent` (`service`); cotización = `Lead` (`lead_{token}`); venta/confirmación = `Purchase` (`purchase_{token}`); Interesado WA = `Contact`. PageView no se etiqueta.
 - **Hosting**: Vercel (free tier optimizado)
 
 ### Estructura de Directorios
@@ -52,19 +52,24 @@ Define la arquitectura, reglas irrompibles, convenciones de código, esquema de 
 │   │   ├── admin/            # Actions del panel admin (CRUD)
 │   │   ├── createQuote.ts    # Wrapper → createQuoteCore
 │   │   └── confirmQuote.ts   # Confirmar cotización
-│   ├── api/v1/               # Integraciones HTTP (Bearer INTEGRATION_API_KEY)
-│   │   ├── catalog/          # GET catálogo activo (productos, precios, comunas nacionales, regiones, BE)
-│   │   ├── contacts/         # POST primer contacto WhatsApp (phone-only OK + touchpoint + CAPI)
-│   │   ├── quotes/           # POST cotización evento (draft)
-│   │   └── direct-sales/     # POST venta desechable (confirmed)
+│   ├── api/
+│   │   ├── cron/reminders/   # Cron diario de recordatorios (email / WhatsApp / ambos)
+│   │   ├── mcp/              # Servidor MCP externo (consumido por DeskcommCRM)
+│   │   └── v1/               # Integraciones HTTP (Bearer INTEGRATION_API_KEY)
+│   │       ├── catalog/      # GET catálogo activo (productos, precios, comunas nacionales, regiones, BE)
+│   │       ├── contacts/     # POST primer contacto WhatsApp (phone-only OK + touchpoint + CAPI)
+│   │       ├── quotes/       # POST cotización evento (draft)
+│   │       └── direct-sales/ # POST venta desechable (confirmed)
 │   ├── admin/                # Dashboard administrativo (protegido por proxy.ts)
 │   │   ├── clients/          # Gestión de clientes
 │   │   ├── estadisticas/     # Estadísticas y BI
+│   │   ├── exportar/         # Exportación configurable (Meta Ads, Mailchimp, Contabilidad)
 │   │   ├── gastos/           # Gestión de gastos
 │   │   ├── products/         # Gestión de catálogo
 │   │   ├── recetario/        # Insumos, recetas/costeo y producción
 │   │   ├── quotes/           # Administración de cotizaciones
-│   │   ├── reminders/        # Sistema de recordatorios
+│   │   ├── reminders/        # Sistema de recordatorios (email / WhatsApp / ambos)
+│   │   ├── whatsapp/         # Centro de notificaciones WhatsApp (interruptores, prueba, logs, reenvío)
 │   │   └── settings/         # Configuración dinámica (Cerebro Central)
 │   ├── cotizar/              # Wizard público de cotización
 │   │   └── [token]/          # Vista de cotización individual (confirmación)
@@ -94,8 +99,12 @@ Define la arquitectura, reglas irrompibles, convenciones de código, esquema de 
 │   ├── integrationSchemas.ts     # Zod DTOs /api/v1
 │   ├── integrationMapper.ts      # DTO → WizardState
 │   ├── integrationApi.ts         # Handler compartido v1
+│   ├── mcp/
+│   │   └── cocktailsMcpServer.ts # Tools MCP externas (< 4.000 chars) para CRM/agentes IA
 │   └── services/
 │       ├── createQuoteCore.ts    # Dominio crear cotización (web + API)
+│       ├── updateDraftQuoteCore.ts # Auto-guardado Zero Trust para cotizaciones borrador (/cotizar/[token])
+│       ├── deskcommService.ts    # Integración Web → DeskcommCRM (WhatsApp automáticos + sync leads)
 │       ├── clientService.ts      # Resolve/create/merge persona + identifiers + touchpoints
 │       ├── clientLifecycleService.ts # advanceClientStage + stage events + CAPI único (Contact/Lead/Purchase)
 │       ├── metaCapiService.ts    # Meta Conversions API (Contact/Lead/Purchase) server-side
@@ -133,7 +142,8 @@ Define la arquitectura, reglas irrompibles, convenciones de código, esquema de 
 | `event_types` | Tipos de evento (Matrimonio, Cumpleaños, etc.) | `name`, `icon`, `display_order` |
 | `expenses` | Registro de gastos del negocio | `amount`, `expense_date`, `category`, `description` |
 | `payment_methods` | Medios de pago configurables | `name`, `is_active` |
-| `site_settings` | Configuración dinámica (plantillas, templates) | `key` (unique), `category`, `value`, `is_active` — categorías: `reminders` (cron enable/hora/último run), `exports` (presets guardados `export_preset_<slug>` con JSON de config) |
+| `site_settings` | Configuración dinámica (plantillas, templates) | `key` (unique), `category`, `value`, `is_active` — categorías: `reminders` (cron enable/hora/último run), `whatsapp` (interruptores automáticos y sync DeskcommCRM), `exports` (presets guardados `export_preset_<slug>` con JSON de config) |
+| `whatsapp_notification_logs` | Auditoría de avisos WhatsApp enviados vía DeskcommCRM | `quote_id` FK nullable, `event_type`, `recipient_phone`, `status` (`sent`\|`failed`\|`skipped`), `source` (`auto`\|`manual`\|`cron`), `error` |
 | `reminder_templates` | Plantillas de recordatorio (manual + auto email) | `trigger` draft_event\|anniversary_event\|anniversary_direct; `auto_enabled`; `days_before` |
 | `reminder_logs` | Historial de envíos (manual/cron) | `status` sent\|failed\|skipped; `source` manual\|cron; `target_date`; `template_name` (snapshot al enviar / al borrar plantilla) |
 | `reminder_suppressions` | Emails omitidos (no batch ni cron) | `email` unique (lowercase) |
@@ -196,12 +206,13 @@ Define la arquitectura, reglas irrompibles, convenciones de código, esquema de 
 3. Calcular precios con calculateSummaryData() (Zero Trust; catálogo server-side en API)
 4. Insert quote + quote_items (congelar precios)
 5. advanceClientStage (única puerta CAPI):
-   - evento draft → quoted + InitiateCheckout `initiateCheckout_{token}` (+ value + ítems)
+   - evento draft → quoted + Lead `lead_{token}` (+ value + ítems)
    - venta directa → customer + Purchase `purchase_{token}` (+ value + ítems)
    - Canales: web | whatsapp | admin (admin = canal manual/teléfono, action_source phone_call)
 6. Google Sync → Contacto (+ Calendar si direct)
 7. Resend → Emails (cliente + admin)
-8. Return { success, token, quoteId, totalPrice, status }
+8. DeskcommCRM (si source === 'web' y settings WhatsApp activos) → sync lead en embudo + aviso WhatsApp automático
+9. Return { success, token, quoteId, totalPrice, status }
 ```
 - Web/admin: `app/actions/createQuote.ts` → core
 - Integraciones: `GET /api/v1/catalog` | `POST /api/v1/contacts` | `POST /api/v1/quotes` | `POST /api/v1/direct-sales`
@@ -216,10 +227,10 @@ Define la arquitectura, reglas irrompibles, convenciones de código, esquema de 
 - Avance: `advanceClientStage` en `lib/services/clientLifecycleService.ts` → historial en `client_stage_events` + **única salida CAPI**.
   - `POST /api/v1/contacts` `bot_started` → curious (CRM/touchpoint; sin CAPI Lead)
   - `intent_selected` / `human_reply` → Interesado + CAPI Contact (con snapshot WA en touchpoint/notes)
-  - createQuote evento → quoted + InitiateCheckout `initiateCheckout_{token}` (+ value + ítems); direct sale → customer + Purchase `purchase_{token}` (+ value + ítems)
+  - createQuote evento → quoted + Lead `lead_{token}` (+ value + ítems); direct sale → customer + Purchase `purchase_{token}` (+ value + ítems)
   - confirmQuote → customer + Purchase `purchase_{token}` (+ value)
   - Admin cotización/venta manual = mismo flujo CAPI que web/WhatsApp (`action_source: phone_call`)
-- Bot WhatsApp anterior (`whatsapp-cot`, legado): usaba `createContactViaApi`. **Reemplazado por DeskcommCRM en Oracle** (`https://crm.cocktailsontap.cl`), que consume nuestro servidor MCP `app/api/mcp` (`lib/mcp/cocktailsMcpServer.ts`; respuestas compactadas `< 4.000` caracteres). Documentación operativa del CRM aparte en `C:\Webs\oracle\OPERACION-CRM.md`.
+- **Integración CRM / WhatsApp (DeskcommCRM):** bidireccional. El CRM consume el servidor MCP `app/api/mcp` (`lib/mcp/cocktailsMcpServer.ts`; respuestas compactadas `< 4.000` caracteres) para leer catálogo, calcular propuestas y emitir `/cotizar/[token]`; desde la web, `lib/services/deskcommService.ts` envía notificaciones automáticas por WhatsApp (gestionadas desde `/admin/whatsapp` y `/admin/reminders`) y sincroniza leads en el embudo del CRM.
 - `POST /api/v1/contacts`: phone requerido; crea/resuelve persona + touchpoint; CAPI vía stage engine.
 
 ### `confirmQuote` — Confirmar Reserva
@@ -321,4 +332,4 @@ Para mantener la eficiencia y agilidad en sesiones con agentes de IA:
 3. Mantener la sección "Últimos Cambios" limitada a las **últimas 5 sesiones**.
 4. **Verificación Pragmática**: No correr builds pesados (`npm run build`) para cambios obvios o cosméticos que no alteren la funcionalidad.
 
-*Última actualización: 11-10-2026*
+*Última actualización: 21-11-2026*
