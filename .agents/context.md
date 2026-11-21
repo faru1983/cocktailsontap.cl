@@ -41,11 +41,12 @@
 
 ## Ultimos Cambios
 
-### 21-11-2026 — Herramienta MCP `update_event_quote` para Edición Sin Duplicados
+### 21-11-2026 — Herramienta MCP `update_event_quote` y Validación Dispensador ↔ Barriles
 
 - **Servidor MCP ([`lib/mcp/cocktailsMcpServer.ts`](file:///c:/Webs/cocktailsontap.cl/lib/mcp/cocktailsMcpServer.ts), [`lib/services/updateDraftQuoteCore.ts`](file:///c:/Webs/cocktailsontap.cl/lib/services/updateDraftQuoteCore.ts))**:
   - Agregada la tool `update_event_quote` que actualiza cotizaciones de eventos en estado `draft` usando su `token` vía `updateDraftQuoteCore` (recalcula totales Zero Trust en servidor, conserva el mismo enlace `/cotizar/<token>` y evita duplicar borradores, correos Resend o eventos `Lead` en Meta CAPI).
-  - Incluida la columna `variant` en el `select` de retorno de `quote_items` en `updateDraftQuoteCore.ts`.
+  - Agregada validación estricta `validateEventDispenserAndItems` en `calculate_event_proposal`, `create_event_quote_or_reservation` y `update_event_quote` (`Portátil`: solo `5L/10L` y `≥ 10L`; `Muro`: solo `20L/30L` y `≥ 60L`).
+  - Incluido `(id:<uuid>)` dentro de `catalogSummary` en `get_catalog_and_delivery` para resolver el catálogo completo en 1 sola consulta, e incluida la columna `variant` en el `select` de retorno de `quote_items` en `updateDraftQuoteCore.ts`.
 
 ### 21-11-2026 — Autocompletado de Direcciones con Google Places (New) + Modo Manual
 

@@ -29,10 +29,11 @@ import {
     calculateEstimatedProposal,
     calculateSmartConfig,
     calculateSummaryData,
+    getSizeLiters,
     isEventBarrelSizeLabelCompatible,
     resolveShipping,
 } from '@/lib/wizardLogic';
-import type { Comuna, WizardState } from '@/lib/types';
+import type { CocktailForWizard, Comuna, WizardState } from '@/lib/types';
 
 export interface CocktailsMcpContext {
     contactPhone?: string;
@@ -80,6 +81,40 @@ function normalizeContactPhone(phone?: string | null): string | undefined {
     const digits = raw.replace(/[^\d]/g, '');
     if (!digits) return undefined;
     return `+${digits}`;
+}
+
+function validateEventDispenserAndItems(
+    dispenser: 'portatil' | 'muro',
+    items: { productId?: string | null; size: string; quantity: number }[],
+    cocktails: CocktailForWizard[]
+): string | null {
+    const byId = new Map(cocktails.map((c) => [c.id, c]));
+    let totalLiquidLiters = 0;
+
+    for (const item of items) {
+        const cocktail = item.productId ? byId.get(item.productId) : undefined;
+        if (cocktail && cocktail.category === 'Otros') continue;
+        const priceData = cocktail?.prices[item.size];
+        const liters = priceData ? (priceData.unit === 'L' ? priceData.sizeValue : 0) : getSizeLiters(item.size);
+        if (liters <= 0) continue;
+
+        totalLiquidLiters += liters * item.quantity;
+
+        if (!isEventBarrelSizeLabelCompatible(item.size, dispenser)) {
+            if (dispenser === 'muro') {
+                return `El Muro de Coctelería solo admite barriles de 20L y 30L ("${cocktail?.name ?? item.productId}" está en ${item.size}). Usa dispenser="portatil" para 5L/10L o elige formatos de 20L/30L.`;
+            }
+            return `El Dispensador Portátil solo admite barriles de 5L y 10L ("${cocktail?.name ?? item.productId}" está en ${item.size}). Usa dispenser="muro" (mín. ${MURO_MIN_LITERS}L) o divide en barriles de 10L y 5L.`;
+        }
+    }
+
+    if (dispenser === 'muro' && totalLiquidLiters < MURO_MIN_LITERS) {
+        return `El Muro de Coctelería requiere un pedido mínimo de ${MURO_MIN_LITERS}L (actual: ${totalLiquidLiters}L). Agrega más litros en 20L/30L o usa dispenser="portatil".`;
+    }
+    if (dispenser === 'portatil' && totalLiquidLiters < PORTATIL_MIN_LITERS) {
+        return `El Dispensador Portátil requiere un pedido mínimo de ${PORTATIL_MIN_LITERS}L (actual: ${totalLiquidLiters}L).`;
+    }
+    return null;
 }
 
 export function createCocktailsMcpServer(ctx: CocktailsMcpContext = {}): McpServer {
@@ -160,7 +195,7 @@ export function createCocktailsMcpServer(ctx: CocktailsMcpContext = {}): McpServ
                               .map((s) => `${s.sizeValue}${s.unit}:$${s.offerPrice ?? s.price}`)
                               .join(',');
                           const variantNote = p.variant_config ? ` (${p.variant_config.options.join('/')})` : '';
-                          acc[cat].push(`${p.name}${variantNote} [${prices}]`);
+                          acc[cat].push(`${p.name}${variantNote} (id:${p.id}) [${prices}]`);
                           return acc;
                       }, {})
                     : undefined;
@@ -328,6 +363,12 @@ export function createCocktailsMcpServer(ctx: CocktailsMcpContext = {}): McpServ
                         (args.serviceType === 'event' && args.items.every((i) => isEventBarrelSizeLabelCompatible(i.size, 'muro'))
                             ? 'muro'
                             : 'portatil');
+                    if (args.serviceType === 'event' && args.dispenser) {
+                        const dispenserErr = validateEventDispenserAndItems(args.dispenser, args.items, catalog.cocktails);
+                        if (dispenserErr) {
+                            return errorResult(dispenserErr);
+                        }
+                    }
 
                     const dummyState: WizardState = {
                         step: 4,
@@ -481,6 +522,14 @@ export function createCocktailsMcpServer(ctx: CocktailsMcpContext = {}): McpServ
                 const itemErr = validateItemsAgainstCatalog(parsed.data.items, catalog.cocktails);
                 if (itemErr) {
                     return errorResult(itemErr);
+                }
+                const dispenserErr = validateEventDispenserAndItems(
+                    parsed.data.dispenser,
+                    parsed.data.items,
+                    catalog.cocktails
+                );
+                if (dispenserErr) {
+                    return errorResult(dispenserErr);
                 }
 
                 const state = mapEventQuoteToWizardState(parsed.data);
@@ -653,6 +702,15 @@ export function createCocktailsMcpServer(ctx: CocktailsMcpContext = {}): McpServ
                         : existingQuote.dispenser === 'muro'
                           ? 'muro'
                           : 'portatil');
+
+                const dispenserErr = validateEventDispenserAndItems(
+                    inferredDispenser,
+                    nextItems.map((i) => ({ productId: i.product_id, size: i.size, quantity: i.quantity })),
+                    catalog.cocktails
+                );
+                if (dispenserErr) {
+                    return errorResult(dispenserErr);
+                }
 
                 const updateResult = await updateDraftQuoteCore({
                     token,
