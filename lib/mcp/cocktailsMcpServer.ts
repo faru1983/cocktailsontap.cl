@@ -17,6 +17,8 @@ import {
 import { validateConfirmNowState } from '@/lib/confirmNowValidation';
 import { normalizeQuoteSource } from '@/lib/quoteSource';
 import { createQuoteCore } from '@/lib/services/createQuoteCore';
+import { updateDraftQuoteCore } from '@/lib/services/updateDraftQuoteCore';
+import { createServerClient } from '@/lib/supabaseServer';
 import { advanceClientStage } from '@/lib/services/clientLifecycleService';
 import {
     appendClientCrmNote,
@@ -518,6 +520,186 @@ export function createCocktailsMcpServer(ctx: CocktailsMcpContext = {}): McpServ
                 });
             } catch (err) {
                 return errorResult(err instanceof Error ? err.message : 'Error creando cotización de evento');
+            }
+        }
+    );
+
+    server.registerTool(
+        'update_event_quote',
+        {
+            description:
+                'Actualiza una cotización de evento existente en estado borrador (draft) usando su token, recalculando totales en servidor y conservando el mismo enlace /cotizar/<token> sin crear duplicados ni reenviar correos. Úsala siempre que el cliente ya tenga una cotización emitida y pida cambiar cócteles, litros, fecha, invitados o comuna.',
+            inputSchema: {
+                token: z.string().min(1).describe('Token de la cotización existente (la parte final de /cotizar/<token>)'),
+                comuna: z.string().optional().describe('Nueva comuna RM si el cliente la cambió'),
+                eventDate: z
+                    .string()
+                    .regex(/^\d{4}-\d{2}-\d{2}$/)
+                    .optional()
+                    .describe('Nueva fecha del evento YYYY-MM-DD si cambió'),
+                eventType: z.string().optional().describe('Nuevo tipo de evento si cambió'),
+                guests: z.number().int().min(1).max(5000).optional().describe('Nueva cantidad de invitados si cambió'),
+                dispenser: z.enum(['portatil', 'muro']).optional().describe('Nuevo dispensador si cambió'),
+                email: z.string().optional().describe('Nuevo correo del cliente si lo corrigió'),
+                items: z
+                    .array(
+                        z.object({
+                            productId: z.string().min(1),
+                            size: z.string().min(1),
+                            quantity: z.number().int().min(1).max(50),
+                            variant: z
+                                .string()
+                                .max(120)
+                                .optional()
+                                .describe('Variante/mezclador opcional (ej. Coca Zero, Sprite). Si se omite usa la opción por defecto.'),
+                        })
+                    )
+                    .min(1)
+                    .optional()
+                    .describe('Lista completa y actualizada de productos si cambiaron los cócteles o cantidades'),
+            },
+            annotations: { readOnlyHint: false },
+        },
+        async (args) => {
+            try {
+                const token = args.token.trim();
+                const db = createServerClient();
+                const { data: existingQuote, error: fetchErr } = await db
+                    .from('quotes')
+                    .select('id, status, service_type, dispenser, quote_items(id, product_id, size, quantity, variant)')
+                    .eq('token', token)
+                    .single();
+
+                if (fetchErr || !existingQuote) {
+                    return errorResult('No se encontró una cotización con ese token.');
+                }
+                if (existingQuote.status !== 'draft') {
+                    return errorResult(
+                        `La cotización ya está en estado "${existingQuote.status}" y no se puede editar automáticamente.`
+                    );
+                }
+                if (existingQuote.service_type === 'direct' || existingQuote.dispenser === 'desechable') {
+                    return errorResult('Esta herramienta solo actualiza cotizaciones de eventos en borrador.');
+                }
+
+                const catalog = await fetchAllProductData();
+
+                let nextItems: {
+                    id?: string;
+                    product_id?: string | null;
+                    size: string;
+                    quantity: number;
+                    variant?: string | null;
+                }[];
+
+                if (args.items && args.items.length > 0) {
+                    const itemErr = validateItemsAgainstCatalog(args.items, catalog.cocktails);
+                    if (itemErr) {
+                        return errorResult(itemErr);
+                    }
+                    nextItems = args.items.map((i) => ({
+                        product_id: i.productId,
+                        size: i.size,
+                        quantity: i.quantity,
+                        variant: i.variant ?? null,
+                    }));
+                } else {
+                    const existingItems = (existingQuote.quote_items ?? []) as {
+                        id: string;
+                        product_id: string | null;
+                        size: string;
+                        quantity: number;
+                        variant?: string | null;
+                    }[];
+                    if (existingItems.length === 0) {
+                        return errorResult('La cotización no tiene productos para conservar; indica los items.');
+                    }
+                    nextItems = existingItems.map((i) => ({
+                        id: i.id,
+                        product_id: i.product_id,
+                        size: i.size,
+                        quantity: i.quantity,
+                        variant: i.variant ?? null,
+                    }));
+                }
+
+                let nextComuna: { comuna_name: string; region_name: string } | undefined;
+                if (args.comuna?.trim()) {
+                    const activeComunas = catalog.comunas.filter((c) => c.isActive);
+                    const matchedComuna = findComuna(activeComunas, args.comuna);
+                    if (!matchedComuna) {
+                        return errorResult(
+                            `Comuna no encontrada: "${args.comuna}". Verifica la ortografía o confirma si pertenece a la Región Metropolitana.`
+                        );
+                    }
+                    const region = catalog.regions.find((r) => r.code === matchedComuna.regionCode);
+                    if (region && !region.availableForEvents) {
+                        return errorResult(
+                            `La comuna "${matchedComuna.name}" (${matchedComuna.regionShortName}) está fuera de la cobertura de eventos (solo RM).`
+                        );
+                    }
+                    nextComuna = {
+                        comuna_name: matchedComuna.name,
+                        region_name: matchedComuna.regionShortName,
+                    };
+                }
+
+                const inferredDispenser: 'portatil' | 'muro' =
+                    args.dispenser ??
+                    (args.items && args.items.length > 0
+                        ? args.items.every((i) => isEventBarrelSizeLabelCompatible(i.size, 'muro'))
+                            ? 'muro'
+                            : 'portatil'
+                        : existingQuote.dispenser === 'muro'
+                          ? 'muro'
+                          : 'portatil');
+
+                const updateResult = await updateDraftQuoteCore({
+                    token,
+                    dispenser: inferredDispenser,
+                    items: nextItems,
+                    ...(nextComuna ?? {}),
+                    ...(args.eventDate ? { event_date: args.eventDate } : {}),
+                    ...(args.guests !== undefined ? { guests: args.guests } : {}),
+                    ...(args.eventType ? { event_type_id: args.eventType } : {}),
+                    ...(args.email?.trim() ? { client_email: args.email.trim() } : {}),
+                });
+
+                if (!updateResult.success || !updateResult.quote) {
+                    return errorResult(updateResult.error ?? 'No se pudo actualizar la cotización de evento.');
+                }
+
+                const totalNormal = updateResult.quote.total_normal_price;
+                const totalOffer = updateResult.quote.total_offer_price;
+                return okResult({
+                    success: true,
+                    updated: true,
+                    quoteId: existingQuote.id,
+                    token,
+                    status: 'draft',
+                    dispenser: updateResult.quote.dispenser,
+                    comuna: updateResult.quote.comuna_name,
+                    totalLiters: updateResult.quote.total_liters,
+                    totalCocktails: updateResult.quote.total_liters * COCKTAILS_PER_LITER,
+                    productsNormalSubtotalClp: totalNormal,
+                    productsSubtotalClp: totalOffer,
+                    discountClp: Math.max(0, totalNormal - totalOffer),
+                    shippingCostClp: updateResult.quote.shipping_cost,
+                    installationCostClp: updateResult.quote.installation_cost,
+                    totalPriceClp: updateResult.quote.total_price,
+                    items: (updateResult.items ?? []).map((item) => ({
+                        id: item.product_id ?? item.id,
+                        name: item.product_name,
+                        size: item.size,
+                        quantity: item.quantity,
+                        ...(item.variant ? { variant: item.variant } : {}),
+                        totalNormalPrice: Number(item.price_at_time) * item.quantity,
+                        totalOfferPrice: Number(item.offer_price_at_time) * item.quantity,
+                    })),
+                    url: `${SITE_URL}/cotizar/${token}`,
+                });
+            } catch (err) {
+                return errorResult(err instanceof Error ? err.message : 'Error actualizando cotización de evento');
             }
         }
     );

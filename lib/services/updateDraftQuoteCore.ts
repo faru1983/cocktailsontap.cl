@@ -508,7 +508,7 @@ export async function updateDraftQuoteCore(formData: unknown): Promise<UpdateDra
         const { data: freshItems, error: freshErr } = await db
             .from('quote_items')
             .select(
-                'id, quote_id, product_id, product_name, size, size_value, unit_id, is_disposable, quantity, price_at_time, offer_price_at_time'
+                'id, quote_id, product_id, product_name, size, size_value, unit_id, is_disposable, quantity, variant, price_at_time, offer_price_at_time'
             )
             .eq('quote_id', quote.id);
 

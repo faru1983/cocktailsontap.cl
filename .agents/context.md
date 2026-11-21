@@ -41,6 +41,12 @@
 
 ## Ultimos Cambios
 
+### 21-11-2026 — Herramienta MCP `update_event_quote` para Edición Sin Duplicados
+
+- **Servidor MCP ([`lib/mcp/cocktailsMcpServer.ts`](file:///c:/Webs/cocktailsontap.cl/lib/mcp/cocktailsMcpServer.ts), [`lib/services/updateDraftQuoteCore.ts`](file:///c:/Webs/cocktailsontap.cl/lib/services/updateDraftQuoteCore.ts))**:
+  - Agregada la tool `update_event_quote` que actualiza cotizaciones de eventos en estado `draft` usando su `token` vía `updateDraftQuoteCore` (recalcula totales Zero Trust en servidor, conserva el mismo enlace `/cotizar/<token>` y evita duplicar borradores, correos Resend o eventos `Lead` en Meta CAPI).
+  - Incluida la columna `variant` en el `select` de retorno de `quote_items` en `updateDraftQuoteCore.ts`.
+
 ### 21-11-2026 — Autocompletado de Direcciones con Google Places (New) + Modo Manual
 
 - **Configuración y Carga Bajo Demanda ([`lib/config.ts`](file:///c:/Webs/cocktailsontap.cl/lib/config.ts), [`lib/googleMapsLoader.ts`](file:///c:/Webs/cocktailsontap.cl/lib/googleMapsLoader.ts))**:
