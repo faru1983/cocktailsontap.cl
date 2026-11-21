@@ -153,7 +153,7 @@ export function AddressAutocomplete({
 
     // Buscar sugerencias con debounce mientras escribe en modo Google
     useEffect(() => {
-        if (manualMode || placesUnavailable) {
+        if (manualMode || placesUnavailable || baseStreet !== null) {
             return;
         }
         if (skipNextSearchRef.current) {
@@ -290,7 +290,7 @@ export function AddressAutocomplete({
                     aria-autocomplete={manualMode ? undefined : 'list'}
                     aria-expanded={manualMode ? undefined : isOpen}
                     className={`${className} ${!manualMode ? 'pr-9' : ''}`}
-                    value={value}
+                    value={baseStreet !== null ? baseStreet : value}
                     onFocus={() => {
                         if (!manualMode && !placesUnavailable) {
                             void ensurePlacesReady();
