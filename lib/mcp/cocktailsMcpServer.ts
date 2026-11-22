@@ -68,11 +68,15 @@ function normalizeText(value: string): string {
 
 function findComuna(comunas: Comuna[], query?: string): Comuna | undefined {
     if (!query?.trim()) return undefined;
-    const needle = normalizeText(query);
-    return (
-        comunas.find((c) => normalizeText(c.name) === needle) ??
-        comunas.find((c) => normalizeText(c.name).includes(needle))
-    );
+    const rawFirst = query.includes(',') ? query.split(',')[0] : query;
+    const needles = Array.from(new Set([normalizeText(query), normalizeText(rawFirst)].filter(Boolean)));
+    for (const needle of needles) {
+        const match =
+            comunas.find((c) => normalizeText(c.name) === needle) ??
+            comunas.find((c) => normalizeText(c.name).includes(needle));
+        if (match) return match;
+    }
+    return undefined;
 }
 
 function normalizeContactPhone(phone?: string | null): string | undefined {
@@ -453,9 +457,9 @@ export function createCocktailsMcpServer(ctx: CocktailsMcpContext = {}): McpServ
             inputSchema: {
                 confirmNow: z.boolean().optional().default(false),
                 client: z.object({
-                    firstName: z.string().min(1),
+                    firstName: z.string().min(2),
                     lastName: z.string().optional().default(''),
-                    email: z.string().optional(),
+                    email: z.string().email('Correo electrónico válido requerido'),
                     phone: z.string().optional(),
                     address: z.string().optional().default(''),
                     region: z.string().optional(),
@@ -474,7 +478,7 @@ export function createCocktailsMcpServer(ctx: CocktailsMcpContext = {}): McpServ
                 consumption: z
                     .object({
                         guests: z.number().int().min(1).max(5000).optional(),
-                        drinksPerPerson: z.number().min(1).max(15).optional(),
+                        drinksPerPerson: z.number().min(0).max(15).optional(),
                     })
                     .optional(),
                 dispenser: z.enum(['portatil', 'muro']).default('portatil'),
@@ -530,6 +534,15 @@ export function createCocktailsMcpServer(ctx: CocktailsMcpContext = {}): McpServ
                 );
                 if (dispenserErr) {
                     return errorResult(dispenserErr);
+                }
+
+                const matchedComuna = findComuna(
+                    catalog.comunas.filter((c) => c.isActive),
+                    parsed.data.client.comuna
+                );
+                if (matchedComuna) {
+                    parsed.data.client.comuna = matchedComuna.name;
+                    parsed.data.client.region = matchedComuna.regionCode;
                 }
 
                 const state = mapEventQuoteToWizardState(parsed.data);

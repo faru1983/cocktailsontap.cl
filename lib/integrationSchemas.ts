@@ -7,8 +7,8 @@ const IntegrationClientSchema = z.object({
     email: z.string().trim().email('Email inválido'),
     phone: OptionalPhoneSchema.optional().default(''),
     address: z.string().optional().default(''),
-    /** Código de región (RM, V, IV…). Si falta, se infiere por el nombre de comuna. */
-    region: z.string().max(16).optional().default(''),
+    /** Código o nombre de región (RM, V, Metropolitana…). Se resuelve por comuna en servidor. */
+    region: z.string().max(100).optional().default(''),
     comuna: z.string().min(1, 'Selecciona una comuna'),
     otherComuna: z.string().optional().default(''),
     comments: z.string().optional().default(''),
