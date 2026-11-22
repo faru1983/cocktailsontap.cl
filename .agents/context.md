@@ -41,6 +41,16 @@
 
 ## Ultimos Cambios
 
+### 22-11-2026 — PWA Instalable Exclusiva para `/admin` (`COT Admin`)
+
+- **Manifiesto, Service Worker e íconos ([`public/admin-manifest.webmanifest`](file:///c:/Webs/cocktailsontap.cl/public/admin-manifest.webmanifest), [`public/admin-sw.js`](file:///c:/Webs/cocktailsontap.cl/public/admin-sw.js), `public/assets/pwa/`):**
+  - Generados íconos PNG reales (`icon-192.png`, `icon-512.png`, `icon-maskable-512.png`, `apple-touch-icon.png`) con el isotipo oficial sobre fondo `#0d1117`.
+  - Configurado `start_url: "/admin"`, `scope: "/admin"`, `display: "standalone"` y accesos directos (*Cotizaciones*, *Nueva Cotización*, *Recetario*), sin exponer el manifest en la web pública.
+  - Service Worker `admin-sw.js` en modo Network-Only (no cachea HTML ni Server Actions) con header `Service-Worker-Allowed: /admin` en [`vercel.json`](file:///c:/Webs/cocktailsontap.cl/vercel.json) y excluido en [`proxy.ts`](file:///c:/Webs/cocktailsontap.cl/proxy.ts).
+- **Integración en Admin ([`app/admin/layout.tsx`](file:///c:/Webs/cocktailsontap.cl/app/admin/layout.tsx), [`app/admin/AdminPwaRegister.tsx`](file:///c:/Webs/cocktailsontap.cl/app/admin/AdminPwaRegister.tsx), [`app/admin/AdminSidebar.tsx`](file:///c:/Webs/cocktailsontap.cl/app/admin/AdminSidebar.tsx)):**
+  - Enlazados `manifest`, `appleWebApp` y `viewport` (`themeColor: '#0d1117'`, `viewportFit: 'cover'`) únicamente en `/admin`.
+  - Agregado botón **"Instalar App"** en `AdminSidebar.tsx` (soporta `beforeinstallprompt` en Android/Chrome y guía rápida en iOS Safari; se oculta automáticamente en modo `standalone`).
+
 ### 22-11-2026 — Optimización de caché ISR y prefetch en Vercel (`serverData.ts` + `/barriles/[slug]`)
 
 - **Caché de catálogo bajo demanda ([`lib/serverData.ts`](file:///c:/Webs/cocktailsontap.cl/lib/serverData.ts)):**

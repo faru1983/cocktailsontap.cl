@@ -20,7 +20,13 @@ import {
     Menu,
     X,
     Martini,
+    Smartphone,
 } from 'lucide-react';
+
+interface BeforeInstallPromptEvent extends Event {
+    prompt: () => Promise<void>;
+    userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
+}
 
 const navItems = [
     { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
@@ -40,10 +46,57 @@ export default function AdminSidebar() {
     const pathname = usePathname();
     const [open, setOpen] = useState(false);
     const [isMounted, setIsMounted] = useState(false);
+    const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+    const [isIosSafari, setIsIosSafari] = useState(false);
+    const [showIosHint, setShowIosHint] = useState(false);
+    const [isStandalone, setIsStandalone] = useState(false);
 
     useEffect(() => {
         setIsMounted(true);
+
+        const standalone =
+            window.matchMedia('(display-mode: standalone)').matches ||
+            (window.navigator as { standalone?: boolean }).standalone === true;
+        setIsStandalone(standalone);
+        if (standalone) return;
+
+        const ua = window.navigator.userAgent;
+        const ios = /iPad|iPhone|iPod/.test(ua);
+        const safari = /Safari/.test(ua) && !/CriOS|FxiOS|EdgiOS/.test(ua);
+        if (ios && safari) {
+            setIsIosSafari(true);
+        }
+
+        const handleBeforeInstall = (e: Event) => {
+            e.preventDefault();
+            setInstallPrompt(e as BeforeInstallPromptEvent);
+        };
+        const handleAppInstalled = () => {
+            setInstallPrompt(null);
+            setIsStandalone(true);
+        };
+
+        window.addEventListener('beforeinstallprompt', handleBeforeInstall);
+        window.addEventListener('appinstalled', handleAppInstalled);
+        return () => {
+            window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
+            window.removeEventListener('appinstalled', handleAppInstalled);
+        };
     }, []);
+
+    const handleInstallClick = async () => {
+        if (installPrompt) {
+            await installPrompt.prompt();
+            const choice = await installPrompt.userChoice;
+            if (choice.outcome === 'accepted') {
+                setInstallPrompt(null);
+            }
+            return;
+        }
+        if (isIosSafari) {
+            setShowIosHint((prev) => !prev);
+        }
+    };
 
     useEffect(() => {
         setOpen(false);
@@ -93,7 +146,23 @@ export default function AdminSidebar() {
                 })}
             </nav>
 
-            <div className="p-4 border-t border-admin-border">
+            <div className="p-4 border-t border-admin-border space-y-2">
+                {!isStandalone && (installPrompt || isIosSafari) && (
+                    <div className="space-y-1.5">
+                        <button
+                            type="button"
+                            onClick={handleInstallClick}
+                            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-primary/10 hover:bg-primary/20 border border-primary/20 rounded-xl text-primary text-[13px] font-bold transition-all cursor-pointer"
+                        >
+                            <Smartphone size={16} /> Instalar App
+                        </button>
+                        {showIosHint && (
+                            <p className="text-[11px] text-slate-400 text-center leading-snug px-1">
+                                Toca el botón <strong className="text-slate-200">Compartir</strong> de Safari y elige <strong className="text-slate-200">&ldquo;Agregar a inicio&rdquo;</strong>.
+                            </p>
+                        )}
+                    </div>
+                )}
                 <form action={adminLogout}>
                     <button
                         type="submit"
