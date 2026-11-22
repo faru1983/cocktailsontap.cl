@@ -5,6 +5,7 @@ import * as React from 'react';
 import { Resend } from 'resend';
 import { render } from '@react-email/components';
 import { FROM_EMAIL } from '@/lib/config';
+import { resolvePaymentMessageContext } from '@/lib/paymentMessageContext';
 import type { Quote } from '@/lib/types';
 import PaymentRegisteredEmail from '@/components/emails/PaymentRegisteredEmail';
 
@@ -25,40 +26,24 @@ async function sendResend(to: string, subject: string, html: string): Promise<{ 
 export async function sendPaymentRegisteredEmail(
     quote: Quote,
     paymentAmount: number,
-    balanceAfter: number
+    balanceAfter: number,
+    paymentCount?: number
 ): Promise<{ ok: boolean; error?: string }> {
     const email = quote.client_email?.trim();
     if (!email) return { ok: false, error: 'Sin email de cliente' };
 
-    const eventDate = quote.event_date
-        ? new Date(quote.event_date + 'T12:00:00').toLocaleDateString('es-CL', {
-              day: '2-digit',
-              month: 'long',
-              year: 'numeric',
-          })
-        : '';
-
-    const isDirect = quote.service_type === 'direct' || quote.dispenser === 'desechable';
-    const paidInFull = balanceAfter <= 0;
+    const ctx = resolvePaymentMessageContext(quote, paymentAmount, balanceAfter, {
+        paymentCount,
+    });
 
     const html = await render(
         React.createElement(PaymentRegisteredEmail, {
             quote,
             paymentAmount,
             balanceAfter,
+            paymentCount,
         })
     );
 
-    let subject = '';
-    if (isDirect) {
-        subject = paidInFull
-            ? `✅ Pago registrado – pedido pagado (${eventDate})`
-            : `✅ Pago registrado – ${eventDate}`;
-    } else {
-        subject = paidInFull
-            ? `✅ Pago recibido – Reserva pagada (${eventDate})`
-            : `✅ Pago recibido (Abono) – ${eventDate}`;
-    }
-
-    return sendResend(email, subject, html);
+    return sendResend(email, ctx.emailSubject, html);
 }

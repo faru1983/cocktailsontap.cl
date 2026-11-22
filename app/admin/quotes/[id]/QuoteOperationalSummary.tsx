@@ -1477,7 +1477,9 @@ export default function QuoteOperationalSummary({
                                         onClick={onQuickFullPayment}
                                         style={chipLinkStyle('#1a1a2e', GOLD, GOLD)}
                                     >
-                                        Transferencia total ({formatCLP(balance)})
+                                        {payments.length > 0
+                                            ? `Pago de saldo (${formatCLP(balance)})`
+                                            : `Transferencia total (${formatCLP(balance)})`}
                                     </button>
                                 )}
                                 {!isDirectSale && balance > 0 && payments.length === 0 && onQuickPartialPayment && (

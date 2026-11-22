@@ -1,13 +1,12 @@
 import * as React from 'react';
 import { Text } from '@react-email/components';
 import type { Quote } from '@/lib/types';
-import { SITE_URL } from '@/lib/config';
 import { formatCurrency } from '@/lib/utils';
+import { resolvePaymentMessageContext } from '@/lib/paymentMessageContext';
 import {
     BaseLayout,
     QuoteButton,
     ContactNote,
-    fullName,
     brandDark,
     gray,
     greenColor,
@@ -17,59 +16,88 @@ interface PaymentRegisteredEmailProps {
     quote: Quote;
     paymentAmount: number;
     balanceAfter: number;
+    paymentCount?: number;
 }
 
 export const PaymentRegisteredEmail: React.FC<Readonly<PaymentRegisteredEmailProps>> = ({
     quote,
     paymentAmount,
     balanceAfter,
+    paymentCount,
 }) => {
-    const quoteUrl = `${SITE_URL}/cotizar/${quote.token}`;
-    const clientName = fullName(quote);
-    const eventDate = quote.event_date
-        ? new Date(quote.event_date + 'T12:00:00').toLocaleDateString('es-CL', {
-              day: '2-digit',
-              month: 'long',
-              year: 'numeric',
-          })
-        : '';
+    const ctx = resolvePaymentMessageContext(quote, paymentAmount, balanceAfter, {
+        paymentCount,
+    });
 
-    const isDirect = quote.service_type === 'direct' || quote.dispenser === 'desechable';
-    const paidInFull = balanceAfter <= 0;
-    const concept = isDirect ? 'pedido' : 'evento';
+    const subjectPaidLabel = ctx.isDirect
+        ? 'Tu pedido quedó'
+        : ctx.timing === 'past'
+          ? 'Tu cuenta quedó'
+          : 'Tu evento quedó';
+
+    const subjectPaidAdj =
+        !ctx.isDirect && ctx.timing === 'past'
+            ? 'pagada en su totalidad'
+            : 'pagado en su totalidad';
 
     return (
-        <BaseLayout
-            preview={`${paidInFull ? 'Pago recibido' : 'Abono registrado'} – ${clientName}`}
-            accentColor={greenColor}
-        >
+        <BaseLayout preview={ctx.emailPreview} accentColor={greenColor}>
             <h2 style={{ color: greenColor, margin: '0 0 8px', fontSize: '22px', lineHeight: '1.3' }}>
-                {paidInFull ? '✅ Pago registrado' : '✅ Abono registrado'}
+                {ctx.emailHeading}
             </h2>
-            <Text style={{ color: gray, margin: '0 0 24px', fontSize: '15px', lineHeight: '1.6' }}>
-                Hola <strong>{clientName}</strong>, registramos tu pago de{' '}
-                <strong>{formatCurrency(paymentAmount)}</strong> para tu {concept} del{' '}
-                <strong>{eventDate}</strong>.
+            <Text style={{ color: gray, margin: '0 0 18px', fontSize: '15px', lineHeight: '1.6' }}>
+                Hola <strong>{ctx.clientFullName}</strong>, {ctx.emailIntroLead}{' '}
+                <strong>{formatCurrency(ctx.paymentAmount)}</strong> {ctx.emailIntroTail}
             </Text>
-            {paidInFull ? (
+
+            {ctx.emailDateLine && (
                 <Text
                     style={{
-                        color: '#166534',
-                        margin: '0 0 20px',
+                        color: '#334155',
+                        margin: '0 0 18px',
                         fontSize: '14px',
-                        lineHeight: '1.6',
+                        lineHeight: '1.5',
+                    }}
+                >
+                    {ctx.emailDateLine}
+                </Text>
+            )}
+
+            {ctx.paidInFull ? (
+                <div
+                    style={{
                         backgroundColor: '#f0fdf4',
                         padding: '16px',
                         borderRadius: '12px',
                         border: '1px solid #86efac',
+                        margin: '0 0 20px',
                     }}
                 >
-                    {isDirect ? (
-                        <>Tu pedido está <strong>pagado en su totalidad</strong>. Pronto coordinaremos el despacho.</>
-                    ) : (
-                        <>Tu evento está <strong>pagado en su totalidad</strong>. ¡Tenemos todo agendado y listo para tu celebración!</>
+                    <Text
+                        style={{
+                            color: '#166534',
+                            margin: ctx.hasPriorPayments ? '0 0 8px' : 0,
+                            fontSize: '14px',
+                            lineHeight: '1.6',
+                        }}
+                    >
+                        {subjectPaidLabel} <strong>{subjectPaidAdj}</strong>. {ctx.emailStatusFollowup}
+                    </Text>
+                    {ctx.hasPriorPayments && (
+                        <Text
+                            style={{
+                                color: '#15803d',
+                                margin: 0,
+                                fontSize: '12px',
+                                lineHeight: '1.5',
+                            }}
+                        >
+                            Este pago: <strong>{formatCurrency(ctx.paymentAmount)}</strong> · Total pagado:{' '}
+                            <strong>{formatCurrency(ctx.totalPaid)}</strong> · Saldo pendiente:{' '}
+                            <strong>{formatCurrency(0)}</strong>
+                        </Text>
                     )}
-                </Text>
+                </div>
             ) : (
                 <div
                     style={{
@@ -80,17 +108,38 @@ export const PaymentRegisteredEmail: React.FC<Readonly<PaymentRegisteredEmailPro
                         margin: '0 0 20px',
                     }}
                 >
-                    <Text style={{ color: '#0f172a', margin: '0 0 6px', fontSize: '15px', lineHeight: '1.4', fontWeight: 600 }}>
-                        Saldo pendiente: <strong style={{ color: '#E2A049' }}>{formatCurrency(balanceAfter)}</strong>
+                    <Text
+                        style={{
+                            color: '#0f172a',
+                            margin: '0 0 6px',
+                            fontSize: '15px',
+                            lineHeight: '1.4',
+                            fontWeight: 600,
+                        }}
+                    >
+                        Saldo pendiente:{' '}
+                        <strong style={{ color: '#E2A049' }}>{formatCurrency(ctx.balanceAfter)}</strong>
                     </Text>
+                    {ctx.hasPriorPayments && (
+                        <Text
+                            style={{
+                                color: '#475569',
+                                margin: '0 0 6px',
+                                fontSize: '12px',
+                                lineHeight: '1.5',
+                            }}
+                        >
+                            Este abono: <strong>{formatCurrency(ctx.paymentAmount)}</strong> · Total abonado a
+                            la fecha: <strong>{formatCurrency(ctx.totalPaid)}</strong>
+                        </Text>
+                    )}
                     <Text style={{ color: gray, margin: 0, fontSize: '13px', lineHeight: '1.5' }}>
-                        {isDirect
-                            ? 'Recuerda que el saldo pendiente debe estar pagado antes de despachar tu pedido.'
-                            : 'Recuerda que el saldo pendiente puede abonarse según lo coordinado o a más tardar el día del evento.'}
+                        {ctx.emailPendingHint}
                     </Text>
                 </div>
             )}
-            <QuoteButton url={quoteUrl} label={`Ver detalle de tu ${isDirect ? 'pedido' : 'reserva'} →`} bg={brandDark} />
+
+            <QuoteButton url={ctx.quoteUrl} label={ctx.emailButtonLabel} bg={brandDark} />
             <ContactNote />
         </BaseLayout>
     );

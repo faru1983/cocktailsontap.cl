@@ -16,7 +16,8 @@ import { normalizePhoneE164 } from '@/lib/phone';
 import { createServerClient } from '@/lib/supabaseServer';
 import type { Quote, QuoteItem } from '@/lib/types';
 import { formatCurrency } from '@/lib/utils';
-import { buildWhatsAppMessageFromQuote, formatEventDate } from '@/lib/wizardLogic';
+import { buildWhatsAppMessageFromQuote } from '@/lib/wizardLogic';
+import { resolvePaymentMessageContext } from '@/lib/paymentMessageContext';
 
 const PEDIDOS_STAGE_QUOTED_ID = '4efb5192-f37f-408c-80e7-e23c0b4fa798'; // Cotización enviada
 const PEDIDOS_STAGE_WON_ID = 'cf99a7c4-5f58-4a80-890e-f13d844e20b3'; // Reserva / Pedido confirmado
@@ -376,28 +377,12 @@ function buildEventConfirmedMessage(quote: QuoteWithOptionalItems): string {
 function buildPaymentRegisteredMessage(
     quote: Quote,
     paymentAmount: number,
-    balanceAfter: number
+    balanceAfter: number,
+    paymentCount?: number
 ): string {
-    const isDirect = quote.service_type === 'direct' || quote.dispenser === 'desechable';
-    const firstName = getClientFirstName(quote);
-    const paidInFull = balanceAfter <= 0;
-    const itemLabel = isDirect ? 'tu pedido de barriles' : 'tu reserva';
-    const dateLine = quote.event_date
-        ? `📅 ${isDirect ? 'Fecha estimada' : 'Evento'}: ${formatEventDate(quote.event_date)}`
-        : null;
-
-    const statusLine = paidInFull
-        ? `Tu ${isDirect ? 'pedido' : 'reserva'} quedó *100% pagado* ✅.`
-        : `Saldo pendiente actual: *${formatCurrency(balanceAfter)}*.`;
-
-    return [
-        `¡Hola ${firstName}! 💸`,
-        `Registramos un pago por *${formatCurrency(paymentAmount)}* para ${itemLabel}.`,
-        statusLine,
-        ...(dateLine ? [dateLine] : []),
-        '',
-        `*Ver comprobante actualizado:*\n${getQuoteUrl(quote.token)}`,
-    ].join('\n');
+    return resolvePaymentMessageContext(quote, paymentAmount, balanceAfter, {
+        paymentCount,
+    }).whatsappBody;
 }
 
 function buildDirectDispatchedMessage(quote: Quote): string {
@@ -815,7 +800,7 @@ export async function notifyQuotePaymentRegistered(
         return { ok: true, skipped: true };
     }
 
-    const body = buildPaymentRegisteredMessage(quote, paymentAmount, balanceAfter);
+    const body = buildPaymentRegisteredMessage(quote, paymentAmount, balanceAfter, paymentCount);
     return sendWhatsappMessageViaDeskcomm({
         phone: quote.client_phone,
         name: getClientFullName(quote),
@@ -960,7 +945,12 @@ export async function resendQuoteWhatsapp(
         if (!lastPayment) {
             return { ok: false, error: 'Esta cotización aún no tiene pagos registrados para reenviar.' };
         }
-        body = buildPaymentRegisteredMessage(quote, Number(lastPayment.amount) || 0, balance);
+        body = buildPaymentRegisteredMessage(
+            quote,
+            Number(lastPayment.amount) || 0,
+            balance,
+            payments.length
+        );
         sentKind = 'comprobante de pago';
     } else if (effectiveMode === 'confirmed' && !isDirect) {
         body = buildEventConfirmedMessage(quote);

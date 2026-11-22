@@ -41,6 +41,15 @@
 
 ## Ultimos Cambios
 
+### 22-11-2026 — Mensajes Contextuales de Registro de Pagos (Email + WhatsApp + `/admin`)
+
+- **Lógica compartida ([`lib/paymentMessageContext.ts`](file:///c:/Webs/cocktailsontap.cl/lib/paymentMessageContext.ts)):**
+  - `resolvePaymentMessageContext` clasifica automáticamente cada pago según: **tipo de pago** (`full_single` pago único total, `final_balance` saldo pendiente con pagos previos, `partial` abono), **momento en zona horaria `America/Santiago`** (`upcoming`, `today`, `past`, además de estados `completed` e `in_delivery`) y **tipo de servicio** (Evento vs Barriles 5L, respetando `delivery_estimate_label` en Blue Express y evitando texto roto si falta fecha).
+- **Correo y WhatsApp alineados ([`PaymentRegisteredEmail.tsx`](file:///c:/Webs/cocktailsontap.cl/components/emails/PaymentRegisteredEmail.tsx), [`paymentEmailService.ts`](file:///c:/Webs/cocktailsontap.cl/lib/services/paymentEmailService.ts), [`deskcommService.ts`](file:///c:/Webs/cocktailsontap.cl/lib/services/deskcommService.ts), [`adminActions.ts`](file:///c:/Webs/cocktailsontap.cl/app/actions/admin/adminActions.ts)):**
+  - Elimina frases en futuro cuando el evento ya pasó o el pedido ya fue despachado/entregado, corrige concordancia de género en WhatsApp, incluye resumen acumulado (`Este pago` / `Total pagado` / `Saldo pendiente`) cuando existen múltiples pagos y aplica la misma lógica al reenvío manual de WhatsApp.
+- **Glosa y botón rápido inteligente en `/admin` ([`directSaleFulfillment.ts`](file:///c:/Webs/cocktailsontap.cl/lib/directSaleFulfillment.ts), [`QuoteOperationalSummary.tsx`](file:///c:/Webs/cocktailsontap.cl/app/admin/quotes/%5Bid%5D/QuoteOperationalSummary.tsx), [`QuoteDetailClient.tsx`](file:///c:/Webs/cocktailsontap.cl/app/admin/quotes/%5Bid%5D/QuoteDetailClient.tsx)):**
+  - Agregada constante `PAYMENT_NOTE_BALANCE` (`"Pago de saldo"`). Cuando la cotización ya tiene al menos un abono previo, el botón rápido y la opción del modal cambian automáticamente de *"Transferencia total"* a *"Pago de saldo"*, usando fecha local (`toLocaleDateString('en-CA')`).
+
 ### 22-11-2026 — Gasto Rápido Móvil en 1 Toque (`QuickExpenseMobile` en `/admin`)
 
 - **Servicio de metadata y atajos ([`lib/services/quickExpenseService.ts`](file:///c:/Webs/cocktailsontap.cl/lib/services/quickExpenseService.ts)):**

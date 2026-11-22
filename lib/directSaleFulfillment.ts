@@ -35,6 +35,7 @@ export function resolveDispatchTrackingUrl(quote: {
 }
 
 export const PAYMENT_NOTE_FULL = 'Transferencia total';
+export const PAYMENT_NOTE_BALANCE = 'Pago de saldo';
 export const PAYMENT_NOTE_PARTIAL = 'Abono transferencia';
 
 /**

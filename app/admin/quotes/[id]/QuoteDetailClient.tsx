@@ -26,6 +26,7 @@ import {
     isDirectSalePaymentPending,
     DIRECT_SALE_PAYMENT_PENDING_BADGE,
     PAYMENT_NOTE_FULL,
+    PAYMENT_NOTE_BALANCE,
     PAYMENT_NOTE_PARTIAL,
     BLUE_EXPRESS_CARRIER,
     buildBlueExpressTrackingUrl,
@@ -313,9 +314,12 @@ export default function QuoteDetailClient({
     const handleAddPayment = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         const fd = new FormData(e.currentTarget);
+        const hasPriorPayments = (quote.payments?.length || 0) > 0;
         const note =
             payNoteType === 'full'
-                ? PAYMENT_NOTE_FULL
+                ? hasPriorPayments
+                    ? PAYMENT_NOTE_BALANCE
+                    : PAYMENT_NOTE_FULL
                 : payNoteType === 'partial'
                   ? PAYMENT_NOTE_PARTIAL
                   : payCustomNote.trim() || PAYMENT_NOTE_PARTIAL;
@@ -348,11 +352,13 @@ export default function QuoteDetailClient({
 
     const handleQuickFullPayment = () => {
         if (balance <= 0) return;
-        if (!confirm(`¿Registrar transferencia total por ${formatCLP(balance)} y enviar email al cliente?`)) return;
+        const hasPriorPayments = (quote.payments?.length || 0) > 0;
+        const confirmLabel = hasPriorPayments ? 'pago de saldo' : 'transferencia total';
+        if (!confirm(`¿Registrar ${confirmLabel} por ${formatCLP(balance)} y notificar al cliente?`)) return;
         const p = {
-            date: new Date().toISOString().split('T')[0],
+            date: new Date().toLocaleDateString('en-CA'),
             amount: balance,
-            note: PAYMENT_NOTE_FULL,
+            note: hasPriorPayments ? PAYMENT_NOTE_BALANCE : PAYMENT_NOTE_FULL,
         };
         startTransition(async () => {
             const res = await addQuotePayment(String(quote.id), p);
@@ -365,7 +371,13 @@ export default function QuoteDetailClient({
                         res.whatsappWarning ? `WhatsApp: ${res.whatsappWarning}` : null,
                     ].filter(Boolean).join(' · ');
                     showToast(`Pago registrado (${warns})`, false);
-                } else showToast('Transferencia total registrada, email y WhatsApp enviados');
+                } else {
+                    showToast(
+                        hasPriorPayments
+                            ? 'Pago de saldo registrado, email y WhatsApp enviados'
+                            : 'Transferencia total registrada, email y WhatsApp enviados'
+                    );
+                }
             } else showToast(res.error || 'Error', false);
         });
     };
@@ -375,7 +387,7 @@ export default function QuoteDetailClient({
         const halfAmount = Math.round(balance / 2);
         if (!confirm(`¿Registrar abono del 50% por ${formatCLP(halfAmount)} y enviar email al cliente?`)) return;
         const p = {
-            date: new Date().toISOString().split('T')[0],
+            date: new Date().toLocaleDateString('en-CA'),
             amount: halfAmount,
             note: PAYMENT_NOTE_PARTIAL,
         };
@@ -960,7 +972,7 @@ export default function QuoteDetailClient({
                                 type="date"
                                 required
                                 className="w-full p-3 bg-black/20 border border-white/10 rounded-[10px] text-white outline-none focus:border-[#E2A049]"
-                                defaultValue={new Date().toISOString().split('T')[0]}
+                                defaultValue={new Date().toLocaleDateString('en-CA')}
                             />
                         </div>
                         <div className="mb-4">
@@ -968,7 +980,7 @@ export default function QuoteDetailClient({
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                                 <label style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#f1f5f9', fontSize: '13px' }}>
                                     <input type="radio" checked={payNoteType === 'full'} onChange={() => setPayNoteType('full')} />
-                                    Transferencia total
+                                    {(quote.payments?.length || 0) > 0 ? 'Pago de saldo' : 'Transferencia total'}
                                 </label>
                                 <label style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#f1f5f9', fontSize: '13px' }}>
                                     <input type="radio" checked={payNoteType === 'partial'} onChange={() => setPayNoteType('partial')} />

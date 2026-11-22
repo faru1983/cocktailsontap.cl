@@ -310,7 +310,8 @@ export async function addQuotePayment(
             const emailRes = await sendPaymentRegisteredEmail(
                 fullForEmail as Quote,
                 payment.amount,
-                balanceAfter
+                balanceAfter,
+                newPayments.length
             );
             if (!emailRes.ok) {
                 emailWarning = emailRes.error || 'No se pudo enviar el email de pago';
