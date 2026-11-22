@@ -128,6 +128,7 @@ export default function ProductCard({ product, cart, allowDetailLink = false }: 
             {allowDetailLink && product.category !== 'Otros' ? (
                 <Link
                     href={`/barriles/${slugifyProductName(product.name)}`}
+                    prefetch={false}
                     className="aspect-square overflow-hidden bg-[#f8fafc] relative block group/img cursor-pointer"
                     title={`Ver detalles de ${product.name}`}
                 >
@@ -159,7 +160,7 @@ export default function ProductCard({ product, cart, allowDetailLink = false }: 
             )}
             <div className="px-5 py-6 flex flex-col flex-1">
                 {allowDetailLink && product.category !== 'Otros' ? (
-                    <Link href={`/barriles/${slugifyProductName(product.name)}`} className="no-underline group/title block">
+                    <Link href={`/barriles/${slugifyProductName(product.name)}`} prefetch={false} className="no-underline group/title block">
                         <h3 className="text-[1.2rem] font-bold text-brand-text leading-[1.3] mb-1.5 group-hover/title:text-primary transition-colors">
                             {product.name}
                         </h3>

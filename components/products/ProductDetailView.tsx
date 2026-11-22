@@ -768,6 +768,7 @@ export default function ProductDetailView({ product, relatedProducts, availableA
                                 <Link
                                     key={rel.id}
                                     href={`/barriles/${relSlug}`}
+                                    prefetch={false}
                                     className="bg-white rounded-2xl overflow-hidden border border-brand-border shadow-sm hover:shadow-md transition-all group no-underline flex flex-col"
                                 >
                                     <div className="aspect-square bg-slate-50 relative overflow-hidden">

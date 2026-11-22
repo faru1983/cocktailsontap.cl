@@ -9,6 +9,12 @@ import {
     isWeekdayAllowed,
     validateShippingDate,
 } from '@/lib/shippingMethods';
+import {
+    buildEmptyDaySummary,
+    evaluateCapacityForRequest,
+    type DayCapacitySummary,
+    type EventCapacityConfig,
+} from '@/lib/eventCapacity';
 
 const MONTH_NAMES = [
     'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
@@ -29,6 +35,11 @@ interface Props {
     helperText?: string;
     className?: string;
     onErrorChange?: (error: string | null) => void;
+    availabilityContext?: {
+        dispenser: 'portatil' | 'muro';
+        portableKegCount: number;
+        excludeQuoteId?: string;
+    } | null;
 }
 
 export default function ShippingDatePicker({
@@ -43,9 +54,12 @@ export default function ShippingDatePicker({
     helperText,
     className = '',
     onErrorChange,
+    availabilityContext,
 }: Props) {
     const [isOpen, setIsOpen] = useState(false);
     const [placement, setPlacement] = useState<'bottom' | 'top'>('bottom');
+    const [availabilityMap, setAvailabilityMap] = useState<Record<string, DayCapacitySummary>>({});
+    const [capacityConfig, setCapacityConfig] = useState<EventCapacityConfig | null>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const triggerWrapperRef = useRef<HTMLDivElement>(null);
 
@@ -80,8 +94,19 @@ export default function ShippingDatePicker({
     // Validación reactiva
     const validationError = useMemo(() => {
         if (!value) return null;
-        return validateShippingDate(value, methodConfig, fallbackOffsetDays);
-    }, [value, methodConfig, fallbackOffsetDays]);
+        const baseErr = validateShippingDate(value, methodConfig, fallbackOffsetDays);
+        if (baseErr) return baseErr;
+        if (availabilityContext && capacityConfig) {
+            const day = availabilityMap[value] || buildEmptyDaySummary(value, capacityConfig);
+            const evalRes = evaluateCapacityForRequest(
+                day,
+                availabilityContext.dispenser,
+                availabilityContext.portableKegCount,
+            );
+            if (!evalRes.available) return evalRes.reason || 'Sin disponibilidad para esta fecha.';
+        }
+        return null;
+    }, [value, methodConfig, fallbackOffsetDays, availabilityContext, capacityConfig, availabilityMap]);
 
     useEffect(() => {
         if (onErrorChange) {
@@ -156,6 +181,45 @@ export default function ShippingDatePicker({
     const currentYear = viewDate.getFullYear();
     const currentMonth = viewDate.getMonth();
 
+    // Cargar disponibilidad de eventos para el mes visible (o el mes de `value`)
+    useEffect(() => {
+        if (!availabilityContext) return;
+        if (!isOpen && !value) return;
+
+        let cancelled = false;
+        const targetDate = !isOpen && value && /^\d{4}-\d{2}-\d{2}$/.test(value)
+            ? new Date(Number(value.slice(0, 4)), Number(value.slice(5, 7)) - 1, 1)
+            : new Date(currentYear, currentMonth, 1);
+
+        const y = targetDate.getFullYear();
+        const m = targetDate.getMonth();
+        const lastDay = new Date(y, m + 1, 0).getDate();
+        const start = `${y}-${String(m + 1).padStart(2, '0')}-01`;
+        const end = `${y}-${String(m + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+
+        const qs = new URLSearchParams({ start, end });
+        if (availabilityContext.excludeQuoteId) {
+            qs.set('excludeQuoteId', availabilityContext.excludeQuoteId);
+        }
+
+        fetch(`/api/events/availability?${qs.toString()}`)
+            .then((res) => (res.ok ? res.json() : null))
+            .then((data) => {
+                if (cancelled || !data) return;
+                if (data.config) setCapacityConfig(data.config);
+                if (data.days) {
+                    setAvailabilityMap((prev) => ({ ...prev, ...data.days }));
+                }
+            })
+            .catch(() => {
+                // Fallback silencioso: el servidor validará al confirmar
+            });
+
+        return () => {
+            cancelled = true;
+        };
+    }, [availabilityContext, isOpen, value, currentYear, currentMonth]);
+
     // Límites de navegación: no retroceder antes del mes de minDate
     const [minYear, minMonthNum] = (minDate || '').split('-').map(Number);
     const canGoPrev = minDate
@@ -185,6 +249,8 @@ export default function ShippingDatePicker({
             dateStr: string;
             isCurrentMonth: boolean;
             isBlocked: boolean;
+            isCapacityFull: boolean;
+            capacityReason?: string;
             isWeekdayOff: boolean;
             isPastOrTooSoon: boolean;
             isDisabled: boolean;
@@ -199,6 +265,7 @@ export default function ShippingDatePicker({
                 dateStr: '',
                 isCurrentMonth: false,
                 isBlocked: false,
+                isCapacityFull: false,
                 isWeekdayOff: false,
                 isPastOrTooSoon: false,
                 isDisabled: true,
@@ -215,7 +282,23 @@ export default function ShippingDatePicker({
             const isPastOrTooSoon = Boolean(minDate && dateStr < minDate);
             const isBlocked = isDateBlocked(dateStr, methodConfig);
             const isWeekdayOff = !isWeekdayAllowed(dateStr, methodConfig);
-            const isDisabled = isPastOrTooSoon || isBlocked || isWeekdayOff;
+
+            let isCapacityFull = false;
+            let capacityReason: string | undefined;
+            if (availabilityContext && capacityConfig) {
+                const daySummary = availabilityMap[dateStr] || buildEmptyDaySummary(dateStr, capacityConfig);
+                const evalRes = evaluateCapacityForRequest(
+                    daySummary,
+                    availabilityContext.dispenser,
+                    availabilityContext.portableKegCount,
+                );
+                if (!evalRes.available) {
+                    isCapacityFull = true;
+                    capacityReason = evalRes.reason;
+                }
+            }
+
+            const isDisabled = isPastOrTooSoon || isBlocked || isWeekdayOff || isCapacityFull;
             const isSelected = value === dateStr;
             const isToday = dateStr === todayStr;
 
@@ -224,6 +307,8 @@ export default function ShippingDatePicker({
                 dateStr,
                 isCurrentMonth: true,
                 isBlocked,
+                isCapacityFull,
+                capacityReason,
                 isWeekdayOff,
                 isPastOrTooSoon,
                 isDisabled,
@@ -233,7 +318,7 @@ export default function ShippingDatePicker({
         }
 
         return days;
-    }, [currentYear, currentMonth, daysInMonth, startWeekday, minDate, methodConfig, value]);
+    }, [currentYear, currentMonth, daysInMonth, startWeekday, minDate, methodConfig, value, availabilityContext, capacityConfig, availabilityMap]);
 
     // Texto descriptivo para la fecha seleccionada en español natural
     const formattedDisplay = useMemo(() => {
@@ -355,11 +440,11 @@ export default function ShippingDatePicker({
                                 return <div key={`empty-${idx}`} className="h-8 w-8" />;
                             }
 
-                            if (day.isBlocked) {
+                            if (day.isBlocked || day.isCapacityFull) {
                                 return (
                                     <div
                                         key={day.dateStr}
-                                        title="Fecha bloqueada: sin disponibilidad de despacho"
+                                        title={day.capacityReason || 'Fecha bloqueada: sin disponibilidad de despacho'}
                                         className="h-8 w-8 rounded-full flex items-center justify-center text-xs font-normal bg-red-50 text-red-400 line-through cursor-not-allowed select-none relative"
                                     >
                                         <span>{day.dayNumber}</span>

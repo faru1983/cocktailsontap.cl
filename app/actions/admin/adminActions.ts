@@ -1604,6 +1604,45 @@ export async function updateSiteSetting(id: string, data: { value: string; is_ac
     return { success: true };
 }
 
+export async function upsertEventCapacitySetting(data: {
+    portableDispensers: number;
+    muroDispensers: number;
+}): Promise<{ success: boolean; error?: string }> {
+    await checkAuth();
+    const portable = Math.max(0, Math.floor(Number(data.portableDispensers) || 0));
+    const muro = Math.max(0, Math.floor(Number(data.muroDispensers) || 0));
+    const payload = JSON.stringify({ portableDispensers: portable, muroDispensers: muro });
+
+    const db = createServerClient();
+    const { data: existing } = await db
+        .from('site_settings')
+        .select('id')
+        .eq('key', 'event_capacity_config')
+        .maybeSingle();
+
+    const now = new Date().toISOString();
+    const res = existing?.id
+        ? await db
+              .from('site_settings')
+              .update({ value: payload, is_active: true, updated_at: now })
+              .eq('id', existing.id)
+        : await db.from('site_settings').insert({
+              key: 'event_capacity_config',
+              value: payload,
+              category: 'shipping',
+              is_active: true,
+              description: 'Capacidad diaria máxima de Dispensadores Portátiles (2 barriles c/u) y Muros de Coctelería',
+              updated_at: now,
+          });
+
+    if (res.error) return { success: false, error: res.error.message };
+    revalidatePath('/admin');
+    revalidatePath('/admin/settings');
+    revalidatePath('/eventos');
+    revalidatePath('/lp/eventos');
+    return { success: true };
+}
+
 // Helper: auto-send review if setting is 'auto' (skips if already sent via sendReviewEmail)
 async function maybeAutoSendReview(quoteId: string, db: any): Promise<boolean> {
     try {

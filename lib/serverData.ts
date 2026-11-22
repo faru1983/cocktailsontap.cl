@@ -52,7 +52,7 @@ export function normalizeVariantConfig(raw: unknown): ProductVariantConfig | nul
     return { label, default: defaultOpt, options };
 }
 
-// ─── Fetch con caché (revalida cada 5 minutos) ────────────────────────────────
+// ─── Fetch con caché (revalida cada 24h o por tag 'product-data' desde /admin) ─
 
 export const fetchAllProductData = unstable_cache(
     async (): Promise<{
@@ -254,7 +254,7 @@ export const fetchAllProductData = unstable_cache(
         };
     },
     ['product-data-v7-shipping-transit'],
-    { revalidate: 300, tags: ['product-data'] }
+    { revalidate: 86400, tags: ['product-data'] }
 );
 
 export const fetchAllClients = unstable_cache(

@@ -41,6 +41,27 @@
 
 ## Ultimos Cambios
 
+### 22-11-2026 — Optimización de caché ISR y prefetch en Vercel (`serverData.ts` + `/barriles/[slug]`)
+
+- **Caché de catálogo bajo demanda ([`lib/serverData.ts`](file:///c:/Webs/cocktailsontap.cl/lib/serverData.ts)):**
+  - Aumentado el `revalidate` de `fetchAllProductData` de `300` s (5 min) a `86400` s (24 h), apoyado en la invalidación explícita `revalidateTag('product-data', 'max')` que ya ejecutan las mutaciones de `/admin/products`, `/admin/recetario` y `/admin/settings`.
+- **Prefetch selectivo en fichas de producto ([`components/catalog/ProductCard.tsx`](file:///c:/Webs/cocktailsontap.cl/components/catalog/ProductCard.tsx), [`components/products/ProductDetailView.tsx`](file:///c:/Webs/cocktailsontap.cl/components/products/ProductDetailView.tsx)):**
+  - Agregado `prefetch={false}` en los `<Link>` hacia `/barriles/[slug]` para evitar precargas automáticas masivas en segundo plano en cada visita pública.
+
+### 22-11-2026 — Control de Capacidad Diaria de Dispensadores Portátiles y Muros
+
+- **Base de datos y configuración (`supabase/migrations/20261122000000_event_capacity_config.sql`, `site_settings`):**
+  - Agregada clave `event_capacity_config` (`{ portableDispensers: 10, muroDispensers: 1 }`) editable desde `/admin/settings` (pestaña **Eventos**, Server Action `upsertEventCapacitySetting`).
+- **Lógica compartida y servicio ([`lib/eventCapacity.ts`](file:///c:/Webs/cocktailsontap.cl/lib/eventCapacity.ts), [`lib/services/eventCapacityService.ts`](file:///c:/Webs/cocktailsontap.cl/lib/services/eventCapacityService.ts)):**
+  - Calcula ocupación diaria solo sobre eventos en su mismo `event_date` con estado activo (`confirmed`, `in_delivery`, `completed`; al día siguiente los equipos vuelven a quedar libres).
+  - Regla Portátil: cada dispensador soporta hasta **2 barriles** de `5L`/`10L` (`Math.max(1, Math.ceil(kegs / 2))`). Si queda 1 dispensador libre, solo permite pedidos de hasta 2 barriles. Regla Muro: `1` Muro por evento.
+- **API, Validación Web y Libertad Admin ([`app/api/events/availability/route.ts`](file:///c:/Webs/cocktailsontap.cl/app/api/events/availability/route.ts), [`confirmQuoteCore.ts`](file:///c:/Webs/cocktailsontap.cl/lib/services/confirmQuoteCore.ts), [`createQuoteCore.ts`](file:///c:/Webs/cocktailsontap.cl/lib/services/createQuoteCore.ts)):**
+  - Endpoint `GET /api/events/availability` consumido por [`ShippingDatePicker.tsx`](file:///c:/Webs/cocktailsontap.cl/components/ui/ShippingDatePicker.tsx) en [`EventWizardCheckoutModal.tsx`](file:///c:/Webs/cocktailsontap.cl/components/wizard/events/EventWizardCheckoutModal.tsx) y [`EventQuoteView.tsx`](file:///c:/Webs/cocktailsontap.cl/components/quote/EventQuoteView.tsx) para bloquear días llenos o con cupo insuficiente de dispensadores/Muros.
+  - Validación server-side estricta al confirmar desde Web/MCP (`!bypassCapacityCheck`), manteniendo **libertad total en Admin** (`isAdmin` → `bypassCapacityCheck: true`).
+- **Inicio Admin y Herramienta MCP ([`app/admin/page.tsx`](file:///c:/Webs/cocktailsontap.cl/app/admin/page.tsx), [`DashboardClient.tsx`](file:///c:/Webs/cocktailsontap.cl/app/admin/DashboardClient.tsx), [`cocktailsMcpServer.ts`](file:///c:/Webs/cocktailsontap.cl/lib/mcp/cocktailsMcpServer.ts)):**
+  - Agregado panel compacto **"Capacidad diaria · Portátiles y Muros"** en `/admin` (con consultor rápido por fecha) sin crear nuevas rutas.
+  - Agregada tool MCP `check_event_availability` para que `Pipe` consulte disponibilidad por fecha o rango (máx. 14 días).
+
 ### 21-11-2026 — Herramienta MCP `update_event_quote`, Blindajes e Idempotencia MCP
 
 - **Servidor MCP ([`lib/mcp/cocktailsMcpServer.ts`](file:///c:/Webs/cocktailsontap.cl/lib/mcp/cocktailsMcpServer.ts), [`lib/integrationSchemas.ts`](file:///c:/Webs/cocktailsontap.cl/lib/integrationSchemas.ts), [`lib/services/updateDraftQuoteCore.ts`](file:///c:/Webs/cocktailsontap.cl/lib/services/updateDraftQuoteCore.ts), [`lib/services/createQuoteCore.ts`](file:///c:/Webs/cocktailsontap.cl/lib/services/createQuoteCore.ts))**:

@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import {
     CalendarDays,
@@ -9,6 +10,7 @@ import {
     Receipt,
     Sparkles,
 } from 'lucide-react';
+import { buildEmptyDaySummary, type DayCapacitySummary, type EventCapacityConfig } from '@/lib/eventCapacity';
 import { Panel } from '@/components/admin/ui/Panel';
 import { StatCard } from '@/components/admin/ui/StatCard';
 import { EmptyState } from '@/components/admin/ui/EmptyState';
@@ -78,6 +80,8 @@ type DashboardClientProps = {
         status: string;
         total_price: number;
     }[];
+    capacityConfig: EventCapacityConfig;
+    upcomingCapacityDays: DayCapacitySummary[];
 };
 
 const statusBadge: Record<string, { label: string; color: string; bg: string }> = {
@@ -131,7 +135,37 @@ export function DashboardClient({
     nextMonthEvents,
     nextMonthDirectSales,
     recentQuotes,
+    capacityConfig,
+    upcomingCapacityDays,
 }: DashboardClientProps) {
+    const [lookupDate, setLookupDate] = useState('');
+    const [lookupDay, setLookupDay] = useState<DayCapacitySummary | null>(null);
+    const [lookupLoading, setLookupLoading] = useState(false);
+
+    const handleLookupDate = async (dateStr: string) => {
+        setLookupDate(dateStr);
+        if (!dateStr) {
+            setLookupDay(null);
+            return;
+        }
+        const existing = upcomingCapacityDays.find((d) => d.date === dateStr);
+        if (existing) {
+            setLookupDay(existing);
+            return;
+        }
+        setLookupLoading(true);
+        try {
+            const res = await fetch(`/api/events/availability?start=${dateStr}&end=${dateStr}`);
+            if (res.ok) {
+                const json = await res.json();
+                setLookupDay(json.days?.[dateStr] || buildEmptyDaySummary(dateStr, json.config || capacityConfig));
+            }
+        } catch {
+            setLookupDay(buildEmptyDaySummary(dateStr, capacityConfig));
+        } finally {
+            setLookupLoading(false);
+        }
+    };
     return (
         <div className="pb-16 space-y-8">
             <header className="space-y-1">
@@ -283,6 +317,84 @@ export function DashboardClient({
                     <QuoteTable items={nextMonthDirectSales} empty={`Sin ventas directas aún para ${nextMonthLabel}.`} dateClassName="text-orange-400" />
                 </Panel>
             </div>
+
+            <Panel
+                title={`Capacidad diaria · Tope ${capacityConfig.portableDispensers} Portátiles / ${capacityConfig.muroDispensers} Muro`}
+                accent="event"
+                actions={
+                    <Link href="/admin/settings?tab=events" className="text-[11px] font-bold text-[#E2A049] hover:underline">
+                        Configurar cupos →
+                    </Link>
+                }
+                bodyClassName="space-y-4"
+            >
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3 bg-black/20 border border-admin-border rounded-xl p-3">
+                    <div className="flex items-center gap-2 shrink-0">
+                        <CalendarDays size={15} className="text-[#E2A049]" />
+                        <span className="text-xs font-bold text-slate-300">Consultar fecha:</span>
+                    </div>
+                    <input
+                        type="date"
+                        value={lookupDate}
+                        onChange={(e) => handleLookupDate(e.target.value)}
+                        className="px-3 py-1.5 bg-[#121620] border border-white/10 rounded-lg text-xs font-bold text-white focus:outline-none focus:border-[#E2A049]"
+                    />
+                    {lookupLoading ? (
+                        <span className="text-xs text-slate-400">Consultando...</span>
+                    ) : lookupDay ? (
+                        <div className="flex flex-wrap items-center gap-2 text-xs">
+                            <span className={`px-2.5 py-1 rounded-full font-black ${lookupDay.portableAvailable === 0 ? 'bg-rose-500/15 text-rose-400' : lookupDay.portableAvailable <= 2 ? 'bg-amber-500/15 text-amber-300' : 'bg-emerald-500/15 text-emerald-400'}`}>
+                                Portátiles: {lookupDay.portableUsed}/{lookupDay.portableTotal} ({lookupDay.portableAvailable} libres · máx. {lookupDay.maxPortableKegsAvailable} barriles)
+                            </span>
+                            <span className={`px-2.5 py-1 rounded-full font-black ${lookupDay.muroAvailable === 0 ? 'bg-rose-500/15 text-rose-400' : 'bg-emerald-500/15 text-emerald-400'}`}>
+                                Muro: {lookupDay.muroUsed}/{lookupDay.muroTotal}
+                            </span>
+                        </div>
+                    ) : (
+                        <span className="text-xs text-slate-500">Elige cualquier día para ver equipos ocupados y libres.</span>
+                    )}
+                </div>
+
+                {upcomingCapacityDays.length === 0 ? (
+                    <EmptyState message="Sin reservas de eventos próximas. Toda la capacidad está disponible." />
+                ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                        {upcomingCapacityDays.map((day) => {
+                            const pct = day.portableTotal > 0 ? Math.min(100, Math.round((day.portableUsed / day.portableTotal) * 100)) : 0;
+                            const isFull = day.portableAvailable === 0;
+                            const isLow = !isFull && day.portableAvailable <= 2;
+                            return (
+                                <div key={day.date} className="rounded-xl border border-admin-border bg-black/15 p-3.5 space-y-2">
+                                    <div className="flex items-center justify-between gap-2">
+                                        <span className="text-xs font-black text-white">{formatListDate(day.date)}</span>
+                                        <span className="text-[10px] font-bold text-slate-400">{day.eventsCount} {day.eventsCount === 1 ? 'evento' : 'eventos'}</span>
+                                    </div>
+                                    <div>
+                                        <div className="flex items-center justify-between text-[11px] mb-1">
+                                            <span className="text-slate-400 font-bold">Portátiles</span>
+                                            <span className={`font-black ${isFull ? 'text-rose-400' : isLow ? 'text-amber-300' : 'text-emerald-400'}`}>
+                                                {day.portableUsed}/{day.portableTotal} · {isFull ? 'Lleno' : `${day.portableAvailable} libre${day.portableAvailable === 1 ? '' : 's'} (máx. ${day.maxPortableKegsAvailable} barriles)`}
+                                            </span>
+                                        </div>
+                                        <div className="w-full h-1.5 rounded-full bg-white/5 overflow-hidden">
+                                            <div
+                                                className={`h-full rounded-full ${isFull ? 'bg-rose-500' : isLow ? 'bg-amber-400' : 'bg-emerald-500'}`}
+                                                style={{ width: `${pct}%` }}
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center justify-between text-[11px] pt-0.5">
+                                        <span className="text-slate-400 font-bold">Muro</span>
+                                        <span className={`font-black ${day.muroAvailable === 0 ? 'text-rose-400' : 'text-slate-300'}`}>
+                                            {day.muroUsed}/{day.muroTotal} {day.muroAvailable === 0 ? '(Reservado)' : '(Disponible)'}
+                                        </span>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
+            </Panel>
 
             <Panel title="Últimas cotizaciones" accent="neutral" bodyClassName="divide-y divide-admin-border">
                 {recentQuotes.length === 0 ? (

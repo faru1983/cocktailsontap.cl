@@ -11,6 +11,7 @@ import { formatEventDate, calculateMaxPickupDate, isAllowedEventPickupDate, EVEN
 import { confirmQuote } from '@/app/actions/confirmQuote';
 import { MURO_INSTALLATION_COST, PORTATIL_MIN_LITERS, MURO_MIN_LITERS, MURO_COMPATIBLE_SIZES } from '@/lib/config';
 import { validateShippingDate } from '@/lib/shippingMethods';
+import { countPortableKegs } from '@/lib/eventCapacity';
 import { useDraftQuoteAutoSave } from '@/hooks/useDraftQuoteAutoSave';
 import DraftSaveBadge from '@/components/quote/DraftSaveBadge';
 import {
@@ -1213,6 +1214,11 @@ export default function EventQuoteView({ quote, comunas, regions, availableCockt
                                         }}
                                         methodConfig={comunas[0]?.shippingMethodsConfig?.own_events}
                                         fallbackOffsetDays={5}
+                                        availabilityContext={{
+                                            dispenser,
+                                            portableKegCount: countPortableKegs(items),
+                                            excludeQuoteId: quote.id,
+                                        }}
                                         helperText={
                                             comunas[0]?.shippingMethodsConfig?.own_events?.minOffsetDays
                                                 ? `Mín. ${comunas[0]?.shippingMethodsConfig?.own_events.minOffsetDays} días de anticipación.`

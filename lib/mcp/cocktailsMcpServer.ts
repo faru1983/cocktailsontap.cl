@@ -18,6 +18,8 @@ import { validateConfirmNowState } from '@/lib/confirmNowValidation';
 import { normalizeQuoteSource } from '@/lib/quoteSource';
 import { createQuoteCore } from '@/lib/services/createQuoteCore';
 import { updateDraftQuoteCore } from '@/lib/services/updateDraftQuoteCore';
+import { buildEmptyDaySummary, evaluateCapacityForRequest } from '@/lib/eventCapacity';
+import { getEventOccupancyByDateRange } from '@/lib/services/eventCapacityService';
 import { createServerClient } from '@/lib/supabaseServer';
 import { advanceClientStage } from '@/lib/services/clientLifecycleService';
 import {
@@ -1076,6 +1078,83 @@ export function createCocktailsMcpServer(ctx: CocktailsMcpContext = {}): McpServ
                 });
             } catch (err) {
                 return errorResult(err instanceof Error ? err.message : 'Error sincronizando contacto');
+            }
+        }
+    );
+
+    server.registerTool(
+        'check_event_availability',
+        {
+            description:
+                'Consulta la disponibilidad diaria de Dispensadores Portátiles (máx. 2 barriles 5L/10L por dispensador) y Muros de Coctelería para una fecha o rango corto de fechas. Úsala antes de confirmar disponibilidad de fecha al cliente.',
+            inputSchema: {
+                date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Usa formato YYYY-MM-DD').describe('Fecha del evento (YYYY-MM-DD)'),
+                endDate: z
+                    .string()
+                    .regex(/^\d{4}-\d{2}-\d{2}$/, 'Usa formato YYYY-MM-DD')
+                    .optional()
+                    .describe('Fecha fin opcional (máx. 14 días desde date) para revisar un fin de semana o varios días'),
+                dispenser: z.enum(['portatil', 'muro']).optional().default('portatil').describe('Tipo de dispensador a evaluar'),
+                kegCount: z.number().int().min(1).max(50).optional().describe('Cantidad total de barriles 5L/10L que necesita el cliente (solo para portatil)'),
+            },
+            annotations: { readOnlyHint: true },
+        },
+        async (args) => {
+            try {
+                const startDate = args.date;
+                const endDate = args.endDate || startDate;
+                const startMs = Date.parse(`${startDate}T00:00:00Z`);
+                const endMs = Date.parse(`${endDate}T00:00:00Z`);
+                if (!Number.isFinite(startMs) || !Number.isFinite(endMs) || endMs < startMs) {
+                    return errorResult('Rango de fechas inválido. endDate debe ser igual o posterior a date.');
+                }
+                const diffDays = Math.round((endMs - startMs) / (1000 * 60 * 60 * 24));
+                if (diffDays > 14) {
+                    return errorResult('El rango máximo de consulta es de 14 días.');
+                }
+
+                const { config, days } = await getEventOccupancyByDateRange(startDate, endDate);
+                const kegsToEvaluate = args.kegCount ?? 1;
+                const results = [];
+
+                for (let i = 0; i <= diffDays; i++) {
+                    const d = new Date(startMs + i * 86400000);
+                    const dateKey = d.toISOString().slice(0, 10);
+                    const summary = days[dateKey] || buildEmptyDaySummary(dateKey, config);
+                    const evaluation = evaluateCapacityForRequest(summary, args.dispenser, kegsToEvaluate);
+
+                    results.push({
+                        date: dateKey,
+                        available: evaluation.available,
+                        status:
+                            args.dispenser === 'muro'
+                                ? summary.muroAvailable > 0
+                                    ? 'Disponible'
+                                    : 'Todo reservado'
+                                : summary.portableAvailable === 0
+                                  ? 'Todo reservado'
+                                  : evaluation.available
+                                    ? 'Disponible'
+                                    : 'Cupo insuficiente',
+                        portableUsed: summary.portableUsed,
+                        portableTotal: summary.portableTotal,
+                        portableAvailable: summary.portableAvailable,
+                        maxPortableKegsAvailable: summary.maxPortableKegsAvailable,
+                        muroUsed: summary.muroUsed,
+                        muroTotal: summary.muroTotal,
+                        muroAvailable: summary.muroAvailable,
+                        ...(evaluation.reason ? { note: evaluation.reason } : {}),
+                    });
+                }
+
+                return okResult({
+                    dispenser: args.dispenser,
+                    ...(args.kegCount ? { requestedKegs: args.kegCount } : {}),
+                    capacityConfig: config,
+                    days: results,
+                });
+            } catch (err) {
+                return errorResult(err instanceof Error ? err.message : 'Error consultando disponibilidad');
             }
         }
     );

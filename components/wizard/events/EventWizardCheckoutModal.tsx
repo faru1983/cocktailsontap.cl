@@ -17,6 +17,7 @@ import { validateConfirmNowState } from '@/lib/confirmNowValidation';
 import { calculateMaxPickupDate, EVENT_DEFAULT_NEXT_DAY_PICKUP_TIME, getMinDateString, isAllowedEventPickupDate } from '@/lib/wizardLogic';
 import { getMinSelectableDate, validateShippingDate } from '@/lib/shippingMethods';
 import { isValidPhoneE164, isChilePrefixOnly } from '@/lib/phone';
+import { countPortableKegs } from '@/lib/eventCapacity';
 
 interface Props {
     wizard: ReturnType<typeof useWizard>;
@@ -545,6 +546,10 @@ export default function EventWizardCheckoutModal({
                                                     }}
                                                     methodConfig={eventMethodConfig}
                                                     fallbackOffsetDays={5}
+                                                    availabilityContext={{
+                                                        dispenser: state.dispenser === 'muro' ? 'muro' : 'portatil',
+                                                        portableKegCount: countPortableKegs(state.selections),
+                                                    }}
                                                     helperText={
                                                         errors.date ? undefined : (
                                                             eventMethodConfig?.minOffsetDays

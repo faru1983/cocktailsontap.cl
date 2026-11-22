@@ -25,6 +25,8 @@ import {
 } from '@/lib/wizardLogic';
 import { ADMIN_EMAIL, FROM_EMAIL, PORTATIL_MIN_LITERS, MURO_MIN_LITERS } from '@/lib/config';
 import { normalizePhoneE164 } from '@/lib/phone';
+import { countPortableKegs } from '@/lib/eventCapacity';
+import { checkEventDateAvailability } from '@/lib/services/eventCapacityService';
 
 export interface ConfirmQuoteResult {
     success: boolean;
@@ -42,6 +44,8 @@ export interface ConfirmQuoteCoreOptions {
      * de litros (10L portátil / reglas de muro). No usar en web ni API pública.
      */
     allowAdminMinLitersOverride?: boolean;
+    /** Solo flujo Admin: omite la restricción de capacidad diaria de dispensadores/muros. */
+    bypassCapacityCheck?: boolean;
     clientIp?: string | null;
     clientUserAgent?: string | null;
 }
@@ -176,6 +180,22 @@ export async function confirmQuoteCore(
                 return {
                     success: false,
                     error: `El Dispensador Portátil requiere al menos ${PORTATIL_MIN_LITERS}L y solo barriles de 5L o 10L.`,
+                };
+            }
+        }
+
+        if (!isDirectSale && !options?.bypassCapacityCheck) {
+            const portableKegs = countPortableKegs(resolvedItems);
+            const availability = await checkEventDateAvailability({
+                date: data.event_date,
+                dispenser: data.dispenser,
+                portableKegCount: portableKegs,
+                excludeQuoteId: quote.id,
+            });
+            if (!availability.available) {
+                return {
+                    success: false,
+                    error: availability.reason || 'Sin disponibilidad para la fecha seleccionada.',
                 };
             }
         }

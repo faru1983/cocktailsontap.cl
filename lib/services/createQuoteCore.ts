@@ -21,6 +21,8 @@ import { stripClientPricing } from '@/lib/catalogPricing';
 import { normalizeEmail, normalizePersonName } from '@/lib/utils';
 import { resolveRegionShortName, validateDirectSaleDate, resolveDirectSaleCarrier, EVENT_DEFAULT_NEXT_DAY_PICKUP_TIME } from '@/lib/wizardLogic';
 import { validateShippingDate } from '@/lib/shippingMethods';
+import { countPortableKegs } from '@/lib/eventCapacity';
+import { checkEventDateAvailability } from '@/lib/services/eventCapacityService';
 
 export interface CreateQuoteInput {
     state: WizardState;
@@ -165,6 +167,20 @@ export async function createQuoteCore(input: CreateQuoteInput): Promise<CreateQu
             } else if (state.serviceType === 'event' && (wantsConfirmNow || source !== 'whatsapp')) {
                 const eventConfig = comunas[0]?.shippingMethodsConfig?.own_events;
                 const dateErr = validateShippingDate(state.eventData.date, eventConfig, 5);
+                if (!dateErr && wantsConfirmNow && !isAdmin) {
+                    const portableKegs = countPortableKegs(state.selections);
+                    const availability = await checkEventDateAvailability({
+                        date: state.eventData.date,
+                        dispenser: state.dispenser,
+                        portableKegCount: portableKegs,
+                    });
+                    if (!availability.available) {
+                        return {
+                            success: false,
+                            error: availability.reason || 'Sin disponibilidad para la fecha seleccionada.',
+                        };
+                    }
+                }
                 if (dateErr) return { success: false, error: dateErr };
             }
         }
@@ -287,6 +303,7 @@ export async function createQuoteCore(input: CreateQuoteInput): Promise<CreateQu
                     skipEmail: Boolean(skipEmail),
                     skipWhatsapp: Boolean(input.skipWhatsapp),
                     allowAdminMinLitersOverride: Boolean(isAdmin),
+                    bypassCapacityCheck: Boolean(isAdmin),
                     clientIp: input.clientIp || null,
                     clientUserAgent: input.clientUserAgent || null,
                 }

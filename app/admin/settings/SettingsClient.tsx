@@ -9,7 +9,9 @@ import {
     saveEventType, 
     deleteEventType, 
     updateSiteSetting,
+    upsertEventCapacitySetting,
 } from '@/app/actions/admin/adminActions';
+import { EVENT_CAPACITY_SETTING_KEY, parseEventCapacityConfig } from '@/lib/eventCapacity';
 import Modal from '@/components/admin/Modal';
 import CoverageSettings from '@/components/admin/CoverageSettings';
 import { adminTabHref, isUnmodifiedLeftClick, parseAdminTab, replaceAdminTab } from '@/lib/adminTabUrl';
@@ -52,6 +54,31 @@ export default function SettingsClient({
     };
     const [isPending, startTransition] = useTransition();
     const [saved, setSaved] = useState(false);
+
+    // ─── Capacidad Diaria de Equipos ────────────────────────────────────────
+    const initialCapacity = parseEventCapacityConfig(
+        siteSettings.find((s: any) => s.key === EVENT_CAPACITY_SETTING_KEY)?.value,
+    );
+    const [portableCapacity, setPortableCapacity] = useState<number>(initialCapacity.portableDispensers);
+    const [muroCapacity, setMuroCapacity] = useState<number>(initialCapacity.muroDispensers);
+    const [capacitySaved, setCapacitySaved] = useState(false);
+    const [capacityError, setCapacityError] = useState<string | null>(null);
+
+    const handleSaveCapacity = () => {
+        setCapacityError(null);
+        startTransition(async () => {
+            const res = await upsertEventCapacitySetting({
+                portableDispensers: portableCapacity,
+                muroDispensers: muroCapacity,
+            });
+            if (res.success) {
+                setCapacitySaved(true);
+                setTimeout(() => setCapacitySaved(false), 3000);
+            } else {
+                setCapacityError(res.error || 'No se pudo guardar la capacidad.');
+            }
+        });
+    };
 
     // ─── Post-Venta State ───────────────────────────────────────────────────
     const [mode, setMode] = useState(reviewMode);
@@ -232,7 +259,66 @@ export default function SettingsClient({
 
                 {/* ─── TAB: EVENTS ───────────────────────────────────────────────────── */}
                 {tab === 'events' && (
-                    <div className="max-w-4xl">
+                    <div className="max-w-4xl space-y-8">
+                        {/* Capacidad Diaria de Equipos */}
+                        <div className="bg-[#1e2433] rounded-2xl border border-white/5 p-5 sm:p-6 shadow-xl">
+                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
+                                <div>
+                                    <h2 className="text-white text-lg font-black">Capacidad Diaria de Equipos</h2>
+                                    <p className="text-slate-400 text-xs mt-1">
+                                        Restringe las reservas web y consultas de Pipe según tu stock diario. Cada dispensador portátil soporta hasta 2 barriles (5L o 10L) y al día siguiente quedan disponibles nuevamente.
+                                    </p>
+                                </div>
+                                <button
+                                    type="button"
+                                    disabled={isPending}
+                                    onClick={handleSaveCapacity}
+                                    className="bg-[#E2A049] text-black px-4 py-2 rounded-xl font-black text-xs sm:text-sm flex items-center gap-2 transition-transform active:scale-95 shadow-lg shadow-[#E2A049]/10 shrink-0 disabled:opacity-50"
+                                >
+                                    {capacitySaved ? <Check size={16} /> : null}
+                                    {capacitySaved ? 'Guardado' : 'Guardar Capacidad'}
+                                </button>
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div className="bg-black/20 rounded-xl p-4 border border-white/5">
+                                    <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">
+                                        Dispensadores Portátiles por día
+                                    </label>
+                                    <input
+                                        type="number"
+                                        min={0}
+                                        max={100}
+                                        value={portableCapacity}
+                                        onChange={(e) => setPortableCapacity(Math.max(0, Number(e.target.value) || 0))}
+                                        className="w-full px-3.5 py-2.5 bg-[#121620] border border-white/10 rounded-xl text-white font-black text-base focus:outline-none focus:border-[#E2A049]"
+                                    />
+                                    <p className="text-slate-500 text-[11px] mt-1.5">
+                                        Capacidad máxima teórica: hasta {portableCapacity * 2} barriles/día (2 por dispensador).
+                                    </p>
+                                </div>
+                                <div className="bg-black/20 rounded-xl p-4 border border-white/5">
+                                    <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">
+                                        Muros de Coctelería por día
+                                    </label>
+                                    <input
+                                        type="number"
+                                        min={0}
+                                        max={50}
+                                        value={muroCapacity}
+                                        onChange={(e) => setMuroCapacity(Math.max(0, Number(e.target.value) || 0))}
+                                        className="w-full px-3.5 py-2.5 bg-[#121620] border border-white/10 rounded-xl text-white font-black text-base focus:outline-none focus:border-[#E2A049]"
+                                    />
+                                    <p className="text-slate-500 text-[11px] mt-1.5">
+                                        Eventos con barriles de 20L/30L (1 Muro por evento).
+                                    </p>
+                                </div>
+                            </div>
+                            {capacityError && (
+                                <p className="mt-3 text-xs text-rose-400 font-bold">{capacityError}</p>
+                            )}
+                        </div>
+
+                        <div>
                         <div className="flex justify-between items-center mb-6">
                             <h2 className="text-white text-lg font-black">Repertorio de Eventos</h2>
                             <button onClick={() => openModal('event')} 
@@ -294,6 +380,7 @@ export default function SettingsClient({
                                     </div>
                                 </div>
                             ))}
+                        </div>
                         </div>
                     </div>
                 )}
