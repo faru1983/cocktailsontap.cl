@@ -185,38 +185,15 @@ export async function createQuoteCore(input: CreateQuoteInput): Promise<CreateQu
         }
 
         const isDirect = state.serviceType === 'direct';
+        let deferredLifecycleTask: (() => Promise<void>) | null = null;
 
         if (clientId && !wantsConfirmNow) {
             try {
-                const { advanceClientStage } = await import('@/lib/services/clientLifecycleService');
                 const { readMetaBrowserCookies } = await import('@/lib/services/metaCapiService');
                 const cookies = source === 'web' ? await readMetaBrowserCookies() : {};
                 const effectiveFbc = input.fbc || cookies.fbc || null;
                 const effectiveFbp = input.fbp || cookies.fbp || null;
                 const effectiveCtwaClid = input.ctwaClid || null;
-
-                // Registrar touchpoint si hay parámetros de atribución Meta o landingMeta
-                if (effectiveFbc || effectiveFbp || effectiveCtwaClid || input.landingMeta) {
-                    try {
-                        const { recordTouchpoint } = await import('@/lib/services/clientService');
-                        await recordTouchpoint({
-                            clientId,
-                            channel: source,
-                            type: isDirect ? 'direct_sale' : 'quote_created',
-                            meta_fbc: effectiveFbc,
-                            meta_fbp: effectiveFbp,
-                            meta_ctwa_clid: effectiveCtwaClid,
-                            payload: {
-                                quoteId: createResult.quote.id,
-                                token: createResult.token,
-                                isDirect,
-                                ...input.landingMeta,
-                            },
-                        });
-                    } catch (tpErr) {
-                        console.error('Error guardando touchpoint Meta:', tpErr);
-                    }
-                }
 
                 const contentName = isDirect
                     ? source === 'whatsapp'
@@ -235,26 +212,61 @@ export async function createQuoteCore(input: CreateQuoteInput): Promise<CreateQu
                         ? state.contact.comuna
                         : state.contact.otherComuna || null;
 
-                await advanceClientStage(clientId, isDirect ? 'customer' : 'quoted', {
-                    reason: isDirect
-                        ? `Direct sale created (${source})`
-                        : `Event quote draft created (${source})`,
-                    source,
-                    quoteId: createResult.quote.id,
-                    quoteToken: createResult.token,
-                    value: createResult.quote.total_price,
-                    contentName,
-                    intent: isDirect ? 'direct' : 'event',
-                    contents: createResult.quoteItems || [],
-                    city: quoteCity,
-                    fbc: effectiveFbc,
-                    fbp: effectiveFbp,
-                    ctwaClid: effectiveCtwaClid,
-                    clientIpAddress: input.clientIp || null,
-                    clientUserAgent: input.clientUserAgent || null,
-                });
+                const createdQuoteId = createResult.quote.id;
+                const createdQuoteToken = createResult.token;
+                const createdTotalPrice = createResult.quote.total_price;
+                const createdQuoteItems = createResult.quoteItems || [];
+
+                // Diferir touchpoint y CAPI a after() para no bloquear MCP/API con llamadas externas
+                deferredLifecycleTask = async () => {
+                    try {
+                        if (effectiveFbc || effectiveFbp || effectiveCtwaClid || input.landingMeta) {
+                            try {
+                                const { recordTouchpoint } = await import('@/lib/services/clientService');
+                                await recordTouchpoint({
+                                    clientId,
+                                    channel: source,
+                                    type: isDirect ? 'direct_sale' : 'quote_created',
+                                    meta_fbc: effectiveFbc,
+                                    meta_fbp: effectiveFbp,
+                                    meta_ctwa_clid: effectiveCtwaClid,
+                                    payload: {
+                                        quoteId: createdQuoteId,
+                                        token: createdQuoteToken,
+                                        isDirect,
+                                        ...input.landingMeta,
+                                    },
+                                });
+                            } catch (tpErr) {
+                                console.error('Error guardando touchpoint Meta:', tpErr);
+                            }
+                        }
+
+                        const { advanceClientStage } = await import('@/lib/services/clientLifecycleService');
+                        await advanceClientStage(clientId, isDirect ? 'customer' : 'quoted', {
+                            reason: isDirect
+                                ? `Direct sale created (${source})`
+                                : `Event quote draft created (${source})`,
+                            source,
+                            quoteId: createdQuoteId,
+                            quoteToken: createdQuoteToken,
+                            value: createdTotalPrice,
+                            contentName,
+                            intent: isDirect ? 'direct' : 'event',
+                            contents: createdQuoteItems,
+                            city: quoteCity,
+                            fbc: effectiveFbc,
+                            fbp: effectiveFbp,
+                            ctwaClid: effectiveCtwaClid,
+                            clientIpAddress: input.clientIp || null,
+                            clientUserAgent: input.clientUserAgent || null,
+                        });
+                    } catch (stageErr) {
+                        console.error('CRM stage advance on quote create failed:', stageErr);
+                    }
+                };
             } catch (stageErr) {
-                console.error('CRM stage advance on quote create failed:', stageErr);
+                console.error('CRM stage advance setup on quote create failed:', stageErr);
             }
         }
 
@@ -305,6 +317,9 @@ export async function createQuoteCore(input: CreateQuoteInput): Promise<CreateQu
 
         const resend = resendKey ? new Resend(resendKey) : null;
         const tasks: Promise<unknown>[] = [];
+        if (deferredLifecycleTask) {
+            tasks.push(deferredLifecycleTask());
+        }
 
         tasks.push(
             isDirect

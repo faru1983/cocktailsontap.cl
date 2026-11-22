@@ -87,6 +87,75 @@ function normalizeContactPhone(phone?: string | null): string | undefined {
     return `+${digits}`;
 }
 
+function buildItemSignature(items: { product_id?: string | null; productId?: string | null; size: string; quantity: number }[]): string[] {
+    return items
+        .map((item) => `${item.product_id ?? item.productId ?? ''}::${normalizeText(item.size)}::${item.quantity}`)
+        .sort();
+}
+
+async function findRecentDuplicateEventDraft(params: {
+    source: string;
+    email?: string | null;
+    phone?: string | null;
+    eventDate?: string | null;
+    comunaName?: string | null;
+    dispenser: 'portatil' | 'muro';
+    items: { productId?: string | null; size: string; quantity: number }[];
+}): Promise<{ quoteId: string; token: string; status: string; totalPriceClp: number } | null> {
+    const normalizedEmail = (params.email ?? '').trim().toLowerCase() || null;
+    const normalizedPhone = normalizeContactPhone(params.phone) ?? null;
+    if (!normalizedEmail && !normalizedPhone) return null;
+
+    try {
+        const supabase = createServerClient();
+        const cutoffIso = new Date(Date.now() - 120_000).toISOString();
+        let query = supabase
+            .from('quotes')
+            .select('id, token, status, total_price, client_email, client_phone, comuna_name, quote_items(product_id, size, quantity)')
+            .eq('status', 'draft')
+            .eq('service_type', 'event')
+            .eq('source', params.source)
+            .eq('dispenser', params.dispenser)
+            .gte('created_at', cutoffIso)
+            .order('created_at', { ascending: false })
+            .limit(10);
+
+        query = params.eventDate ? query.eq('event_date', params.eventDate) : query.is('event_date', null);
+
+        const { data, error } = await query;
+        if (error || !data?.length) return null;
+
+        const targetComuna = normalizeText(params.comunaName ?? '');
+        const expectedSignature = buildItemSignature(params.items);
+
+        for (const row of data) {
+            if (!row.token) continue;
+            const rowEmail = (row.client_email ?? '').trim().toLowerCase() || null;
+            const rowPhone = normalizeContactPhone(row.client_phone) ?? null;
+
+            if (normalizedEmail && rowEmail !== normalizedEmail) continue;
+            if (normalizedPhone && rowPhone !== normalizedPhone) continue;
+            if (targetComuna && normalizeText(row.comuna_name ?? '') !== targetComuna) continue;
+
+            const rowItems = Array.isArray(row.quote_items) ? row.quote_items : [];
+            const rowSignature = buildItemSignature(rowItems);
+            if (rowSignature.length !== expectedSignature.length) continue;
+            if (rowSignature.every((sig, idx) => sig === expectedSignature[idx])) {
+                return {
+                    quoteId: row.id,
+                    token: row.token,
+                    status: row.status ?? 'draft',
+                    totalPriceClp: Number(row.total_price ?? 0),
+                };
+            }
+        }
+    } catch (dedupErr) {
+        console.warn('[cocktailsMcpServer] Duplicate event quote lookup failed:', dedupErr);
+    }
+
+    return null;
+}
+
 function validateEventDispenserAndItems(
     dispenser: 'portatil' | 'muro',
     items: { productId?: string | null; size: string; quantity: number }[],
@@ -556,12 +625,37 @@ export function createCocktailsMcpServer(ctx: CocktailsMcpContext = {}): McpServ
                     }
                 }
 
+                const quoteSource = normalizeQuoteSource(parsed.data.source);
+
+                if (!parsed.data.confirmNow) {
+                    const existingDraft = await findRecentDuplicateEventDraft({
+                        source: quoteSource,
+                        email: state.contact.email,
+                        phone: state.contact.phone,
+                        eventDate: state.eventData.date,
+                        comunaName: state.contact.comuna && state.contact.comuna !== 'Otra' ? state.contact.comuna : state.contact.otherComuna,
+                        dispenser: parsed.data.dispenser,
+                        items: parsed.data.items,
+                    });
+                    if (existingDraft) {
+                        return okResult({
+                            success: true,
+                            quoteId: existingDraft.quoteId,
+                            token: existingDraft.token,
+                            status: existingDraft.status,
+                            totalPriceClp: existingDraft.totalPriceClp,
+                            url: `${SITE_URL}/cotizar/${existingDraft.token}`,
+                            deduplicated: true,
+                        });
+                    }
+                }
+
                 const result = await createQuoteCore({
                     state,
                     cocktails: catalog.cocktails,
                     comunas: catalog.comunas,
                     confirmNow: Boolean(parsed.data.confirmNow),
-                    source: normalizeQuoteSource(parsed.data.source),
+                    source: quoteSource,
                     skipEmail: !state.contact.email,
                     ctwaClid: parsed.data.ctwaClid ?? null,
                     fbc: parsed.data.fbc ?? null,

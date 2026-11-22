@@ -41,12 +41,13 @@
 
 ## Ultimos Cambios
 
-### 21-11-2026 — Herramienta MCP `update_event_quote` y Blindajes en Creación/Edición MCP
+### 21-11-2026 — Herramienta MCP `update_event_quote`, Blindajes e Idempotencia MCP
 
-- **Servidor MCP ([`lib/mcp/cocktailsMcpServer.ts`](file:///c:/Webs/cocktailsontap.cl/lib/mcp/cocktailsMcpServer.ts), [`lib/integrationSchemas.ts`](file:///c:/Webs/cocktailsontap.cl/lib/integrationSchemas.ts), [`lib/services/updateDraftQuoteCore.ts`](file:///c:/Webs/cocktailsontap.cl/lib/services/updateDraftQuoteCore.ts))**:
+- **Servidor MCP ([`lib/mcp/cocktailsMcpServer.ts`](file:///c:/Webs/cocktailsontap.cl/lib/mcp/cocktailsMcpServer.ts), [`lib/integrationSchemas.ts`](file:///c:/Webs/cocktailsontap.cl/lib/integrationSchemas.ts), [`lib/services/updateDraftQuoteCore.ts`](file:///c:/Webs/cocktailsontap.cl/lib/services/updateDraftQuoteCore.ts), [`lib/services/createQuoteCore.ts`](file:///c:/Webs/cocktailsontap.cl/lib/services/createQuoteCore.ts))**:
   - Agregada la tool `update_event_quote` que actualiza cotizaciones de eventos en estado `draft` usando su `token` vía `updateDraftQuoteCore` (recalcula totales Zero Trust en servidor, conserva el mismo enlace `/cotizar/<token>` y evita duplicar borradores, correos Resend o eventos `Lead` en Meta CAPI).
   - Agregada validación estricta `validateEventDispenserAndItems` en `calculate_event_proposal`, `create_event_quote_or_reservation` y `update_event_quote` (`Portátil`: solo `5L/10L` y `≥ 10L`; `Muro`: solo `20L/30L` y `≥ 60L`).
   - Ampliado `IntegrationClientSchema.region` (`max(100)` en lugar de `max(16)` para tolerar nombres completos como *"Región Metropolitana"*), tolerancia en `findComuna` para strings con coma (*"Quilicura, Región Metropolitana"*), alineado `inputSchema` de `create_event_quote_or_reservation` (`firstName` mín. 2, `email` requerido, `drinksPerPerson` desde 0), e incluido `(id:<uuid>)` dentro de `catalogSummary` en `get_catalog_and_delivery` más `variant` en `updateDraftQuoteCore.ts`.
+  - **Protección anti-duplicados y menor latencia MCP**: en `createQuoteCore.ts` (`!wantsConfirmNow`), `recordTouchpoint` + `advanceClientStage` (incluyendo Meta CAPI) pasaron a ejecutarse dentro de `after(runBackgroundTasks)` en paralelo con Resend y Google Sync (manteniendo `readMetaBrowserCookies()` síncrono en canal `web`); además `create_event_quote_or_reservation` incluye `findRecentDuplicateEventDraft` (ventana de 120 segundos) para devolver con `deduplicated: true` un borrador idéntico recién creado si un cliente MCP reintenta tras un timeout.
 
 ### 21-11-2026 — Autocompletado de Direcciones con Google Places (New) + Modo Manual
 
