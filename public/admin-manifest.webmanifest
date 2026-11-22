@@ -32,6 +32,18 @@
   ],
   "shortcuts": [
     {
+      "name": "Registrar Gasto",
+      "short_name": "Gasto",
+      "url": "/admin?quickExpense=1",
+      "icons": [
+        {
+          "src": "/assets/pwa/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
       "name": "Cotizaciones",
       "short_name": "Cotizaciones",
       "url": "/admin/quotes",

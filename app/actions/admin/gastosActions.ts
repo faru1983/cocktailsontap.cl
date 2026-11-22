@@ -51,6 +51,7 @@ export async function addExpense(data: {
         return { success: false, error: 'No se pudo guardar el gasto.' };
     }
 
+    revalidatePath('/admin');
     revalidatePath('/admin/gastos');
     revalidatePath('/admin/estadisticas');
     
@@ -67,6 +68,7 @@ export async function deleteExpense(id: string) {
         throw new Error('No se pudo eliminar el gasto.');
     }
 
+    revalidatePath('/admin');
     revalidatePath('/admin/gastos');
     revalidatePath('/admin/estadisticas');
     return { success: true };
@@ -98,6 +100,7 @@ export async function updateExpense(id: string, data: {
         throw new Error('No se pudo actualizar el gasto.');
     }
 
+    revalidatePath('/admin');
     revalidatePath('/admin/gastos');
     revalidatePath('/admin/estadisticas');
     return { success: true };
@@ -110,6 +113,7 @@ export async function addExpenseCategory(name: string) {
     const db = createServerClient();
     const { error } = await db.from('expense_categories').insert([{ name }]);
     if (error) return { success: false, error: 'Error al crear categoría' };
+    revalidatePath('/admin');
     revalidatePath('/admin/gastos');
     return { success: true };
 }
@@ -119,6 +123,7 @@ export async function updateExpenseCategory(id: string, data: { name?: string; i
     const db = createServerClient();
     const { error } = await db.from('expense_categories').update(data).eq('id', id);
     if (error) return { success: false, error: 'Error al actualizar categoría' };
+    revalidatePath('/admin');
     revalidatePath('/admin/gastos');
     return { success: true };
 }
@@ -130,6 +135,7 @@ export async function addExpenseSubcategory(categoryId: string, name: string) {
     const db = createServerClient();
     const { error } = await db.from('expense_subcategories').insert([{ category_id: categoryId, name }]);
     if (error) return { success: false, error: 'Error al crear ítem' };
+    revalidatePath('/admin');
     revalidatePath('/admin/gastos');
     return { success: true };
 }
@@ -145,6 +151,7 @@ export async function updateExpenseSubcategory(id: string, data: { name?: string
         revalidatePath('/admin/estadisticas');
     }
 
+    revalidatePath('/admin');
     revalidatePath('/admin/gastos');
     return { success: true };
 }
@@ -156,6 +163,7 @@ export async function addPaymentMethod(name: string) {
     const db = createServerClient();
     const { error } = await db.from('expense_payment_methods').insert([{ name }]);
     if (error) return { success: false, error: 'Error al crear forma de pago' };
+    revalidatePath('/admin');
     revalidatePath('/admin/gastos');
     return { success: true };
 }
@@ -165,6 +173,7 @@ export async function updatePaymentMethod(id: string, data: { name?: string; is_
     const db = createServerClient();
     const { error } = await db.from('expense_payment_methods').update(data).eq('id', id);
     if (error) return { success: false, error: 'Error al actualizar forma de pago' };
+    revalidatePath('/admin');
     revalidatePath('/admin/gastos');
     return { success: true };
 }
@@ -174,6 +183,7 @@ export async function deletePaymentMethod(id: string) {
     const db = createServerClient();
     const { error } = await db.from('expense_payment_methods').delete().eq('id', id);
     if (error) throw new Error('Error al eliminar forma de pago');
+    revalidatePath('/admin');
     revalidatePath('/admin/gastos');
     return { success: true };
 }

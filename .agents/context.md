@@ -41,6 +41,16 @@
 
 ## Ultimos Cambios
 
+### 22-11-2026 — Gasto Rápido Móvil en 1 Toque (`QuickExpenseMobile` en `/admin`)
+
+- **Servicio de metadata y atajos ([`lib/services/quickExpenseService.ts`](file:///c:/Webs/cocktailsontap.cl/lib/services/quickExpenseService.ts)):**
+  - `getQuickExpenseMeta()` obtiene categorías, subcategorías y medios de pago activos junto con los 4 combos más frecuentes de los últimos 60 gastos reales.
+- **Cajón móvil exclusivo ([`app/admin/QuickExpenseMobile.tsx`](file:///c:/Webs/cocktailsontap.cl/app/admin/QuickExpenseMobile.tsx), [`app/admin/layout.tsx`](file:///c:/Webs/cocktailsontap.cl/app/admin/layout.tsx)):**
+  - Visible únicamente en móvil (`lg:hidden`) como botón flotante **`+ Gasto`** en todo `/admin`, además de abrirse automáticamente vía shortcut de la PWA (`/admin?quickExpense=1` en [`public/admin-manifest.webmanifest`](file:///c:/Webs/cocktailsontap.cl/public/admin-manifest.webmanifest)).
+  - Incluye atajos frecuentes, monto con teclado numérico y chips (`+$5k`, `+$10k`, `+$20k`, `+$50k`), fecha rápida (`Hoy`/`Ayer`/`Otro`), pills de medio de pago, chips táctiles de categoría/subcategoría y modo **`+ Otro`** para pasar varias boletas seguidas.
+- **Revalidación del Dashboard ([`app/actions/admin/gastosActions.ts`](file:///c:/Webs/cocktailsontap.cl/app/actions/admin/gastosActions.ts)):**
+  - Agregado `revalidatePath('/admin')` en las mutaciones de gastos para refrescar los KPIs del inicio de inmediato.
+
 ### 22-11-2026 — PWA Instalable Exclusiva para `/admin` (`COT Admin`)
 
 - **Manifiesto, Service Worker e íconos ([`public/admin-manifest.webmanifest`](file:///c:/Webs/cocktailsontap.cl/public/admin-manifest.webmanifest), [`public/admin-sw.js`](file:///c:/Webs/cocktailsontap.cl/public/admin-sw.js), `public/assets/pwa/`):**

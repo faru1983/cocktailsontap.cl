@@ -1,7 +1,10 @@
+import { Suspense } from 'react';
 import type { Metadata, Viewport } from 'next';
 import { validateSession } from '@/lib/adminAuth';
+import { getQuickExpenseMeta } from '@/lib/services/quickExpenseService';
 import AdminSidebar from './AdminSidebar';
 import AdminPwaRegister from './AdminPwaRegister';
+import QuickExpenseMobile from './QuickExpenseMobile';
 
 export const metadata: Metadata = {
     title: 'Panel Admin — Cocktails on Tap',
@@ -40,13 +43,18 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         );
     }
 
+    const quickExpenseMeta = await getQuickExpenseMeta();
+
     return (
         <div className="min-h-screen bg-admin-bg text-slate-200 font-sans">
             <AdminPwaRegister />
             <AdminSidebar />
-            <main className="min-h-screen pt-16 px-4 pb-8 lg:pl-60 lg:pt-8 lg:px-8">
+            <main className="min-h-screen pt-16 px-4 pb-20 lg:pb-8 lg:pl-60 lg:pt-8 lg:px-8">
                 <div className="mx-auto max-w-[1400px]">{children}</div>
             </main>
+            <Suspense fallback={null}>
+                <QuickExpenseMobile meta={quickExpenseMeta} />
+            </Suspense>
         </div>
     );
 }
