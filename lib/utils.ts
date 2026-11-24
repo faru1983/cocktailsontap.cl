@@ -284,7 +284,8 @@ export function evaluateGoogleEventAddress<
     comunaCandidates: string[],
     regionName: string | null | undefined,
     comunas: TComuna[],
-    regions: TRegion[]
+    regions: TRegion[],
+    allowAllActiveRegions = false
 ): GoogleEventAddressResult<TComuna> {
     const matchedRm = resolveEligibleComunaFromGoogle(
         comunaCandidates,
@@ -304,6 +305,9 @@ export function evaluateGoogleEventAddress<
         regions,
         'direct'
     );
+    if (allowAllActiveRegions) {
+        return matchedOtherRegion ? { status: 'matched', comuna: matchedOtherRegion } : { status: 'unknown' };
+    }
     const regionNorm = (regionName || '')
         .normalize('NFD')
         .replace(/[\u0300-\u036f]/g, '')

@@ -109,6 +109,7 @@ export default function EventQuoteView({ quote, comunas, regions, availableCockt
     const [clientUrl, setClientUrl] = useState('');
 
     const isDraft = quote.status === 'draft' && !confirmed;
+    const isAdminQuote = quote.source === 'admin';
 
     const currentRegionShortName = useMemo(
         () => regions.find((r) => r.code === regionCode)?.shortName || quote.region_name || null,
@@ -1066,6 +1067,7 @@ export default function EventQuoteView({ quote, comunas, regions, availableCockt
                                     regions={regions}
                                     comunas={comunas}
                                     serviceType="event"
+                                    allowAllActiveRegions={isAdminQuote}
                                     regionCode={regionCode}
                                     comuna={comuna}
                                     otherComuna={comunaOther}
@@ -1103,7 +1105,8 @@ export default function EventQuoteView({ quote, comunas, regions, availableCockt
                                             details.comunaCandidates,
                                             details.regionName,
                                             comunas,
-                                            regions
+                                            regions,
+                                            isAdminQuote
                                         );
                                         if (result.status === 'matched') {
                                             setRegionCode(result.comuna.regionCode);

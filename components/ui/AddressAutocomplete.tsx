@@ -109,6 +109,7 @@ export function AddressAutocomplete({
     const sessionTokenRef = useRef<unknown>(null);
     const containerRef = useRef<HTMLDivElement | null>(null);
     const skipNextSearchRef = useRef(false);
+    const hasUserEditedRef = useRef(false);
 
     // Cerrar dropdown al hacer clic fuera
     useEffect(() => {
@@ -141,7 +142,7 @@ export function AddressAutocomplete({
 
     // Buscar sugerencias con debounce mientras escribe en modo Google
     useEffect(() => {
-        if (manualMode || placesUnavailable || baseStreet !== null) {
+        if (manualMode || placesUnavailable || baseStreet !== null || !hasUserEditedRef.current) {
             return;
         }
         if (skipNextSearchRef.current) {
@@ -236,6 +237,7 @@ export function AddressAutocomplete({
         setIsOpen(false);
         setSuggestions([]);
         skipNextSearchRef.current = true;
+        hasUserEditedRef.current = false;
 
         try {
             const details = await item.select();
@@ -286,6 +288,7 @@ export function AddressAutocomplete({
                         }
                     }}
                     onChange={(e) => {
+                        hasUserEditedRef.current = true;
                         if (baseStreet !== null) {
                             setBaseStreet(null);
                             setUnitDetail('');

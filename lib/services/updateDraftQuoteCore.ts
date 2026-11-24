@@ -247,9 +247,10 @@ export async function updateDraftQuoteCore(formData: unknown): Promise<UpdateDra
                 : quote.comuna_name;
 
         if (!isDirectSale && data.comuna_name !== undefined && nextComuna) {
+            const allowAllRegions = quote.source === 'admin';
             const eventRegionCodes = new Set(
                 catalogRes.regions
-                    .filter((r) => r.isActive && r.availableForEvents)
+                    .filter((r) => r.isActive && (allowAllRegions || r.availableForEvents))
                     .map((r) => r.code)
             );
             const matchedEventComuna = catalogRes.comunas.find(
@@ -262,7 +263,9 @@ export async function updateDraftQuoteCore(formData: unknown): Promise<UpdateDra
                 return {
                     success: false,
                     code: 'VALIDATION',
-                    error: 'Los eventos con dispensador operan exclusivamente en la Región Metropolitana (52 comunas).',
+                    error: allowAllRegions
+                        ? 'La comuna seleccionada no es válida o está inactiva.'
+                        : 'Los eventos con dispensador operan exclusivamente en la Región Metropolitana (52 comunas).',
                 };
             }
         }

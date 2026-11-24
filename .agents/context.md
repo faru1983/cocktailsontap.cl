@@ -41,6 +41,16 @@
 
 ## Ultimos Cambios
 
+### 24-11-2026 — Excepción de cobertura fuera de RM para cotizaciones de eventos creadas desde `/admin`
+
+- **Selectores y Google Places ([`RegionComunaFields.tsx`](file:///c:/Webs/cocktailsontap.cl/components/ui/RegionComunaFields.tsx), [`lib/utils.ts`](file:///c:/Webs/cocktailsontap.cl/lib/utils.ts), [`EventQuoteView.tsx`](file:///c:/Webs/cocktailsontap.cl/components/quote/EventQuoteView.tsx)):**
+  - Agregada prop opcional `allowAllActiveRegions` en `RegionComunaFields` y parámetro `allowAllActiveRegions` en `evaluateGoogleEventAddress`.
+  - Cuando la cotización de evento fue creada desde `/admin` (`quote.source === 'admin'`), `/cotizar/[token]` muestra todas las regiones activas y acepta direcciones de otras regiones sin mostrar el bloqueo de RM (mantiene la restricción estricta de 52 comunas RM para cotizaciones `web` y `whatsapp`).
+- **Autoguardado Zero Trust ([`updateDraftQuoteCore.ts`](file:///c:/Webs/cocktailsontap.cl/lib/services/updateDraftQuoteCore.ts)):**
+  - Si `quote.source === 'admin'`, el autoguardado de borradores valida que la comuna esté activa sin restringirla a `availableForEvents`.
+- **Autocompletado sin apertura automática al cargar ([`AddressAutocomplete.tsx`](file:///c:/Webs/cocktailsontap.cl/components/ui/AddressAutocomplete.tsx)):**
+  - Agregado `hasUserEditedRef` para evitar que al abrir una cotización `draft` con dirección ya guardada se dispare una búsqueda automática en Google Places y se abra el desplegable tapando el campo de comentarios.
+
 ### 24-11-2026 — Corrección de duplicación de comuna/región en direcciones (Google Places + `formatQuoteAddress`)
 
 - **Autocomplete sin duplicación en `client_address` ([`AddressAutocomplete.tsx`](file:///c:/Webs/cocktailsontap.cl/components/ui/AddressAutocomplete.tsx)):**

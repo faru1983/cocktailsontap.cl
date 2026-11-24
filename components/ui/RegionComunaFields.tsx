@@ -27,6 +27,8 @@ interface Props {
     stacked?: boolean;
     required?: boolean;
     variant?: 'public' | 'admin';
+    /** Permite seleccionar cualquier región activa (ej. cotizaciones de eventos creadas desde /admin). */
+    allowAllActiveRegions?: boolean;
     labelClassName?: string;
     selectClassName?: string;
     comunaError?: string;
@@ -51,6 +53,7 @@ export default function RegionComunaFields({
     stacked = false,
     required = true,
     variant = 'public',
+    allowAllActiveRegions = false,
     labelClassName,
     selectClassName,
     comunaError,
@@ -66,13 +69,13 @@ export default function RegionComunaFields({
         : selectCls;
 
     const availableRegions = useMemo(() => {
-        if (isAdmin) {
+        if (isAdmin || allowAllActiveRegions) {
             return regions
                 .filter((r) => r.isActive)
                 .sort((a, b) => a.displayOrder - b.displayOrder);
         }
         return filterRegionsForService(regions, serviceType);
-    }, [regions, serviceType, isAdmin]);
+    }, [regions, serviceType, isAdmin, allowAllActiveRegions]);
 
     const comunasInRegion = useMemo(
         () => filterComunasForRegion(comunas, regionCode),
