@@ -10,6 +10,7 @@ export interface QuoteSummaryItem {
     name: string;
     selectedSize: string;
     variant?: string | null;
+    variantOptions?: string[];
     quantity: number;
     totalNormalPrice: number;
     totalOfferPrice: number;
@@ -37,6 +38,7 @@ interface Props {
     data: QuoteSummaryData;
     isEditable?: boolean;
     onUpdateQuantity?: (id: string, size: string, delta: number, variant?: string | null) => void;
+    onUpdateVariant?: (id: string, size: string, newVariant: string, currentVariant?: string | null) => void;
     onAddProductsClick?: () => void;
     onChangeDispenser?: () => void;
     compact?: boolean;
@@ -45,7 +47,7 @@ interface Props {
     pendingShippingLabel?: string;
 }
 
-export default function QuoteSummaryProducts({ data, isEditable = false, onUpdateQuantity, onAddProductsClick, onChangeDispenser, compact = false, hideTotals = false, hasComuna = true, pendingShippingLabel }: Props) {
+export default function QuoteSummaryProducts({ data, isEditable = false, onUpdateQuantity, onUpdateVariant, onAddProductsClick, onChangeDispenser, compact = false, hideTotals = false, hasComuna = true, pendingShippingLabel }: Props) {
 
     return (
         <div className={`bg-white rounded-[20px] border border-brand-border shadow-[0_4px_20px_rgba(0,0,0,0.05)] ${compact ? 'p-4 sm:p-5 mb-4' : 'p-4 sm:p-8 mb-6'}`}>
@@ -99,9 +101,22 @@ export default function QuoteSummaryProducts({ data, isEditable = false, onUpdat
                                 <div className={`flex justify-between items-center ${compact ? 'pl-[30px]' : 'pl-[40px]'}`}>
                                     <div className="flex flex-wrap items-center gap-1.5">
                                         <span className={`text-brand-text-muted font-bold bg-[#f1f5f9] rounded-md ${compact ? 'text-[0.75rem] px-2 py-0.5' : 'text-[0.85rem] px-2.5 py-1'}`}>{item.selectedSize}</span>
-                                        {item.variant && (
+                                        {isEditable && onUpdateVariant && item.variantOptions && item.variantOptions.length > 0 ? (
+                                            <select
+                                                value={item.variant || item.variantOptions[0]}
+                                                onChange={(e) => onUpdateVariant(item.id, item.selectedSize, e.target.value, item.variant)}
+                                                aria-label={`Variedad de ${item.name}`}
+                                                className={`text-amber-800 font-bold bg-amber-50 border border-amber-200 rounded-md cursor-pointer outline-none focus:ring-2 focus:ring-amber-300 ${compact ? 'text-[0.7rem] px-2 py-0.5' : 'text-[0.8rem] px-2.5 py-1'}`}
+                                            >
+                                                {item.variantOptions.map((opt) => (
+                                                    <option key={opt} value={opt}>
+                                                        {opt}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        ) : item.variant ? (
                                             <span className={`text-amber-800 font-bold bg-amber-50 border border-amber-200 rounded-md ${compact ? 'text-[0.7rem] px-2 py-0.5' : 'text-[0.8rem] px-2.5 py-1'}`}>{item.variant}</span>
-                                        )}
+                                        ) : null}
                                     </div>
                                     {isEditable && onUpdateQuantity ? (
                                         <QuantitySelector

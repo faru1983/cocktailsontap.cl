@@ -20,16 +20,42 @@ function escapeRegExp(value: string): string {
     return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-/** Quita la comuna duplicada al final de direcciones legacy (ej. "… las Condes"). */
-export function stripTrailingComuna(street: string, comuna: string): string {
-    const trimmed = street.trim();
-    if (!trimmed || !comuna) return trimmed;
+/**
+ * Quita país, región y comuna duplicados al final de direcciones legacy o pegadas completas
+ * (ej. "Canal Tenglo 2935, Puerto Montt, Los Lagos" → "Canal Tenglo 2935"),
+ * sin tocar nombres de calles que coincidan con una comuna (ej. "Avenida La Florida 9423").
+ */
+export function stripTrailingComuna(street: string, comuna: string, region?: string): string {
+    let current = street.trim();
+    if (!current) return '';
 
-    const pattern = new RegExp(`[,\\s]+${escapeRegExp(comuna.trim())}\\s*$`, 'i');
-    if (pattern.test(trimmed)) {
-        return trimmed.replace(pattern, '').trim();
+    const cleanTail = (pattern: RegExp) => {
+        const match = current.match(pattern);
+        if (match && match.index && match.index > 0) {
+            const next = current.slice(0, match.index).replace(/[,\s.]+$/, '').trim();
+            if (next) current = next;
+        }
+    };
+
+    // 1. País al final
+    cleanTail(/[,\s]+chile\.?\s*$/i);
+
+    // 2. Región al final (con o sin prefijo "Región (de|del)")
+    const cleanRegion = (region || '').trim();
+    if (cleanRegion) {
+        const regEsc = escapeRegExp(cleanRegion);
+        cleanTail(new RegExp(`[,\\s]+(?:regi[oó]n\\s+(?:de\\s+|del\\s+)?)?${regEsc}(?:\\s+de\\s+santiago)?\\.?\\s*$`, 'i'));
     }
-    return trimmed;
+    cleanTail(/[,\s]+regi[oó]n\s+metropolitana(?:\s+de\s+santiago)?\.?\s*$/i);
+
+    // 3. Comuna al final (con opcional código postal de 7 dígitos delante)
+    const cleanComuna = (comuna || '').trim();
+    if (cleanComuna) {
+        const comEsc = escapeRegExp(cleanComuna);
+        cleanTail(new RegExp(`(?:,\\s*|\\s+)(?:\\d{7}\\s+)?${comEsc}\\.?\\s*$`, 'i'));
+    }
+
+    return current;
 }
 
 /**
@@ -74,6 +100,7 @@ export function formatRegionDisplayName(
         if (short) return short;
     }
 
+    if (raw.toUpperCase() === 'RM') return 'Metropolitana';
     if (!/^regi[oó]n\s/i.test(raw)) return raw;
 
     let name = raw.replace(/^regi[oó]n\s+(de\s+|del\s+)?/i, '').trim();
@@ -92,7 +119,11 @@ export function formatQuoteAddress(
 ): string {
     const comuna = resolveComunaDisplay(fields.comuna_name, fields.comuna_other);
     const region = formatRegionDisplayName(fields.region_name, comunas);
-    const street = stripTrailingComuna((fields.client_address || '').trim(), comuna);
+    let street = stripTrailingComuna((fields.client_address || '').trim(), comuna, region);
+
+    if (street && comuna && street.toLowerCase() === comuna.toLowerCase()) {
+        street = '';
+    }
 
     if (!street && !comuna && !region) return '';
 

@@ -659,6 +659,16 @@ export default function EventWizardCheckoutModal({
                                                 <AddressAutocomplete
                                                     id="field-address"
                                                     required={confirmNow}
+                                                    detectedLocationLabel={
+                                                        !showManualRegionComuna && state.contact.comuna
+                                                            ? `${state.contact.comuna}${
+                                                                  (() => {
+                                                                      const rName = regions.find((r) => r.code === state.contact.region)?.shortName;
+                                                                      return rName ? ` (${rName})` : '';
+                                                                  })()
+                                                              }`
+                                                            : null
+                                                    }
                                                     className={getInputCls(Boolean(errors.address || outOfRmError))}
                                                     value={state.contact.address}
                                                     onChange={(val) => {

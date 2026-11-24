@@ -4,6 +4,9 @@
 // Origen Santiago → zona centro u extremo. No aplica a traslado propio (RM).
 // ==============================================================================
 
+import type { Comuna } from './types';
+import { addBusinessDays, calculateDirectSaleSchedule, formatDateRangeCL, formatDateYMD } from './businessDays';
+
 export type ShippingCarrier = 'own' | 'blue_express';
 export type BlueExpressZone = 'misma_zona' | 'centro' | 'extremo';
 export type BlueExpressSizeRates = { M: number; L: number };
@@ -207,5 +210,56 @@ export function getDirectSaleDateFieldCopy(carrier: ShippingCarrier): {
     return {
         label: 'Fecha de entrega',
         hint: 'Indica cuándo quieres recibir tu pedido en la dirección indicada.',
+    };
+}
+
+export interface BlueExpressDeliveryEstimate {
+    dispatchEstimatedDate: string;
+    deliveryEstimateMin: string;
+    deliveryEstimateMax: string;
+    deliveryEstimateLabel: string;
+    deliveryEstimateDays: string;
+}
+
+export function buildBlueExpressEstimate(opts: {
+    dispatchDate?: string | null;
+    comunaName?: string | null;
+    comunas: Comuna[];
+}): BlueExpressDeliveryEstimate {
+    const selectedComuna = opts.comunas.find(
+        (c) => c.name.toLowerCase() === (opts.comunaName || '').toLowerCase()
+    );
+    const beZone = selectedComuna?.blueExpressZone || selectedComuna?.regionBlueExpressZone;
+    const transitDays = getBlueExpressTransitDays(
+        beZone,
+        selectedComuna?.blueExpressTransitDays || opts.comunas[0]?.blueExpressTransitDays
+    );
+    const productionDays = opts.comunas[0]?.shippingMethodsConfig?.blue_express?.minOffsetDays ?? 2;
+
+    if (opts.dispatchDate && /^\d{4}-\d{2}-\d{2}$/.test(opts.dispatchDate)) {
+        const minDateObj = addBusinessDays(opts.dispatchDate, transitDays.minDays);
+        const maxDateObj = addBusinessDays(opts.dispatchDate, transitDays.maxDays);
+        const totalMinDays = Math.max(1, productionDays) + transitDays.minDays;
+        const totalMaxDays = Math.max(1, productionDays) + transitDays.maxDays;
+        return {
+            dispatchEstimatedDate: opts.dispatchDate,
+            deliveryEstimateMin: formatDateYMD(minDateObj),
+            deliveryEstimateMax: formatDateYMD(maxDateObj),
+            deliveryEstimateLabel: formatDateRangeCL(minDateObj, maxDateObj),
+            deliveryEstimateDays: `${totalMinDays}–${totalMaxDays} días hábiles`,
+        };
+    }
+
+    const schedule = calculateDirectSaleSchedule({
+        productionBusinessDays: productionDays,
+        transitMinDays: transitDays.minDays,
+        transitMaxDays: transitDays.maxDays,
+    });
+    return {
+        dispatchEstimatedDate: schedule.dispatchDate,
+        deliveryEstimateMin: schedule.deliveryMinDate,
+        deliveryEstimateMax: schedule.deliveryMaxDate,
+        deliveryEstimateLabel: schedule.dateRangeLabel,
+        deliveryEstimateDays: schedule.estimatedDaysLabel,
     };
 }

@@ -22,6 +22,7 @@ import { resolvePaymentMessageContext } from '@/lib/paymentMessageContext';
 const PEDIDOS_STAGE_QUOTED_ID = '4efb5192-f37f-408c-80e7-e23c0b4fa798'; // Cotización enviada
 const PEDIDOS_STAGE_WON_ID = 'cf99a7c4-5f58-4a80-890e-f13d844e20b3'; // Reserva / Pedido confirmado
 const DEFAULT_CHANNEL_SESSION_ID = '86ee3fcc-2521-4649-ba75-01d665d1d6ea'; // 56962046212
+const DEFAULT_OWNER_USER_ID = 'c123c1fb-f4b8-45cf-8445-bf16d23aa177'; // Admin / dueño (atención manual post-cotización)
 const REQUEST_TIMEOUT_MS = 10_000;
 
 type QuoteWithOptionalItems = Quote & { quote_items?: QuoteItem[] };
@@ -443,6 +444,49 @@ async function moveLeadStageViaMcp(
     }
 }
 
+/**
+ * Asigna la conversación al dueño humano en DeskcommCRM (idempotente).
+ * Garantiza que, una vez emitida una cotización o enviado un recordatorio desde la web,
+ * el agente IA quede en silencio y cualquier respuesta del cliente sea atendida manualmente
+ * (salvo que el dueño reactive manualmente la IA en el Inbox).
+ */
+async function assignConversationToOwnerViaMcp(
+    config: DeskcommConfig,
+    conversationId: string
+): Promise<void> {
+    const ownerUserId = (process.env.DESKCOMM_CRM_OWNER_USER_ID || '').trim() || DEFAULT_OWNER_USER_ID;
+    if (!ownerUserId) return;
+
+    try {
+        const res = await fetchJsonWithTimeout(`${config.crmUrl}/api/mcp`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Accept: 'application/json, text/event-stream',
+                Authorization: `Bearer ${config.apiToken}`,
+            },
+            body: JSON.stringify({
+                jsonrpc: '2.0',
+                id: 1,
+                method: 'tools/call',
+                params: {
+                    name: 'crm_assign_conversation',
+                    arguments: {
+                        conversation_id: conversationId,
+                        to_user_id: ownerUserId,
+                        reason: 'transfer',
+                    },
+                },
+            }),
+        });
+        if (!res.ok) {
+            console.warn('[DeskcommCRM] crm_assign_conversation no OK:', res.status, res.rawText.slice(0, 300));
+        }
+    } catch (err) {
+        console.warn('[DeskcommCRM] Error asignando conversación al dueño:', err instanceof Error ? err.message : err);
+    }
+}
+
 async function syncQuoteLeadToDeskcomm(
     config: DeskcommConfig,
     quote: Quote,
@@ -644,6 +688,10 @@ export async function sendWhatsappMessageViaDeskcomm(params: {
                 });
             }
             return { ok: false, error: msg };
+        }
+
+        if (params.logMeta?.eventType !== 'test') {
+            await assignConversationToOwnerViaMcp(config, conversationId);
         }
 
         if (params.logMeta) {

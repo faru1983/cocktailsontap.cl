@@ -403,6 +403,33 @@ export async function updateDraftQuoteCore(formData: unknown): Promise<UpdateDra
                 (quote.manual_discount || 0)
         );
 
+        let directDeliveryPatch: Record<string, string | null> = {};
+        if (isDirectSale) {
+            if (summary.shippingCarrier === 'blue_express') {
+                const { buildBlueExpressEstimate } = await import('@/lib/blueExpress');
+                const estimate = buildBlueExpressEstimate({
+                    dispatchDate: nextEventDate,
+                    comunaName: nextComuna,
+                    comunas: catalogRes.comunas,
+                });
+                directDeliveryPatch = {
+                    dispatch_estimated_date: estimate.dispatchEstimatedDate,
+                    delivery_estimate_min: estimate.deliveryEstimateMin,
+                    delivery_estimate_max: estimate.deliveryEstimateMax,
+                    delivery_estimate_label: estimate.deliveryEstimateLabel,
+                    delivery_estimate_days: estimate.deliveryEstimateDays,
+                };
+            } else {
+                directDeliveryPatch = {
+                    dispatch_estimated_date: nextEventDate || null,
+                    delivery_estimate_min: null,
+                    delivery_estimate_max: null,
+                    delivery_estimate_label: null,
+                    delivery_estimate_days: null,
+                };
+            }
+        }
+
         const updatedAt = new Date().toISOString();
 
         // 4. Actualizar cabecera solo si sigue en estado 'draft'
@@ -433,6 +460,7 @@ export async function updateDraftQuoteCore(formData: unknown): Promise<UpdateDra
                 installation_cost: effectiveInstallationCost,
                 total_price: effectiveTotal,
                 total_liters: summary.totalLiters,
+                ...directDeliveryPatch,
                 updated_at: updatedAt,
             })
             .eq('id', quote.id)

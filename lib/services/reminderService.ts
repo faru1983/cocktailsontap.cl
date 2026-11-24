@@ -1,6 +1,6 @@
 /**
  * Recordatorios: plantillas, audiencias (draft / aniversario), omitidos,
- * envío Resend y job de cron. WhatsApp sigue siendo solo manual (UI).
+ * envío Resend/DeskcommCRM y job de cron diario (Email, WhatsApp o ambos).
  */
 import { Resend } from 'resend';
 import { createServerClient } from '@/lib/supabaseServer';

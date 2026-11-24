@@ -27,6 +27,7 @@ interface AddressAutocompleteProps {
     onBlur?: () => void;
     comuna?: string;
     biasByComuna?: boolean;
+    detectedLocationLabel?: string | null;
     placeholder?: string;
     required?: boolean;
     className?: string;
@@ -62,11 +63,6 @@ function extractAddressDetails(
     const getComp = (type: string) =>
         addressComponents?.find((c) => c.types.includes(type))?.longText?.trim() || null;
 
-    const primaryComuna =
-        getComp('administrative_area_level_3') ||
-        getComp('locality') ||
-        getComp('sublocality_level_1');
-
     const comunaCandidates = [
         getComp('administrative_area_level_3'),
         getComp('locality'),
@@ -76,18 +72,9 @@ function extractAddressDetails(
 
     const regionName = getComp('administrative_area_level_1');
 
-    // Construir dirección completa legible en una sola línea: "Calle 123, Comuna, Región"
-    const parts: string[] = [];
-    for (const part of [streetAddress, primaryComuna, regionName]) {
-        if (!part) continue;
-        const alreadyIncluded = parts.some(
-            (existing) => existing.toLowerCase().includes(part.toLowerCase())
-        );
-        if (!alreadyIncluded) parts.push(part);
-    }
-
+    // Guardar en client_address únicamente calle y número (comuna y región van en sus campos dedicados)
     return {
-        address: parts.join(', ') || streetAddress,
+        address: streetAddress,
         comunaCandidates: Array.from(new Set(comunaCandidates)),
         regionName,
     };
@@ -102,6 +89,7 @@ export function AddressAutocomplete({
     onBlur,
     comuna,
     biasByComuna = false,
+    detectedLocationLabel = null,
     placeholder = 'Ej: Av. Providencia 1234',
     required = false,
     className = '',
@@ -364,35 +352,45 @@ export function AddressAutocomplete({
                 </div>
             )}
 
-            {hasGoogleKey && !placesUnavailable && (
-                <div className="mt-1.5 flex items-center justify-end">
-                    <button
-                        type="button"
-                        onClick={() => {
-                            const nextManual = !manualMode;
-                            setManualMode(nextManual);
-                            onManualModeChange?.(nextManual);
-                            setIsOpen(false);
-                            setSuggestions([]);
-                            setBaseStreet(null);
-                            setUnitDetail('');
-                        }}
-                        className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-500 hover:text-primary transition-colors cursor-pointer"
-                    >
-                        {manualMode ? (
-                            <>
-                                <MapPin className="w-3 h-3" />
-                                <span>Buscar dirección con Google</span>
-                            </>
-                        ) : (
-                            <>
-                                <Pencil className="w-3 h-3" />
-                                <span>¿No encuentras tu dirección? Escríbela manualmente</span>
-                            </>
-                        )}
-                    </button>
+            {(hasGoogleKey && !placesUnavailable) || (!manualMode && detectedLocationLabel) ? (
+                <div className="mt-1.5 flex items-center justify-between gap-2 flex-wrap">
+                    {!manualMode && detectedLocationLabel ? (
+                        <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-2 py-0.5 rounded-full">
+                            <MapPin className="w-3 h-3 shrink-0" />
+                            <span>{detectedLocationLabel}</span>
+                        </span>
+                    ) : (
+                        <span />
+                    )}
+                    {hasGoogleKey && !placesUnavailable && (
+                        <button
+                            type="button"
+                            onClick={() => {
+                                const nextManual = !manualMode;
+                                setManualMode(nextManual);
+                                onManualModeChange?.(nextManual);
+                                setIsOpen(false);
+                                setSuggestions([]);
+                                setBaseStreet(null);
+                                setUnitDetail('');
+                            }}
+                            className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-500 hover:text-primary transition-colors cursor-pointer ml-auto"
+                        >
+                            {manualMode ? (
+                                <>
+                                    <MapPin className="w-3 h-3" />
+                                    <span>Buscar dirección con Google</span>
+                                </>
+                            ) : (
+                                <>
+                                    <Pencil className="w-3 h-3" />
+                                    <span>¿No encuentras tu dirección? Escríbela manualmente</span>
+                                </>
+                            )}
+                        </button>
+                    )}
                 </div>
-            )}
+            ) : null}
         </div>
     );
 }

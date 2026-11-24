@@ -425,6 +425,16 @@ export default function DirectWizardCheckoutModal({
                                             id="field-address"
                                             required
                                             comuna={state.contact.comuna}
+                                            detectedLocationLabel={
+                                                !showRegionComuna && state.contact.comuna
+                                                    ? `${state.contact.comuna}${
+                                                          (() => {
+                                                              const rName = regions.find((r) => r.code === state.contact.region)?.shortName;
+                                                              return rName ? ` (${rName})` : '';
+                                                          })()
+                                                      }`
+                                                    : null
+                                            }
                                             className={getInputCls(Boolean(errors.address))}
                                             value={state.contact.address}
                                             onChange={(val) => {

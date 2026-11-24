@@ -40,8 +40,10 @@ export default async function QuoteTokenPage({ params, searchParams }: Props) {
         guests, drinks_per_person, event_type_id, event_type_other,
         total_normal_price, total_offer_price, shipping_cost, installation_cost, manual_discount, total_price, total_liters,
         shipping_label, comments, payments, created_at, updated_at,
+        dispatch_estimated_date, delivery_estimate_min, delivery_estimate_max, delivery_estimate_label, delivery_estimate_days,
+        dispatch_mode, dispatch_carrier_name, dispatch_tracking_number,
         quote_items (
-            id, quote_id, product_id, product_name, size, size_value, unit_id, is_disposable, quantity, price_at_time, offer_price_at_time
+            id, quote_id, product_id, product_name, size, size_value, unit_id, is_disposable, quantity, variant, price_at_time, offer_price_at_time
         )
     `;
 

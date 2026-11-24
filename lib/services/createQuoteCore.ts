@@ -138,26 +138,16 @@ export async function createQuoteCore(input: CreateQuoteInput): Promise<CreateQu
                 const carrier = resolveDirectSaleCarrier(state.contact.comuna, state.contact.region, comunas);
                 if (carrier === 'blue_express') {
                     if (!state.deliveryEstimate) {
-                        const { getBlueExpressTransitDays } = await import('@/lib/blueExpress');
-                        const { calculateDirectSaleSchedule } = await import('@/lib/businessDays');
-                        const selectedComuna = comunas.find((c) => c.name.toLowerCase() === (state.contact.comuna || '').toLowerCase());
-                        const beZone = selectedComuna?.blueExpressZone || selectedComuna?.regionBlueExpressZone;
-                        const transitDays = getBlueExpressTransitDays(beZone, selectedComuna?.blueExpressTransitDays || comunas[0]?.blueExpressTransitDays);
-                        const beConfig = comunas[0]?.shippingMethodsConfig?.blue_express;
-                        const productionDays = beConfig?.minOffsetDays ?? 2;
-                        const schedule = calculateDirectSaleSchedule({
-                            productionBusinessDays: productionDays,
-                            transitMinDays: transitDays.minDays,
-                            transitMaxDays: transitDays.maxDays,
+                        const { buildBlueExpressEstimate } = await import('@/lib/blueExpress');
+                        const estimate = buildBlueExpressEstimate({
+                            dispatchDate: state.eventData.date,
+                            comunaName: state.contact.comuna,
+                            comunas,
                         });
-                        state.eventData.date = schedule.dispatchDate;
-                        state.deliveryEstimate = {
-                            dispatchEstimatedDate: schedule.dispatchDate,
-                            deliveryEstimateMin: schedule.deliveryMinDate,
-                            deliveryEstimateMax: schedule.deliveryMaxDate,
-                            deliveryEstimateLabel: schedule.dateRangeLabel,
-                            deliveryEstimateDays: schedule.estimatedDaysLabel,
-                        };
+                        if (!state.eventData.date) {
+                            state.eventData.date = estimate.dispatchEstimatedDate;
+                        }
+                        state.deliveryEstimate = estimate;
                     }
                 } else {
                     const directConfig = comunas[0]?.shippingMethodsConfig?.own_direct;

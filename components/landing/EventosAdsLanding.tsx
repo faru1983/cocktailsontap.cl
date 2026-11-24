@@ -165,7 +165,7 @@ const QUICK_FAQS = [
     },
     {
         q: '¿Tienen cócteles sin alcohol o combinados como Piscola?',
-        a: 'Sí. Además de nuestra carta de Cócteles Clásicos, puedes incluir Mocktails sin alcohol (Mojitos frutales, Sangría 0° y Spritz 0°) y Combinados con Pisco o Whisky de marca.',
+        a: 'Sí. Además de nuestra carta de Cócteles Clásicos, puedes incluir Mocktails sin alcohol: Mojitos frutales (0.0% alcohol, aptos para menores de 18 años) y Sangría o Ramazzotti Spritz con vino/espumante sin alcohol (conservan un grado mínimo residual, no recomendados para menores de 18 años), además de Combinados con Pisco o Whisky de marca.',
     },
     {
         q: '¿Debo pagar algo ahora para recibir mi cotización?',
@@ -1893,7 +1893,7 @@ export default function EventosAdsLanding({ cocktails, comunas, regions, eventTy
                                                                                     : 'bg-amber-400/20 text-amber-300'
                                                                             }`}>
                                                                                 {c.category.toLowerCase() === 'mocktails'
-                                                                                    ? 'Sin Alcohol (0.0%)'
+                                                                                    ? 'Sin Alcohol'
                                                                                     : c.category.toLowerCase() === 'combinados'
                                                                                     ? 'Combinado'
                                                                                     : 'Cóctel Clásico'}

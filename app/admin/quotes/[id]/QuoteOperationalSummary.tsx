@@ -1206,6 +1206,10 @@ export default function QuoteOperationalSummary({
                             {displayItems.map((item, idx) => {
                                 const qty = Number(item.quantity) || 0;
                                 const unit = Number(item.offer_price_at_time) || 0;
+                                const catalogProduct = item.product_id
+                                    ? allProducts.find((p) => p.id === item.product_id)
+                                    : undefined;
+                                const variantOptions = catalogProduct?.variant_config?.options || [];
                                 return (
                                     <div
                                         key={item.id || idx}
@@ -1248,9 +1252,35 @@ export default function QuoteOperationalSummary({
                                                 ) : (
                                                     <div style={{ flex: 1, minWidth: '120px' }}>
                                                         <div style={{ color: TEXT, fontSize: '14px', fontWeight: 700 }}>
-                                                            {item.product_name}{item.variant ? ` (${item.variant})` : ''}{item.variant ? ` (${item.variant})` : ''}
+                                                            {item.product_name}{!variantOptions.length && item.variant ? ` (${item.variant})` : ''}
                                                         </div>
-                                                        <div style={{ color: MUTED, fontSize: '12px' }}>{item.size}</div>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginTop: '4px' }}>
+                                                            <span style={{ color: MUTED, fontSize: '12px' }}>{item.size}</span>
+                                                            {variantOptions.length > 0 && (
+                                                                <select
+                                                                    value={item.variant || catalogProduct?.variant_config?.default || variantOptions[0]}
+                                                                    onChange={(e) => onUpdateItem(idx, 'variant', e.target.value)}
+                                                                    aria-label={`Variedad de ${item.product_name}`}
+                                                                    style={{
+                                                                        background: 'rgba(0,0,0,0.4)',
+                                                                        border: '1px solid rgba(255,255,255,0.12)',
+                                                                        borderRadius: '8px',
+                                                                        padding: '3px 8px',
+                                                                        fontSize: '11px',
+                                                                        fontWeight: 700,
+                                                                        color: GOLD,
+                                                                        outline: 'none',
+                                                                        cursor: 'pointer',
+                                                                    }}
+                                                                >
+                                                                    {variantOptions.map((opt) => (
+                                                                        <option key={opt} value={opt} style={{ background: '#1e2433', color: TEXT }}>
+                                                                            {opt}
+                                                                        </option>
+                                                                    ))}
+                                                                </select>
+                                                            )}
+                                                        </div>
                                                     </div>
                                                 )}
                                                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>

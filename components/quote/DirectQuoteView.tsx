@@ -7,7 +7,8 @@ import { AddressAutocomplete } from '@/components/ui/AddressAutocomplete';
 import { isValidPhoneE164, normalizePhoneE164 } from '@/lib/phone';
 import PhoneInput from '@/components/ui/PhoneInput';
 import { formatEventDate, getSizeLiters, resolveShipping, DIRECT_SALE_MIN_DISPATCH_OFFSET_DAYS, validateDirectSaleDate } from '@/lib/wizardLogic';
-import { getDirectSaleDateFieldCopy } from '@/lib/blueExpress';
+import { getDirectSaleDateFieldCopy, getBlueExpressTransitDays } from '@/lib/blueExpress';
+import { addBusinessDays, calculateDirectSaleSchedule, formatDateRangeCL } from '@/lib/businessDays';
 import { confirmQuote } from '@/app/actions/confirmQuote';
 import { useDraftQuoteAutoSave } from '@/hooks/useDraftQuoteAutoSave';
 import DraftSaveBadge from '@/components/quote/DraftSaveBadge';
@@ -304,6 +305,49 @@ export default function DirectQuoteView({ quote, comunas, regions, availableCock
     const activeMethodConfig = totals.shippingCarrier === 'blue_express'
         ? methodsConfig?.blue_express
         : methodsConfig?.own_direct;
+
+    const resolvedBlueExpressEstimateLabel = useMemo(() => {
+        if (totals.shippingCarrier !== 'blue_express') return null;
+
+        const locationOrDateChanged =
+            isDraft &&
+            ((comuna || '') !== (quote.comuna_name || '') ||
+                (eventDate || '') !== (quote.event_date || ''));
+
+        if (quote.delivery_estimate_label && !locationOrDateChanged) {
+            return quote.delivery_estimate_label;
+        }
+
+        const selectedComuna = comunas.find((c) => c.name.toLowerCase() === (comuna || '').toLowerCase());
+        const beZone = selectedComuna?.blueExpressZone || selectedComuna?.regionBlueExpressZone;
+        const transitDays = getBlueExpressTransitDays(
+            beZone,
+            selectedComuna?.blueExpressTransitDays || comunas[0]?.blueExpressTransitDays
+        );
+
+        if (eventDate) {
+            const minDate = addBusinessDays(eventDate, transitDays.minDays);
+            const maxDate = addBusinessDays(eventDate, transitDays.maxDays);
+            return formatDateRangeCL(minDate, maxDate);
+        }
+
+        const schedule = calculateDirectSaleSchedule({
+            productionBusinessDays: activeMethodConfig?.minOffsetDays ?? 2,
+            transitMinDays: transitDays.minDays,
+            transitMaxDays: transitDays.maxDays,
+        });
+        return schedule.dateRangeLabel;
+    }, [
+        totals.shippingCarrier,
+        isDraft,
+        comuna,
+        eventDate,
+        quote.comuna_name,
+        quote.event_date,
+        quote.delivery_estimate_label,
+        comunas,
+        activeMethodConfig?.minOffsetDays,
+    ]);
     const totalPaid = sumQuotePayments(quote);
     const advanceAmount = totals.totalFinal; // Siempre 100%
     const advancePercentText = '100%';
@@ -427,9 +471,9 @@ export default function DirectQuoteView({ quote, comunas, regions, availableCock
             pickupTime: '',
             comments: comments,
             isDirect: true,
-            deliveryEstimateLabel: quote.delivery_estimate_label || null
+            deliveryEstimateLabel: resolvedBlueExpressEstimateLabel
         };
-    }, [firstName, lastName, email, quote.region_name, quote.delivery_estimate_label, phone, address, comuna, comunaOther, regionCode, regions, eventDate, comments]);
+    }, [firstName, lastName, email, quote.region_name, resolvedBlueExpressEstimateLabel, phone, address, comuna, comunaOther, regionCode, regions, eventDate, comments]);
 
     const mappedProducts: Product[] = useMemo(() => availableCocktails.map(c => ({
         id: c.id,
@@ -1054,7 +1098,11 @@ export default function DirectQuoteView({ quote, comunas, regions, availableCock
                                 <h3 className="text-[0.75rem] font-black uppercase tracking-widest flex items-center gap-2"><FileText className="w-4 h-4 text-primary" /> Términos de Despacho</h3>
                                 <div className="bg-slate-50 border-2 border-brand-border rounded-2xl p-6 text-[0.85rem] text-brand-text-muted leading-relaxed">
                                     <p className="font-black mb-4 uppercase tracking-widest text-center border-b pb-2">Términos de Compra Directa</p>
-                                    <p className="mb-4">El despacho se realizará en la fecha seleccionada. Nos pondremos en contacto contigo para coordinar el horario de llegada.</p>
+                                    <p className="mb-4">
+                                        {totals.shippingCarrier === 'blue_express'
+                                            ? `El despacho se realizará vía Blue Express con llegada estimada entre ${resolvedBlueExpressEstimateLabel || 'los días hábiles indicados'} según la cobertura de tu comuna.`
+                                            : 'El despacho se realizará en la fecha seleccionada. Nos pondremos en contacto contigo para coordinar el horario de llegada.'}
+                                    </p>
                                     <p className="mb-4">El pago íntegro (100%) es necesario para confirmar y agendar la preparación de tus cócteles.</p>
                                     <p>El formato 5L es desechable e incluye válvula dispensadora; no requiere equipo retornable.</p>
                                 </div>

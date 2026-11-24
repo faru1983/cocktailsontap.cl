@@ -368,31 +368,31 @@ export const ENRICHED_CATALOG: Record<string, EnrichedProductInfo> = {
     },
     'sangria-sin-alcohol': {
         slug: 'sangria-sin-alcohol',
-        headline: '0.0% Alcohol: Vino tinto desalcoholizado con infusión de naranjas y limones.',
-        commercialDesc: 'Disfruta la tradición de la sangría sin una sola gota de alcohol. Elaborada con vino tinto desalcoholizado de calidad que conserva los taninos y color profundo de la uva, infusionado con cáscaras y zumos cítricos de naranja y limón. Deliciosa, aromática y para compartir con todos.',
-        ingredients: 'Vino tinto desalcoholizado, zumos y cortezas cítricas de naranja y limón, canela (0.0% alcohol).',
-        abv: '0.0% Vol. (Sin Alcohol)',
+        headline: 'Vino tinto desalcoholizado con infusión de naranjas y limones.',
+        commercialDesc: 'Disfruta la tradición de la sangría en versión desalcoholizada. Elaborada con vino tinto sin alcohol de calidad que conserva los taninos y color profundo de la uva, infusionado con cáscaras y zumos cítricos de naranja y limón. Nota: al usar vino sin alcohol, conserva un grado mínimo residual (< 0.5% Vol.), por lo que no se recomienda para menores de 18 años (para menores recomendamos nuestros Mojitos Sin Alcohol 0.0%).',
+        ingredients: 'Vino tinto desalcoholizado (con grado mínimo residual < 0.5% Vol.), zumos y cortezas cítricas de naranja y limón, canela.',
+        abv: '< 0.5% Vol. (Desalcoholizado)',
         flavorProfile: { sweetness: 4, acidity: 3, intensity: 2, freshness: 5 },
         servingTemperature: '4°C a 6°C',
         glassware: 'Copa grande de vino',
         garnish: 'Rodajas de naranja y limón con un palito de canela opcional',
         recommendedIce: 'cubo',
-        pairing: 'Asados, paellas, tablas de quesos y reuniones familiares.',
-        tags: ['0.0% Alcohol', 'Vino Desalcoholizado', 'Tradicional', 'Familiar']
+        pairing: 'Asados, paellas, tablas de quesos y reuniones de adultos.',
+        tags: ['Vino Desalcoholizado', 'Bajo Grado (<0.5%)', 'Tradicional', '+18 Años']
     },
     'ramazzotti-spritz-sin-alcohol': {
         slug: 'ramazzotti-spritz-sin-alcohol',
-        headline: '0.0% Alcohol: Zerozotti con flores de hibisco, azahar y espumante desalcoholizado.',
-        commercialDesc: 'El cóctel rosa favorito, ahora en versión 100% libre de alcohol. Utiliza Zerozotti 0.0 con extractos de flor de hibisco y azahar de naranja, combinado con espumante brut desalcoholizado y agua mineral con gas. Mantiene toda la elegancia, color rubí claro y burbujas chispeantes del original.',
-        ingredients: 'Zerozotti 0.0 (hibisco y azahar de naranja), espumante brut desalcoholizado y soda (0.0% alcohol).',
-        abv: '0.0% Vol. (Sin Alcohol)',
+        headline: 'Zerozotti con flores de hibisco, azahar y espumante desalcoholizado.',
+        commercialDesc: 'El cóctel rosa favorito en versión desalcoholizada. Combina Zerozotti 0.0 con extractos de flor de hibisco y azahar de naranja junto a espumante brut sin alcohol y agua mineral con gas. Nota: el espumante sin alcohol conserva un grado mínimo residual (< 0.5% Vol.), por lo que no se recomienda para menores de 18 años (para menores recomendamos nuestros Mojitos Sin Alcohol 0.0%).',
+        ingredients: 'Zerozotti 0.0 (hibisco y azahar de naranja), espumante brut desalcoholizado (con grado mínimo residual < 0.5% Vol.) y soda.',
+        abv: '< 0.5% Vol. (Desalcoholizado)',
         flavorProfile: { sweetness: 3, acidity: 2, intensity: 2, freshness: 5 },
         servingTemperature: '4°C a 6°C',
         glassware: 'Copa balón grande',
         garnish: 'Rodaja de limón sutil y hojas de albahaca fresca',
         recommendedIce: 'cubo',
         pairing: 'Brunch, tablas de quesos suaves, sushi y tardes de terraza.',
-        tags: ['0.0% Alcohol', 'Zerozotti', 'Floral & Rosa', 'Chic']
+        tags: ['Zerozotti', 'Espumante Desalcoholizado', 'Floral & Rosa', '+18 Años']
     }
 };
 

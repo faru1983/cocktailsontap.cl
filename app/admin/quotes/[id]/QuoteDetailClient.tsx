@@ -468,7 +468,13 @@ export default function QuoteDetailClient({
             info.pickup_time = '--:--';
         }
         setEditInfo(info);
-        setEditItems([...((quote.quote_items as QuoteItem[]) || [])]);
+        const initialItems = ((quote.quote_items as QuoteItem[]) || []).map((item) => {
+            if (item.variant || !item.product_id) return item;
+            const prod = allProducts.find((p) => p.id === item.product_id);
+            const def = prod?.variant_config?.options?.length ? prod.variant_config.default : null;
+            return def ? { ...item, variant: def } : item;
+        });
+        setEditItems(initialItems);
         setEditCosts({
             manual_discount: Number(quote.manual_discount) || 0,
             shipping_cost: Number(quote.shipping_cost) || 0,

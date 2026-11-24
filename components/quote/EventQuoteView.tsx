@@ -480,6 +480,32 @@ export default function EventQuoteView({ quote, comunas, regions, availableCockt
         });
     };
 
+    const onSummaryUpdateVariant = (id: string, _size: string, newVariant: string) => {
+        setItems(prev => {
+            const target = prev.find(item => item.id === id);
+            if (!target) return prev;
+            const duplicate = prev.find(
+                item =>
+                    item.id !== id &&
+                    item.product_id === target.product_id &&
+                    item.size === target.size &&
+                    (item.variant || null) === newVariant
+            );
+            if (duplicate) {
+                return prev
+                    .map(item =>
+                        item.id === duplicate.id
+                            ? { ...item, quantity: item.quantity + target.quantity }
+                            : item
+                    )
+                    .filter(item => item.id !== id);
+            }
+            return prev.map(item =>
+                item.id === id ? { ...item, variant: newVariant } : item
+            );
+        });
+    };
+
     const summaryData: QuoteSummaryData = useMemo(() => {
         return {
             items: items.map(i => ({
@@ -487,6 +513,7 @@ export default function EventQuoteView({ quote, comunas, regions, availableCockt
                 name: i.product_name,
                 selectedSize: i.size,
                 variant: i.variant ?? null,
+                variantOptions: availableCocktails.find(c => c.id === i.product_id)?.variant_config?.options,
                 quantity: i.quantity,
                 totalNormalPrice: i.price_at_time * i.quantity,
                 totalOfferPrice: i.offer_price_at_time * i.quantity
@@ -1318,6 +1345,7 @@ export default function EventQuoteView({ quote, comunas, regions, availableCockt
                 data={summaryData}
                 isEditable={isDraft}
                 onUpdateQuantity={onSummaryUpdateQuantity}
+                onUpdateVariant={onSummaryUpdateVariant}
                 onAddProductsClick={() => setShowCatalog(true)}
                 onChangeDispenser={() => setDispenser(prev => prev === 'muro' ? 'portatil' : 'muro')}
             />

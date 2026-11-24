@@ -530,7 +530,7 @@ export async function updateQuoteAdmin(quoteId: string, data: Record<string, unk
         }
     }
 
-    const { data: quote, error: fetchErr } = await db.from('quotes').select('client_id, google_event_id, google_pickup_event_id, status').eq('id', quoteId).single();
+    const { data: quote, error: fetchErr } = await db.from('quotes').select('client_id, google_event_id, google_pickup_event_id, status, service_type, comuna_name, event_date').eq('id', quoteId).single();
     if (fetchErr || !quote) return { success: false, error: 'Cotización no encontrada.' };
 
     // Normalizar horarios y fechas de retiro para 'Todo el día'
@@ -541,6 +541,41 @@ export async function updateQuoteAdmin(quoteId: string, data: Record<string, unk
     }
     if (quoteFields.pickup_date === '') {
         quoteFields.pickup_date = null;
+    }
+
+    // Update quote
+    // Recalcular rango estimado de llegada si es venta directa y cambió fecha o comuna
+    if (quote.service_type === 'direct' && ('event_date' in quoteFields || 'comuna_name' in quoteFields)) {
+        const effectiveComuna = (quoteFields.comuna_name as string | null | undefined) ?? quote.comuna_name;
+        const effectiveEventDate = (quoteFields.event_date as string | null | undefined) ?? quote.event_date;
+        const { fetchAllProductData } = await import('@/lib/serverData');
+        const { buildBlueExpressEstimate } = await import('@/lib/blueExpress');
+        const { comunas } = await fetchAllProductData();
+        const selectedComuna = comunas.find(
+            (c) => c.name.toLowerCase() === (effectiveComuna || '').toLowerCase()
+        );
+        const isBlueExpress =
+            selectedComuna?.shippingCarrier === 'blue_express' ||
+            (!selectedComuna && Boolean(effectiveComuna));
+
+        if (isBlueExpress) {
+            const estimate = buildBlueExpressEstimate({
+                dispatchDate: effectiveEventDate,
+                comunaName: effectiveComuna,
+                comunas,
+            });
+            quoteFields.dispatch_estimated_date = estimate.dispatchEstimatedDate;
+            quoteFields.delivery_estimate_min = estimate.deliveryEstimateMin;
+            quoteFields.delivery_estimate_max = estimate.deliveryEstimateMax;
+            quoteFields.delivery_estimate_label = estimate.deliveryEstimateLabel;
+            quoteFields.delivery_estimate_days = estimate.deliveryEstimateDays;
+        } else {
+            quoteFields.dispatch_estimated_date = effectiveEventDate || null;
+            quoteFields.delivery_estimate_min = null;
+            quoteFields.delivery_estimate_max = null;
+            quoteFields.delivery_estimate_label = null;
+            quoteFields.delivery_estimate_days = null;
+        }
     }
 
     // Update quote

@@ -677,14 +677,14 @@ export function buildWhatsAppMessage(state: WizardState, data: SummaryData, toke
             detailLines.push(`📅 Fecha de entrega: ${data.formattedDate}`);
         }
 
-        const addressParts = [
-            state.contact.address?.trim(),
-            state.contact.comuna ? (state.contact.comuna === 'Otra' ? state.contact.otherComuna : state.contact.comuna) : '',
-            state.contact.region ? (state.contact.region !== 'RM' ? state.contact.region : 'Región Metropolitana') : ''
-        ].filter(Boolean);
-
-        if (addressParts.length > 0) {
-            detailLines.push(`📍 ${addressParts.join(', ')}`);
+        const address = formatQuoteAddress({
+            client_address: state.contact.address,
+            comuna_name: state.contact.comuna,
+            comuna_other: state.contact.otherComuna,
+            region_name: state.contact.region,
+        });
+        if (address) {
+            detailLines.push(`📍 ${address}`);
         }
     } else {
         // Eventos
@@ -693,14 +693,14 @@ export function buildWhatsAppMessage(state: WizardState, data: SummaryData, toke
             detailLines.push(`📅 Evento: ${data.formattedDate}${timeStr}`);
         }
 
-        const addressParts = [
-            state.contact.address?.trim(),
-            state.contact.comuna ? (state.contact.comuna === 'Otra' ? state.contact.otherComuna : state.contact.comuna) : '',
-            state.contact.region ? (state.contact.region !== 'RM' ? state.contact.region : 'Región Metropolitana') : ''
-        ].filter(Boolean);
-
-        if (addressParts.length > 0) {
-            detailLines.push(`📍 ${addressParts.join(', ')}`);
+        const address = formatQuoteAddress({
+            client_address: state.contact.address,
+            comuna_name: state.contact.comuna,
+            comuna_other: state.contact.otherComuna,
+            region_name: state.contact.region,
+        });
+        if (address) {
+            detailLines.push(`📍 ${address}`);
         }
 
         if (state.eventData.pickupDate) {

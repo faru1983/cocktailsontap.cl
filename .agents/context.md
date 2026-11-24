@@ -41,6 +41,40 @@
 
 ## Ultimos Cambios
 
+### 24-11-2026 — Corrección de duplicación de comuna/región en direcciones (Google Places + `formatQuoteAddress`)
+
+- **Autocomplete sin duplicación en `client_address` ([`AddressAutocomplete.tsx`](file:///c:/Webs/cocktailsontap.cl/components/ui/AddressAutocomplete.tsx)):**
+  - `extractAddressDetails` ahora devuelve únicamente calle y número (el complemento opcional de Depto/Casa/Referencia se agrega justo después), dejando `comuna_name` y `region_name` en sus campos dedicados.
+  - Agregada prop opcional `detectedLocationLabel` para mostrar un badge discreto con la comuna y región detectadas en los checkouts minimalistas ([`DirectWizardCheckoutModal.tsx`](file:///c:/Webs/cocktailsontap.cl/components/wizard/direct/DirectWizardCheckoutModal.tsx) y [`EventWizardCheckoutModal.tsx`](file:///c:/Webs/cocktailsontap.cl/components/wizard/events/EventWizardCheckoutModal.tsx)).
+- **Formateo centralizado y WhatsApp unificado ([`lib/geo.ts`](file:///c:/Webs/cocktailsontap.cl/lib/geo.ts), [`lib/wizardLogic.ts`](file:///c:/Webs/cocktailsontap.cl/lib/wizardLogic.ts)):**
+  - Reforzado `stripTrailingComuna` y `formatQuoteAddress` para limpiar país (`Chile`), región y comuna duplicados al final en direcciones históricas o manuales sin recortar calles que coincidan con nombres de comunas.
+  - Unificado `buildWhatsAppMessage` para usar `formatQuoteAddress` al igual que `buildWhatsAppMessageFromQuote`, emails, `/admin` y Google Sync.
+
+### 24-11-2026 — Rango de entrega Blue Express en `/cotizar/[token]` (venta directa) y sincronización Admin/Borrador
+
+- **Consulta pública ([`app/cotizar/[token]/page.tsx`](file:///c:/Webs/cocktailsontap.cl/app/cotizar/%5Btoken%5D/page.tsx)):**
+  - Agregados a `PUBLIC_QUOTE_SELECT` los campos `dispatch_estimated_date`, `delivery_estimate_min`, `delivery_estimate_max`, `delivery_estimate_label`, `delivery_estimate_days`, `dispatch_mode`, `dispatch_carrier_name`, `dispatch_tracking_number` y `variant` en `quote_items`.
+- **Vista pública de venta directa ([`DirectQuoteView.tsx`](file:///c:/Webs/cocktailsontap.cl/components/quote/DirectQuoteView.tsx)):**
+  - Calculado `resolvedBlueExpressEstimateLabel` como respaldo dinámico desde `eventDate` (fecha interna de entrega en oficina Blue Express) + días de tránsito de la comuna, evitando mostrar al cliente la fecha interna de despacho en sucursal cuando `delivery_estimate_label` falte o cambie en borrador, y ajustado el texto del modal de términos para Blue Express.
+- **Helper único y sincronización ([`lib/blueExpress.ts`](file:///c:/Webs/cocktailsontap.cl/lib/blueExpress.ts), [`createQuoteCore.ts`](file:///c:/Webs/cocktailsontap.cl/lib/services/createQuoteCore.ts), [`updateDraftQuoteCore.ts`](file:///c:/Webs/cocktailsontap.cl/lib/services/updateDraftQuoteCore.ts), [`adminActions.ts`](file:///c:/Webs/cocktailsontap.cl/app/actions/admin/adminActions.ts)):**
+  - Creado `buildBlueExpressEstimate` para calcular `delivery_estimate_*` sin sobreescribir la fecha manual ingresada desde `/admin/quotes/new`, y recalculando automáticamente el rango al editar fecha o comuna en `/admin/quotes/[id]` o en borradores directos.
+
+### 24-11-2026 — Selector de variedad/bebida al editar cotizaciones en `/admin` y en borrador `/cotizar/[token]`
+
+- **Edición de ítems en detalle de cotización (`/admin/quotes/[id]`, [`QuoteOperationalSummary.tsx`](file:///c:/Webs/cocktailsontap.cl/app/admin/quotes/%5Bid%5D/QuoteOperationalSummary.tsx), [`QuoteDetailClient.tsx`](file:///c:/Webs/cocktailsontap.cl/app/admin/quotes/%5Bid%5D/QuoteDetailClient.tsx)):**
+  - Agregado `<select>` de variedad (`product.variant_config.options`) junto al formato en el modo edición de ítems para poder cambiar el tipo de bebida en combinados.
+  - Corregida la visualización duplicada de `item.variant` en modo edición (ej. `(Coca Original) (Coca Original)`), y normalizada la variante por defecto al abrir la edición si el ítem no tenía una guardada.
+- **Edición de variedad en cotización borrador pública (`/cotizar/[token]`, [`QuoteSummaryProducts.tsx`](file:///c:/Webs/cocktailsontap.cl/components/quote/QuoteSummaryProducts.tsx), [`EventQuoteView.tsx`](file:///c:/Webs/cocktailsontap.cl/components/quote/EventQuoteView.tsx)):**
+  - Agregado selector desplegable de variedad (`variantOptions`) cuando la cotización está en estado `draft` (`isEditable`), conectado al autoguardado (`updateDraftQuote`) y con fusión automática si ya existe el mismo producto/tamaño con esa variedad.
+
+### 22-11-2026 — Recordatorios Automáticos por Email + WhatsApp y Silencio Automático de IA Post-Cotización (`deskcommService.ts` + `reminder_templates`)
+
+- **Plantillas de Recordatorios (`reminder_templates` en Supabase):**
+  - Activado `auto_channel = 'both'` (**Email + WhatsApp**) en las 3 plantillas automáticas del cron diario (`/api/cron/reminders`): `Cotización (20 días)`, `Cotización (6 días)` y `Aniversario evento (30 dias)`.
+- **Traspaso a atención manual en WhatsApp ([`lib/services/deskcommService.ts`](file:///c:/Webs/cocktailsontap.cl/lib/services/deskcommService.ts), [`lib/services/reminderService.ts`](file:///c:/Webs/cocktailsontap.cl/lib/services/reminderService.ts)):**
+  - `sendWhatsappMessageViaDeskcomm` ejecuta ahora `assignConversationToOwnerViaMcp` (`crm_assign_conversation` con `reason: 'transfer'`) tras enviar cualquier notificación o recordatorio oficial desde la web (excepto `test`).
+  - Garantiza que cuando un cliente recibe una cotización o un recordatorio automático de la web y responde por WhatsApp, el agente IA del CRM permanezca en silencio y la respuesta quede en atención manual del dueño (salvo reactivación manual en el Inbox).
+
 ### 22-11-2026 — Mensajes Contextuales de Registro de Pagos (Email + WhatsApp + `/admin`)
 
 - **Lógica compartida ([`lib/paymentMessageContext.ts`](file:///c:/Webs/cocktailsontap.cl/lib/paymentMessageContext.ts)):**
