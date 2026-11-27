@@ -7,8 +7,9 @@ import { AddressAutocomplete } from '@/components/ui/AddressAutocomplete';
 import { isValidPhoneE164, normalizePhoneE164 } from '@/lib/phone';
 import PhoneInput from '@/components/ui/PhoneInput';
 import { formatEventDate, getSizeLiters, resolveShipping, DIRECT_SALE_MIN_DISPATCH_OFFSET_DAYS, validateDirectSaleDate } from '@/lib/wizardLogic';
-import { getDirectSaleDateFieldCopy, getBlueExpressTransitDays } from '@/lib/blueExpress';
-import { addBusinessDays, calculateDirectSaleSchedule, formatDateRangeCL } from '@/lib/businessDays';
+import { getDirectSaleDateFieldCopy, getBlueExpressDeliveryDaysMode, getBlueExpressTransitDays } from '@/lib/blueExpress';
+import { addCourierDeliveryDays, calculateDirectSaleSchedule, formatDateRangeCL } from '@/lib/businessDays';
+import { resolveOffsetMode } from '@/lib/shippingMethods';
 import { confirmQuote } from '@/app/actions/confirmQuote';
 import { useDraftQuoteAutoSave } from '@/hooks/useDraftQuoteAutoSave';
 import DraftSaveBadge from '@/components/quote/DraftSaveBadge';
@@ -320,21 +321,26 @@ export default function DirectQuoteView({ quote, comunas, regions, availableCock
 
         const selectedComuna = comunas.find((c) => c.name.toLowerCase() === (comuna || '').toLowerCase());
         const beZone = selectedComuna?.blueExpressZone || selectedComuna?.regionBlueExpressZone;
-        const transitDays = getBlueExpressTransitDays(
-            beZone,
-            selectedComuna?.blueExpressTransitDays || comunas[0]?.blueExpressTransitDays
-        );
+        const transitMatrix = selectedComuna?.blueExpressTransitDays || comunas[0]?.blueExpressTransitDays;
+        const transitDays = getBlueExpressTransitDays(beZone, transitMatrix);
+        const deliveryDaysMode = getBlueExpressDeliveryDaysMode(transitMatrix);
 
         if (eventDate) {
-            const minDate = addBusinessDays(eventDate, transitDays.minDays);
-            const maxDate = addBusinessDays(eventDate, transitDays.maxDays);
+            const minDate = addCourierDeliveryDays(eventDate, transitDays.minDays, deliveryDaysMode);
+            const maxDate = addCourierDeliveryDays(eventDate, transitDays.maxDays, deliveryDaysMode);
             return formatDateRangeCL(minDate, maxDate);
         }
 
         const schedule = calculateDirectSaleSchedule({
-            productionBusinessDays: activeMethodConfig?.minOffsetDays ?? 2,
+            productionBusinessDays: typeof activeMethodConfig?.minOffsetDays === 'number' ? activeMethodConfig.minOffsetDays : 2,
+            productionOffsetMode: resolveOffsetMode(activeMethodConfig, 'business'),
+            cutoffEnabled: Boolean(activeMethodConfig?.cutoffEnabled),
+            cutoffTime: activeMethodConfig?.cutoffTime,
+            availableWeekdays: activeMethodConfig?.availableWeekdays,
+            blockedDates: activeMethodConfig?.blockedDates,
             transitMinDays: transitDays.minDays,
             transitMaxDays: transitDays.maxDays,
+            deliveryDaysMode,
         });
         return schedule.dateRangeLabel;
     }, [
@@ -346,7 +352,7 @@ export default function DirectQuoteView({ quote, comunas, regions, availableCock
         quote.event_date,
         quote.delivery_estimate_label,
         comunas,
-        activeMethodConfig?.minOffsetDays,
+        activeMethodConfig,
     ]);
     const totalPaid = sumQuotePayments(quote);
     const advanceAmount = totals.totalFinal; // Siempre 100%

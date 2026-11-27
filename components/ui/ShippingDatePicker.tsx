@@ -9,6 +9,7 @@ import {
     isWeekdayAllowed,
     validateShippingDate,
 } from '@/lib/shippingMethods';
+import { formatDateYMD, getChileNoonDate } from '@/lib/businessDays';
 import {
     buildEmptyDaySummary,
     evaluateCapacityForRequest,
@@ -274,7 +275,7 @@ export default function ShippingDatePicker({
             });
         }
 
-        const todayStr = new Date().toISOString().split('T')[0];
+        const todayStr = formatDateYMD(getChileNoonDate());
 
         // Días reales del mes
         for (let d = 1; d <= daysInMonth; d++) {
@@ -496,7 +497,7 @@ export default function ShippingDatePicker({
                         </div>
                         <div className="flex items-center gap-1.5">
                             <span className="w-2 h-2 rounded-full bg-slate-300 inline-block" />
-                            <span>No hábil</span>
+                            <span>No disponible</span>
                         </div>
                     </div>
                 </div>

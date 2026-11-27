@@ -1230,7 +1230,7 @@ export default function EventQuoteView({
                                         value={eventDate}
                                         onChange={(val) => setEventDate(val)}
                                         methodConfig={comunas[0]?.shippingMethodsConfig?.own_events}
-                                        fallbackOffsetDays={5}
+                                        fallbackOffsetDays={2}
                                         availabilityContext={{
                                             dispenser,
                                             portableKegCount: countPortableKegs(items),

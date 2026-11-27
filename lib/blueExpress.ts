@@ -5,10 +5,17 @@
 // ==============================================================================
 
 import type { Comuna } from './types';
-import { addBusinessDays, calculateDirectSaleSchedule, formatDateRangeCL, formatDateYMD } from './businessDays';
+import {
+    addCourierDeliveryDays,
+    calculateDirectSaleSchedule,
+    formatDateRangeCL,
+    formatDateYMD,
+    type CourierDeliveryDaysMode,
+} from './businessDays';
 
 export type ShippingCarrier = 'own' | 'blue_express';
 export type BlueExpressZone = 'misma_zona' | 'centro' | 'extremo';
+export type BlueExpressDeliveryDaysMode = CourierDeliveryDaysMode;
 export type BlueExpressSizeRates = { M: number; L: number };
 export type BlueExpressHomeRates = {
     misma_zona: BlueExpressSizeRates;
@@ -16,7 +23,12 @@ export type BlueExpressHomeRates = {
     extremo: BlueExpressSizeRates;
 };
 
-export type BlueExpressTransitTimes = Record<BlueExpressZone, { minDays: number; maxDays: number }>;
+export type BlueExpressTransitTimes = {
+    misma_zona: { minDays: number; maxDays: number };
+    centro: { minDays: number; maxDays: number };
+    extremo: { minDays: number; maxDays: number };
+    deliveryDaysMode?: BlueExpressDeliveryDaysMode;
+};
 
 export const BLUE_EXPRESS_ZONE_OPTIONS: { value: BlueExpressZone; label: string }[] = [
     { value: 'misma_zona', label: 'Misma zona' },
@@ -26,11 +38,12 @@ export const BLUE_EXPRESS_ZONE_OPTIONS: { value: BlueExpressZone; label: string 
 
 export const BLUE_EXPRESS_TRANSIT_SETTING_KEY = 'blue_express_transit_days';
 
-/** Tiempos estimados de tránsito courier (en días hábiles) desde Santiago */
+/** Tiempos estimados de tránsito courier desde Santiago */
 export const DEFAULT_BLUE_EXPRESS_TRANSIT_DAYS: BlueExpressTransitTimes = {
     misma_zona: { minDays: 1, maxDays: 2 },
     centro: { minDays: 2, maxDays: 3 },
     extremo: { minDays: 4, maxDays: 6 },
+    deliveryDaysMode: 'mon_fri',
 };
 
 export const BLUE_EXPRESS_TRANSIT_DAYS = DEFAULT_BLUE_EXPRESS_TRANSIT_DAYS;
@@ -45,6 +58,7 @@ export function parseBlueExpressTransitDays(raw: unknown): BlueExpressTransitTim
                 misma_zona: { ...DEFAULT_BLUE_EXPRESS_TRANSIT_DAYS.misma_zona },
                 centro: { ...DEFAULT_BLUE_EXPRESS_TRANSIT_DAYS.centro },
                 extremo: { ...DEFAULT_BLUE_EXPRESS_TRANSIT_DAYS.extremo },
+                deliveryDaysMode: 'mon_fri',
             };
         }
     }
@@ -53,6 +67,7 @@ export function parseBlueExpressTransitDays(raw: unknown): BlueExpressTransitTim
             misma_zona: { ...DEFAULT_BLUE_EXPRESS_TRANSIT_DAYS.misma_zona },
             centro: { ...DEFAULT_BLUE_EXPRESS_TRANSIT_DAYS.centro },
             extremo: { ...DEFAULT_BLUE_EXPRESS_TRANSIT_DAYS.extremo },
+            deliveryDaysMode: 'mon_fri',
         };
     }
     const cleanZone = (zone: BlueExpressZone) => {
@@ -62,11 +77,20 @@ export function parseBlueExpressTransitDays(raw: unknown): BlueExpressTransitTim
         const maxVal = Math.max(minVal, parseInt(src.maxDays, 10) || fallback.maxDays);
         return { minDays: minVal, maxDays: maxVal };
     };
+    const deliveryDaysMode: BlueExpressDeliveryDaysMode =
+        parsed.deliveryDaysMode === 'mon_sat' ? 'mon_sat' : 'mon_fri';
     return {
         misma_zona: cleanZone('misma_zona'),
         centro: cleanZone('centro'),
         extremo: cleanZone('extremo'),
+        deliveryDaysMode,
     };
+}
+
+export function getBlueExpressDeliveryDaysMode(
+    transitMatrix?: BlueExpressTransitTimes | null
+): BlueExpressDeliveryDaysMode {
+    return transitMatrix?.deliveryDaysMode === 'mon_sat' ? 'mon_sat' : 'mon_fri';
 }
 
 export function getBlueExpressTransitDays(
@@ -230,30 +254,46 @@ export function buildBlueExpressEstimate(opts: {
         (c) => c.name.toLowerCase() === (opts.comunaName || '').toLowerCase()
     );
     const beZone = selectedComuna?.blueExpressZone || selectedComuna?.regionBlueExpressZone;
-    const transitDays = getBlueExpressTransitDays(
-        beZone,
-        selectedComuna?.blueExpressTransitDays || opts.comunas[0]?.blueExpressTransitDays
-    );
-    const productionDays = opts.comunas[0]?.shippingMethodsConfig?.blue_express?.minOffsetDays ?? 2;
+    const transitMatrix = selectedComuna?.blueExpressTransitDays || opts.comunas[0]?.blueExpressTransitDays;
+    const transitDays = getBlueExpressTransitDays(beZone, transitMatrix);
+    const deliveryDaysMode = getBlueExpressDeliveryDaysMode(transitMatrix);
+    const beMethod = opts.comunas[0]?.shippingMethodsConfig?.blue_express;
+    const productionDays = typeof beMethod?.minOffsetDays === 'number' ? beMethod.minOffsetDays : 2;
+    const offsetMode = beMethod?.offsetMode === 'calendar' ? 'calendar' : 'business';
 
     if (opts.dispatchDate && /^\d{4}-\d{2}-\d{2}$/.test(opts.dispatchDate)) {
-        const minDateObj = addBusinessDays(opts.dispatchDate, transitDays.minDays);
-        const maxDateObj = addBusinessDays(opts.dispatchDate, transitDays.maxDays);
-        const totalMinDays = Math.max(1, productionDays) + transitDays.minDays;
-        const totalMaxDays = Math.max(1, productionDays) + transitDays.maxDays;
+        const minDateObj = addCourierDeliveryDays(opts.dispatchDate, transitDays.minDays, deliveryDaysMode);
+        const maxDateObj = addCourierDeliveryDays(opts.dispatchDate, transitDays.maxDays, deliveryDaysMode);
+        const totalMinDays = Math.max(0, productionDays) + transitDays.minDays;
+        const totalMaxDays = Math.max(0, productionDays) + transitDays.maxDays;
+        const isStrictlyBusiness = offsetMode === 'business' && deliveryDaysMode === 'mon_fri';
+        const unitLabel = isStrictlyBusiness
+            ? totalMaxDays === 1
+                ? 'día hábil'
+                : 'días hábiles'
+            : totalMaxDays === 1
+              ? 'día'
+              : 'días';
+        const daysRange = totalMinDays === totalMaxDays ? `${totalMinDays}` : `${totalMinDays}–${totalMaxDays}`;
         return {
             dispatchEstimatedDate: opts.dispatchDate,
             deliveryEstimateMin: formatDateYMD(minDateObj),
             deliveryEstimateMax: formatDateYMD(maxDateObj),
             deliveryEstimateLabel: formatDateRangeCL(minDateObj, maxDateObj),
-            deliveryEstimateDays: `${totalMinDays}–${totalMaxDays} días hábiles`,
+            deliveryEstimateDays: `${daysRange} ${unitLabel}`,
         };
     }
 
     const schedule = calculateDirectSaleSchedule({
         productionBusinessDays: productionDays,
+        productionOffsetMode: offsetMode,
+        cutoffEnabled: Boolean(beMethod?.cutoffEnabled),
+        cutoffTime: beMethod?.cutoffTime,
+        availableWeekdays: beMethod?.availableWeekdays,
+        blockedDates: beMethod?.blockedDates,
         transitMinDays: transitDays.minDays,
         transitMaxDays: transitDays.maxDays,
+        deliveryDaysMode,
     });
     return {
         dispatchEstimatedDate: schedule.dispatchDate,

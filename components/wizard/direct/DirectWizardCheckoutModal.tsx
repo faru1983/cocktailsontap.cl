@@ -13,8 +13,8 @@ import { X, Loader2, AlertCircle, Truck } from 'lucide-react';
 import CheckoutCartSection from '@/components/quote/CheckoutCartSection';
 import QuoteSummaryTotals from '@/components/quote/QuoteSummaryTotals';
 import { DIRECT_SALE_MIN_DISPATCH_OFFSET_DAYS, validateDirectSaleDate } from '@/lib/wizardLogic';
-import { getMinSelectableDate } from '@/lib/shippingMethods';
-import { getDirectSaleDateFieldCopy, getBlueExpressTransitDays } from '@/lib/blueExpress';
+import { formatOffsetUnit, getMinSelectableDate, resolveOffsetMode } from '@/lib/shippingMethods';
+import { getDirectSaleDateFieldCopy, getBlueExpressDeliveryDaysMode, getBlueExpressTransitDays } from '@/lib/blueExpress';
 import { calculateDirectSaleSchedule } from '@/lib/businessDays';
 import { isChilePrefixOnly, isValidPhoneE164 } from '@/lib/phone';
 
@@ -114,19 +114,38 @@ export default function DirectWizardCheckoutModal({
     const prevIsBlueExpressRef = useRef(isBlueExpress);
     const selectedComuna = comunas.find((c) => c.name.toLowerCase() === (state.contact.comuna || '').toLowerCase());
     const beZone = selectedComuna?.blueExpressZone || selectedComuna?.regionBlueExpressZone;
-    const transitDays = getBlueExpressTransitDays(
-        beZone,
-        selectedComuna?.blueExpressTransitDays || comunas[0]?.blueExpressTransitDays
-    );
-    const productionDays = activeMethodConfig?.minOffsetDays ?? DIRECT_SALE_MIN_DISPATCH_OFFSET_DAYS;
+    const transitMatrix = selectedComuna?.blueExpressTransitDays || comunas[0]?.blueExpressTransitDays;
+    const transitDays = getBlueExpressTransitDays(beZone, transitMatrix);
+    const beDeliveryDaysMode = getBlueExpressDeliveryDaysMode(transitMatrix);
+    const productionDays =
+        typeof activeMethodConfig?.minOffsetDays === 'number'
+            ? activeMethodConfig.minOffsetDays
+            : DIRECT_SALE_MIN_DISPATCH_OFFSET_DAYS;
+    const productionOffsetMode = resolveOffsetMode(activeMethodConfig, 'business');
 
     const beSchedule = useMemo(() => {
         return calculateDirectSaleSchedule({
             productionBusinessDays: productionDays,
+            productionOffsetMode,
+            cutoffEnabled: Boolean(activeMethodConfig?.cutoffEnabled),
+            cutoffTime: activeMethodConfig?.cutoffTime,
+            availableWeekdays: activeMethodConfig?.availableWeekdays,
+            blockedDates: activeMethodConfig?.blockedDates,
             transitMinDays: transitDays.minDays,
             transitMaxDays: transitDays.maxDays,
+            deliveryDaysMode: beDeliveryDaysMode,
         });
-    }, [productionDays, transitDays.minDays, transitDays.maxDays]);
+    }, [
+        productionDays,
+        productionOffsetMode,
+        activeMethodConfig?.cutoffEnabled,
+        activeMethodConfig?.cutoffTime,
+        activeMethodConfig?.availableWeekdays,
+        activeMethodConfig?.blockedDates,
+        transitDays.minDays,
+        transitDays.maxDays,
+        beDeliveryDaysMode,
+    ]);
 
     // Sincronizar fecha operativa y estimación de entrega cuando el carrier es Blue Express
     useEffect(() => {
@@ -517,7 +536,9 @@ export default function DirectWizardCheckoutModal({
                                                         Llegada: {beSchedule.dateRangeLabel}
                                                     </p>
                                                     <p className="text-[11px] text-brand-text-muted leading-relaxed mt-1.5">
-                                                        Este plazo considera {productionDays} {productionDays === 1 ? 'día hábil' : 'días hábiles'} de preparación y producción, más el tiempo de transporte hasta tu destino.
+                                                        {productionDays > 0
+                                                            ? `Este plazo considera ${productionDays} ${formatOffsetUnit(productionDays, productionOffsetMode)} de preparación y producción, más el tiempo de transporte hasta tu destino.`
+                                                            : 'Este plazo considera despacho el mismo día hábil disponible más el tiempo de transporte hasta tu destino.'}
                                                     </p>
                                                 </div>
                                             </div>

@@ -1472,6 +1472,7 @@ export async function saveBlueExpressTransitDays(transitDays: {
     misma_zona: { minDays: number; maxDays: number };
     centro: { minDays: number; maxDays: number };
     extremo: { minDays: number; maxDays: number };
+    deliveryDaysMode?: 'mon_fri' | 'mon_sat';
 }) {
     await checkAuth();
     const { parseBlueExpressTransitDays, BLUE_EXPRESS_TRANSIT_SETTING_KEY } = await import('@/lib/blueExpress');

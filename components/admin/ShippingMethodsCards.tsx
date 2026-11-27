@@ -1,35 +1,42 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
     Calendar,
+    CalendarCheck,
     Check,
     Clock,
     Copy,
     DollarSign,
+    Info,
     Lock,
     Package,
-    Plus,
     RefreshCw,
     Sparkles,
-    Trash2,
     Truck,
     X,
 } from 'lucide-react';
-import { formatCurrency } from '@/lib/utils';
 import {
     WEEKDAY_LABELS,
+    formatOffsetUnit,
+    getFirstAvailableDate,
+    getMinSelectableDate,
+    resolveOffsetMode,
+    type OffsetDaysMode,
     type ShippingMethodConfig,
     type ShippingMethodsSettings,
 } from '@/lib/shippingMethods';
 import {
+    calculateDirectSaleSchedule,
+    formatShortDateCL,
+    getChileDateTimeParts,
+    parseCutoffMinutes,
+} from '@/lib/businessDays';
+import {
+    type BlueExpressDeliveryDaysMode,
     type BlueExpressHomeRates,
     type BlueExpressTransitTimes,
-    type BlueExpressZone,
-    isBlueExpressZone,
-    parseBlueExpressRates,
-    quoteBlueExpressHome,
-    formatBlueExpressPacks,
+    getBlueExpressDeliveryDaysMode,
 } from '@/lib/blueExpress';
 import type { AdminRegionRow, AdminComunaRow } from './CoverageSettings';
 
@@ -69,11 +76,214 @@ function formatBlockedDateReadable(dateStr: string): string {
     }
 }
 
-function getAnticipationHint(offsetDays: number): string {
-    if (offsetDays === 0) return 'El cliente puede solicitar despacho para el mismo día.';
-    if (offsetDays === 1) return 'Si el cliente compra el lunes, la primera fecha disponible será el martes.';
-    if (offsetDays === 2) return 'Si el cliente compra el lunes, la primera fecha disponible será el miércoles.';
-    return `Se requieren al menos ${offsetDays} días de preparación antes de la fecha de entrega.`;
+function formatChileClockLabel(): { todayShort: string; timeLabel: string; currentMinutes: number } {
+    const parts = getChileDateTimeParts();
+    const todayDate = new Date(parts.year, parts.month - 1, parts.day, 12, 0, 0, 0);
+    const hh = String(parts.hour).padStart(2, '0');
+    const mm = String(parts.minute).padStart(2, '0');
+    return {
+        todayShort: formatShortDateCL(todayDate),
+        timeLabel: `${hh}:${mm}`,
+        currentMinutes: parts.hour * 60 + parts.minute,
+    };
+}
+
+interface AnticipationEditorProps {
+    methodKey: 'own_direct' | 'own_events' | 'blue_express';
+    title: string;
+    method: ShippingMethodConfig;
+    maxDays: number;
+    accent: 'sky' | 'amber' | 'violet';
+    previewPrefix: string;
+    helperNote?: string;
+    onUpdate: (updates: Partial<ShippingMethodConfig>) => void;
+}
+
+function AnticipationRuleEditor({
+    methodKey,
+    title,
+    method,
+    maxDays,
+    accent,
+    previewPrefix,
+    helperNote,
+    onUpdate,
+}: AnticipationEditorProps) {
+    const offsetMode = resolveOffsetMode(method);
+    const cutoffEnabled = Boolean(method.cutoffEnabled);
+    const cutoffTime = method.cutoffTime || '18:00';
+    const minOffsetDays = typeof method.minOffsetDays === 'number' ? method.minOffsetDays : 0;
+
+    const preview = useMemo(() => {
+        const clock = formatChileClockLabel();
+        const minDate = getMinSelectableDate(method, minOffsetDays);
+        const firstAvailable = getFirstAvailableDate(method, minOffsetDays);
+        const cutoffMins = cutoffEnabled ? parseCutoffMinutes(cutoffTime) : null;
+        const pastCutoff = cutoffMins !== null && clock.currentMinutes >= cutoffMins;
+        return {
+            todayShort: clock.todayShort,
+            timeLabel: clock.timeLabel,
+            minDate,
+            firstAvailable,
+            minDateShort: formatShortDateCL(minDate),
+            firstAvailableShort: formatShortDateCL(firstAvailable),
+            skippedUnavailable: firstAvailable !== minDate,
+            pastCutoff,
+        };
+    }, [method, minOffsetDays, cutoffEnabled, cutoffTime]);
+
+    const accentStyles = {
+        sky: {
+            radioActive: 'bg-sky-500/15 border-sky-500/40 text-sky-300',
+            previewBox: 'bg-sky-500/10 border-sky-500/20 text-sky-200',
+            previewIcon: 'text-sky-400',
+            badge: 'text-sky-300',
+        },
+        amber: {
+            radioActive: 'bg-amber-500/15 border-amber-500/40 text-amber-300',
+            previewBox: 'bg-amber-500/10 border-amber-500/20 text-amber-200',
+            previewIcon: 'text-amber-400',
+            badge: 'text-amber-300',
+        },
+        violet: {
+            radioActive: 'bg-violet-500/15 border-violet-500/40 text-violet-200',
+            previewBox: 'bg-violet-500/10 border-violet-500/20 text-violet-200',
+            previewIcon: 'text-violet-300',
+            badge: 'text-violet-300',
+        },
+    }[accent];
+
+    const radioGroupName = `offset-mode-${methodKey}`;
+
+    return (
+        <div className="space-y-3">
+            <label className="block text-slate-400 text-[10px] font-black uppercase tracking-widest">
+                {title}
+            </label>
+
+            {/* Radio: Días hábiles vs Días corridos */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2" role="radiogroup" aria-label={`Tipo de días para ${method.name}`}>
+                {(
+                    [
+                        {
+                            value: 'business' as OffsetDaysMode,
+                            label: 'Días hábiles',
+                            sub: 'Lunes a Viernes',
+                        },
+                        {
+                            value: 'calendar' as OffsetDaysMode,
+                            label: 'Días corridos',
+                            sub: 'Lunes a Domingo',
+                        },
+                    ] as const
+                ).map((option) => {
+                    const selected = offsetMode === option.value;
+                    return (
+                        <label
+                            key={option.value}
+                            className={`flex items-center gap-2.5 px-3 py-2 rounded-xl border transition-all cursor-pointer select-none ${
+                                selected
+                                    ? accentStyles.radioActive
+                                    : 'bg-black/30 border-white/5 text-slate-400 hover:border-white/15 hover:text-slate-200'
+                            }`}
+                        >
+                            <input
+                                type="radio"
+                                name={radioGroupName}
+                                value={option.value}
+                                checked={selected}
+                                onChange={() => onUpdate({ offsetMode: option.value })}
+                                className="w-3.5 h-3.5 accent-[#E2A049] cursor-pointer shrink-0"
+                            />
+                            <div className="min-w-0">
+                                <span className="block text-xs font-black leading-tight">{option.label}</span>
+                                <span className="block text-[10px] opacity-75">{option.sub}</span>
+                            </div>
+                        </label>
+                    );
+                })}
+            </div>
+
+            {/* Cantidad de días + Hora de corte opcional */}
+            <div className="flex flex-wrap items-center gap-3">
+                <div className="flex items-center gap-2">
+                    <input
+                        type="number"
+                        min={0}
+                        max={maxDays}
+                        value={minOffsetDays}
+                        onChange={(e) => {
+                            const parsed = parseInt(e.target.value, 10);
+                            const nextVal = Number.isNaN(parsed) ? 0 : Math.min(maxDays, Math.max(0, parsed));
+                            onUpdate({ minOffsetDays: nextVal });
+                        }}
+                        className="w-20 bg-black/30 border border-white/10 rounded-xl px-3 py-2 text-white text-sm font-black text-center focus:border-[#E2A049] outline-none"
+                    />
+                    <span className="text-slate-300 text-xs font-bold">
+                        {formatOffsetUnit(minOffsetDays, offsetMode)}
+                    </span>
+                </div>
+
+                <div className="flex items-center gap-2 bg-black/25 border border-white/5 rounded-xl px-3 py-1.5">
+                    <label className="flex items-center gap-2 cursor-pointer select-none">
+                        <input
+                            type="checkbox"
+                            checked={cutoffEnabled}
+                            onChange={(e) =>
+                                onUpdate({
+                                    cutoffEnabled: e.target.checked,
+                                    cutoffTime: cutoffTime || '18:00',
+                                })
+                            }
+                            className="w-3.5 h-3.5 accent-[#E2A049] cursor-pointer"
+                        />
+                        <Clock size={13} className={cutoffEnabled ? accentStyles.previewIcon : 'text-slate-500'} />
+                        <span className="text-[11px] font-bold text-slate-300">Hora de corte</span>
+                    </label>
+                    {cutoffEnabled && (
+                        <input
+                            type="time"
+                            value={cutoffTime}
+                            onChange={(e) => onUpdate({ cutoffTime: e.target.value || '18:00' })}
+                            aria-label={`Hora de corte para ${method.name}`}
+                            className="bg-black/40 border border-white/10 rounded-lg px-2 py-1 text-white text-xs font-black outline-none focus:border-[#E2A049]"
+                        />
+                    )}
+                </div>
+            </div>
+
+            {cutoffEnabled && (
+                <p className="text-slate-400 text-[11px] leading-snug">
+                    Compras desde las <strong className="text-white">{cutoffTime} hrs</strong> (hora Chile) pasan a contar desde el día siguiente.
+                </p>
+            )}
+
+            {/* Vista previa en vivo */}
+            <div className={`rounded-xl px-3 py-2 border text-[11px] flex items-start gap-2 ${accentStyles.previewBox}`}>
+                <CalendarCheck size={14} className={`${accentStyles.previewIcon} shrink-0 mt-0.5`} />
+                <div className="leading-snug">
+                    <span className="opacity-85">
+                        Hoy <strong>{preview.todayShort}</strong> ({preview.timeLabel} hrs)
+                        {preview.pastCutoff ? ' · pasó hora de corte' : ''}:
+                    </span>{' '}
+                    <span>{previewPrefix} </span>
+                    <strong className="text-white">{preview.firstAvailableShort}</strong>
+                    {preview.skippedUnavailable && (
+                        <span className="block text-[10px] opacity-80 mt-0.5">
+                            El mínimo por anticipación era {preview.minDateShort}, pero se ajustó por día no habilitado o fecha bloqueada.
+                        </span>
+                    )}
+                </div>
+            </div>
+
+            {helperNote && (
+                <p className="text-slate-400 text-[11px] leading-snug flex items-start gap-1.5">
+                    <Info size={13} className={`${accentStyles.badge} shrink-0 mt-0.5`} />
+                    <span>{helperNote}</span>
+                </p>
+            )}
+        </div>
+    );
 }
 
 export default function ShippingMethodsCards({
@@ -83,7 +293,6 @@ export default function ShippingMethodsCards({
     isSavingConfig,
     hasSavedConfig,
     regions,
-    comunas,
     onBulkApplyRate,
     beRates,
     onChangeBeRates,
@@ -108,13 +317,6 @@ export default function ShippingMethodsCards({
     const [directNewBlockedDate, setDirectNewBlockedDate] = useState('');
     const [eventsNewBlockedDate, setEventsNewBlockedDate] = useState('');
     const [beNewBlockedDate, setBeNewBlockedDate] = useState('');
-
-    // ── Custom Method Modal / Creator ────────────────────────────────────────
-    const [showNewCustomForm, setShowNewCustomForm] = useState(false);
-    const [customName, setCustomName] = useState('');
-    const [customDesc, setCustomDesc] = useState('');
-    const [customOffset, setCustomOffset] = useState(1);
-    const [customWindow, setCustomWindow] = useState('Aviso el día anterior. Retiro AM / Entrega PM');
 
     const updateMethod = (key: 'own_direct' | 'own_events' | 'blue_express', updates: Partial<ShippingMethodConfig>) => {
         onChangeConfig({
@@ -185,42 +387,31 @@ export default function ShippingMethodsCards({
         }
     };
 
-    const handleCreateCustomMethod = (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!customName.trim()) return;
-        const newMethod: ShippingMethodConfig = {
-            id: `custom_${Date.now()}`,
-            name: customName.trim(),
-            description: customDesc.trim() || 'Courier personalizado para despachos locales.',
-            serviceType: 'direct',
-            isActive: true,
-            availableWeekdays: [1, 2, 3, 4, 5],
-            minOffsetDays: customOffset,
-            blockedDates: [],
-            deliveryWindow: customWindow.trim(),
-            freeShippingEnabled: false,
-            freeShippingThresholdType: 'amount',
-            freeShippingThreshold: 0,
-        };
-        onChangeConfig({
-            ...config,
-            custom_methods: [...(config.custom_methods || []), newMethod],
-        });
-        setCustomName('');
-        setCustomDesc('');
-        setShowNewCustomForm(false);
-    };
-
-    const removeCustomMethod = (id: string) => {
-        if (!confirm('¿Estás seguro de eliminar este método de envío personalizado?')) return;
-        onChangeConfig({
-            ...config,
-            custom_methods: (config.custom_methods || []).filter((m) => m.id !== id),
-        });
-    };
-
     const bulkRegion = regions.find((r) => r.id === selectedBulkRegionId);
-    const bulkRegionComunas = comunas.filter((c) => c.region_id === selectedBulkRegionId);
+    const beDeliveryDaysMode = getBlueExpressDeliveryDaysMode(beTransitDays);
+
+    const beZonesPreview = useMemo(() => {
+        const beMethod = config.blue_express;
+        const buildForZone = (zone: 'misma_zona' | 'centro' | 'extremo') => {
+            const z = beTransitDays[zone];
+            return calculateDirectSaleSchedule({
+                productionBusinessDays: beMethod.minOffsetDays,
+                productionOffsetMode: resolveOffsetMode(beMethod, 'business'),
+                cutoffEnabled: Boolean(beMethod.cutoffEnabled),
+                cutoffTime: beMethod.cutoffTime,
+                availableWeekdays: beMethod.availableWeekdays,
+                blockedDates: beMethod.blockedDates,
+                transitMinDays: z?.minDays ?? 1,
+                transitMaxDays: z?.maxDays ?? 2,
+                deliveryDaysMode: beDeliveryDaysMode,
+            });
+        };
+        return {
+            misma_zona: buildForZone('misma_zona'),
+            centro: buildForZone('centro'),
+            extremo: buildForZone('extremo'),
+        };
+    }, [config.blue_express, beTransitDays, beDeliveryDaysMode]);
 
     return (
         <div className="space-y-8 animate-in fade-in duration-300">
@@ -232,7 +423,7 @@ export default function ShippingMethodsCards({
                         Centro de Métodos de Envío
                     </h3>
                     <p className="text-slate-400 text-xs mt-0.5">
-                        Define días operativos, anticipación, bloqueos de fechas y reglas de envío gratis para cada transporte.
+                        Define días operativos, anticipación en días hábiles o corridos, hora de corte, bloqueos y reglas de envío gratis.
                     </p>
                 </div>
                 <div className="flex items-center gap-3">
@@ -310,7 +501,7 @@ export default function ShippingMethodsCards({
                                         key={day}
                                         type="button"
                                         onClick={() => toggleWeekday('own_direct', day)}
-                                        className={`px-3 py-2 rounded-xl text-xs font-black transition-all ${
+                                        className={`px-3 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
                                             active
                                                 ? 'bg-sky-500/20 text-sky-400 border border-sky-500/40 shadow-sm'
                                                 : 'bg-black/30 text-slate-500 border border-white/5 hover:text-slate-400'
@@ -327,29 +518,15 @@ export default function ShippingMethodsCards({
                     </div>
 
                     {/* Anticipación mínima */}
-                    <div>
-                        <label className="block text-slate-400 text-[10px] font-black uppercase tracking-widest mb-2.5">
-                            Anticipación mínima de compra (días)
-                        </label>
-                        <div className="flex items-center gap-2">
-                            <input
-                                type="number"
-                                min={0}
-                                max={30}
-                                value={config.own_direct.minOffsetDays}
-                                onChange={(e) =>
-                                    updateMethod('own_direct', {
-                                        minOffsetDays: Math.max(0, parseInt(e.target.value, 10) || 0),
-                                    })
-                                }
-                                className="w-24 bg-black/30 border border-white/10 rounded-xl px-3 py-2 text-white text-sm font-black text-center focus:border-[#E2A049] outline-none"
-                            />
-                            <span className="text-slate-400 text-xs font-bold">días corridos</span>
-                        </div>
-                        <p className="text-sky-400/80 text-[11px] mt-2 font-medium">
-                            💡 {getAnticipationHint(config.own_direct.minOffsetDays)}
-                        </p>
-                    </div>
+                    <AnticipationRuleEditor
+                        methodKey="own_direct"
+                        title="Anticipación mínima de compra"
+                        method={config.own_direct}
+                        maxDays={30}
+                        accent="sky"
+                        previewPrefix="primera entrega disponible"
+                        onUpdate={(updates) => updateMethod('own_direct', updates)}
+                    />
                 </div>
 
                 {/* Franja de entrega */}
@@ -609,7 +786,7 @@ export default function ShippingMethodsCards({
                                         key={day}
                                         type="button"
                                         onClick={() => toggleWeekday('own_events', day)}
-                                        className={`px-3 py-2 rounded-xl text-xs font-black transition-all ${
+                                        className={`px-3 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
                                             active
                                                 ? 'bg-amber-500/20 text-amber-400 border border-amber-500/40 shadow-sm'
                                                 : 'bg-black/30 text-slate-500 border border-white/5 hover:text-slate-400'
@@ -620,36 +797,28 @@ export default function ShippingMethodsCards({
                                 );
                             })}
                         </div>
+                        <p className="text-slate-500 text-[11px] mt-2">
+                            Permite asegurar personal y coordinación de barriles y dispensadores para cada fecha.
+                        </p>
                     </div>
 
                     {/* Anticipación eventos */}
-                    <div>
-                        <label className="block text-slate-400 text-[10px] font-black uppercase tracking-widest mb-2.5">
-                            Anticipación mínima para eventos (días)
-                        </label>
-                        <div className="flex items-center gap-2">
-                            <input
-                                type="number"
-                                min={1}
-                                max={60}
-                                value={config.own_events.minOffsetDays}
-                                onChange={(e) =>
-                                    updateMethod('own_events', {
-                                        minOffsetDays: Math.max(1, parseInt(e.target.value, 10) || 1),
-                                    })
-                                }
-                                className="w-24 bg-black/30 border border-white/10 rounded-xl px-3 py-2 text-white text-sm font-black text-center focus:border-[#E2A049] outline-none"
-                            />
-                            <span className="text-slate-400 text-xs font-bold">días corridos</span>
-                        </div>
-                        <p className="text-amber-400/80 text-[11px] mt-2 font-medium">
-                            💡 Permite asegurar personal y coordinación de barriles y dispensadores.
-                        </p>
-                    </div>
+                    <AnticipationRuleEditor
+                        methodKey="own_events"
+                        title="Anticipación mínima para eventos"
+                        method={config.own_events}
+                        maxDays={60}
+                        accent="amber"
+                        previewPrefix="primera fecha agendable"
+                        onUpdate={(updates) => updateMethod('own_events', updates)}
+                    />
                 </div>
 
-                <div className="bg-black/20 rounded-xl p-4 border border-white/5 text-slate-400 text-xs">
-                    ℹ️ <strong className="text-white">Horarios de Reserva y Retiro:</strong> El cliente selecciona libremente el horario estimado en el formulario final de su cotización de evento para la coordinación operativa de tu equipo.
+                <div className="bg-black/20 rounded-xl p-4 border border-white/5 text-slate-400 text-xs flex items-start gap-2">
+                    <Info size={15} className="text-amber-400 shrink-0 mt-0.5" />
+                    <span>
+                        <strong className="text-white">Horarios de Reserva y Retiro:</strong> El cliente selecciona el horario de inicio y elige retiro el mismo día o día siguiente (12:00 a 14:00 hrs) en su reserva.
+                    </span>
                 </div>
 
                 {/* Fechas Bloqueadas Eventos */}
@@ -861,7 +1030,7 @@ export default function ShippingMethodsCards({
                     {/* Días entrega a BE */}
                     <div>
                         <label className="block text-slate-400 text-[10px] font-black uppercase tracking-widest mb-2.5">
-                            Días de entrega al courier (cuando llevas los paquetes)
+                            Días de entrega en oficina Blue Express
                         </label>
                         <div className="flex flex-wrap gap-1.5">
                             {[1, 2, 3, 4, 5, 6, 0].map((day) => {
@@ -871,7 +1040,7 @@ export default function ShippingMethodsCards({
                                         key={day}
                                         type="button"
                                         onClick={() => toggleWeekday('blue_express', day)}
-                                        className={`px-3 py-2 rounded-xl text-xs font-black transition-all ${
+                                        className={`px-3 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
                                             active
                                                 ? 'bg-violet-500/20 text-violet-300 border border-violet-500/40 shadow-sm'
                                                 : 'bg-black/30 text-slate-500 border border-white/5 hover:text-slate-400'
@@ -882,45 +1051,21 @@ export default function ShippingMethodsCards({
                                 );
                             })}
                         </div>
+                        <p className="text-slate-500 text-[11px] mt-2">
+                            Días en que llevas los paquetes a la sucursal de Blue Express (también agenda ese día en Google Calendar).
+                        </p>
                     </div>
 
                     {/* Anticipación preparación */}
-                    <div>
-                        <label className="block text-slate-400 text-[10px] font-black uppercase tracking-widest mb-2.5">
-                            Anticipación para empaque y entrega a Blue Express
-                        </label>
-                        <div className="flex items-center gap-2">
-                            <input
-                                type="number"
-                                min={0}
-                                max={15}
-                                value={config.blue_express.minOffsetDays}
-                                onChange={(e) =>
-                                    updateMethod('blue_express', {
-                                        minOffsetDays: Math.max(0, parseInt(e.target.value, 10) || 0),
-                                    })
-                                }
-                                className="w-24 bg-black/30 border border-white/10 rounded-xl px-3 py-2 text-white text-sm font-black text-center focus:border-[#E2A049] outline-none"
-                            />
-                            <span className="text-slate-400 text-xs font-bold">días</span>
-                        </div>
-                        <p className="text-violet-300/80 text-[11px] mt-2 font-medium">
-                            💡 La fecha elegida por el cliente será el día en que entregas el paquete a la sucursal de Blue Express.
-                        </p>
-                    </div>
-                </div>
-
-                {/* Mensaje al cliente */}
-                <div>
-                    <label className="block text-slate-400 text-[10px] font-black uppercase tracking-widest mb-2">
-                        Explicación que verá el cliente en el checkout
-                    </label>
-                    <input
-                        type="text"
-                        value={config.blue_express.deliveryWindow || ''}
-                        onChange={(e) => updateMethod('blue_express', { deliveryWindow: e.target.value })}
-                        placeholder="Fecha en que entregamos tu pedido al courier Blue Express para su despacho"
-                        className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-2.5 text-white text-xs font-bold focus:border-[#E2A049] outline-none"
+                    <AnticipationRuleEditor
+                        methodKey="blue_express"
+                        title="Preparación hasta entregar en sucursal Blue Express"
+                        method={config.blue_express}
+                        maxDays={15}
+                        accent="violet"
+                        previewPrefix="entrega en sucursal Blue Express"
+                        helperNote="A esta fecha se le suman automáticamente los días de tránsito configurados abajo para mostrar el rango estimado al comprador."
+                        onUpdate={(updates) => updateMethod('blue_express', updates)}
                     />
                 </div>
 
@@ -1043,16 +1188,16 @@ export default function ShippingMethodsCards({
                     </div>
                 </div>
 
-                {/* Plazos de Tránsito Blue Express por Zona (Días Hábiles) */}
+                {/* Plazos de Tránsito Blue Express por Zona + Días de reparto del courier */}
                 <div className="bg-black/20 rounded-xl p-5 border border-white/5 space-y-4">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                         <div>
                             <span className="text-white text-xs font-black flex items-center gap-1.5">
                                 <Truck size={14} className="text-violet-300" />
-                                Tiempos de Tránsito Courier Blue Express (Días Hábiles)
+                                Tiempos de Tránsito Courier Blue Express
                             </span>
                             <p className="text-slate-400 text-[11px] mt-0.5">
-                                Tiempo estimado que demora el courier desde la entrega en sucursal hasta el cliente. Se suma a los días de producción para calcular el rango de llegada mostrado al cliente.
+                                Tiempo estimado que demora el courier desde que dejas el paquete en sucursal hasta el domicilio del cliente.
                             </p>
                         </div>
                         <button
@@ -1068,214 +1213,138 @@ export default function ShippingMethodsCards({
                             ) : (
                                 <Check size={12} />
                             )}
-                            {hasSavedBeTransitDays ? '¡Guardado!' : 'Guardar Plazos BE'}
+                            {hasSavedBeTransitDays ? 'Guardado' : 'Guardar Plazos BE'}
                         </button>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
+                    {/* Radio: días en que Blue Express reparte */}
+                    <div className="space-y-2 pt-1">
+                        <label className="block text-slate-400 text-[10px] font-black uppercase tracking-widest">
+                            Días de reparto considerados para el tránsito Blue Express
+                        </label>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2" role="radiogroup" aria-label="Días de reparto de Blue Express">
+                            {(
+                                [
+                                    {
+                                        value: 'mon_fri' as BlueExpressDeliveryDaysMode,
+                                        label: 'Lunes a Viernes (días hábiles)',
+                                        sub: 'Estándar oficial de Blue Express · promesa más segura',
+                                    },
+                                    {
+                                        value: 'mon_sat' as BlueExpressDeliveryDaysMode,
+                                        label: 'Lunes a Sábado (incluye sábados)',
+                                        sub: 'Refleja entregas de sábado donde opera reparto',
+                                    },
+                                ] as const
+                            ).map((option) => {
+                                const selected = beDeliveryDaysMode === option.value;
+                                return (
+                                    <label
+                                        key={option.value}
+                                        className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl border transition-all cursor-pointer select-none ${
+                                            selected
+                                                ? 'bg-violet-500/15 border-violet-500/40 text-violet-200'
+                                                : 'bg-black/30 border-white/5 text-slate-400 hover:border-white/15 hover:text-slate-200'
+                                        }`}
+                                    >
+                                        <input
+                                            type="radio"
+                                            name="be-delivery-days-mode"
+                                            value={option.value}
+                                            checked={selected}
+                                            onChange={() =>
+                                                onChangeBeTransitDays({
+                                                    ...beTransitDays,
+                                                    deliveryDaysMode: option.value,
+                                                })
+                                            }
+                                            className="w-3.5 h-3.5 accent-[#E2A049] cursor-pointer shrink-0"
+                                        />
+                                        <div className="min-w-0">
+                                            <span className="block text-xs font-black leading-tight">{option.label}</span>
+                                            <span className="block text-[10px] opacity-75">{option.sub}</span>
+                                        </div>
+                                    </label>
+                                );
+                            })}
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
                         {(
                             [
                                 ['misma_zona', 'Misma Zona', 'RM periférica'],
-                                ['centro', 'Zona Centro', 'Valparaíso, O\'Higgins, etc.'],
+                                ['centro', 'Zona Centro', "Valparaíso, O'Higgins, etc."],
                                 ['extremo', 'Zona Extrema', 'Norte grande y Sur austral'],
                             ] as const
-                        ).map(([zone, label, hint]) => (
-                            <div key={zone} className="bg-black/40 border border-white/10 rounded-xl p-3.5 space-y-2">
-                                <div className="flex items-center justify-between">
-                                    <span className="text-white text-xs font-black">{label}</span>
-                                    <span className="text-slate-400 text-[10px]">{hint}</span>
-                                </div>
-                                <div className="grid grid-cols-2 gap-2">
-                                    <div>
-                                        <label className="block text-slate-500 text-[9px] font-black uppercase tracking-wider mb-1">
-                                            Mínimo
-                                        </label>
-                                        <div className="flex items-center gap-1 bg-black/50 border border-white/10 rounded-lg px-2.5 py-1.5">
-                                            <input
-                                                type="number"
-                                                min={1}
-                                                max={30}
-                                                value={beTransitDays[zone]?.minDays ?? 1}
-                                                onChange={(e) => {
-                                                    const minVal = Math.max(1, parseInt(e.target.value, 10) || 1);
-                                                    const currentMax = beTransitDays[zone]?.maxDays ?? minVal;
-                                                    onChangeBeTransitDays({
-                                                        ...beTransitDays,
-                                                        [zone]: { minDays: minVal, maxDays: Math.max(minVal, currentMax) },
-                                                    });
-                                                }}
-                                                className="w-full bg-transparent border-none text-violet-300 text-sm font-black outline-none"
-                                            />
-                                            <span className="text-slate-500 text-[10px] font-bold">días</span>
+                        ).map(([zone, label, hint]) => {
+                            const zonePreview = beZonesPreview[zone];
+                            return (
+                                <div key={zone} className="bg-black/40 border border-white/10 rounded-xl p-3.5 space-y-2.5">
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-white text-xs font-black">{label}</span>
+                                        <span className="text-slate-400 text-[10px]">{hint}</span>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <div>
+                                            <label className="block text-slate-500 text-[9px] font-black uppercase tracking-wider mb-1">
+                                                Mínimo
+                                            </label>
+                                            <div className="flex items-center gap-1 bg-black/50 border border-white/10 rounded-lg px-2.5 py-1.5">
+                                                <input
+                                                    type="number"
+                                                    min={1}
+                                                    max={30}
+                                                    value={beTransitDays[zone]?.minDays ?? 1}
+                                                    onChange={(e) => {
+                                                        const minVal = Math.max(1, parseInt(e.target.value, 10) || 1);
+                                                        const currentMax = beTransitDays[zone]?.maxDays ?? minVal;
+                                                        onChangeBeTransitDays({
+                                                            ...beTransitDays,
+                                                            [zone]: { minDays: minVal, maxDays: Math.max(minVal, currentMax) },
+                                                        });
+                                                    }}
+                                                    className="w-full bg-transparent border-none text-violet-300 text-sm font-black outline-none"
+                                                />
+                                                <span className="text-slate-500 text-[10px] font-bold">días</span>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label className="block text-slate-500 text-[9px] font-black uppercase tracking-wider mb-1">
+                                                Máximo
+                                            </label>
+                                            <div className="flex items-center gap-1 bg-black/50 border border-white/10 rounded-lg px-2.5 py-1.5">
+                                                <input
+                                                    type="number"
+                                                    min={beTransitDays[zone]?.minDays ?? 1}
+                                                    max={30}
+                                                    value={beTransitDays[zone]?.maxDays ?? 2}
+                                                    onChange={(e) => {
+                                                        const maxVal = Math.max(1, parseInt(e.target.value, 10) || 1);
+                                                        const currentMin = beTransitDays[zone]?.minDays ?? 1;
+                                                        onChangeBeTransitDays({
+                                                            ...beTransitDays,
+                                                            [zone]: { minDays: Math.min(currentMin, maxVal), maxDays: maxVal },
+                                                        });
+                                                    }}
+                                                    className="w-full bg-transparent border-none text-violet-300 text-sm font-black outline-none"
+                                                />
+                                                <span className="text-slate-500 text-[10px] font-bold">días</span>
+                                            </div>
                                         </div>
                                     </div>
-                                    <div>
-                                        <label className="block text-slate-500 text-[9px] font-black uppercase tracking-wider mb-1">
-                                            Máximo
-                                        </label>
-                                        <div className="flex items-center gap-1 bg-black/50 border border-white/10 rounded-lg px-2.5 py-1.5">
-                                            <input
-                                                type="number"
-                                                min={beTransitDays[zone]?.minDays ?? 1}
-                                                max={30}
-                                                value={beTransitDays[zone]?.maxDays ?? 2}
-                                                onChange={(e) => {
-                                                    const maxVal = Math.max(1, parseInt(e.target.value, 10) || 1);
-                                                    const currentMin = beTransitDays[zone]?.minDays ?? 1;
-                                                    onChangeBeTransitDays({
-                                                        ...beTransitDays,
-                                                        [zone]: { minDays: Math.min(currentMin, maxVal), maxDays: maxVal },
-                                                    });
-                                                }}
-                                                className="w-full bg-transparent border-none text-violet-300 text-sm font-black outline-none"
-                                            />
-                                            <span className="text-slate-500 text-[10px] font-bold">días</span>
-                                        </div>
+                                    <div className="pt-1.5 border-t border-white/5 text-[10px] text-slate-300 leading-snug">
+                                        <span className="text-slate-400">Comprando hoy: </span>
+                                        <strong className="text-violet-200">{zonePreview.dateRangeLabel}</strong>
+                                        <span className="block text-slate-500">
+                                            Sucursal {formatShortDateCL(zonePreview.dispatchDate)} · {zonePreview.estimatedDaysLabel}
+                                        </span>
                                     </div>
                                 </div>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 </div>
-            </div>
-
-            {/* ═══════════════════════════════════════════════════════════════════ */}
-            {/* MÉTODOS PERSONALIZADOS / COURIER NUEVO                            */}
-            {/* ═══════════════════════════════════════════════════════════════════ */}
-            {config.custom_methods && config.custom_methods.length > 0 && (
-                <div className="space-y-4">
-                    <h4 className="text-white font-black text-sm uppercase tracking-wider">
-                        Couriers Personalizados Adicionales
-                    </h4>
-                    {config.custom_methods.map((custom) => (
-                        <div
-                            key={custom.id}
-                            className="bg-[#1e2433] rounded-2xl border border-white/5 p-5 shadow-xl space-y-4"
-                        >
-                            <div className="flex items-center justify-between pb-3 border-b border-white/5">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center font-bold">
-                                        <Truck size={16} />
-                                    </div>
-                                    <div>
-                                        <h5 className="text-white text-sm font-black">{custom.name}</h5>
-                                        <p className="text-slate-400 text-xs">{custom.description}</p>
-                                    </div>
-                                </div>
-                                <button
-                                    type="button"
-                                    onClick={() => removeCustomMethod(custom.id)}
-                                    className="text-rose-400 hover:text-rose-300 p-2 rounded-lg hover:bg-rose-500/10 transition-colors cursor-pointer"
-                                    title="Eliminar método personalizado"
-                                >
-                                    <Trash2 size={16} />
-                                </button>
-                            </div>
-                            <div className="text-slate-400 text-xs">
-                                <strong>Ventana / Horario:</strong> {custom.deliveryWindow || 'Durante el día'} ·{' '}
-                                <strong>Anticipación:</strong> {custom.minOffsetDays} día(s).
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            )}
-
-            {/* Botón "+ Agregar Nuevo Método" */}
-            <div className="p-6 rounded-2xl border border-dashed border-white/10 bg-black/20 text-center">
-                {!showNewCustomForm ? (
-                    <div>
-                        <button
-                            type="button"
-                            onClick={() => setShowNewCustomForm(true)}
-                            className="px-5 py-3 rounded-xl bg-white/5 hover:bg-white/10 text-white font-black text-xs uppercase tracking-wider inline-flex items-center gap-2 transition-all cursor-pointer border border-white/10"
-                        >
-                            <Plus size={16} className="text-[#E2A049]" />
-                            Agregar Nuevo Método de Envío (ej: Courier Express Santiago)
-                        </button>
-                        <p className="text-slate-500 text-xs mt-2">
-                            Ideal para sumar empresas externas de despacho (ej: servicio que retira en la mañana y entrega en la tarde con aviso previo).
-                        </p>
-                    </div>
-                ) : (
-                    <form onSubmit={handleCreateCustomMethod} className="max-w-xl mx-auto text-left space-y-4">
-                        <div className="flex items-center justify-between pb-2 border-b border-white/10">
-                            <h5 className="text-white font-black text-sm">Nuevo Método de Envío</h5>
-                            <button
-                                type="button"
-                                onClick={() => setShowNewCustomForm(false)}
-                                className="text-slate-400 hover:text-white"
-                            >
-                                <X size={16} />
-                            </button>
-                        </div>
-                        <div>
-                            <label className="block text-slate-400 text-[10px] font-black uppercase tracking-widest mb-1.5">
-                                Nombre del servicio
-                            </label>
-                            <input
-                                type="text"
-                                required
-                                value={customName}
-                                onChange={(e) => setCustomName(e.target.value)}
-                                placeholder="ej: Courier Express Santiago - Entrega Mismo Día"
-                                className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-white text-xs font-bold outline-none focus:border-[#E2A049]"
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-slate-400 text-[10px] font-black uppercase tracking-widest mb-1.5">
-                                Descripción operativa
-                            </label>
-                            <input
-                                type="text"
-                                value={customDesc}
-                                onChange={(e) => setCustomDesc(e.target.value)}
-                                placeholder="ej: Requiere aviso previo el día anterior hasta las 18:00 hrs."
-                                className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-white text-xs font-bold outline-none focus:border-[#E2A049]"
-                            />
-                        </div>
-                        <div className="grid grid-cols-2 gap-3">
-                            <div>
-                                <label className="block text-slate-400 text-[10px] font-black uppercase tracking-widest mb-1.5">
-                                    Anticipación (días)
-                                </label>
-                                <input
-                                    type="number"
-                                    min={0}
-                                    value={customOffset}
-                                    onChange={(e) => setCustomOffset(Math.max(0, parseInt(e.target.value, 10) || 0))}
-                                    className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-white text-xs font-bold outline-none"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-slate-400 text-[10px] font-black uppercase tracking-widest mb-1.5">
-                                    Horario de entrega / Nota
-                                </label>
-                                <input
-                                    type="text"
-                                    value={customWindow}
-                                    onChange={(e) => setCustomWindow(e.target.value)}
-                                    placeholder="Retiro AM, Entrega PM"
-                                    className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-white text-xs font-bold outline-none"
-                                />
-                            </div>
-                        </div>
-                        <div className="flex justify-end gap-2 pt-2">
-                            <button
-                                type="button"
-                                onClick={() => setShowNewCustomForm(false)}
-                                className="px-4 py-2 rounded-xl text-slate-400 hover:text-white text-xs font-bold"
-                            >
-                                Cancelar
-                            </button>
-                            <button
-                                type="submit"
-                                className="px-5 py-2 rounded-xl bg-[#E2A049] text-black text-xs font-black uppercase hover:bg-[#d4933d] cursor-pointer"
-                            >
-                                Crear Método
-                            </button>
-                        </div>
-                    </form>
-                )}
             </div>
         </div>
     );

@@ -27,6 +27,7 @@ import { ADMIN_EMAIL, FROM_EMAIL, PORTATIL_MIN_LITERS, MURO_MIN_LITERS } from '@
 import { normalizePhoneE164 } from '@/lib/phone';
 import { countPortableKegs } from '@/lib/eventCapacity';
 import { checkEventDateAvailability } from '@/lib/services/eventCapacityService';
+import { validateShippingDate } from '@/lib/shippingMethods';
 
 export interface ConfirmQuoteResult {
     success: boolean;
@@ -185,6 +186,13 @@ export async function confirmQuoteCore(
         }
 
         if (!isDirectSale && !options?.bypassCapacityCheck) {
+            if (quote.source !== 'admin') {
+                const eventConfig = catalogRes.comunas[0]?.shippingMethodsConfig?.own_events;
+                const eventDateErr = validateShippingDate(data.event_date, eventConfig, 2);
+                if (eventDateErr) {
+                    return { success: false, error: eventDateErr };
+                }
+            }
             const portableKegs = countPortableKegs(resolvedItems);
             const availability = await checkEventDateAvailability({
                 date: data.event_date,

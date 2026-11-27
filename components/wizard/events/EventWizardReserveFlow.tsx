@@ -21,7 +21,7 @@ import {
 } from '@/lib/wizardLogic';
 import { GLASSWARE_OPTIONS, formatGlasswareLabel } from '@/lib/glassware';
 import { GOOGLE_MAPS_API_KEY, PORTATIL_MIN_LITERS, MURO_MIN_LITERS } from '@/lib/config';
-import { validateShippingDate } from '@/lib/shippingMethods';
+import { formatOffsetShortLabel, validateShippingDate } from '@/lib/shippingMethods';
 import { countPortableKegs } from '@/lib/eventCapacity';
 import { AddressAutocomplete } from '@/components/ui/AddressAutocomplete';
 import RegionComunaFields from '@/components/ui/RegionComunaFields';
@@ -196,7 +196,7 @@ export default function EventWizardReserveFlow({
         if (!state.eventData.date.trim()) {
             nextErrors.eventDate = 'Selecciona la fecha de tu evento.';
         } else {
-            const dateErr = validateShippingDate(state.eventData.date, eventMethodConfig, 5);
+            const dateErr = validateShippingDate(state.eventData.date, eventMethodConfig, 2);
             if (dateErr) nextErrors.eventDate = dateErr;
         }
         if (!state.eventData.startTime.trim()) {
@@ -569,7 +569,7 @@ export default function EventWizardReserveFlow({
                                         }
                                     }}
                                     methodConfig={eventMethodConfig}
-                                    fallbackOffsetDays={5}
+                                    fallbackOffsetDays={2}
                                     availabilityContext={{
                                         dispenser: state.dispenser === 'muro' ? 'muro' : 'portatil',
                                         portableKegCount: countPortableKegs(state.selections),
@@ -577,8 +577,8 @@ export default function EventWizardReserveFlow({
                                     helperText={
                                         errors.eventDate
                                             ? undefined
-                                            : eventMethodConfig?.minOffsetDays
-                                              ? `Mín. ${eventMethodConfig.minOffsetDays} días de anticipación.`
+                                            : eventMethodConfig && eventMethodConfig.minOffsetDays > 0
+                                              ? `Mín. ${formatOffsetShortLabel(eventMethodConfig, 2, 'calendar')} de anticipación.`
                                               : undefined
                                     }
                                 />

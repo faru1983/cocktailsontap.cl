@@ -303,21 +303,6 @@ export function DashboardClient({
                 </Panel>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
-                <Panel title={`Eventos · ${monthLabel}`} accent="event" scroll bodyClassName="p-0">
-                    <QuoteTable items={upcomingEvents} empty="Sin eventos próximos este mes." dateClassName="text-chart-event" />
-                </Panel>
-                <Panel title={`Ventas directas · ${monthLabel}`} accent="direct" scroll bodyClassName="p-0">
-                    <QuoteTable items={upcomingDirectSales} empty="Sin entregas de barriles desechables este mes." dateClassName="text-chart-direct" />
-                </Panel>
-                <Panel title={`Eventos · ${nextMonthLabel}`} accent="profit" scroll bodyClassName="p-0">
-                    <QuoteTable items={nextMonthEvents} empty={`Sin reservas aún para ${nextMonthLabel}.`} dateClassName="text-chart-profit" />
-                </Panel>
-                <Panel title={`Ventas directas · ${nextMonthLabel}`} accent="direct" scroll bodyClassName="p-0">
-                    <QuoteTable items={nextMonthDirectSales} empty={`Sin ventas directas aún para ${nextMonthLabel}.`} dateClassName="text-orange-400" />
-                </Panel>
-            </div>
-
             <Panel
                 title={`Capacidad diaria · Tope ${capacityConfig.portableDispensers} Portátiles / ${capacityConfig.muroDispensers} Muro`}
                 accent="event"
@@ -395,6 +380,21 @@ export function DashboardClient({
                     </div>
                 )}
             </Panel>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
+                <Panel title={`Eventos · ${monthLabel}`} accent="event" scroll bodyClassName="p-0">
+                    <QuoteTable items={upcomingEvents} empty="Sin eventos próximos este mes." dateClassName="text-chart-event" />
+                </Panel>
+                <Panel title={`Ventas directas · ${monthLabel}`} accent="direct" scroll bodyClassName="p-0">
+                    <QuoteTable items={upcomingDirectSales} empty="Sin entregas de barriles desechables este mes." dateClassName="text-chart-direct" />
+                </Panel>
+                <Panel title={`Eventos · ${nextMonthLabel}`} accent="profit" scroll bodyClassName="p-0">
+                    <QuoteTable items={nextMonthEvents} empty={`Sin reservas aún para ${nextMonthLabel}.`} dateClassName="text-chart-profit" />
+                </Panel>
+                <Panel title={`Ventas directas · ${nextMonthLabel}`} accent="direct" scroll bodyClassName="p-0">
+                    <QuoteTable items={nextMonthDirectSales} empty={`Sin ventas directas aún para ${nextMonthLabel}.`} dateClassName="text-orange-400" />
+                </Panel>
+            </div>
 
             <Panel title="Últimas cotizaciones" accent="neutral" bodyClassName="divide-y divide-admin-border">
                 {recentQuotes.length === 0 ? (

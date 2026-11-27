@@ -20,6 +20,16 @@ import { createQuoteCore } from '@/lib/services/createQuoteCore';
 import { updateDraftQuoteCore } from '@/lib/services/updateDraftQuoteCore';
 import { buildEmptyDaySummary, evaluateCapacityForRequest } from '@/lib/eventCapacity';
 import { getEventOccupancyByDateRange } from '@/lib/services/eventCapacityService';
+import {
+    formatOffsetShortLabel,
+    getFirstAvailableDate,
+    getMinSelectableDate,
+    isDateBlocked,
+    isWeekdayAllowed,
+    resolveOffsetMode,
+    type ShippingMethodConfig,
+} from '@/lib/shippingMethods';
+import { formatDateYMD, getChileNoonDate } from '@/lib/businessDays';
 import { createServerClient } from '@/lib/supabaseServer';
 import { advanceClientStage } from '@/lib/services/clientLifecycleService';
 import {
@@ -45,6 +55,25 @@ export interface CocktailsMcpContext {
 
 const SERVER_NAME = 'cocktails-on-tap';
 const SERVER_VERSION = '1.0.0';
+
+function buildEventSchedulePolicy(eventConfig?: ShippingMethodConfig | null) {
+    const todayChile = formatDateYMD(getChileNoonDate());
+    const offsetMode = resolveOffsetMode(eventConfig, 'calendar');
+    const minOffsetDays = typeof eventConfig?.minOffsetDays === 'number' ? eventConfig.minOffsetDays : 2;
+    const minSelectableDate = getMinSelectableDate(eventConfig, 2);
+    const firstAvailableDate = getFirstAvailableDate(eventConfig, 2);
+    const upcomingBlockedDates = (eventConfig?.blockedDates ?? []).filter((d) => d >= todayChile).slice(0, 12);
+
+    return {
+        advanceLabel: formatOffsetShortLabel(eventConfig, 2, 'calendar'),
+        offsetMode,
+        minOffsetDays,
+        ...(eventConfig?.cutoffEnabled ? { cutoffTime: eventConfig.cutoffTime || '18:00' } : {}),
+        minSelectableDate,
+        firstAvailableDate,
+        upcomingBlockedDates,
+    };
+}
 
 function okResult<T extends Record<string, unknown>>(data: T) {
     return {
@@ -337,6 +366,11 @@ export function createCocktailsMcpServer(ctx: CocktailsMcpContext = {}): McpServ
                     }
                 }
 
+                const eventSchedulePolicy =
+                    serviceType !== 'direct'
+                        ? buildEventSchedulePolicy(catalog.shippingMethodsConfig.own_events)
+                        : undefined;
+
                 const payload: Record<string, unknown> = {
                     ...(!searchFilter
                         ? {
@@ -347,6 +381,7 @@ export function createCocktailsMcpServer(ctx: CocktailsMcpContext = {}): McpServ
                                   muroMinLiters: MURO_MIN_LITERS,
                                   muroSizes: [20, 30],
                                   muroInstallationCostClp: MURO_INSTALLATION_COST,
+                                  ...(eventSchedulePolicy ? { eventSchedulePolicy } : {}),
                               },
                           }
                         : {}),
@@ -1086,7 +1121,7 @@ export function createCocktailsMcpServer(ctx: CocktailsMcpContext = {}): McpServ
         'check_event_availability',
         {
             description:
-                'Consulta la disponibilidad diaria de Dispensadores Portátiles (máx. 2 barriles 5L/10L por dispensador) y Muros de Coctelería para una fecha o rango corto de fechas. Úsala antes de confirmar disponibilidad de fecha al cliente.',
+                'Consulta disponibilidad real de fechas para eventos: fechas bloqueadas manualmente, días operativos, anticipación mínima/hora de corte configurada y cupo diario de Dispensadores Portátiles (máx. 2 barriles 5L/10L por dispensador) y Muros de Coctelería. Úsala siempre que el cliente indique una fecha concreta o antes de emitir la cotización.',
             inputSchema: {
                 date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Usa formato YYYY-MM-DD').describe('Fecha del evento (YYYY-MM-DD)'),
                 endDate: z
@@ -1113,7 +1148,12 @@ export function createCocktailsMcpServer(ctx: CocktailsMcpContext = {}): McpServ
                     return errorResult('El rango máximo de consulta es de 14 días.');
                 }
 
-                const { config, days } = await getEventOccupancyByDateRange(startDate, endDate);
+                const [{ config, days }, catalog] = await Promise.all([
+                    getEventOccupancyByDateRange(startDate, endDate),
+                    fetchAllProductData(),
+                ]);
+                const eventConfig = catalog.shippingMethodsConfig.own_events;
+                const schedulePolicy = buildEventSchedulePolicy(eventConfig);
                 const kegsToEvaluate = args.kegCount ?? 1;
                 const results = [];
 
@@ -1122,20 +1162,52 @@ export function createCocktailsMcpServer(ctx: CocktailsMcpContext = {}): McpServ
                     const dateKey = d.toISOString().slice(0, 10);
                     const summary = days[dateKey] || buildEmptyDaySummary(dateKey, config);
                     const evaluation = evaluateCapacityForRequest(summary, args.dispenser, kegsToEvaluate);
+                    const blocked = isDateBlocked(dateKey, eventConfig);
+                    const weekdayAllowed = isWeekdayAllowed(dateKey, eventConfig);
+                    const shortNotice = dateKey < schedulePolicy.minSelectableDate;
+
+                    let status: string;
+                    let available: boolean;
+                    let note: string | undefined;
+                    let requiresHumanApproval = false;
+
+                    if (blocked) {
+                        available = false;
+                        status = 'Fecha bloqueada';
+                        note = 'Fecha bloqueada manualmente en agenda (sin disponibilidad para eventos).';
+                    } else if (!weekdayAllowed) {
+                        available = false;
+                        status = 'Día no operativo';
+                        note = 'No operamos eventos ese día de la semana.';
+                    } else if (!evaluation.available) {
+                        available = false;
+                        status =
+                            args.dispenser === 'muro'
+                                ? 'Todo reservado'
+                                : summary.portableAvailable === 0
+                                  ? 'Todo reservado'
+                                  : 'Cupo insuficiente';
+                        note = evaluation.reason;
+                    } else if (shortNotice) {
+                        available = false;
+                        requiresHumanApproval = true;
+                        status = 'Fuera de plazo mínimo (requiere revisión humana)';
+                        note =
+                            schedulePolicy.minOffsetDays > 0
+                                ? `Requiere al menos ${schedulePolicy.advanceLabel} de anticipación (primera fecha normal: ${schedulePolicy.firstAvailableDate}). Se puede emitir cotización sujeta a disponibilidad y derivar a humano.`
+                                : `Fecha fuera de ventana disponible (primera fecha normal: ${schedulePolicy.firstAvailableDate}). Requiere revisión humana.`;
+                    } else {
+                        available = true;
+                        status = 'Disponible';
+                    }
 
                     results.push({
                         date: dateKey,
-                        available: evaluation.available,
-                        status:
-                            args.dispenser === 'muro'
-                                ? summary.muroAvailable > 0
-                                    ? 'Disponible'
-                                    : 'Todo reservado'
-                                : summary.portableAvailable === 0
-                                  ? 'Todo reservado'
-                                  : evaluation.available
-                                    ? 'Disponible'
-                                    : 'Cupo insuficiente',
+                        available,
+                        status,
+                        ...(blocked ? { isBlockedDate: true } : {}),
+                        ...(shortNotice ? { isShortNotice: true } : {}),
+                        ...(requiresHumanApproval ? { requiresHumanApproval: true } : {}),
                         portableUsed: summary.portableUsed,
                         portableTotal: summary.portableTotal,
                         portableAvailable: summary.portableAvailable,
@@ -1143,13 +1215,14 @@ export function createCocktailsMcpServer(ctx: CocktailsMcpContext = {}): McpServ
                         muroUsed: summary.muroUsed,
                         muroTotal: summary.muroTotal,
                         muroAvailable: summary.muroAvailable,
-                        ...(evaluation.reason ? { note: evaluation.reason } : {}),
+                        ...(note ? { note } : {}),
                     });
                 }
 
                 return okResult({
                     dispenser: args.dispenser,
                     ...(args.kegCount ? { requestedKegs: args.kegCount } : {}),
+                    schedulePolicy,
                     capacityConfig: config,
                     days: results,
                 });

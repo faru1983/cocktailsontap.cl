@@ -158,7 +158,7 @@ export async function createQuoteCore(input: CreateQuoteInput): Promise<CreateQu
                 }
             } else if (state.serviceType === 'event' && (wantsConfirmNow || source !== 'whatsapp')) {
                 const eventConfig = comunas[0]?.shippingMethodsConfig?.own_events;
-                const dateErr = validateShippingDate(state.eventData.date, eventConfig, 5);
+                const dateErr = validateShippingDate(state.eventData.date, eventConfig, 2);
                 if (!dateErr && wantsConfirmNow && !isAdmin) {
                     const portableKegs = countPortableKegs(state.selections);
                     const availability = await checkEventDateAvailability({

@@ -62,7 +62,7 @@ import {
     MURO_MIN_LITERS,
     GOOGLE_MAPS_API_KEY,
 } from '@/lib/config';
-import { validateShippingDate } from '@/lib/shippingMethods';
+import { formatOffsetShortLabel, validateShippingDate } from '@/lib/shippingMethods';
 import { countPortableKegs } from '@/lib/eventCapacity';
 import { useDraftQuoteAutoSave } from '@/hooks/useDraftQuoteAutoSave';
 import { confirmQuote } from '@/app/actions/confirmQuote';
@@ -473,7 +473,7 @@ export default function EventReservationFlow({
         if (!eventDate.trim()) {
             nextErrors.eventDate = 'Selecciona la fecha de tu evento.';
         } else {
-            const dateErr = validateShippingDate(eventDate, eventMethodConfig, 5);
+            const dateErr = validateShippingDate(eventDate, eventMethodConfig, 2);
             if (dateErr) nextErrors.eventDate = dateErr;
         }
         if (!startTime.trim()) {
@@ -1071,7 +1071,7 @@ export default function EventReservationFlow({
                                         }
                                     }}
                                     methodConfig={eventMethodConfig}
-                                    fallbackOffsetDays={5}
+                                    fallbackOffsetDays={2}
                                     availabilityContext={{
                                         dispenser,
                                         portableKegCount: countPortableKegs(items),
@@ -1080,8 +1080,8 @@ export default function EventReservationFlow({
                                     helperText={
                                         errors.eventDate
                                             ? undefined
-                                            : eventMethodConfig?.minOffsetDays
-                                              ? `Mín. ${eventMethodConfig.minOffsetDays} días de anticipación.`
+                                            : eventMethodConfig && eventMethodConfig.minOffsetDays > 0
+                                              ? `Mín. ${formatOffsetShortLabel(eventMethodConfig, 2, 'calendar')} de anticipación.`
                                               : undefined
                                     }
                                 />

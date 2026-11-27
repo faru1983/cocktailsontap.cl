@@ -1,21 +1,33 @@
 // ==============================================================================
 // OBJETIVO: Configuración unificada de métodos de envío para tienda virtual
-// Soporta Transporte Propio (Directo y Eventos), Blue Express y Couriers personalizados.
-// Maneja días hábiles, anticipación (lead time), fechas bloqueadas (blackout) y envío gratis.
+// Soporta Transporte Propio (Directo y Eventos) y Blue Express.
+// Maneja días hábiles o corridos, anticipación (lead time), hora de corte,
+// fechas bloqueadas (blackout) y envío gratis.
 // ==============================================================================
 
-import { addBusinessDays, formatDateYMD, getProductionReadyDate } from './businessDays';
+import {
+    calculateOffsetReadyDate,
+    findNextAllowedDate,
+    formatDateYMD,
+    formatShortDateCL,
+    parseCutoffMinutes,
+    type OffsetDaysMode,
+} from './businessDays';
 
+export type { OffsetDaysMode };
 export type ServiceScope = 'direct' | 'event' | 'both';
 
 export interface ShippingMethodConfig {
-    id: string; // 'own_direct' | 'own_events' | 'blue_express' | custom
+    id: string; // 'own_direct' | 'own_events' | 'blue_express'
     name: string;
     description: string;
     serviceType: ServiceScope;
     isActive: boolean;
     availableWeekdays: number[]; // 0=Dom, 1=Lun, 2=Mar, 3=Mie, 4=Jue, 5=Vie, 6=Sab
-    minOffsetDays: number; // Días mínimos de anticipación (días hábiles de producción)
+    offsetMode: OffsetDaysMode; // 'business' (Lun–Vie) | 'calendar' (Lun–Dom)
+    minOffsetDays: number; // Cantidad de días mínimos de anticipación (desde 0)
+    cutoffEnabled?: boolean; // Si está activo, compras desde cutoffTime cuentan desde el día siguiente
+    cutoffTime?: string; // Formato 'HH:MM' en hora Chile (ej: '18:00')
     blockedDates: string[]; // Fechas bloqueadas en formato ISO 'YYYY-MM-DD'
     deliveryWindow?: string; // Ej: "Durante todo el día (09:00 a 20:00 hrs)"
     freeShippingEnabled?: boolean;
@@ -27,7 +39,8 @@ export interface ShippingMethodsSettings {
     own_direct: ShippingMethodConfig;
     own_events: ShippingMethodConfig;
     blue_express: ShippingMethodConfig;
-    custom_methods: ShippingMethodConfig[];
+    /** Conservado solo por retrocompatibilidad de lectura JSON; ya no se usa en la UI. */
+    custom_methods?: ShippingMethodConfig[];
 }
 
 export const SHIPPING_METHODS_SETTING_KEY = 'shipping_methods_config';
@@ -60,7 +73,10 @@ export const DEFAULT_SHIPPING_METHODS: ShippingMethodsSettings = {
         serviceType: 'direct',
         isActive: true,
         availableWeekdays: [1, 2, 3, 4, 5], // Lunes a Viernes
+        offsetMode: 'business',
         minOffsetDays: 2,
+        cutoffEnabled: false,
+        cutoffTime: '18:00',
         blockedDates: [],
         deliveryWindow: 'Durante todo el día (09:00 a 20:00 hrs)',
         freeShippingEnabled: false,
@@ -74,7 +90,10 @@ export const DEFAULT_SHIPPING_METHODS: ShippingMethodsSettings = {
         serviceType: 'event',
         isActive: true,
         availableWeekdays: [0, 1, 2, 3, 4, 5, 6], // Lunes a Domingo
-        minOffsetDays: 5,
+        offsetMode: 'calendar',
+        minOffsetDays: 2,
+        cutoffEnabled: false,
+        cutoffTime: '18:00',
         blockedDates: [],
         deliveryWindow: 'Coordinado según el horario de inicio y término del evento',
         freeShippingEnabled: true,
@@ -88,7 +107,10 @@ export const DEFAULT_SHIPPING_METHODS: ShippingMethodsSettings = {
         serviceType: 'direct',
         isActive: true,
         availableWeekdays: [1, 2, 3, 4, 5], // Lunes a Viernes
+        offsetMode: 'business',
         minOffsetDays: 2,
+        cutoffEnabled: false,
+        cutoffTime: '18:00',
         blockedDates: [],
         deliveryWindow: 'Entrega a domicilio coordinada por Blue Express tras el despacho',
         freeShippingEnabled: false,
@@ -117,6 +139,8 @@ export function parseShippingMethodsConfig(raw: unknown): ShippingMethodsSetting
 
     const sanitizeMethod = (source: any, fallback: ShippingMethodConfig): ShippingMethodConfig => {
         if (!source || typeof source !== 'object') return { ...fallback };
+        const rawCutoff = typeof source.cutoffTime === 'string' ? source.cutoffTime.trim() : '';
+        const validCutoff = parseCutoffMinutes(rawCutoff) !== null ? rawCutoff : (fallback.cutoffTime || '18:00');
         return {
             id: String(source.id || fallback.id),
             name: String(source.name || fallback.name),
@@ -128,9 +152,14 @@ export function parseShippingMethodsConfig(raw: unknown): ShippingMethodsSetting
             availableWeekdays: Array.isArray(source.availableWeekdays)
                 ? source.availableWeekdays.filter((d: any) => typeof d === 'number' && d >= 0 && d <= 6)
                 : fallback.availableWeekdays,
-            minOffsetDays: typeof source.minOffsetDays === 'number' && source.minOffsetDays >= 0
+            offsetMode: source.offsetMode === 'business' || source.offsetMode === 'calendar'
+                ? source.offsetMode
+                : fallback.offsetMode,
+            minOffsetDays: typeof source.minOffsetDays === 'number' && Number.isFinite(source.minOffsetDays) && source.minOffsetDays >= 0
                 ? Math.round(source.minOffsetDays)
                 : fallback.minOffsetDays,
+            cutoffEnabled: Boolean(source.cutoffEnabled),
+            cutoffTime: validCutoff,
             blockedDates: Array.isArray(source.blockedDates)
                 ? source.blockedDates.filter((d: any) => typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d)).sort()
                 : [],
@@ -145,42 +174,95 @@ export function parseShippingMethodsConfig(raw: unknown): ShippingMethodsSetting
         };
     };
 
-    const customMethods: ShippingMethodConfig[] = Array.isArray(parsed.custom_methods)
-        ? parsed.custom_methods.map((c: any) => ({
-            id: String(c.id || `custom_${Date.now()}`),
-            name: String(c.name || 'Courier Personalizado'),
-            description: String(c.description || ''),
-            serviceType: 'direct',
-            isActive: c.isActive !== false,
-            availableWeekdays: Array.isArray(c.availableWeekdays) ? c.availableWeekdays : [1, 2, 3, 4, 5],
-            minOffsetDays: typeof c.minOffsetDays === 'number' ? c.minOffsetDays : 1,
-            blockedDates: Array.isArray(c.blockedDates) ? c.blockedDates : [],
-            deliveryWindow: typeof c.deliveryWindow === 'string' ? c.deliveryWindow : 'Entrega durante el día',
-            freeShippingEnabled: Boolean(c.freeShippingEnabled),
-            freeShippingThresholdType: c.freeShippingThresholdType === 'liters' ? 'liters' : 'amount',
-            freeShippingThreshold: typeof c.freeShippingThreshold === 'number' ? c.freeShippingThreshold : 0,
-        }))
-        : [];
-
     return {
         own_direct: sanitizeMethod(parsed.own_direct, DEFAULT_SHIPPING_METHODS.own_direct),
         own_events: sanitizeMethod(parsed.own_events, DEFAULT_SHIPPING_METHODS.own_events),
         blue_express: sanitizeMethod(parsed.blue_express, DEFAULT_SHIPPING_METHODS.blue_express),
-        custom_methods: customMethods,
+        custom_methods: [],
     };
 }
 
 /**
- * Retorna la fecha mínima seleccionable para un método en formato 'YYYY-MM-DD' en hora Chile,
- * calculando sobre días hábiles de producción (Lunes a Viernes).
+ * Resuelve la modalidad efectiva ('business' | 'calendar') de un método.
  */
-export function getMinSelectableDate(methodConfig?: ShippingMethodConfig | null, fallbackOffsetDays = 2): string {
+export function resolveOffsetMode(
+    methodConfig?: ShippingMethodConfig | null,
+    fallbackMode: OffsetDaysMode = 'business'
+): OffsetDaysMode {
+    if (methodConfig?.offsetMode === 'calendar' || methodConfig?.offsetMode === 'business') {
+        return methodConfig.offsetMode;
+    }
+    if (methodConfig?.serviceType === 'event' || methodConfig?.id === 'own_events') {
+        return 'calendar';
+    }
+    return fallbackMode;
+}
+
+/**
+ * Formatea la unidad legible según cantidad y modalidad ('día hábil' / 'días hábiles' / 'día corrido' / 'días corridos').
+ */
+export function formatOffsetUnit(days: number, mode: OffsetDaysMode): string {
+    if (mode === 'calendar') {
+        return days === 1 ? 'día corrido' : 'días corridos';
+    }
+    return days === 1 ? 'día hábil' : 'días hábiles';
+}
+
+/**
+ * Texto corto para ayudas al cliente (ej: "2 días corridos" o "1 día hábil").
+ */
+export function formatOffsetShortLabel(
+    methodConfig?: ShippingMethodConfig | null,
+    fallbackOffsetDays = 2,
+    fallbackMode: OffsetDaysMode = 'business'
+): string {
     const offset = methodConfig && typeof methodConfig.minOffsetDays === 'number'
         ? methodConfig.minOffsetDays
         : fallbackOffsetDays;
+    const mode = resolveOffsetMode(methodConfig, fallbackMode);
+    return `${offset} ${formatOffsetUnit(offset, mode)}`;
+}
 
-    const minDateObj = getProductionReadyDate(new Date(), offset);
+/**
+ * Retorna la fecha mínima seleccionable para un método en formato 'YYYY-MM-DD' en hora Chile,
+ * respetando si cuenta en días hábiles o corridos y la hora de corte opcional.
+ */
+export function getMinSelectableDate(
+    methodConfig?: ShippingMethodConfig | null,
+    fallbackOffsetDays = 2,
+    now?: Date
+): string {
+    const offset = methodConfig && typeof methodConfig.minOffsetDays === 'number'
+        ? methodConfig.minOffsetDays
+        : fallbackOffsetDays;
+    const offsetMode = resolveOffsetMode(methodConfig);
+
+    const minDateObj = calculateOffsetReadyDate({
+        baseDate: now ?? null,
+        offsetDays: offset,
+        offsetMode,
+        cutoffEnabled: Boolean(methodConfig?.cutoffEnabled),
+        cutoffTime: methodConfig?.cutoffTime,
+    });
     return formatDateYMD(minDateObj);
+}
+
+/**
+ * Retorna la primera fecha efectivamente disponible considerando anticipación,
+ * hora de corte, días de la semana habilitados y fechas bloqueadas.
+ */
+export function getFirstAvailableDate(
+    methodConfig?: ShippingMethodConfig | null,
+    fallbackOffsetDays = 2,
+    now?: Date
+): string {
+    const minDate = getMinSelectableDate(methodConfig, fallbackOffsetDays, now);
+    const firstAllowed = findNextAllowedDate(
+        minDate,
+        methodConfig?.availableWeekdays,
+        methodConfig?.blockedDates
+    );
+    return formatDateYMD(firstAllowed);
 }
 
 /**
@@ -207,7 +289,7 @@ export function isDateBlocked(dateStr: string, methodConfig?: ShippingMethodConf
 }
 
 /**
- * Valida una fecha de despacho contra las reglas del método de envío.
+ * Valida una fecha de despacho/evento contra las reglas del método de envío.
  * Retorna null si es válida, o un mensaje de error legible para el cliente.
  */
 export function validateShippingDate(
@@ -221,19 +303,25 @@ export function validateShippingDate(
 
     const minDate = getMinSelectableDate(methodConfig, fallbackOffsetDays);
     if (dateStr < minDate) {
-        const offset = methodConfig?.minOffsetDays ?? fallbackOffsetDays;
-        return `La fecha debe considerar al menos ${offset} ${offset === 1 ? 'día hábil' : 'días hábiles'} de preparación.`;
+        const offset = methodConfig && typeof methodConfig.minOffsetDays === 'number'
+            ? methodConfig.minOffsetDays
+            : fallbackOffsetDays;
+        const mode = resolveOffsetMode(methodConfig);
+        if (offset <= 0) {
+            return `La fecha seleccionada ya no está disponible. Puedes agendar desde el ${formatShortDateCL(minDate)}.`;
+        }
+        return `La fecha debe considerar al menos ${offset} ${formatOffsetUnit(offset, mode)} de anticipación (disponible desde el ${formatShortDateCL(minDate)}).`;
     }
 
     if (methodConfig) {
         if (isDateBlocked(dateStr, methodConfig)) {
-            return 'Esta fecha no tiene disponibilidad de despacho. Por favor selecciona otra fecha disponible.';
+            return 'Esta fecha no tiene disponibilidad. Por favor selecciona otra fecha disponible.';
         }
 
         if (!isWeekdayAllowed(dateStr, methodConfig)) {
             const d = new Date(dateStr + 'T12:00:00');
             const dayName = Number.isNaN(d.getTime()) ? 'este día' : WEEKDAY_FULL_NAMES[d.getDay()] || 'este día';
-            return `No realizamos entregas los días ${dayName}. Por favor selecciona otro día hábil.`;
+            return `No realizamos entregas los días ${dayName}. Por favor selecciona otro día disponible.`;
         }
     }
 
