@@ -192,7 +192,7 @@ const SERVICE_TIMELINE = [
         step: '03',
         badge: 'Al día siguiente',
         title: 'Retiramos todo sin que tengas que lavar',
-        desc: 'Cuando termina la fiesta solo te preocupas de descansar. Al día siguiente pasamos a retirar los dispensadores, barriles vacíos, accesorios y cristalería reutilizable en el horario acordado.',
+        desc: 'Cuando termina la fiesta solo te preocupas de descansar. Al día siguiente pasamos a retirar los dispensadores, barriles vacíos, accesorios y vasos reutilizables (si los elegiste) en el horario acordado.',
         icon: Clock,
     },
 ];

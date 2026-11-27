@@ -13,10 +13,12 @@ interface Props {
     onChangeDispenser?: () => void;
     hasComuna?: boolean;
     pendingShippingLabel?: string;
+    defaultOpenMobile?: boolean;
+    title?: string;
 }
 
 /**
- * Carrito del checkout: accordion abierto por defecto en móvil (colapsable), listado completo en desktop.
+ * Carrito / resumen del checkout: accordion colapsable en móvil, listado completo en desktop.
  */
 export default function CheckoutCartSection({
     data,
@@ -26,8 +28,10 @@ export default function CheckoutCartSection({
     onChangeDispenser,
     hasComuna,
     pendingShippingLabel,
+    defaultOpenMobile = true,
+    title = 'Productos',
 }: Props) {
-    const [open, setOpen] = useState(true);
+    const [open, setOpen] = useState(defaultOpenMobile);
     const itemLabel = data.items.length === 1 ? 'ítem' : 'ítems';
 
     const listProps = {
@@ -39,6 +43,7 @@ export default function CheckoutCartSection({
         compact: true,
         hasComuna,
         pendingShippingLabel,
+        title,
     };
 
     return (
@@ -51,6 +56,7 @@ export default function CheckoutCartSection({
                     className="w-full flex items-center justify-between gap-3 bg-white rounded-2xl border border-brand-border px-4 py-3 text-left cursor-pointer"
                 >
                     <span className="font-extrabold text-brand-text text-sm">
+                        {title !== 'Productos' ? `${title} · ` : ''}
                         {data.items.length} {itemLabel}
                         <span className="text-brand-text-muted font-bold"> · </span>
                         <span className="text-primary">{formatCurrency(data.totalPrice)}</span>

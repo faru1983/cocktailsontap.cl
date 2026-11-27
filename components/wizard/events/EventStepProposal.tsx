@@ -37,10 +37,9 @@ interface Props {
 
 const INCLUYE_ITEMS = [
     { icon: Snowflake, label: 'Hielo para todo el evento', desc: 'Cantidad suficiente según tus litros' },
-    { icon: Leaf, label: 'Garnish y frutas deshidratadas', desc: 'Cítricos y botánicos de decoración' },
-    { icon: GlassWater, label: 'Vasos y copas premium', desc: 'Cristalería segura reutilizable' },
+    { icon: Leaf, label: 'Garnish', desc: 'Decoraciones deshidratadas' },
+    { icon: GlassWater, label: 'Vasos/Copas', desc: 'Reutilizable en préstamo o desechable' },
     { icon: Martini, label: 'Accesorios y herramientas', desc: 'Hieleras, pinzas y palas de bar' },
-    { icon: Infinity, label: '¡Sin límite de horas de arriendo!', desc: 'Instalamos antes y retiramos al día siguiente' },
 ];
 
 export default function EventStepProposal({
@@ -125,13 +124,13 @@ export default function EventStepProposal({
     return (
         <div className="max-w-4xl mx-auto flex flex-col items-center animate-fade-in py-4 sm:py-8">
             {/* Tag / Step badge */}
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-black uppercase tracking-wider mb-4">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-extrabold uppercase tracking-wider mb-3">
                 <Sparkles className="w-3.5 h-3.5" />
-                <span>Paso 3 de 4 · Tu Propuesta Sugerida</span>
+                <span>Paso 3 de 5 · Tu Propuesta Sugerida</span>
             </div>
 
             {/* Title & Subtitle */}
-            <h2 className="text-3xl sm:text-4xl md:text-5xl font-black text-brand-text tracking-tight mb-3 text-center">
+            <h2 className="text-3xl sm:text-4xl font-extrabold text-brand-text tracking-tight mb-2.5 text-center">
                 Tu Propuesta de Barra Sugerida
             </h2>
             <p className="text-brand-text-muted text-sm sm:text-base max-w-xl mx-auto mb-8 sm:mb-10 text-center leading-relaxed font-medium">
@@ -204,7 +203,7 @@ export default function EventStepProposal({
                     <div>
                         <div className="flex items-center gap-2">
                             <h3 className="text-lg sm:text-xl font-black text-brand-text">
-                                Insumos y Cristalería
+                                Insumos y Vasos
                             </h3>
                             <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-xs font-black">
                                 Incluidos ($0)
@@ -225,13 +224,11 @@ export default function EventStepProposal({
                     </button>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
                     {INCLUYE_ITEMS.map((item, idx) => (
                         <div
                             key={idx}
-                            className={`flex items-start gap-3 p-3.5 rounded-2xl bg-slate-50 border border-brand-border/70 ${
-                                idx === INCLUYE_ITEMS.length - 1 ? 'sm:col-span-2 lg:col-span-1' : ''
-                            }`}
+                            className="flex items-start gap-3 p-3.5 rounded-2xl bg-slate-50 border border-brand-border/70"
                         >
                             <div className="p-2 rounded-xl bg-primary/10 text-primary shrink-0 mt-0.5">
                                 <item.icon className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -429,8 +426,8 @@ export default function EventStepProposal({
                                 <div className="flex items-start gap-4 bg-slate-50 p-4 rounded-2xl border border-brand-border">
                                     <GlassWater className="w-6 h-6 text-primary shrink-0 mt-0.5" />
                                     <div>
-                                        <h4 className="font-bold text-brand-text text-sm mb-1">Vasos/Copas Premium</h4>
-                                        <p className="text-xs text-brand-text-muted">Vasos y/o copas reutilizables seguras y resistentes para tus invitados.</p>
+                                        <h4 className="font-bold text-brand-text text-sm mb-1">Vasos y Copas a Elección</h4>
+                                        <p className="text-xs text-brand-text-muted">Elige sin costo entre vasos PET desechables (360 ml) con nuestro logo o vasos (450 ml) y copas (480 ml, exclusivas para cócteles tipo Spritz) reutilizables en préstamo.</p>
                                     </div>
                                 </div>
                                 <div className="flex items-start gap-4 bg-slate-50 p-4 rounded-2xl border border-brand-border">

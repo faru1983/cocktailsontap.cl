@@ -78,10 +78,12 @@ function buildConfirmPayload(state: WizardState, token: string, items: QuoteItem
                 : state.eventData.pickupTime || EVENT_DEFAULT_NEXT_DAY_PICKUP_TIME,
         comments: state.contact.comments?.trim() || null,
         dispenser: state.dispenser as 'portatil' | 'muro' | 'desechable',
+        glassware_type: state.eventData.glasswareType || null,
         items: items.map((item) => ({
             product_id: item.product_id,
             size: item.size,
             quantity: item.quantity,
+            variant: item.variant ?? null,
         })),
     };
 }

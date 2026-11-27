@@ -8,7 +8,7 @@ import Footer from '@/components/shared/Footer';
 import MetaPixel from '@/components/shared/MetaPixel';
 import { SITE_URL, LOGO_URL, WHATSAPP_NUMBER } from '@/lib/config';
 
-const outfit = Outfit({ subsets: ['latin'], weight: ['300', '400', '600', '700', '800'], variable: '--font-outfit' });
+const outfit = Outfit({ subsets: ['latin'], weight: ['300', '400', '500', '600', '700', '800', '900'], variable: '--font-outfit' });
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),

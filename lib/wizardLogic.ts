@@ -1,6 +1,7 @@
 ﻿import type { CocktailForWizard, Comuna, WizardState, WizardSelection, Quote, QuoteItem } from './types';
 import { formatCurrency } from './utils';
 import { formatQuoteAddress } from './geo';
+import { formatGlasswareLabel } from './glassware';
 import { SITE_URL, WHATSAPP_URL, MURO_INSTALLATION_COST, MURO_COMPATIBLE_SIZES, MURO_MIN_LITERS, PORTATIL_COMPATIBLE_SIZES, PORTATIL_MIN_LITERS, PROJECT_TIMEZONE, COCKTAILS_PER_LITER } from './config';
 import {
     barrelsFromLiters,
@@ -717,6 +718,9 @@ export function buildWhatsAppMessage(state: WizardState, data: SummaryData, toke
         if (data.dispenserLabel) {
             detailLines.push(`🍸 Formato: ${data.dispenserLabel}`);
         }
+        if (state.eventData.glasswareType) {
+            detailLines.push(`🥂 Vasos: ${formatGlasswareLabel(state.eventData.glasswareType)}`);
+        }
     }
 
     if (detailLines.length > 0) {
@@ -836,6 +840,9 @@ export function buildWhatsAppMessageFromQuote(quote: Quote & { quote_items: Quot
         const dispenserLabel = quote.dispenser === 'muro' ? 'Muro de Coctelería' : quote.dispenser === 'desechable' ? 'Barril Desechable' : 'Dispensador Portátil';
         if (dispenserLabel) {
             detailLines.push(`🍸 Formato: ${dispenserLabel}`);
+        }
+        if (quote.glassware_type) {
+            detailLines.push(`🥂 Vasos: ${formatGlasswareLabel(quote.glassware_type)}`);
         }
     }
 

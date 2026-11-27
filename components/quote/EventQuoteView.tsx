@@ -3,25 +3,69 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { formatCurrency, copyToClipboard, evaluateGoogleEventAddress, normalizeEmail, normalizePersonName } from '@/lib/utils';
-import { AddressAutocomplete } from '@/components/ui/AddressAutocomplete';
-import { isValidPhoneE164, normalizePhoneE164 } from '@/lib/phone';
+import {
+    formatCurrency,
+    copyToClipboard,
+    normalizeEmail,
+    normalizePersonName,
+} from '@/lib/utils';
+import { formatPhoneDisplay, normalizePhoneE164 } from '@/lib/phone';
 import PhoneInput from '@/components/ui/PhoneInput';
-import { formatEventDate, calculateMaxPickupDate, isAllowedEventPickupDate, EVENT_DEFAULT_NEXT_DAY_PICKUP_TIME, resolveShipping, isEventBarrelSizeLabelCompatible, getSizeLiters } from '@/lib/wizardLogic';
-import { confirmQuote } from '@/app/actions/confirmQuote';
-import { MURO_INSTALLATION_COST, PORTATIL_MIN_LITERS, MURO_MIN_LITERS, MURO_COMPATIBLE_SIZES } from '@/lib/config';
-import { validateShippingDate } from '@/lib/shippingMethods';
+import {
+    formatEventDate,
+    resolveShipping,
+    isEventBarrelSizeLabelCompatible,
+    getSizeLiters,
+} from '@/lib/wizardLogic';
+import { formatGlasswareLabel } from '@/lib/glassware';
+import {
+    MURO_INSTALLATION_COST,
+    PORTATIL_MIN_LITERS,
+    MURO_MIN_LITERS,
+    MURO_COMPATIBLE_SIZES,
+    WHATSAPP_URL,
+} from '@/lib/config';
 import { countPortableKegs } from '@/lib/eventCapacity';
 import { useDraftQuoteAutoSave } from '@/hooks/useDraftQuoteAutoSave';
 import DraftSaveBadge from '@/components/quote/DraftSaveBadge';
 import {
-    CheckCircle, Clock, XCircle, AlertCircle, ShoppingCart,
-    Calendar, Users, MapPin, User, Mail, Phone, MessageSquare, Loader2, Lock,
-    Plus, Search, ChevronRight, Tag, Info, Copy, ExternalLink, CreditCard, FileText, ArrowRight
+    CheckCircle,
+    Clock,
+    XCircle,
+    AlertCircle,
+    Calendar,
+    Users,
+    MapPin,
+    User,
+    Mail,
+    Phone,
+    Lock,
+    Search,
+    ChevronRight,
+    Tag,
+    Info,
+    Copy,
+    ExternalLink,
+    ArrowRight,
+    Edit3,
+    Snowflake,
+    Leaf,
+    GlassWater,
+    Martini,
+    Loader2,
 } from 'lucide-react';
 import * as fp from '@/lib/fpixel';
-import { getClientMetaAttribution } from '@/lib/attribution';
-import type { Quote, QuoteItem, Comuna, Region, CocktailForWizard, EventType, Product, ICart, UpdateDraftQuoteInput } from '@/lib/types';
+import type {
+    Quote,
+    QuoteItem,
+    Comuna,
+    Region,
+    CocktailForWizard,
+    EventType,
+    Product,
+    ICart,
+    UpdateDraftQuoteInput,
+} from '@/lib/types';
 import { DEFAULT_REGION_CODE } from '@/lib/types';
 import ProductCatalog from '@/components/catalog/ProductCatalog';
 import QuoteSummaryProducts, { QuoteSummaryData } from '@/components/quote/QuoteSummaryProducts';
@@ -30,7 +74,6 @@ import BankTransferCard from '@/components/quote/BankTransferCard';
 import RegionComunaFields from '@/components/ui/RegionComunaFields';
 import ShippingDatePicker from '@/components/ui/ShippingDatePicker';
 import { formatQuoteAddress } from '@/lib/geo';
-import { WHATSAPP_URL } from '@/lib/config';
 import { WhatsappIcon } from '@/components/shared/icons';
 import { STATUS_CONFIG } from './quoteStatusConfig';
 import { sumQuotePayments } from '@/lib/directSaleFulfillment';
@@ -45,22 +88,39 @@ interface Props {
     isNew?: boolean;
 }
 
-export default function EventQuoteView({ quote, comunas, regions, availableCocktails, categories, eventTypes, isNew }: Props) {
+export default function EventQuoteView({
+    quote,
+    comunas,
+    regions,
+    availableCocktails,
+    categories,
+    eventTypes,
+    isNew,
+}: Props) {
     const router = useRouter();
     const searchParams = useSearchParams();
-    const isConfirmedParam = searchParams.get('confirmed') === 'true' || searchParams.get('confirmed') === '1';
+    const isConfirmedParam =
+        searchParams.get('confirmed') === 'true' || searchParams.get('confirmed') === '1';
 
-    const [showConfirmModal, setShowConfirmModal] = useState(false);
     const [showSuccessScreen, setShowSuccessScreen] = useState(isConfirmedParam);
     const [showCatalog, setShowCatalog] = useState(false);
+    const [editingDetails, setEditingDetails] = useState(false);
+    const [goingToReserve, setGoingToReserve] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
-    const [selectedCategory, setSelectedCategory] = useState(() => categories.filter(c => c !== 'Otros')[0] || 'Todos');
+    const [selectedCategory, setSelectedCategory] = useState(
+        () => categories.filter((c) => c !== 'Otros')[0] || 'Todos'
+    );
+    const [copiedLink, setCopiedLink] = useState(false);
 
     const initialRegionCode = (() => {
         if (quote.region_name) {
-            const byName = regions.find((r) => r.name === quote.region_name || r.shortName === quote.region_name);
+            const byName = regions.find(
+                (r) => r.name === quote.region_name || r.shortName === quote.region_name
+            );
             if (byName) return byName.code;
-            const byComuna = comunas.find((c) => c.name === quote.comuna_name && c.regionName === quote.region_name);
+            const byComuna = comunas.find(
+                (c) => c.name === quote.comuna_name && c.regionName === quote.region_name
+            );
             if (byComuna) return byComuna.regionCode;
         }
         const match = comunas.find((c) => c.name === quote.comuna_name);
@@ -68,28 +128,29 @@ export default function EventQuoteView({ quote, comunas, regions, availableCockt
     })();
 
     const [regionCode, setRegionCode] = useState(initialRegionCode);
-    const eventCategories = useMemo(() => categories.filter(c => c !== 'Otros'), [categories]);
+    const eventCategories = useMemo(
+        () => categories.filter((c) => c !== 'Otros'),
+        [categories]
+    );
 
-    // State para datos editables
+    // State editable en borrador
     const [firstName, setFirstName] = useState(quote.client_name ?? '');
     const [lastName, setLastName] = useState(quote.client_lastname ?? '');
     const [email, setEmail] = useState(quote.client_email ?? '');
     const [phone, setPhone] = useState(() => normalizePhoneE164(quote.client_phone ?? '') ?? '');
-    const [address, setAddress] = useState(quote.client_address ?? '');
     const [eventDate, setEventDate] = useState(quote.event_date ?? '');
-    const [startTime, setStartTime] = useState(quote.start_time ?? '');
-    const [pickupDate, setPickupDate] = useState(quote.pickup_date ?? '');
-    const [pickupTime, setPickupTime] = useState(quote.pickup_time ?? '');
-    const [comments, setComments] = useState(quote.comments ?? '');
     const [comuna, setComuna] = useState(quote.comuna_name ?? '');
     const [comunaOther, setComunaOther] = useState(quote.comuna_other ?? '');
     const [guests, setGuests] = useState(quote.guests);
-    const [eventType, setEventType] = useState(quote.event_type_id ?? (quote.event_type_other ? 'Otro' : ''));
+    const [eventType, setEventType] = useState(
+        quote.event_type_id ?? (quote.event_type_other ? 'Otro' : '')
+    );
     const [otherType, setOtherType] = useState(quote.event_type_other ?? '');
     const [items, setItems] = useState<QuoteItem[]>(quote.quote_items);
-    const [dispenser, setDispenser] = useState<'portatil' | 'muro'>((quote.dispenser as string) === 'muro' ? 'muro' : 'portatil');
+    const [dispenser, setDispenser] = useState<'portatil' | 'muro'>(
+        (quote.dispenser as string) === 'muro' ? 'muro' : 'portatil'
+    );
 
-    // Metadatos del último estado persistido en servidor (para alinear envío/override con el backend)
     const [savedMeta, setSavedMeta] = useState({
         comuna_name: quote.comuna_name ?? '',
         region_code: initialRegionCode,
@@ -99,16 +160,9 @@ export default function EventQuoteView({ quote, comunas, regions, availableCockt
         total_offer_price: quote.total_offer_price ?? 0,
     });
 
-    const [isConfirming, setIsConfirming] = useState(false);
-    const [confirmError, setConfirmError] = useState('');
-    const [outOfRmError, setOutOfRmError] = useState<string | null>(null);
-    const [lastValidAddress, setLastValidAddress] = useState(quote.client_address ?? '');
-    const [confirmed, setConfirmed] = useState(quote.status === 'confirmed');
-    const [acceptedTerms, setAcceptedTerms] = useState(false);
-    const [validationErrors, setValidationErrors] = useState<Record<string, boolean>>({});
     const [clientUrl, setClientUrl] = useState('');
 
-    const isDraft = quote.status === 'draft' && !confirmed;
+    const isDraft = quote.status === 'draft';
     const isAdminQuote = quote.source === 'admin';
 
     const currentRegionShortName = useMemo(
@@ -123,7 +177,6 @@ export default function EventQuoteView({ quote, comunas, regions, availableCockt
             client_lastname: lastName,
             client_email: email,
             client_phone: phone,
-            client_address: outOfRmError ? lastValidAddress : address,
             region_name: currentRegionShortName,
             comuna_name: comuna,
             comuna_other: comunaOther,
@@ -131,10 +184,6 @@ export default function EventQuoteView({ quote, comunas, regions, availableCockt
             event_type_id: eventType || null,
             event_type_other: otherType,
             event_date: eventDate,
-            start_time: startTime,
-            pickup_date: pickupDate,
-            pickup_time: pickupTime,
-            comments,
             dispenser,
             items: items
                 .filter((i) => i.quantity > 0)
@@ -152,9 +201,6 @@ export default function EventQuoteView({ quote, comunas, regions, availableCockt
             lastName,
             email,
             phone,
-            address,
-            outOfRmError,
-            lastValidAddress,
             currentRegionShortName,
             comuna,
             comunaOther,
@@ -162,10 +208,6 @@ export default function EventQuoteView({ quote, comunas, regions, availableCockt
             eventType,
             otherType,
             eventDate,
-            startTime,
-            pickupDate,
-            pickupTime,
-            comments,
             dispenser,
             items,
         ]
@@ -179,7 +221,9 @@ export default function EventQuoteView({ quote, comunas, regions, availableCockt
             if (res.quote) {
                 const nextRegCode =
                     regions.find(
-                        (r) => r.shortName === res.quote?.region_name || r.name === res.quote?.region_name
+                        (r) =>
+                            r.shortName === res.quote?.region_name ||
+                            r.name === res.quote?.region_name
                     )?.code || regionCode;
                 setSavedMeta({
                     comuna_name: res.quote.comuna_name ?? '',
@@ -208,34 +252,23 @@ export default function EventQuoteView({ quote, comunas, regions, availableCockt
     const statusCfg = STATUS_CONFIG[quote.status] ?? STATUS_CONFIG.draft;
     const StatusIcon = statusCfg.icon;
 
-    // Bloquear scroll cuando hay modal abierto
-    useEffect(() => {
-        if (showCatalog || showConfirmModal) {
-            document.body.style.overflow = 'hidden';
-        } else {
-            document.body.style.overflow = 'unset';
-        }
-        return () => { document.body.style.overflow = 'unset'; };
-    }, [showCatalog, showConfirmModal]);
-
     useEffect(() => {
         if (typeof window !== 'undefined') {
             setClientUrl(`${window.location.origin}${window.location.pathname}`);
         }
     }, [quote.token]);
 
-    // Sync success screen state when navigating back/forward
     useEffect(() => {
         setShowSuccessScreen(isConfirmedParam);
     }, [isConfirmedParam]);
 
-    // Lógica de Muro de Coctelería (Regla oficial: >= MURO_MIN_LITERS y solo formatos MURO_COMPATIBLE_SIZES)
+    // Elegibilidad de Muro
     const muroEligibility = useMemo(() => {
         let liters = 0;
         let hasIncompatible = false;
 
-        items.forEach(item => {
-            const cocktail = availableCocktails.find(c => c.id === item.product_id);
+        items.forEach((item) => {
+            const cocktail = availableCocktails.find((c) => c.id === item.product_id);
             const priceData = cocktail?.prices[item.size];
 
             if (priceData && priceData.unit === 'L') {
@@ -260,29 +293,24 @@ export default function EventQuoteView({ quote, comunas, regions, availableCockt
 
     const canHaveMuro = muroEligibility.canHaveMuro;
 
-    // ─── Cálculos dinámicos ──────────────────────────────────────────────────
-
     const calculateTotals = () => {
         let totalNormal = 0;
         let totalOffer = 0;
         let totalLiters = 0;
 
-        items.forEach(item => {
+        items.forEach((item) => {
             totalNormal += item.price_at_time * item.quantity;
             totalOffer += item.offer_price_at_time * item.quantity;
 
-            // Buscar el cocktail y el precio estructurado para obtener la unidad real
-            const cocktail = availableCocktails.find(c => c.id === item.product_id);
+            const cocktail = availableCocktails.find((c) => c.id === item.product_id);
             const priceData = cocktail?.prices[item.size];
 
             if (priceData && priceData.unit === 'L' && cocktail?.category !== 'Otros') {
                 totalLiters += priceData.sizeValue * item.quantity;
             } else if (!priceData) {
                 if (!item.product_id) {
-                    // Ítems personalizados: solo suman volumen si su formato/tamaño especifica litros explícitamente (ej: "20L")
                     totalLiters += getSizeLiters(item.size) * item.quantity;
                 } else {
-                    // Fallback si el producto ya no está en catálogo o es antiguo
                     const sizeStr = (item.size || '').toLowerCase();
                     if (!sizeStr.match(/kg|und|un|g\b/i) && cocktail?.category !== 'Otros') {
                         if (item.size_value && sizeStr.includes('l')) {
@@ -295,7 +323,6 @@ export default function EventQuoteView({ quote, comunas, regions, availableCockt
             }
         });
 
-        // Recalcular envío dinámicamente (región + override comuna + subtotal/litros)
         const resolved = resolveShipping({
             serviceType: 'event',
             regionCode,
@@ -305,7 +332,8 @@ export default function EventQuoteView({ quote, comunas, regions, availableCockt
             subtotal: totalOffer,
         });
 
-        const locationChanged = comuna !== savedMeta.comuna_name || regionCode !== savedMeta.region_code;
+        const locationChanged =
+            comuna !== savedMeta.comuna_name || regionCode !== savedMeta.region_code;
         const itemsMetricsChanged =
             totalLiters !== savedMeta.total_liters || totalOffer !== savedMeta.total_offer_price;
 
@@ -321,7 +349,7 @@ export default function EventQuoteView({ quote, comunas, regions, availableCockt
                 comuna === 'Otra' && shipping === 0
                     ? 'Pendiente de factibilidad'
                     : shipping === 0
-                      ? (savedMeta.shipping_label ?? '¡Gratis!')
+                      ? savedMeta.shipping_label ?? '¡Gratis!'
                       : formatCurrency(shipping);
         } else {
             shipping = resolved.isPending ? 0 : resolved.shippingCost;
@@ -331,7 +359,10 @@ export default function EventQuoteView({ quote, comunas, regions, availableCockt
         const installationCost = dispenser === 'muro' ? MURO_INSTALLATION_COST : 0;
         const totalFinal = Math.max(
             0,
-            totalOffer + shipping + (isDraft ? installationCost : quote.installation_cost) - (quote.manual_discount || 0)
+            totalOffer +
+                shipping +
+                (isDraft ? installationCost : quote.installation_cost) -
+                (quote.manual_discount || 0)
         );
         const totalDiscount = totalNormal - totalOffer;
         const totalCocktails = totalLiters * 5;
@@ -350,143 +381,71 @@ export default function EventQuoteView({ quote, comunas, regions, availableCockt
         };
     };
 
-    // Auto-ajuste de dispensador: solo bajar a portátil si hay barriles incompatibles con Muro (5L/10L)
     useEffect(() => {
         if (isDraft && muroEligibility.hasIncompatible && dispenser === 'muro') {
             setDispenser('portatil');
         }
     }, [muroEligibility.hasIncompatible, dispenser, isDraft]);
 
-    // ─── Meta Pixel: Lead al crear cotización (o Purchase si se confirmó al crear) ─
+    // Meta Pixel: Lead al crear cotización (o Purchase si se confirmó al crear)
     useEffect(() => {
         if (isNew) {
-            const totals = calculateTotals();
-            const contents = items.map(item => ({
+            const totalsNow = calculateTotals();
+            const contents = items.map((item) => ({
                 id: item.product_id || `${item.product_name}::${item.size}`,
                 item_price: item.offer_price_at_time,
-                quantity: item.quantity
+                quantity: item.quantity,
             }));
             const isConfirmedOnCreate = quote.status === 'confirmed';
             fp.trackOnce(
                 isConfirmedOnCreate ? `purchase_${quote.token}` : `lead_${quote.token}`,
                 isConfirmedOnCreate ? 'Purchase' : 'Lead',
                 {
-                    content_name: isConfirmedOnCreate ? 'Reserva Eventos Confirmada' : 'Cotización Eventos',
+                    content_name: isConfirmedOnCreate
+                        ? 'Reserva Eventos Confirmada'
+                        : 'Cotización Eventos',
                     ...fp.metaLineParams('event', fp.META_SERVICE_EVENTOS),
-                    value: totals.totalFinal,
+                    value: totalsNow.totalFinal,
                     currency: 'CLP',
                     contents,
-                    content_ids: contents.map(c => c.id),
+                    content_ids: contents.map((c) => c.id),
                     num_items: contents.reduce((sum, c) => sum + c.quantity, 0),
                     content_type: 'product',
-                    order_id: quote.token
+                    order_id: quote.token,
                 },
                 fp.quotePixelUserData(quote, {
                     em: email || undefined,
                     ph: phone || undefined,
                     fn: firstName || undefined,
                     ln: lastName || undefined,
-                    ct: comuna && comuna !== 'Otra' ? comuna : (comunaOther || undefined),
+                    ct: comuna && comuna !== 'Otra' ? comuna : comunaOther || undefined,
                 })
             );
         }
-    }, [isNew]); // trackOnce evita re-disparo en refresh
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isNew]);
 
     const totals = calculateTotals();
     const totalPaid = sumQuotePayments(quote);
     const advanceAmount = totals.totalFinal;
     const advancePercentText = '100%';
-    const nextPickupDate = calculateMaxPickupDate(eventDate);
-    const isSameDayPickup = Boolean(pickupDate && eventDate && pickupDate === eventDate);
-    const isNextDayPickup = Boolean(pickupDate && eventDate && pickupDate === nextPickupDate);
-    const pickupChoice: 'same' | 'next' | '' = isSameDayPickup ? 'same' : isNextDayPickup ? 'next' : '';
 
-    const validateAllFields = (): Record<string, boolean> => {
-        const errors: Record<string, boolean> = {};
-        
-        if (firstName.trim().length < 2) errors.firstName = true;
-        if (lastName.trim().length < 2) errors.lastName = true;
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) errors.email = true;
-        if (!isValidPhoneE164(phone)) errors.phone = true;
-        if (outOfRmError || address.trim().length < 5) errors.address = true;
-        if (!comuna || comuna === '...') errors.comuna = true;
-        const eventMethodConfig = comunas[0]?.shippingMethodsConfig?.own_events;
-        if (!eventDate) {
-            errors.eventDate = true;
-        } else {
-            const dateErr = validateShippingDate(eventDate, eventMethodConfig, 5);
-            if (dateErr) {
-                errors.eventDate = true;
-                setConfirmError(dateErr);
-            }
-        }
-        if (!startTime) errors.startTime = true;
-        if (!pickupDate) errors.pickupDate = true;
-        if (pickupDate && eventDate && !isAllowedEventPickupDate(eventDate, pickupDate)) {
-            errors.pickupDate = true;
-        }
-        if (!isSameDayPickup && !pickupTime) {
-            setPickupTime(EVENT_DEFAULT_NEXT_DAY_PICKUP_TIME);
-        }
-        if (guests <= 0) errors.guests = true;
-        if (!eventType) errors.eventType = true;
-        if (eventType === 'Otro' && !otherType.trim()) errors.otherType = true;
-        if (!items.some(i => i.quantity > 0)) errors.items = true;
-
-        const minRequiredLiters = dispenser === 'muro' ? MURO_MIN_LITERS : PORTATIL_MIN_LITERS;
-        if (totals.totalLiters < minRequiredLiters) errors.liters = true;
-
-        setValidationErrors(errors);
-        return errors;
-    };
-
-    const handlePreConfirm = () => {
-        const errors = validateAllFields();
-        if (Object.keys(errors).length === 0) {
-            setAcceptedTerms(false);
-            setShowConfirmModal(true);
-            setConfirmError('');
-        } else {
-            // Scroll al primer error
-            const firstErrorField = Object.keys(errors)[0] || 'firstName';
-            const element = document.getElementById(`field-${firstErrorField}`);
-            if (element) {
-                element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }
-        }
-    };
-
-    const updateQuantity = (id: string, delta: number) => {
-        setItems(prev => prev.map(item => {
-            if (item.id === id) {
-                const newQty = Math.max(0, item.quantity + delta);
-                return { ...item, quantity: newQty };
-            }
-            return item;
-        }));
-    };
-
-    const removeItem = (id: string) => {
-        setItems(prev => prev.filter(item => item.id !== id));
-    };
-
-    const onSummaryUpdateQuantity = (id: string, size: string, delta: number) => {
-        setItems(prev => {
-            return prev.map(item => {
-                if (item.id === id) {
-                    return { ...item, quantity: item.quantity + delta };
-                }
-                return item;
-            }).filter(item => item.quantity > 0);
-        });
+    const onSummaryUpdateQuantity = (id: string, _size: string, delta: number) => {
+        setItems((prev) =>
+            prev
+                .map((item) =>
+                    item.id === id ? { ...item, quantity: item.quantity + delta } : item
+                )
+                .filter((item) => item.quantity > 0)
+        );
     };
 
     const onSummaryUpdateVariant = (id: string, _size: string, newVariant: string) => {
-        setItems(prev => {
-            const target = prev.find(item => item.id === id);
+        setItems((prev) => {
+            const target = prev.find((item) => item.id === id);
             if (!target) return prev;
             const duplicate = prev.find(
-                item =>
+                (item) =>
                     item.id !== id &&
                     item.product_id === target.product_id &&
                     item.size === target.size &&
@@ -494,30 +453,29 @@ export default function EventQuoteView({ quote, comunas, regions, availableCockt
             );
             if (duplicate) {
                 return prev
-                    .map(item =>
+                    .map((item) =>
                         item.id === duplicate.id
                             ? { ...item, quantity: item.quantity + target.quantity }
                             : item
                     )
-                    .filter(item => item.id !== id);
+                    .filter((item) => item.id !== id);
             }
-            return prev.map(item =>
-                item.id === id ? { ...item, variant: newVariant } : item
-            );
+            return prev.map((item) => (item.id === id ? { ...item, variant: newVariant } : item));
         });
     };
 
-    const summaryData: QuoteSummaryData = useMemo(() => {
-        return {
-            items: items.map(i => ({
-                id: i.id!, // quote item id
+    const summaryData: QuoteSummaryData = useMemo(
+        () => ({
+            items: items.map((i) => ({
+                id: i.id!,
                 name: i.product_name,
                 selectedSize: i.size,
                 variant: i.variant ?? null,
-                variantOptions: availableCocktails.find(c => c.id === i.product_id)?.variant_config?.options,
+                variantOptions: availableCocktails.find((c) => c.id === i.product_id)
+                    ?.variant_config?.options,
                 quantity: i.quantity,
                 totalNormalPrice: i.price_at_time * i.quantity,
-                totalOfferPrice: i.offer_price_at_time * i.quantity
+                totalOfferPrice: i.offer_price_at_time * i.quantity,
             })),
             totalLiters: totals.totalLiters,
             totalCocktails: totals.totalCocktails,
@@ -531,88 +489,163 @@ export default function EventQuoteView({ quote, comunas, regions, availableCockt
             dispenserLabel: dispenser === 'muro' ? 'Muro de Coctelería' : 'Dispensador Portátil',
             manualDiscount: quote.manual_discount || 0,
             totalPrice: totals.totalFinal,
-            guests: guests,
-            canHaveMuro: canHaveMuro
-        };
-    }, [items, totals, guests, dispenser, canHaveMuro, isDraft, quote.installation_cost, quote.manual_discount]);
+            guests,
+            canHaveMuro,
+        }),
+        [
+            items,
+            totals,
+            guests,
+            dispenser,
+            canHaveMuro,
+            isDraft,
+            quote.installation_cost,
+            quote.manual_discount,
+            availableCocktails,
+        ]
+    );
+
+    const eventTypeDisplay =
+        eventType === 'Otro'
+            ? otherType || 'Otro'
+            : eventTypes.find((t) => t.id === eventType)?.name || otherType || '';
 
     const reservationData: QuoteSummaryReservationData = useMemo(() => {
         const fullName = `${firstName}${lastName ? ' ' + lastName : ''}`.trim();
-        const regionDisplay = regions.find((r) => r.code === regionCode)?.shortName || quote.region_name || '';
+        const regionDisplay =
+            regions.find((r) => r.code === regionCode)?.shortName || quote.region_name || '';
         return {
             clientName: fullName,
             clientEmail: email || '',
             clientPhone: phone,
             addressDisplay: formatQuoteAddress({
-                client_address: address,
+                client_address: quote.client_address,
                 comuna_name: comuna,
                 comuna_other: comunaOther,
                 region_name: regionDisplay,
             }),
-            eventTypeDisplay: (otherType || eventTypes.find(t => t.id === eventType)?.name) ?? '',
-            guests: guests,
+            eventTypeDisplay,
+            guests,
             formattedDate: formatEventDate(eventDate),
-            startTime: startTime,
-            formattedPickupDate: pickupDate ? formatEventDate(pickupDate) : undefined,
-            pickupTime: pickupTime,
-            comments: comments,
-            isDirect: false
+            startTime: quote.start_time ?? '',
+            formattedPickupDate: quote.pickup_date ? formatEventDate(quote.pickup_date) : undefined,
+            pickupTime: quote.pickup_time ?? undefined,
+            glasswareLabel: formatGlasswareLabel(quote.glassware_type) || null,
+            comments: quote.comments ?? undefined,
         };
-    }, [firstName, lastName, email, quote.region_name, phone, address, comuna, comunaOther, regionCode, regions, eventType, otherType, eventTypes, guests, eventDate, startTime, pickupDate, pickupTime, comments]);
+    }, [
+        firstName,
+        lastName,
+        email,
+        phone,
+        quote.client_address,
+        quote.region_name,
+        quote.start_time,
+        quote.pickup_date,
+        quote.pickup_time,
+        quote.glassware_type,
+        quote.comments,
+        comuna,
+        comunaOther,
+        regionCode,
+        regions,
+        eventTypeDisplay,
+        guests,
+        eventDate,
+    ]);
 
-    // 1. Mapeamos availableCocktails a Product (para el modal)
-    const mappedProducts: Product[] = useMemo(() => availableCocktails
-        .filter(c => c.category !== 'Otros')
-        .map(c => ({
-            id: c.id,
-            name: c.name,
-            description: c.desc,
-            image: c.image,
-            category: c.category,
-            variant_config: c.variant_config ?? null,
-            sizes: Object.entries(c.prices)
-                .filter(([size]) => !size.toLowerCase().includes('desechable') && isEventBarrelSizeLabelCompatible(size, dispenser))
-                .map(([size, p]) => ({
-                    size,
-                    price: p.price,
-                    offerPrice: p.offerPrice,
-                    sizeValue: p.sizeValue,
-                    unitId: p.unitId,
-                    isDisposable: p.isDisposable,
-                    unit: p.unit,
-                    image: p.image
-                }))
-        })), [availableCocktails, dispenser]);
+    const mappedProducts: Product[] = useMemo(
+        () =>
+            availableCocktails
+                .filter((c) => c.category !== 'Otros')
+                .map((c) => ({
+                    id: c.id,
+                    name: c.name,
+                    description: c.desc,
+                    image: c.image,
+                    category: c.category,
+                    variant_config: c.variant_config ?? null,
+                    sizes: Object.entries(c.prices)
+                        .filter(
+                            ([size]) =>
+                                !size.toLowerCase().includes('desechable') &&
+                                isEventBarrelSizeLabelCompatible(size, dispenser)
+                        )
+                        .map(([size, p]) => ({
+                            size,
+                            price: p.price,
+                            offerPrice: p.offerPrice,
+                            sizeValue: p.sizeValue,
+                            unitId: p.unitId,
+                            isDisposable: p.isDisposable,
+                            unit: p.unit,
+                            image: p.image,
+                        })),
+                })),
+        [availableCocktails, dispenser]
+    );
 
-
-    // 2. Definimos el cart para ProductCatalog
     const quoteCart: ICart = {
-        addItem: (productId, productName, size, price, offerPrice, sizeValue, unitId, isDisposable, image, variant) => {
+        addItem: (
+            productId,
+            productName,
+            size,
+            price,
+            offerPrice,
+            sizeValue,
+            unitId,
+            isDisposable,
+            _image,
+            variant
+        ) => {
             const normVar = variant ?? null;
-            setItems(prev => {
-                const existing = prev.find(i => i.product_id === productId && i.size === size && (i.variant ?? null) === normVar);
+            setItems((prev) => {
+                const existing = prev.find(
+                    (i) =>
+                        i.product_id === productId &&
+                        i.size === size &&
+                        (i.variant ?? null) === normVar
+                );
                 if (existing) {
-                    return prev.map(i => (i.product_id === productId && i.size === size && (i.variant ?? null) === normVar) ? { ...i, quantity: i.quantity + 1 } : i);
+                    return prev.map((i) =>
+                        i.product_id === productId &&
+                        i.size === size &&
+                        (i.variant ?? null) === normVar
+                            ? { ...i, quantity: i.quantity + 1 }
+                            : i
+                    );
                 }
-                return [...prev, {
-                    id: `temp-${Date.now()}`,
-                    quote_id: quote.id,
-                    product_id: productId,
-                    product_name: productName,
-                    size: size,
-                    size_value: sizeValue,
-                    unit_id: unitId,
-                    is_disposable: isDisposable,
-                    quantity: 1,
-                    variant: normVar,
-                    price_at_time: price,
-                    offer_price_at_time: offerPrice
-                }];
+                return [
+                    ...prev,
+                    {
+                        id: `temp-${Date.now()}`,
+                        quote_id: quote.id,
+                        product_id: productId,
+                        product_name: productName,
+                        size,
+                        size_value: sizeValue,
+                        unit_id: unitId,
+                        is_disposable: isDisposable,
+                        quantity: 1,
+                        variant: normVar,
+                        price_at_time: price,
+                        offer_price_at_time: offerPrice,
+                    },
+                ];
             });
         },
         removeItem: (productId, size, variant) => {
             const normVar = variant ?? null;
-            setItems(prev => prev.filter(i => !(i.product_id === productId && i.size === size && (i.variant ?? null) === normVar)));
+            setItems((prev) =>
+                prev.filter(
+                    (i) =>
+                        !(
+                            i.product_id === productId &&
+                            i.size === size &&
+                            (i.variant ?? null) === normVar
+                        )
+                )
+            );
         },
         updateQuantity: (productId, size, quantity, variant) => {
             const normVar = variant ?? null;
@@ -620,264 +653,230 @@ export default function EventQuoteView({ quote, comunas, regions, availableCockt
                 quoteCart.removeItem(productId, size, normVar);
                 return;
             }
-            setItems(prev => {
-                const existing = prev.find(i => i.product_id === productId && i.size === size && (i.variant ?? null) === normVar);
+            setItems((prev) => {
+                const existing = prev.find(
+                    (i) =>
+                        i.product_id === productId &&
+                        i.size === size &&
+                        (i.variant ?? null) === normVar
+                );
                 if (existing) {
-                    return prev.map(i => (i.product_id === productId && i.size === size && (i.variant ?? null) === normVar) ? { ...i, quantity } : i);
+                    return prev.map((i) =>
+                        i.product_id === productId &&
+                        i.size === size &&
+                        (i.variant ?? null) === normVar
+                            ? { ...i, quantity }
+                            : i
+                    );
                 }
-                const cocktail = availableCocktails.find(c => c.id === productId);
+                const cocktail = availableCocktails.find((c) => c.id === productId);
                 if (!cocktail) return prev;
                 const prices = cocktail.prices[size];
                 if (!prices) return prev;
 
-                return [...prev, {
-                    id: `temp-${Date.now()}`,
-                    quote_id: quote.id,
-                    product_id: productId,
-                    product_name: cocktail.name,
-                    size: size,
-                    size_value: prices.sizeValue,
-                    unit_id: prices.unitId,
-                    is_disposable: prices.isDisposable,
-                    quantity: quantity,
-                    variant: normVar,
-                    price_at_time: prices.price,
-                    offer_price_at_time: prices.offerPrice
-                }];
+                return [
+                    ...prev,
+                    {
+                        id: `temp-${Date.now()}`,
+                        quote_id: quote.id,
+                        product_id: productId,
+                        product_name: cocktail.name,
+                        size,
+                        size_value: prices.sizeValue,
+                        unit_id: prices.unitId,
+                        is_disposable: prices.isDisposable,
+                        quantity,
+                        variant: normVar,
+                        price_at_time: prices.price,
+                        offer_price_at_time: prices.offerPrice,
+                    },
+                ];
             });
         },
         getQuantity: (productId, size, variant) => {
             const normVar = variant ?? null;
-            return items.find(i => i.product_id === productId && i.size === size && (i.variant ?? null) === normVar)?.quantity ?? 0;
-        }
+            return (
+                items.find(
+                    (i) =>
+                        i.product_id === productId &&
+                        i.size === size &&
+                        (i.variant ?? null) === normVar
+                )?.quantity ?? 0
+            );
+        },
     };
 
-    const handleConfirm = async () => {
-        if (Object.keys(validateAllFields()).length > 0) return;
+    const filteredCocktails = useMemo(
+        () =>
+            mappedProducts.filter((c) =>
+                c.name.toLowerCase().includes(searchQuery.toLowerCase())
+            ),
+        [mappedProducts, searchQuery]
+    );
 
-        setIsConfirming(true);
-        setConfirmError('');
-        // Asegurar que no quede ningún autoguardado en vuelo antes de confirmar
+    const handleGoToReserve = async () => {
+        if (!minLitersMet || items.length === 0 || goingToReserve) return;
+        setGoingToReserve(true);
         await flushNow();
-        const attribution = getClientMetaAttribution();
-        const result = await confirmQuote({
-            token: quote.token,
-            client_name: normalizePersonName(firstName),
-            client_email: normalizeEmail(email),
-            client_phone: phone,
-            client_lastname: normalizePersonName(lastName),
-            client_address: address,
-            comuna_name: comuna,
-            region_name: regions.find(r => r.code === regionCode)?.shortName || quote.region_name || null,
-            comuna_other: comunaOther,
-            guests: guests,
-            event_type_id: eventType,
-            event_type_other: otherType,
-            event_date: eventDate,
-            start_time: startTime,
-            pickup_date: pickupDate,
-            pickup_time: pickupTime,
-            comments: comments,
-            items: items.map((item) => ({
-                product_id: item.product_id || null,
-                size: item.size,
-                quantity: item.quantity,
-                variant: item.variant ?? null,
-            })),
-            dispenser: dispenser,
-            fbc: attribution.fbc,
-            fbp: attribution.fbp,
-        });
-        setIsConfirming(false);
-        if (result.success) {
-            router.replace(`/cotizar/${quote.token}?confirmed=true`);
-            setShowSuccessScreen(true);
-            setConfirmed(true);
-            setShowConfirmModal(false);
-            setAcceptedTerms(false);
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-            setTimeout(() => {
-                router.refresh();
-            }, 150);
-
-            // ─── Meta Pixel: Registro de Conversión (Reserva Confirmada) ──────
-            fp.trackOnce(`purchase_${quote.token}`, 'Purchase', {
-                content_name: 'Reserva Eventos Confirmada',
-                ...fp.metaLineParams('event', fp.META_SERVICE_EVENTOS),
-                value: totals.totalFinal,
-                currency: 'CLP',
-                contents: items.map(item => ({
-                    id: item.product_id,
-                    item_price: item.offer_price_at_time,
-                    quantity: item.quantity
-                })),
-                content_type: 'product',
-                order_id: quote.token
-            }, fp.quotePixelUserData(quote, {
-                em: email || undefined,
-                ph: phone || undefined,
-                fn: firstName || undefined,
-                ln: lastName || undefined,
-                ct: comuna && comuna !== 'Otra' ? comuna : (comunaOther || undefined),
-            }));
-        } else {
-            setConfirmError(result.error ?? 'Error al confirmar. Intenta nuevamente.');
-        }
+        router.push(`/cotizar/${quote.token}/reservar`);
     };
 
-    // ─── Filtrado de Catálogo ────────────────────────────────────────────────
-    const filteredCocktails = useMemo(() => {
-        return mappedProducts.filter(c => {
-            const matchesSearch = c.name.toLowerCase().includes(searchQuery.toLowerCase());
-            return matchesSearch;
-        });
-    }, [mappedProducts, searchQuery]);
+    const minRequiredLiters = dispenser === 'muro' ? MURO_MIN_LITERS : PORTATIL_MIN_LITERS;
+    const minLitersMet = totals.totalLiters >= minRequiredLiters;
 
-    // ─── Pantalla de éxito post-confirmación ──────────────────────────────────
-
+    // ─── Pantalla de éxito post-creación o post-confirmación ──────────────────
     if (showSuccessScreen || isNew) {
-        const title = isNew ? "¡Cotización Recibida!" : "¡Reserva confirmada!";
-        const subtitle = isNew 
-            ? "Hemos recibido tus datos correctamente. Enviamos una copia a tu email y WhatsApp."
-            : `Te enviamos una copia a tu email y WhatsApp con los detalles e instrucciones para el pago del ${advancePercentText}.`;
+        const isConfirmedView = showSuccessScreen || quote.status === 'confirmed';
+        const title = isConfirmedView ? '¡Reserva confirmada!' : '¡Cotización lista!';
+        const subtitle = isConfirmedView
+            ? `Te enviamos una copia a tu email y WhatsApp con los detalles e instrucciones para el pago del ${advancePercentText}.`
+            : 'Guardamos tu presupuesto y enviamos una copia a tu email y WhatsApp. Recuerda que aún no bloquea el cupo hasta confirmar.';
 
         return (
-            <div className="text-center py-8 sm:py-16 px-4 animate-fade-in">
+            <div className="text-center py-8 sm:py-14 px-3 animate-fade-in">
                 <div className="inline-flex items-center justify-center w-16 h-16 sm:w-20 sm:h-20 bg-green-100 rounded-full mb-4 sm:mb-6 text-green-600">
                     <CheckCircle className="w-10 h-10 sm:w-12 sm:h-12" />
                 </div>
-                <h1 className="text-2xl sm:text-3xl font-black text-brand-text mb-2 sm:mb-3 tracking-tight">{title}</h1>
+                <h1 className="text-2xl sm:text-3xl font-black text-brand-text mb-2 sm:mb-3 tracking-tight">
+                    {title}
+                </h1>
                 <p className="text-brand-text-muted text-[0.95rem] sm:text-[1.05rem] mb-6 sm:mb-8 max-w-md mx-auto leading-relaxed px-2">
                     {subtitle}
                 </p>
 
-                {!isNew ? (
-                <div className="max-w-sm mx-auto shadow-lg">
-                    <BankTransferCard
-                        amount={advanceAmount}
-                        amountLabel={`Monto a depositar (${advancePercentText})`}
-                        variant="green"
-                        footer={
-                            <>
-                                <p className="text-[0.7rem] sm:text-[0.8rem] text-green-700 text-center italic font-bold leading-tight">
-                                    Envía tu comprobante por WhatsApp o Email para validar tu reserva:
-                                </p>
-                                <a
-                                    href={`${WHATSAPP_URL}?text=${encodeURIComponent(`Hola, adjunto el comprobante de transferencia para mi reserva: ${clientUrl}`)}`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="w-full inline-flex justify-center items-center gap-1.5 px-4 py-2 bg-[#25D366] hover:bg-[#128c7e] text-white rounded-xl text-xs font-black transition-all active:scale-95 shadow-sm no-underline text-center"
-                                >
-                                    <WhatsappIcon className="w-3.5 h-3.5 fill-white" /> Enviar Comprobante
-                                </a>
-                            </>
-                        }
-                    />
+                {isConfirmedView ? (
+                    <div className="max-w-sm mx-auto shadow-lg">
+                        <BankTransferCard
+                            amount={advanceAmount}
+                            amountLabel={`Monto a depositar (${advancePercentText})`}
+                            variant="green"
+                            footer={
+                                <>
+                                    <p className="text-[0.7rem] sm:text-[0.8rem] text-green-700 text-center italic font-bold leading-tight">
+                                        Envía tu comprobante por WhatsApp o Email para validar tu reserva:
+                                    </p>
+                                    <a
+                                        href={`${WHATSAPP_URL}?text=${encodeURIComponent(
+                                            `Hola, adjunto el comprobante de transferencia para mi reserva: ${clientUrl}`
+                                        )}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="w-full inline-flex justify-center items-center gap-1.5 px-4 py-2.5 bg-[#25D366] hover:bg-[#128c7e] text-white rounded-xl text-xs font-black transition-all active:scale-95 shadow-sm no-underline text-center"
+                                    >
+                                        <WhatsappIcon className="w-3.5 h-3.5 fill-white" /> Enviar Comprobante
+                                    </a>
+                                </>
+                            }
+                        />
                     </div>
                 ) : (
-                    <div className="relative mb-8 sm:mb-10 overflow-hidden rounded-2xl sm:rounded-[3rem] bg-gradient-to-br from-[#fdfcfb] to-[#e2d1c3] border-2 border-primary/20 p-5 sm:p-10 shadow-[0_15px_40px_rgba(226,160,73,0.12)] group mx-auto max-w-2xl">
-                        {/* Efectos visuales de fondo */}
-                        <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 rounded-full -mr-16 -mt-16 blur-2xl group-hover:bg-primary/20 transition-all duration-500" />
-                        <div className="absolute -bottom-4 -left-4 w-24 h-24 bg-primary/5 rounded-full blur-xl" />
-                        
+                    <div className="relative mb-8 sm:mb-10 overflow-hidden rounded-3xl bg-gradient-to-br from-[#fdfcfb] to-[#f4e7d7] border-2 border-primary/20 p-6 sm:p-10 shadow-[0_15px_40px_rgba(226,160,73,0.12)] mx-auto max-w-2xl">
                         <div className="relative z-10 flex flex-col items-center">
-                            <div className="inline-flex items-center justify-center px-4 py-1.5 bg-primary/10 rounded-full text-primary font-black text-[0.7rem] uppercase tracking-widest mb-4 border border-primary/10 animate-pulse">
-                                ¡Asegura tu fecha hoy!
+                            <div className="inline-flex items-center justify-center px-4 py-1.5 bg-primary/10 rounded-full text-primary font-black text-[0.7rem] uppercase tracking-widest mb-4 border border-primary/15">
+                                Asegura tu fecha en 4 pasos breves
                             </div>
-                            <h2 className="text-2xl md:text-3xl font-black text-brand-dark mb-3">
-                                ¿Listo para hacer que suceda? 🥂
+                            <h2 className="text-2xl md:text-3xl font-black text-brand-text mb-3">
+                                ¿Listo para reservar tu fecha?
                             </h2>
-                            <p className="text-brand-text-muted font-medium text-balance mb-8 max-w-lg mx-auto leading-relaxed">
-                                No te arriesgues a perder disponibilidad. Completa los detalles de entrega ahora mismo y transforma esta cotización en una <span className="text-brand-dark font-bold underline decoration-primary/40 decoration-2 underline-offset-4">reserva oficial</span>.
+                            <p className="text-brand-text-muted font-medium text-balance mb-7 max-w-lg mx-auto leading-relaxed text-sm sm:text-base">
+                                Completa dirección, horario, retiro y elige tus vasos (reutilizables o PET desechables) para transformar esta cotización en una{' '}
+                                <span className="text-brand-text font-bold underline decoration-primary/40 decoration-2 underline-offset-4">
+                                    reserva oficial
+                                </span>
+                                .
                             </p>
-                            
-                            <button 
-                                onClick={() => {
-                                    setShowSuccessScreen(false);
-                                    setConfirmed(false);
-                                    router.push(`/cotizar/${quote.token}`);
-                                }}
-                                className="group w-full sm:w-auto inline-flex items-center justify-center gap-2 sm:gap-3 px-6 sm:px-10 py-4 sm:py-5 bg-primary text-white font-black text-base sm:text-xl rounded-2xl shadow-[0_10px_25px_rgba(226,160,73,0.35)] hover:bg-primary-dark hover:shadow-[0_15px_35px_rgba(226,160,73,0.45)] hover:-translate-y-1 transition-all active:scale-95"
-                            >
-                                🚀 Confirmar Ahora
-                                <ArrowRight className="w-5 h-5 sm:w-6 sm:h-6 transition-transform group-hover:translate-x-1" />
-                            </button>
 
-                            <div className="flex items-center justify-center gap-4 sm:gap-6 mt-8 flex-wrap">
-                                <div className="flex items-center gap-1.5 text-[0.75rem] font-bold text-brand-text-muted">
-                                    <CheckCircle className="w-4 h-4 text-green-500" /> Reserva Exclusiva
-                                </div>
-                                <div className="flex items-center gap-1.5 text-[0.75rem] font-bold text-brand-text-muted">
-                                    <CheckCircle className="w-4 h-4 text-green-500" /> Montaje Garantizado
-                                </div>
-                            </div>
+                            <Link
+                                href={`/cotizar/${quote.token}/reservar`}
+                                className="group w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-7 sm:px-10 py-4 bg-primary text-white font-black text-base sm:text-lg rounded-2xl shadow-[0_10px_25px_rgba(226,160,73,0.35)] hover:bg-primary-dark hover:-translate-y-0.5 transition-all active:scale-95 no-underline"
+                            >
+                                <span>Reservar mi fecha ahora</span>
+                                <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
+                            </Link>
                         </div>
                     </div>
                 )}
 
                 {/* Link Card de Seguimiento */}
-                <div className="mt-12 max-w-lg mx-auto bg-slate-50 border border-brand-border rounded-3xl p-4 sm:p-6 relative group text-left shadow-sm w-full overflow-hidden">
+                <div className="mt-10 max-w-lg mx-auto bg-slate-50 border border-brand-border rounded-3xl p-4 sm:p-6 text-left shadow-sm w-full overflow-hidden">
                     <p className="text-[0.65rem] font-black text-brand-text-muted uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
-                        <Copy className="w-3 h-3" /> Tu Comprobante Digital
+                        <Copy className="w-3 h-3" /> Enlace permanente
                     </p>
                     <div className="flex flex-col gap-3 w-full">
-                        <div className="flex-1 w-full min-w-0">
-                            <div className="bg-white border border-brand-border rounded-xl px-4 py-3 text-[0.85rem] font-bold text-brand-text overflow-hidden text-ellipsis whitespace-nowrap shadow-inner">
-                                {clientUrl}
-                            </div>
+                        <div className="bg-white border border-brand-border rounded-xl px-4 py-3 text-[0.85rem] font-bold text-brand-text overflow-hidden text-ellipsis whitespace-nowrap shadow-inner">
+                            {clientUrl}
                         </div>
                         <div className="flex items-stretch sm:items-center gap-2 w-full">
-                            <button 
-                                onClick={() => {
-                                    copyToClipboard(clientUrl);
+                            <button
+                                type="button"
+                                onClick={async () => {
+                                    const ok = await copyToClipboard(clientUrl);
+                                    if (ok) {
+                                        setCopiedLink(true);
+                                        setTimeout(() => setCopiedLink(false), 2000);
+                                    }
                                 }}
-                                className="flex-1 shrink-0 inline-flex items-center justify-center gap-2 px-4 py-3.5 rounded-xl bg-white border-2 border-brand-border text-brand-text font-black text-[0.85rem] hover:border-primary hover:text-primary transition-all active:scale-95"
+                                className="flex-1 shrink-0 inline-flex items-center justify-center gap-2 px-4 py-3.5 rounded-xl bg-white border-2 border-brand-border text-brand-text font-black text-[0.85rem] hover:border-primary hover:text-primary transition-all active:scale-95 cursor-pointer"
                             >
-                                <Copy className="w-4 h-4" /> Copiar
+                                <Copy className="w-4 h-4" />
+                                <span>{copiedLink ? '¡Copiado!' : 'Copiar enlace'}</span>
                             </button>
-                            <button 
+                            <button
+                                type="button"
                                 onClick={() => {
                                     setShowSuccessScreen(false);
-                                    setConfirmed(false);
                                     router.push(`/cotizar/${quote.token}`);
                                     router.refresh();
                                 }}
-                                className="flex-1 shrink-0 inline-flex items-center justify-center gap-2 px-4 py-3.5 rounded-xl bg-primary text-white font-black text-[0.85rem] hover:bg-primary-dark transition-all active:scale-95 shadow-md"
+                                className="flex-1 shrink-0 inline-flex items-center justify-center gap-2 px-4 py-3.5 rounded-xl bg-brand-text text-white font-black text-[0.85rem] hover:bg-black transition-all active:scale-95 shadow-md cursor-pointer"
                             >
-                                <ExternalLink className="w-4 h-4" /> Ver Reserva
+                                <ExternalLink className="w-4 h-4" />
+                                <span>{isConfirmedView ? 'Ver mi reserva' : 'Ver mi propuesta'}</span>
                             </button>
                         </div>
                     </div>
-                    <p className="text-[0.7rem] text-brand-text-muted mt-4 italic font-medium">
-                        Guarda este enlace para acceder a tu comprobante en cualquier momento.
-                    </p>
                 </div>
             </div>
         );
     }
 
     const balance = totals.totalFinal - totalPaid;
-    const minRequiredLiters = dispenser === 'muro' ? MURO_MIN_LITERS : PORTATIL_MIN_LITERS;
-    const minLitersMet = totals.totalLiters >= minRequiredLiters;
 
     return (
-        <div className="w-full flex flex-col gap-4 sm:gap-6">
+        <div className="w-full flex flex-col gap-5 sm:gap-6">
             {/* Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 px-1">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-1">
                 <div>
                     <div className="flex items-center gap-2 mb-1">
-                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 sm:px-3 sm:py-1 rounded-full text-[0.6rem] sm:text-[0.7rem] font-black border uppercase tracking-widest ${statusCfg.color}`}>
+                        <span
+                            className={`inline-flex items-center gap-1 px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full text-[0.65rem] sm:text-[0.7rem] font-black border uppercase tracking-widest ${statusCfg.color}`}
+                        >
                             <StatusIcon className="w-3 sm:w-3.5 h-3 sm:h-3.5" />
                             {statusCfg.label}
                         </span>
                     </div>
-                    <h1 className="text-xl sm:text-2xl font-black text-brand-text">Cotización de {firstName}{lastName ? ` ${lastName}` : ''}</h1>
-                    <p className="text-brand-text-muted text-[0.8rem] sm:text-[0.9rem]">Creada el {new Date(quote.created_at).toLocaleDateString('es-CL', { day: '2-digit', month: 'long', year: 'numeric' })}</p>
+                    <h1 className="text-xl sm:text-2xl font-black text-brand-text">
+                        {isDraft ? 'Propuesta de ' : 'Reserva de '}
+                        {firstName}
+                        {lastName ? ` ${lastName}` : ''}
+                    </h1>
+                    <p className="text-brand-text-muted text-[0.8rem] sm:text-[0.9rem]">
+                        Creada el{' '}
+                        {new Date(quote.created_at).toLocaleDateString('es-CL', {
+                            day: '2-digit',
+                            month: 'long',
+                            year: 'numeric',
+                        })}
+                    </p>
                 </div>
 
                 {isDraft ? (
                     <div className="self-start sm:self-auto">
-                        <DraftSaveBadge status={saveStatus} error={saveError} onRetry={() => void flushNow()} />
+                        <DraftSaveBadge
+                            status={saveStatus}
+                            error={saveError}
+                            onRetry={() => void flushNow()}
+                        />
                     </div>
                 ) : (
                     <div className="inline-flex sm:flex items-center gap-2 text-green-700 font-bold bg-green-50 px-4 py-2 rounded-xl border border-green-200 self-start sm:self-auto shadow-sm">
@@ -887,50 +886,90 @@ export default function EventQuoteView({ quote, comunas, regions, availableCockt
             </div>
 
             {/* Banner Descriptivo */}
-            <div className={`flex items-start gap-4 border rounded-2xl px-5 py-4 ${isDraft ? 'bg-primary/5 border-primary/15' : 'bg-slate-50 border-brand-border/50'}`}>
-                <div className={`p-2 rounded-xl shrink-0 mt-0.5 ${isDraft ? 'bg-primary/10 text-primary' : 'bg-slate-100 text-brand-text-muted'}`}>
+            <div
+                className={`flex items-start gap-3.5 border rounded-2xl px-4 sm:px-5 py-3.5 ${
+                    isDraft
+                        ? 'bg-primary/5 border-primary/15'
+                        : 'bg-slate-50 border-brand-border/50'
+                }`}
+            >
+                <div
+                    className={`p-2 rounded-xl shrink-0 mt-0.5 ${
+                        isDraft
+                            ? 'bg-primary/10 text-primary'
+                            : 'bg-slate-100 text-brand-text-muted'
+                    }`}
+                >
                     {isDraft ? <Info className="w-4 h-4" /> : <CheckCircle className="w-4 h-4" />}
                 </div>
                 <div>
-                    <p className={`text-[0.8rem] font-black uppercase tracking-[0.15em] mb-1 ${isDraft ? 'text-primary' : 'text-brand-text'}`}>
-                        {isDraft ? 'Revisa y edita antes de confirmar' : 'Información de tu Reserva'}
+                    <p
+                        className={`text-xs font-black uppercase tracking-[0.14em] mb-1 ${
+                            isDraft ? 'text-primary' : 'text-brand-text'
+                        }`}
+                    >
+                        {isDraft
+                            ? 'Propuesta editable · aún no bloquea cupo'
+                            : 'Comprobante de tu Reserva'}
                     </p>
-                    <p className="text-brand-text-muted text-[0.875rem] leading-relaxed font-medium">
-                        {isDraft ? (
-                            <>Puedes modificar los cócteles y cualquier dato del evento — tus cambios se guardan automáticamente. Todos los campos obligatorios deben estar completos para confirmar tu reserva.</>
-                        ) : (
-                            <>Tus detalles han sido registrados exitosamente. Esta página es tu comprobante oficial del servicio. Si necesitas realizar cualquier cambio de último minuto, contáctanos directamente.</>
-                        )}
+                    <p className="text-brand-text-muted text-xs sm:text-sm leading-relaxed font-medium m-0">
+                        {isDraft
+                            ? 'Puedes ajustar cócteles, cantidades o bebidas con autoguardado. Cuando estés listo, presiona "Reservar mi fecha" para completar dirección, horarios y tipo de vasos paso a paso.'
+                            : 'Tus detalles han sido registrados exitosamente. Esta página es tu comprobante oficial del servicio. Si necesitas realizar cualquier cambio de último minuto, contáctanos directamente.'}
                     </p>
                 </div>
             </div>
 
-            {/* Resumen de Pagos (Solo si no es Borrador) */}
+            {/* Estado de Cuenta (Solo si ya está confirmada/completada) */}
             {!isDraft && (
                 <div className="bg-white rounded-[1.5rem] border border-brand-border p-5 sm:p-7 shadow-sm overflow-hidden relative">
                     <div className="flex items-center justify-between mb-6 pb-2 border-b border-brand-border/50">
                         <h2 className="text-[0.65rem] font-black text-primary uppercase tracking-[0.2em] flex items-center gap-2">
-                             <Tag className="w-3.5 h-3.5" /> Estado de Cuenta
+                            <Tag className="w-3.5 h-3.5" /> Estado de Cuenta
                         </h2>
                         {balance <= 0 && (
-                            <span className="text-[0.6rem] font-black text-green-700 bg-green-50 px-2 py-0.5 rounded border border-green-100 uppercase">Pagado 👌</span>
+                            <span className="text-[0.6rem] font-black text-green-700 bg-green-50 px-2 py-0.5 rounded border border-green-100 uppercase">
+                                Pagado
+                            </span>
                         )}
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 mb-8">
                         <div className="bg-slate-50 p-5 rounded-2xl border border-brand-border/50">
-                            <p className="text-[0.6rem] font-black text-brand-text-muted uppercase tracking-widest mb-1">Total Cotizado</p>
-                            <p className="text-xl font-black text-brand-text">{formatCurrency(totals.totalFinal)}</p>
+                            <p className="text-[0.6rem] font-black text-brand-text-muted uppercase tracking-widest mb-1">
+                                Total Cotizado
+                            </p>
+                            <p className="text-xl font-black text-brand-text">
+                                {formatCurrency(totals.totalFinal)}
+                            </p>
                         </div>
                         <div className="bg-green-50 p-5 rounded-2xl border border-green-100">
-                            <p className="text-[0.6rem] font-black text-green-700 uppercase tracking-widest mb-1">Total Pagado</p>
-                            <p className="text-xl font-black text-green-600">{formatCurrency(totalPaid)}</p>
+                            <p className="text-[0.6rem] font-black text-green-700 uppercase tracking-widest mb-1">
+                                Total Pagado
+                            </p>
+                            <p className="text-xl font-black text-green-600">
+                                {formatCurrency(totalPaid)}
+                            </p>
                         </div>
-                        <div className={`p-5 rounded-2xl border ${balance > 0 ? 'bg-amber-50 border-amber-100' : 'bg-blue-50 border-blue-100'}`}>
-                            <p className={`text-[0.6rem] font-black uppercase tracking-widest mb-1 ${balance > 0 ? 'text-amber-700' : 'text-blue-700'}`}>
+                        <div
+                            className={`p-5 rounded-2xl border ${
+                                balance > 0
+                                    ? 'bg-amber-50 border-amber-100'
+                                    : 'bg-blue-50 border-blue-100'
+                            }`}
+                        >
+                            <p
+                                className={`text-[0.6rem] font-black uppercase tracking-widest mb-1 ${
+                                    balance > 0 ? 'text-amber-700' : 'text-blue-700'
+                                }`}
+                            >
                                 {balance > 0 ? 'Saldo Pendiente' : 'Saldo en $0'}
                             </p>
-                            <p className={`text-xl font-black ${balance > 0 ? 'text-amber-600' : 'text-blue-600'}`}>
+                            <p
+                                className={`text-xl font-black ${
+                                    balance > 0 ? 'text-amber-600' : 'text-blue-600'
+                                }`}
+                            >
                                 {formatCurrency(Math.max(0, balance))}
                             </p>
                         </div>
@@ -938,17 +977,25 @@ export default function EventQuoteView({ quote, comunas, regions, availableCockt
 
                     {quote.payments && quote.payments.length > 0 && (
                         <div className="space-y-3">
-                            <h3 className="text-[0.7rem] font-black text-brand-text mb-4 uppercase tracking-widest px-1">Historial de Pagos</h3>
+                            <h3 className="text-[0.7rem] font-black text-brand-text mb-4 uppercase tracking-widest px-1">
+                                Historial de Pagos
+                            </h3>
                             {quote.payments.map((p, idx) => (
-                                <div key={idx} className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-brand-border/30">
+                                <div
+                                    key={idx}
+                                    className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-brand-border/30"
+                                >
                                     <div className="flex items-center gap-4">
                                         <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center text-green-600 font-black text-xs">
                                             $
                                         </div>
                                         <div>
-                                            <p className="text-[0.9rem] font-black text-brand-text">{formatCurrency(p.amount)}</p>
+                                            <p className="text-[0.9rem] font-black text-brand-text">
+                                                {formatCurrency(p.amount)}
+                                            </p>
                                             <p className="text-[0.7rem] text-brand-text-muted font-bold">
-                                                {new Date(p.date + 'T12:00:00').toLocaleDateString('es-CL')} — {p.note}
+                                                {new Date(p.date + 'T12:00:00').toLocaleDateString('es-CL')}{' '}
+                                                — {p.note}
                                             </p>
                                         </div>
                                     </div>
@@ -959,11 +1006,12 @@ export default function EventQuoteView({ quote, comunas, regions, availableCockt
                             ))}
                         </div>
                     )}
-                    
+
                     {balance > 0 && (
                         <div className="mt-8 space-y-4">
                             <p className="text-[0.85rem] text-amber-800 font-bold text-center">
-                                Si aún no realizas tu transferencia, recuerda que el monto total para asegurar tu reserva es de <strong>{formatCurrency(balance)}</strong>.
+                                Si aún no realizas tu transferencia, recuerda que el monto total para asegurar tu reserva es de{' '}
+                                <strong>{formatCurrency(balance)}</strong>.
                             </p>
                             <BankTransferCard variant="amber" />
                         </div>
@@ -971,277 +1019,216 @@ export default function EventQuoteView({ quote, comunas, regions, availableCockt
                 </div>
             )}
 
-            {/* Datos de contacto y Dirección */}
-            {!isDraft ? (
-                <QuoteSummaryReservation data={reservationData} />
-            ) : (
-                <div className="bg-white rounded-[1.5rem] border border-brand-border p-4 sm:p-6 shadow-sm">
-                    <div className="flex flex-wrap items-center justify-between gap-2 mb-4 pb-2 border-b border-brand-border/50">
-                        <h2 className="text-[0.65rem] font-black text-primary uppercase tracking-[0.2em]">Información de Reserva</h2>
-                        <DraftSaveBadge status={saveStatus} error={saveError} onRetry={() => void flushNow()} />
-                    </div>
+            {/* ── EN BORRADOR: PROPUESTA LIMPIA (BARRA PROTAGONISTA ARRIBA) ──── */}
+            {isDraft ? (
+                <>
+                    {/* 1. Tu Barra (editable) */}
+                    <QuoteSummaryProducts
+                        data={summaryData}
+                        title="Tu Barra"
+                        isEditable
+                        onUpdateQuantity={onSummaryUpdateQuantity}
+                        onUpdateVariant={onSummaryUpdateVariant}
+                        onAddProductsClick={() => setShowCatalog(true)}
+                        onChangeDispenser={() =>
+                            setDispenser((prev) => (prev === 'muro' ? 'portatil' : 'muro'))
+                        }
+                    />
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
-                        {/* Columna 1: Datos de Contacto */}
-                        <div className="space-y-4">
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="flex flex-col gap-1">
-                                    <label htmlFor="field-firstName" className="text-[0.65rem] font-black text-brand-text-muted flex items-center gap-1.5 uppercase">
-                                        <User className="w-3 h-3" /> Nombre <span className="text-red-500">*</span>
-                                    </label>
-                                    <input
-                                        id="field-firstName"
-                                        type="text"
-                                        value={firstName}
-                                        onChange={(e) => {
-                                            setFirstName(e.target.value);
-                                            setValidationErrors(prev => ({ ...prev, firstName: false }));
-                                        }}
-                                        onBlur={(e) => {
-                                            setFirstName(normalizePersonName(e.target.value));
-                                            flushOnBlur();
-                                        }}
-                                        placeholder="Tu nombre"
-                                        className={`w-full px-3 py-2.5 bg-slate-50 border rounded-xl text-[0.95rem] font-bold focus:outline-none focus:border-primary focus:bg-white transition-all shadow-sm ${validationErrors.firstName ? 'border-red-500 bg-red-50/30' : 'border-brand-border'}`}
-                                    />
-                                </div>
+                    {saveStatus === 'empty_items' && (
+                        <div className="-mt-3 bg-amber-50 border border-amber-200 text-amber-800 px-4 py-3 rounded-2xl text-xs sm:text-sm font-bold flex items-center gap-2">
+                            <AlertCircle className="w-4 h-4 shrink-0 text-amber-600" />
+                            <span>Agrega al menos un producto para guardar los cambios en tu cotización.</span>
+                        </div>
+                    )}
 
-                                <div className="flex flex-col gap-1">
-                                    <label htmlFor="field-lastName" className="text-[0.65rem] font-black text-brand-text-muted flex items-center gap-1.5 uppercase">
-                                        <User className="w-3 h-3" /> Apellido <span className="text-red-500">*</span>
-                                    </label>
-                                    <input
-                                        id="field-lastName"
-                                        type="text"
-                                        value={lastName}
-                                        onChange={(e) => {
-                                            setLastName(e.target.value);
-                                            setValidationErrors(prev => ({ ...prev, lastName: false }));
-                                        }}
-                                        onBlur={(e) => {
-                                            setLastName(normalizePersonName(e.target.value));
-                                            flushOnBlur();
-                                        }}
-                                        placeholder="Tu apellido"
-                                        className={`w-full px-3 py-2.5 bg-slate-50 border rounded-xl text-[0.95rem] font-bold focus:outline-none focus:border-primary focus:bg-white transition-all shadow-sm ${validationErrors.lastName ? 'border-red-500 bg-red-50/30' : 'border-brand-border'}`}
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="flex flex-col gap-1">
-                                <label htmlFor="field-email" className="text-[0.65rem] font-black text-brand-text-muted flex items-center gap-1.5 uppercase">
-                                    <Mail className="w-3 h-3" /> Email <span className="text-red-500">*</span>
-                                </label>
-                                <input
-                                    id="field-email"
-                                    type="email"
-                                    value={email}
-                                    onChange={(e) => {
-                                        setEmail(e.target.value.toLowerCase());
-                                        setValidationErrors(prev => ({ ...prev, email: false }));
-                                    }}
-                                    onBlur={(e) => {
-                                        setEmail(normalizeEmail(e.target.value));
-                                        flushOnBlur();
-                                    }}
-                                    placeholder="tu@correo.cl"
-                                    className={`w-full px-3 py-2.5 bg-slate-50 border rounded-xl text-[0.95rem] font-bold focus:outline-none focus:border-primary focus:bg-white transition-all shadow-sm ${validationErrors.email ? 'border-red-500 bg-red-50/30' : 'border-brand-border'}`}
-                                />
-                            </div>
-
-                            <div className="flex flex-col gap-1">
-                                <label className="text-[0.65rem] font-black text-brand-text-muted flex items-center gap-1.5 uppercase">
-                                    <Phone className="w-3 h-3" /> Celular <span className="text-red-500">*</span>
-                                </label>
-                                    <PhoneInput
-                                        id="field-phone"
-                                        value={phone}
-                                        onFocus={() => setValidationErrors(prev => ({ ...prev, phone: false }))}
-                                        onChange={(e164) => setPhone(e164)}
-                                        onBlur={flushOnBlur}
-                                        className={`w-full px-3 py-2.5 bg-slate-50 border rounded-xl text-[0.95rem] font-bold focus:outline-none focus:border-primary focus:bg-white transition-all shadow-sm ${validationErrors.phone ? 'border-red-500 bg-red-50/30' : 'border-brand-border'}`}
-                                    />
-                                </div>
-    
-                                <RegionComunaFields
-                                    regions={regions}
-                                    comunas={comunas}
-                                    serviceType="event"
-                                    allowAllActiveRegions={isAdminQuote}
-                                    regionCode={regionCode}
-                                    comuna={comuna}
-                                    otherComuna={comunaOther}
-                                    onRegionChange={(code) => {
-                                        setRegionCode(code);
-                                        setComuna('');
-                                        setComunaOther('');
-                                        setValidationErrors((prev) => ({ ...prev, comuna: false }));
-                                    }}
-                                    onComunaChange={(name) => {
-                                        setComuna(name);
-                                        setValidationErrors((prev) => ({ ...prev, comuna: false }));
-                                    }}
-                                    onOtherComunaChange={(v) => {
-                                        setComunaOther(v);
-                                        setValidationErrors((prev) => ({ ...prev, comunaOther: false }));
-                                    }}
-                                />
-
-                            <div className="flex flex-col gap-1">
-                                <label className="text-[0.65rem] font-black text-brand-text-muted flex items-center gap-1.5 uppercase">
-                                    <MapPin className="w-3 h-3" /> Dirección <span className="text-red-500">*</span>
-                                </label>
-                                <AddressAutocomplete
-                                    id="field-address"
-                                    value={address}
-                                    onChange={(val) => {
-                                        setAddress(val);
-                                        setOutOfRmError(null);
-                                        setLastValidAddress(val);
-                                        setValidationErrors(prev => ({ ...prev, address: false }));
-                                    }}
-                                    onSelectAddressDetails={(details) => {
-                                        const result = evaluateGoogleEventAddress(
-                                            details.comunaCandidates,
-                                            details.regionName,
-                                            comunas,
-                                            regions,
-                                            isAdminQuote
-                                        );
-                                        if (result.status === 'matched') {
-                                            setRegionCode(result.comuna.regionCode);
-                                            setComuna(result.comuna.name);
-                                            setComunaOther('');
-                                            setOutOfRmError(null);
-                                            setLastValidAddress(details.address);
-                                            setValidationErrors((prev) => ({
-                                                ...prev,
-                                                comuna: false,
-                                                comunaOther: false,
-                                                address: false,
-                                            }));
-                                        } else if (result.status === 'outside_rm') {
-                                            setOutOfRmError(
-                                                'Los eventos con dispensador operan exclusivamente en la Región Metropolitana (52 comunas).'
-                                            );
-                                            setValidationErrors((prev) => ({ ...prev, address: true }));
-                                        } else {
-                                            setOutOfRmError(null);
-                                            setLastValidAddress(details.address);
-                                        }
-                                    }}
-                                    onBlur={flushOnBlur}
-                                    placeholder="Calle, Número, Depto..."
-                                    className={`w-full px-3 py-2.5 bg-slate-50 border rounded-xl text-[0.95rem] font-bold focus:outline-none focus:border-primary focus:bg-white transition-all shadow-sm ${validationErrors.address || outOfRmError ? 'border-red-500 bg-red-50/30' : 'border-brand-border'}`}
-                                />
-                                {outOfRmError && (
-                                    <div className="mt-1.5 rounded-xl border border-red-200 bg-red-50/70 p-2.5 text-xs text-red-700 space-y-1">
-                                        <p className="font-semibold flex items-start gap-1.5">
-                                            <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5 text-red-500" />
-                                            <span>{outOfRmError}</span>
-                                        </p>
-                                        <p className="text-[11px] text-slate-600 pl-5">
-                                            ¿Tu evento es en otra región?{' '}
-                                            <Link href="/barriles" className="font-bold text-primary hover:underline">
-                                                Compra barriles desechables de 5L con envío a todo Chile →
-                                            </Link>
-                                        </p>
-                                    </div>
-                                )}
-                            </div>
+                    {/* 2. Resumen compacto del evento y contacto (con opción de editar) */}
+                    <div className="bg-white rounded-[20px] border border-brand-border p-4 sm:p-6 shadow-sm">
+                        <div className="flex items-center justify-between gap-2 pb-3 mb-4 border-b border-brand-border/60">
+                            <h2 className="text-[0.7rem] font-black text-primary uppercase tracking-[0.18em] m-0">
+                                Datos de tu Evento
+                            </h2>
+                            <button
+                                type="button"
+                                onClick={() => setEditingDetails((v) => !v)}
+                                className="inline-flex items-center gap-1.5 text-xs font-extrabold text-primary hover:underline bg-transparent border-none p-0 cursor-pointer"
+                            >
+                                <Edit3 className="w-3.5 h-3.5" />
+                                <span>{editingDetails ? 'Listo' : 'Editar datos'}</span>
+                            </button>
                         </div>
 
-                        {/* Columna 2: Detalles del Evento */}
-                        <div className="space-y-4">
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="flex flex-col gap-1">
-                                    <label className="text-[0.65rem] font-black text-brand-text-muted flex items-center gap-1.5 uppercase">
-                                        <Tag className="w-3 h-3" /> Temática <span className="text-red-500">*</span>
-                                    </label>
-                                    <div className="relative">
-                                        <select
-                                            id="field-eventType"
-                                            value={eventType}
-                                            onChange={(e) => {
-                                                setEventType(e.target.value);
-                                                setValidationErrors(prev => ({ ...prev, eventType: false }));
-                                            }}
-                                            className={`w-full px-3 py-2.5 bg-slate-50 border rounded-xl text-[0.95rem] font-bold focus:outline-none focus:border-primary focus:bg-white transition-all shadow-sm appearance-none pr-10 ${validationErrors.eventType ? 'border-red-500 bg-red-50/30' : 'border-brand-border'}`}
-                                        >
-                                            <option value="" disabled hidden>Seleccionar...</option>
-                                            {eventTypes.map((t) => (
-                                                <option key={t.id} value={t.id}>{t.name}</option>
-                                            ))}
-                                        </select>
-                                        <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
-                                            <ChevronRight className="w-3.5 h-3.5 text-brand-text-muted rotate-90" />
+                        {!editingDetails ? (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3 text-sm">
+                                <div className="space-y-2">
+                                    <div className="flex items-start gap-2">
+                                        <User className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                                        <div>
+                                            <span className="text-xs text-brand-text-muted font-bold block">Cliente</span>
+                                            <span className="font-bold text-brand-text">
+                                                {`${firstName} ${lastName}`.trim() || '—'}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-start gap-2">
+                                        <Mail className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                                        <div className="min-w-0">
+                                            <span className="text-xs text-brand-text-muted font-bold block">Email</span>
+                                            <span className="font-semibold text-brand-text break-all">
+                                                {email || 'Sin registrar'}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-start gap-2">
+                                        <Phone className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                                        <div>
+                                            <span className="text-xs text-brand-text-muted font-bold block">WhatsApp</span>
+                                            <span className="font-semibold text-brand-text">
+                                                {phone ? formatPhoneDisplay(phone) : 'Sin registrar'}
+                                            </span>
                                         </div>
                                     </div>
                                 </div>
 
-                                <div className="flex flex-col gap-1">
-                                    <label className="text-[0.65rem] font-black text-brand-text-muted flex items-center gap-1.5 uppercase">
-                                        <Users className="w-3 h-3" /> Invitados <span className="text-red-500">*</span>
-                                    </label>
-                                    <div className="relative">
-                                        <input
-                                            id="field-guests"
-                                            type="number"
-                                            min={0}
-                                            value={guests}
-                                            onChange={(e) => {
-                                                setGuests(parseInt(e.target.value) || 0);
-                                                setValidationErrors(prev => ({ ...prev, guests: false }));
-                                            }}
-                                            onBlur={flushOnBlur}
-                                            className={`w-full px-3 py-2.5 bg-slate-50 border rounded-xl text-[0.95rem] font-bold focus:outline-none focus:border-primary focus:bg-white transition-all shadow-sm pr-12 ${validationErrors.guests ? 'border-red-500 bg-red-50/30' : 'border-brand-border'}`}
-                                        />
-                                        <div className="absolute right-3 top-1/2 -translate-y-1/2 text-[0.7rem] text-brand-text-muted font-bold pointer-events-none">
-                                            pers.
+                                <div className="space-y-2">
+                                    <div className="flex items-start gap-2">
+                                        <Calendar className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                                        <div>
+                                            <span className="text-xs text-brand-text-muted font-bold block">Fecha estimada</span>
+                                            <span className="font-bold text-brand-text">
+                                                {eventDate ? formatEventDate(eventDate) : 'Por definir'}
+                                            </span>
                                         </div>
                                     </div>
+                                    <div className="flex items-start gap-2">
+                                        <MapPin className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                                        <div>
+                                            <span className="text-xs text-brand-text-muted font-bold block">Comuna</span>
+                                            <span className="font-bold text-brand-text">
+                                                {comuna || 'Por definir'}
+                                                {currentRegionShortName ? ` (${currentRegionShortName})` : ''}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-start gap-2">
+                                        <Users className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                                        <div>
+                                            <span className="text-xs text-brand-text-muted font-bold block">Evento</span>
+                                            <span className="font-bold text-brand-text">
+                                                {eventTypeDisplay || 'Evento'}
+                                                {guests > 0 ? ` · ${guests} invitados` : ''}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    {quote.glassware_type && (
+                                        <div className="flex items-start gap-2">
+                                            <GlassWater className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                                            <div>
+                                                <span className="text-xs text-brand-text-muted font-bold block">Vasos preseleccionados</span>
+                                                <span className="font-bold text-brand-text">
+                                                    {formatGlasswareLabel(quote.glassware_type)}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
+                        ) : (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-fade-in">
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label htmlFor="draft-firstName" className="block text-[0.7rem] font-black uppercase text-brand-text-muted mb-1">
+                                            Nombre
+                                        </label>
+                                        <input
+                                            id="draft-firstName"
+                                            type="text"
+                                            value={firstName}
+                                            onChange={(e) => setFirstName(e.target.value)}
+                                            onBlur={(e) => {
+                                                setFirstName(normalizePersonName(e.target.value));
+                                                flushOnBlur();
+                                            }}
+                                            className="w-full min-h-[42px] px-3 py-2 bg-slate-50 border border-brand-border rounded-xl text-sm font-bold focus:outline-none focus:border-primary focus:bg-white"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label htmlFor="draft-lastName" className="block text-[0.7rem] font-black uppercase text-brand-text-muted mb-1">
+                                            Apellido
+                                        </label>
+                                        <input
+                                            id="draft-lastName"
+                                            type="text"
+                                            value={lastName}
+                                            onChange={(e) => setLastName(e.target.value)}
+                                            onBlur={(e) => {
+                                                setLastName(normalizePersonName(e.target.value));
+                                                flushOnBlur();
+                                            }}
+                                            className="w-full min-h-[42px] px-3 py-2 bg-slate-50 border border-brand-border rounded-xl text-sm font-bold focus:outline-none focus:border-primary focus:bg-white"
+                                        />
+                                    </div>
+                                </div>
 
-                            {eventType === 'Otro' && (
-                                <div className="flex flex-col gap-1">
-                                    <label className="text-[0.65rem] font-black text-brand-text-muted uppercase">Especificar Evento</label>
-                                    <input
-                                        id="field-otherType"
-                                        type="text"
-                                        value={otherType}
-                                        onChange={(e) => {
-                                            setOtherType(e.target.value);
-                                            setValidationErrors(prev => ({ ...prev, otherType: false }));
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    <div>
+                                        <label htmlFor="draft-email" className="block text-[0.7rem] font-black uppercase text-brand-text-muted mb-1">
+                                            Email
+                                        </label>
+                                        <input
+                                            id="draft-email"
+                                            type="email"
+                                            autoCorrect="off"
+                                            autoCapitalize="none"
+                                            spellCheck={false}
+                                            value={email}
+                                            onChange={(e) => setEmail(e.target.value.toLowerCase())}
+                                            onBlur={(e) => {
+                                                setEmail(normalizeEmail(e.target.value));
+                                                flushOnBlur();
+                                            }}
+                                            className="w-full min-h-[42px] px-3 py-2 bg-slate-50 border border-brand-border rounded-xl text-sm font-bold focus:outline-none focus:border-primary focus:bg-white"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label htmlFor="draft-phone" className="block text-[0.7rem] font-black uppercase text-brand-text-muted mb-1">
+                                            WhatsApp
+                                        </label>
+                                        <PhoneInput
+                                            id="draft-phone"
+                                            value={phone}
+                                            onChange={(e164) => setPhone(e164)}
+                                            onBlur={flushOnBlur}
+                                            className="w-full min-h-[42px] px-3 py-2 bg-slate-50 border border-brand-border rounded-xl text-sm font-bold focus:outline-none focus:border-primary focus:bg-white"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <RegionComunaFields
+                                        regions={regions}
+                                        comunas={comunas}
+                                        serviceType="event"
+                                        allowAllActiveRegions={isAdminQuote}
+                                        regionCode={regionCode}
+                                        comuna={comuna}
+                                        otherComuna={comunaOther}
+                                        onRegionChange={(code) => {
+                                            setRegionCode(code);
+                                            setComuna('');
+                                            setComunaOther('');
                                         }}
-                                        onBlur={flushOnBlur}
-                                        placeholder="Ej: Aniversario..."
-                                        className={`w-full px-3 py-2.5 bg-slate-50 border rounded-xl text-[0.95rem] font-bold focus:outline-none focus:border-primary focus:bg-white transition-all shadow-sm ${validationErrors.otherType ? 'border-red-500 bg-red-50/30' : 'border-brand-border'}`}
+                                        onComunaChange={(name) => setComuna(name)}
+                                        onOtherComunaChange={(v) => setComunaOther(v)}
                                     />
                                 </div>
-                            )}
 
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="flex flex-col">
+                                <div>
                                     <ShippingDatePicker
-                                        id="field-eventDate"
+                                        id="draft-eventDate"
                                         label="Fecha del Evento"
-                                        required
                                         value={eventDate}
-                                        onChange={(val) => {
-                                            setEventDate(val);
-                                            setValidationErrors(prev => ({ ...prev, eventDate: false }));
-                                            setConfirmError('');
-                                            if (pickupDate) {
-                                                if (pickupChoice === 'same' || pickupDate === eventDate) {
-                                                    setPickupDate(val);
-                                                    setPickupTime('');
-                                                } else if (pickupChoice === 'next' || pickupDate === nextPickupDate) {
-                                                    setPickupDate(calculateMaxPickupDate(val));
-                                                    setPickupTime(EVENT_DEFAULT_NEXT_DAY_PICKUP_TIME);
-                                                }
-                                            }
-                                        }}
+                                        onChange={(val) => setEventDate(val)}
                                         methodConfig={comunas[0]?.shippingMethodsConfig?.own_events}
                                         fallbackOffsetDays={5}
                                         availabilityContext={{
@@ -1249,147 +1236,217 @@ export default function EventQuoteView({ quote, comunas, regions, availableCockt
                                             portableKegCount: countPortableKegs(items),
                                             excludeQuoteId: quote.id,
                                         }}
-                                        helperText={
-                                            comunas[0]?.shippingMethodsConfig?.own_events?.minOffsetDays
-                                                ? `Mín. ${comunas[0]?.shippingMethodsConfig?.own_events.minOffsetDays} días de anticipación.`
-                                                : undefined
-                                        }
                                     />
                                 </div>
-                                <div className="flex flex-col gap-1">
-                                    <label className="text-[0.65rem] font-black text-brand-text-muted flex items-center gap-1.5 uppercase">
-                                        <Clock className="w-3 h-3" /> Hora de Inicio <span className="text-red-500">*</span>
-                                    </label>
-                                    <input
-                                        id="field-startTime"
-                                        type="time"
-                                        value={startTime}
-                                        onChange={(e) => {
-                                            setStartTime(e.target.value);
-                                            setValidationErrors(prev => ({ ...prev, startTime: false }));
-                                        }}
-                                        className={`w-full px-3 py-2.5 bg-slate-50 border rounded-xl text-[0.95rem] font-bold focus:outline-none focus:border-primary focus:bg-white transition-all shadow-sm ${validationErrors.startTime ? 'border-red-500 bg-red-50/30' : 'border-brand-border'}`}
-                                    />
-                                </div>
-                            </div>
 
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <div className="flex flex-col gap-1">
-                                    <label className="text-[0.65rem] font-black text-brand-text-muted flex items-center gap-1.5 uppercase">
-                                        <Calendar className="w-3 h-3" /> Fecha del Retiro <span className="text-red-500">*</span>
-                                    </label>
-                                    <div className="relative">
+                                <div className="grid grid-cols-2 gap-3 md:col-span-2">
+                                    <div>
+                                        <label htmlFor="draft-eventType" className="block text-[0.7rem] font-black uppercase text-brand-text-muted mb-1">
+                                            Temática
+                                        </label>
                                         <select
-                                            id="field-pickupDate"
-                                            value={pickupChoice}
-                                            onChange={(e) => {
-                                                const choice = e.target.value as 'same' | 'next' | '';
-                                                if (choice === 'same') {
-                                                    setPickupDate(eventDate);
-                                                    setPickupTime('');
-                                                } else if (choice === 'next') {
-                                                    setPickupDate(nextPickupDate);
-                                                    setPickupTime(EVENT_DEFAULT_NEXT_DAY_PICKUP_TIME);
-                                                } else {
-                                                    setPickupDate('');
-                                                    setPickupTime('');
-                                                }
-                                                setValidationErrors((prev) => ({ ...prev, pickupDate: false }));
-                                            }}
-                                            className={`w-full px-3 py-2.5 bg-slate-50 border rounded-xl text-[0.95rem] font-bold focus:outline-none focus:border-primary focus:bg-white transition-all shadow-sm appearance-none pr-10 ${validationErrors.pickupDate ? 'border-red-500 bg-red-50/30' : 'border-brand-border'}`}
+                                            id="draft-eventType"
+                                            value={eventType}
+                                            onChange={(e) => setEventType(e.target.value)}
+                                            className="w-full min-h-[42px] px-3 py-2 bg-slate-50 border border-brand-border rounded-xl text-sm font-bold focus:outline-none focus:border-primary focus:bg-white"
                                         >
                                             <option value="">Seleccionar...</option>
-                                            <option value="same">Mismo día</option>
-                                            <option value="next">Día siguiente</option>
+                                            {eventTypes.map((t) => (
+                                                <option key={t.id} value={t.id}>
+                                                    {t.name}
+                                                </option>
+                                            ))}
                                         </select>
-                                        <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
-                                            <ChevronRight className="w-3.5 h-3.5 text-brand-text-muted rotate-90" />
-                                        </div>
                                     </div>
-                                    {validationErrors.pickupDate ? (
-                                        <p className="mt-1 text-xs text-red-500 font-medium flex items-center gap-1">
-                                            <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                                            <span>Selecciona la fecha de retiro.</span>
-                                        </p>
-                                    ) : pickupChoice === 'next' ? (
-                                        <p className="mt-1 text-[0.7rem] text-brand-text-muted flex items-center gap-1">
-                                            <Clock className="w-3 h-3 text-primary shrink-0" />
-                                            <span>Retiro estimado entre 12:00 y 14:00 hrs.</span>
-                                        </p>
-                                    ) : pickupChoice === 'same' ? (
-                                        <p className="mt-1 text-[0.7rem] text-brand-text-muted flex items-center gap-1">
-                                            <Clock className="w-3 h-3 text-primary shrink-0" />
-                                            <span>Coordinaremos contigo el mejor horario de retiro durante el evento.</span>
-                                        </p>
-                                    ) : null}
+                                    <div>
+                                        <label htmlFor="draft-guests" className="block text-[0.7rem] font-black uppercase text-brand-text-muted mb-1">
+                                            Invitados
+                                        </label>
+                                        <input
+                                            id="draft-guests"
+                                            type="number"
+                                            min={0}
+                                            value={guests}
+                                            onChange={(e) => setGuests(parseInt(e.target.value, 10) || 0)}
+                                            onBlur={flushOnBlur}
+                                            className="w-full min-h-[42px] px-3 py-2 bg-slate-50 border border-brand-border rounded-xl text-sm font-bold focus:outline-none focus:border-primary focus:bg-white"
+                                        />
+                                    </div>
                                 </div>
+
+                                {eventType === 'Otro' && (
+                                    <div className="md:col-span-2">
+                                        <label htmlFor="draft-otherType" className="block text-[0.7rem] font-black uppercase text-brand-text-muted mb-1">
+                                            Especificar temática
+                                        </label>
+                                        <input
+                                            id="draft-otherType"
+                                            type="text"
+                                            value={otherType}
+                                            onChange={(e) => setOtherType(e.target.value)}
+                                            onBlur={flushOnBlur}
+                                            placeholder="Ej: Aniversario..."
+                                            className="w-full min-h-[42px] px-3 py-2 bg-slate-50 border border-brand-border rounded-xl text-sm font-bold focus:outline-none focus:border-primary focus:bg-white"
+                                        />
+                                    </div>
+                                )}
                             </div>
+                        )}
+                    </div>
+
+                    {/* 3. Strip Qué Incluye ($0) */}
+                    <div className="bg-white rounded-[20px] border border-brand-border p-4 sm:p-5 shadow-sm">
+                        <div className="flex items-center justify-between gap-2 mb-3">
+                            <span className="text-[0.7rem] font-black text-brand-text uppercase tracking-[0.16em]">
+                                Incluido sin costo adicional
+                            </span>
+                            <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[0.7rem] font-black">
+                                $0
+                            </span>
+                        </div>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                            {[
+                                { icon: Snowflake, title: 'Hielo abundante', sub: 'Para todo el evento' },
+                                { icon: Leaf, title: 'Garnish', sub: 'Frutas deshidratadas' },
+                                {
+                                    icon: GlassWater,
+                                    title: 'Vasos a elección',
+                                    sub: 'Reutilizables o PET 360 ml',
+                                },
+                                { icon: Martini, title: 'Accesorios', sub: 'Hieleras, pinzas y palas' },
+                            ].map((inc) => (
+                                <div
+                                    key={inc.title}
+                                    className="flex items-start gap-2.5 p-3 rounded-xl bg-slate-50 border border-brand-border/60"
+                                >
+                                    <inc.icon className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                                    <div className="min-w-0">
+                                        <p className="text-xs font-extrabold text-brand-text leading-tight m-0">
+                                            {inc.title}
+                                        </p>
+                                        <p className="text-[0.7rem] text-brand-text-muted leading-tight mt-0.5 m-0">
+                                            {inc.sub}
+                                        </p>
+                                    </div>
+                                </div>
+                            ))}
                         </div>
                     </div>
 
-                    <div className="mt-4 pt-4 border-t border-brand-border/50">
-                        <label className="text-[0.65rem] font-black text-brand-text-muted flex items-center gap-1.5 uppercase mb-1.5">
-                            <MessageSquare className="w-3 h-3" /> Comentarios
-                        </label>
-                        <textarea
-                            value={comments}
-                            onChange={(e) => setComments(e.target.value)}
-                            onBlur={flushOnBlur}
-                            placeholder="Notas adicionales..."
-                            rows={2}
-                            className="w-full px-3 py-2 bg-slate-50 border border-brand-border rounded-xl text-[0.9rem] font-bold focus:outline-none focus:border-primary focus:bg-white transition-all shadow-sm resize-none"
-                        />
+                    {/* 4. CTA Principal hacia el flujo de 4 tarjetas */}
+                    <div className="mt-2 mb-12">
+                        <div className="bg-white border-2 border-primary/25 rounded-3xl p-6 sm:p-8 flex flex-col sm:flex-row items-center justify-between gap-6 shadow-[0_15px_40px_rgba(226,160,73,0.1)]">
+                            <div className="text-center sm:text-left">
+                                <p className="text-[0.7rem] font-black text-brand-text-muted uppercase tracking-[0.18em] mb-1.5 flex items-center justify-center sm:justify-start gap-1.5">
+                                    <Clock className="w-3.5 h-3.5 text-primary" />
+                                    Total estimado (valores netos)
+                                </p>
+                                <p className="text-3xl sm:text-4xl font-black text-brand-text tracking-tight m-0">
+                                    {formatCurrency(advanceAmount)}
+                                </p>
+                                <p className="text-xs sm:text-sm text-brand-text-muted mt-1.5 font-medium m-0">
+                                    En el siguiente paso completarás dirección, horario, retiro y elegirás tus vasos.
+                                </p>
+                            </div>
+
+                            <div className="w-full sm:w-auto flex flex-col gap-2.5 shrink-0">
+                                <button
+                                    type="button"
+                                    onClick={() => void handleGoToReserve()}
+                                    disabled={!minLitersMet || items.length === 0 || goingToReserve}
+                                    className="w-full sm:w-auto min-h-[54px] inline-flex items-center justify-center gap-2.5 px-7 sm:px-10 py-4 rounded-2xl bg-primary text-white font-black text-base sm:text-lg shadow-[0_8px_25px_rgba(226,160,73,0.35)] hover:bg-primary-dark transition-all active:scale-[0.98] disabled:grayscale disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer whitespace-nowrap"
+                                >
+                                    {goingToReserve ? (
+                                        <>
+                                            <Loader2 className="w-5 h-5 animate-spin" />
+                                            <span>Abriendo reserva...</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <span>Reservar mi fecha</span>
+                                            <ChevronRight className="w-5 h-5" />
+                                        </>
+                                    )}
+                                </button>
+                                <a
+                                    href={`${WHATSAPP_URL}?text=${encodeURIComponent(
+                                        `Hola! Tengo una consulta sobre mi cotización: ${clientUrl}`
+                                    )}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center justify-center gap-1.5 text-xs font-bold text-brand-text-muted hover:text-[#128c7e] no-underline py-1"
+                                >
+                                    <WhatsappIcon className="w-3.5 h-3.5 fill-[#25D366]" />
+                                    <span>¿Dudas antes de reservar? Escribir por WhatsApp</span>
+                                </a>
+                            </div>
+                        </div>
+
+                        {!minLitersMet && (
+                            <div
+                                role="alert"
+                                className="mt-4 bg-red-50 border-2 border-red-200 text-red-600 px-5 py-3.5 rounded-2xl text-xs sm:text-sm font-extrabold text-center flex items-center justify-center gap-2"
+                            >
+                                <AlertCircle className="w-4 h-4 shrink-0" />
+                                <span>
+                                    Debes seleccionar al menos {minRequiredLiters} Litros para usar el{' '}
+                                    {dispenser === 'muro' ? 'Muro de Coctelería' : 'Dispensador Portátil'} (volumen actual:{' '}
+                                    {totals.totalLiters}L).
+                                </span>
+                            </div>
+                        )}
                     </div>
-                </div>
+                </>
+            ) : (
+                <>
+                    <QuoteSummaryReservation data={reservationData} />
+                    <QuoteSummaryProducts data={summaryData} title="Tu Barra" isEditable={false} />
+                </>
             )}
 
-            {/* Productos (Editables si es draft) */}
-            <QuoteSummaryProducts
-                data={summaryData}
-                isEditable={isDraft}
-                onUpdateQuantity={onSummaryUpdateQuantity}
-                onUpdateVariant={onSummaryUpdateVariant}
-                onAddProductsClick={() => setShowCatalog(true)}
-                onChangeDispenser={() => setDispenser(prev => prev === 'muro' ? 'portatil' : 'muro')}
-            />
-
-            {isDraft && saveStatus === 'empty_items' && (
-                <div className="-mt-2 bg-amber-50 border border-amber-200 text-amber-800 px-4 py-3 rounded-2xl text-[0.8rem] font-bold flex items-center gap-2">
-                    <AlertCircle className="w-4 h-4 shrink-0 text-amber-600" />
-                    <span>Agrega al menos un producto para guardar los cambios en tu cotización.</span>
-                </div>
-            )}
-
-            {/* Catálogo Modal (Full Screen Mobile) */}
-            {showCatalog && (
-                <div className="fixed inset-0 z-[300] bg-black/60 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={() => setShowCatalog(false)}>
-                    <div className="bg-white w-full max-w-6xl h-[100dvh] sm:h-auto sm:max-h-[92vh] sm:rounded-[2.5rem] flex flex-col overflow-hidden animate-slide-up sm:animate-in sm:zoom-in-95" onClick={e => e.stopPropagation()}>
-                        {/* Handle para móvil */}
+            {/* Catálogo Modal para añadir cócteles en borrador */}
+            {showCatalog && isDraft && (
+                <div
+                    className="fixed inset-0 z-[300] bg-black/60 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4"
+                    onClick={() => setShowCatalog(false)}
+                >
+                    <div
+                        className="bg-white w-full max-w-6xl h-[100dvh] sm:h-auto sm:max-h-[92vh] sm:rounded-[2.5rem] flex flex-col overflow-hidden animate-slide-up"
+                        onClick={(e) => e.stopPropagation()}
+                    >
                         <div className="w-12 h-1.5 bg-slate-300/60 rounded-full mx-auto mt-4 mb-1 sm:hidden shrink-0" />
-                        
+
                         <div className="p-4 sm:p-6 border-b border-brand-border flex items-center justify-between bg-white sticky top-0 z-10 shrink-0">
                             <div>
-                                <h3 className="text-lg sm:text-xl font-black text-brand-text leading-tight">Añadir Cócteles</h3>
-                                <p className="text-[0.7rem] sm:text-[0.8rem] text-brand-text-muted font-bold">Catálogo Cocktails On Tap</p>
+                                <h3 className="text-lg sm:text-xl font-black text-brand-text leading-tight">
+                                    Añadir Cócteles
+                                </h3>
+                                <p className="text-[0.7rem] sm:text-[0.8rem] text-brand-text-muted font-bold">
+                                    Catálogo Cocktails on Tap
+                                </p>
                             </div>
-                            <button onClick={() => setShowCatalog(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
+                            <button
+                                type="button"
+                                aria-label="Cerrar catálogo"
+                                onClick={() => setShowCatalog(false)}
+                                className="p-2 hover:bg-slate-100 rounded-full transition-colors cursor-pointer bg-transparent border-none"
+                            >
                                 <XCircle className="w-6 h-6 text-brand-text-muted" />
                             </button>
                         </div>
 
                         <div className="p-4 sm:p-6 bg-slate-50 border-b border-brand-border flex flex-col sm:flex-row gap-4 sm:gap-6 items-center">
-                            {/* Barra de categorías (Estilo Wizard) */}
                             <div className="flex-1 w-full overflow-hidden">
                                 <div className="flex gap-2 overflow-x-auto pb-1 hide-scrollbar">
                                     {eventCategories.map((cat) => (
                                         <button
                                             key={cat}
                                             type="button"
-                                            className={`px-4 py-2 sm:px-5 sm:py-2.5 rounded-full font-bold text-[0.75rem] sm:text-[0.85rem] whitespace-nowrap transition-all duration-300 border-2 cursor-pointer
-                                                ${cat === selectedCategory
+                                            className={`px-4 py-2 sm:px-5 sm:py-2.5 rounded-full font-bold text-[0.75rem] sm:text-[0.85rem] whitespace-nowrap transition-all duration-300 border-2 cursor-pointer ${
+                                                cat === selectedCategory
                                                     ? 'bg-gradient-to-r from-primary to-primary-dark border-primary text-white shadow-md'
                                                     : 'bg-white border-brand-border text-brand-text hover:border-primary/50'
-                                                }`}
+                                            }`}
                                             onClick={() => setSelectedCategory(cat)}
                                         >
                                             {cat}
@@ -1398,14 +1455,13 @@ export default function EventQuoteView({ quote, comunas, regions, availableCockt
                                 </div>
                             </div>
 
-                            {/* Buscador secundario en modal */}
                             <div className="relative w-full sm:w-64 shrink-0">
                                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-brand-text-muted" />
                                 <input
-                                    type="text"
+                                    type="search"
                                     placeholder="Buscar por nombre..."
                                     value={searchQuery}
-                                    onChange={e => setSearchQuery(e.target.value)}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
                                     className="w-full pl-11 pr-4 py-3 bg-white border border-brand-border rounded-xl focus:outline-none focus:border-primary font-bold shadow-sm text-sm"
                                 />
                             </div>
@@ -1419,183 +1475,26 @@ export default function EventQuoteView({ quote, comunas, regions, availableCockt
                             />
                             {filteredCocktails.length === 0 && (
                                 <div className="py-20 text-center">
-                                    <p className="text-brand-text-muted font-bold">No se encontraron productos.</p>
+                                    <p className="text-brand-text-muted font-bold">
+                                        No se encontraron productos.
+                                    </p>
                                 </div>
                             )}
                         </div>
 
-                        {/* Footer del Modal con botón de cierre/finalizar */}
                         <div className="p-4 sm:p-6 border-t border-brand-border bg-slate-50 flex flex-wrap items-center justify-between gap-3">
-                            <DraftSaveBadge status={saveStatus} error={saveError} onRetry={() => void flushNow()} />
-                            <button
-                                onClick={() => setShowCatalog(false)}
-                                className="px-8 py-3 bg-brand-text text-white font-black rounded-xl shadow-lg hover:bg-black transition-all transform active:scale-95"
-                            >
-                                Listo, volver a la cotización
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Navigation / Confirmación - INTEGRADA AL FLUJO (UI/UX Expert) */}
-            {isDraft && (
-                <div className="mt-8 mb-16">
-                    <div className="bg-white/60 backdrop-blur-md border-2 border-brand-border rounded-[2.5rem] p-6 sm:p-10 flex flex-col sm:flex-row items-center justify-between gap-8 shadow-[0_20px_50px_rgba(0,0,0,0.04)] hover:shadow-[0_25px_60px_rgba(0,0,0,0.08)] transition-all duration-500 relative overflow-hidden group">
-                        {/* Decoración de fondo sutil */}
-                        <div className="absolute -top-10 -right-10 w-40 h-40 bg-primary/5 rounded-full blur-3xl group-hover:bg-primary/10 transition-colors" />
-                        <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-emerald-500/5 rounded-full blur-3xl group-hover:bg-emerald-500/10 transition-colors" />
-
-                        <div className="text-center sm:text-left relative z-10">
-                            <p className="text-[0.7rem] font-black text-brand-text-muted uppercase tracking-[0.2em] mb-2 flex items-center justify-center sm:justify-start gap-2">
-                                <Clock className="w-3.5 h-3.5" /> Pago para confirmar ({advancePercentText})
-                            </p>
-                            <p className="text-4xl font-black text-brand-text tracking-tight">{formatCurrency(advanceAmount)}</p>
-                            <p className="text-[0.85rem] text-brand-text-muted mt-2 font-medium">
-                                El pago total se realiza para confirmar la reserva.
-                            </p>
-                        </div>
-
-                    <div className="w-full sm:w-auto relative z-10">
+                            <DraftSaveBadge
+                                status={saveStatus}
+                                error={saveError}
+                                onRetry={() => void flushNow()}
+                            />
                             <button
                                 type="button"
-                                onClick={handlePreConfirm}
-                                disabled={!minLitersMet}
-                                className="w-full sm:w-auto inline-flex items-center justify-center gap-3 px-6 sm:px-12 py-5 rounded-[1.25rem] bg-primary text-white font-black text-[1.1rem] sm:text-[1.15rem] shadow-[0_8px_30px_rgba(226,160,73,0.35)] hover:bg-primary-dark hover:shadow-[0_12px_40px_rgba(226,160,73,0.45)] transition-all active:scale-[0.98] disabled:grayscale disabled:opacity-50 disabled:cursor-not-allowed group/btn whitespace-nowrap"
+                                onClick={() => setShowCatalog(false)}
+                                className="px-8 py-3 bg-brand-text text-white font-black rounded-xl shadow-lg hover:bg-black transition-all active:scale-95 cursor-pointer"
                             >
-                                🚀 Confirmar Reserva
-                                <ChevronRight className="w-5 h-5 transition-transform group-hover/btn:translate-x-1" />
+                                Listo, volver a mi propuesta
                             </button>
-                        </div>
-                    </div>
-
-                    {/* Advertencia de litros mínimos */}
-                    {!minLitersMet && (
-                        <div className="mt-4 bg-red-50 border-2 border-red-200 text-red-600 px-5 py-4 rounded-3xl text-[0.85rem] font-extrabold text-center animate-fade-in flex items-center justify-center gap-2">
-                            <AlertCircle className="w-4 h-4 shrink-0" />
-                            <span>
-                                Debes seleccionar al menos {minRequiredLiters} Litros para usar el {dispenser === 'muro' ? 'Muro de Coctelería' : 'Dispensador Portátil'} (volumen actual: {totals.totalLiters}L).
-                            </span>
-                        </div>
-                    )}
-
-                    {/* Mensaje de validación rápida si hay errores */}
-                    {Object.keys(validationErrors).length > 0 && (
-                        <div className="mt-4 text-center animate-fade-in flex flex-col gap-2 items-center">
-                            {validationErrors.liters && (
-                                <p className="text-[0.75rem] font-bold text-red-600 flex items-center justify-center gap-1.5 bg-red-50 border border-red-100 py-2 px-4 rounded-full">
-                                    <AlertCircle className="w-3.5 h-3.5" /> Debes seleccionar al menos {minRequiredLiters} Litros para el dispensador actual.
-                                </p>
-                            )}
-                            {Object.keys(validationErrors).some(k => k !== 'liters') && (
-                                <p className="text-[0.75rem] font-bold text-red-600 flex items-center justify-center gap-1.5 bg-red-50 border border-red-100 py-2 px-4 rounded-full">
-                                    <AlertCircle className="w-3.5 h-3.5" /> Faltan campos obligatorios por completar.
-                                </p>
-                            )}
-                        </div>
-                    )}
-                </div>
-            )}
-
-            {/* Modal de confirmación - REDISEÑADO UI/UX EXPERT */}
-            {showConfirmModal && (
-                <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-brand-text/60 backdrop-blur-md" onClick={() => setShowConfirmModal(false)}>
-                    <div className="bg-white rounded-[2.5rem] max-w-lg w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden relative border border-brand-border" onClick={(e) => e.stopPropagation()}>
-                        <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-primary to-amber-300" />
-
-                        {/* Header */}
-                        <div className="p-6 pb-2 sm:px-10 sm:pt-8 sm:pb-3 shrink-0">
-                            <h2 className="text-2xl font-black text-brand-text mb-1 tracking-tight">Finalizar Reserva</h2>
-                            <p className="text-brand-text-muted text-[0.85rem] leading-relaxed">Completa los pasos para asegurar tu fecha.</p>
-                        </div>
-
-                        {/* Contenido Scrollable Completo */}
-                        <div className="flex-1 overflow-y-auto px-6 py-4 sm:px-10 space-y-8">
-                            
-                            {/* 1. Datos de Transferencia (Prioridad Alta) */}
-                            <div className="space-y-4">
-                                <h3 className="text-[0.75rem] font-black text-brand-text flex items-center gap-2 uppercase tracking-widest">
-                                    <CreditCard className="w-4 h-4 text-primary" /> 1. Datos para el Pago ({advancePercentText})
-                                </h3>
-                                <BankTransferCard variant="neutral" />
-                            </div>
-
-                            {/* 2. Resumen del Monto */}
-                            <div className="text-center py-2">
-                                <p className="text-brand-text-muted text-[0.7rem] font-black uppercase tracking-[0.2em] mb-1">Monto a depositar</p>
-                                <p className="text-primary font-black text-5xl tracking-tighter">{formatCurrency(advanceAmount)}</p>
-                            </div>
-
-                            {/* 3. Contrato de Servicio con Scroll Propio */}
-                            <div className="space-y-4">
-                                <h3 className="text-[0.75rem] font-black text-brand-text flex items-center gap-2 uppercase tracking-widest">
-                                    <FileText className="w-4 h-4 text-primary" /> 2. Contrato de Servicio
-                                </h3>
-                                <div className="bg-slate-50 border-2 border-brand-border rounded-2xl overflow-hidden shadow-inner">
-                                    <div className="p-6 text-[0.85rem] text-brand-text-muted leading-relaxed bg-white/50">
-                                        
-                                        <div className="text-center font-black mb-6 uppercase tracking-[0.3em] border-b-2 border-brand-border/30 pb-3 text-brand-text text-[0.75rem]">CONTRATO DE SERVICIO</div>
-                                        <p className="mb-4">
-                                            Entre <strong>Cocktails on Tap Chile</strong>, en adelante “El Arrendador”, y don/doña: <strong>{firstName} {lastName}</strong>, en adelante “El Arrendatario”, se acuerda lo siguiente:
-                                        </p>
-                                        <p className="font-black text-brand-text mb-2 mt-4">1. Objeto del contrato</p>
-                                        <p className="mb-4">El Arrendador proporcionará al Arrendatario un servicio de cócteles listos para servir en formato autoservicio, incluyendo barriles, dispensadores y cristalería.</p>
-                                        <p className="font-black text-brand-text mb-2">2. Responsabilidad por daños</p>
-                                        <ul className="list-disc pl-5 mb-4 space-y-2">
-                                            <li>$1.000 (mil pesos) por vaso extraviado o dañado.</li>
-                                            <li>$2.000 (dos mil pesos) por copa extraviada o dañada.</li>
-                                            <li>Hasta $500.000 (quinientos mil pesos) por dispensador extraviado o dañado.</li>
-                                        </ul>
-                                        <p className="font-black text-brand-text mb-2">3. Aceptación y Pago</p>
-                                    <p className="mb-2">Se entiende aceptado al confirmar la reserva mediante el pago del <strong>100% del total</strong>.</p>
-                                    <p>La reserva queda confirmada una vez realizado el pago total.</p>
-                                    </div>
-                                    <div className="p-4 bg-primary/5 flex items-center gap-3 border-t border-brand-border">
-                                        <label className="flex items-center gap-3 cursor-pointer group w-full">
-                                            <div className="relative flex items-center justify-center">
-                                                <input 
-                                                    type="checkbox" 
-                                                    checked={acceptedTerms}
-                                                    onChange={(e) => setAcceptedTerms(e.target.checked)}
-                                                    className="peer appearance-none w-6 h-6 border-2 border-brand-border rounded-lg checked:bg-primary checked:border-primary transition-all cursor-pointer" 
-                                                />
-                                                <CheckCircle className="absolute w-4 h-4 text-white opacity-0 peer-checked:opacity-100 transition-opacity pointer-events-none" />
-                                            </div>
-                                            <span className="text-[0.8rem] font-bold text-brand-text group-hover:text-primary transition-colors">He leído y acepto los términos del contrato</span>
-                                        </label>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Alerta de Error */}
-                            {confirmError && (
-                                <div className="flex items-center gap-3 bg-red-50 border-2 border-red-100 text-red-700 rounded-2xl p-4 text-[0.85rem] font-bold animate-shake">
-                                    <AlertCircle className="w-5 h-5 shrink-0" />{confirmError}
-                                </div>
-                            )}
-
-                            {/* 4. Botones de Acción (Al final del scroll) */}
-                            <div className="flex flex-col gap-3 pt-2 pb-10">
-                                <button
-                                    type="button"
-                                    onClick={handleConfirm}
-                                    disabled={isConfirming || !acceptedTerms}
-                                    className="w-full py-5 rounded-[1.25rem] bg-primary text-white font-black text-[1.2rem] hover:bg-primary-dark transition-all disabled:opacity-50 disabled:grayscale flex items-center justify-center gap-3 shadow-[0_8px_25px_rgba(226,160,73,0.3)] active:scale-[0.98] group/btn"
-                                >
-                                    {isConfirming ? (
-                                        <><Loader2 className="w-6 h-6 animate-spin text-white" /> Procesando...</>
-                                    ) : (
-                                        <>🚀 Confirmar Reserva</>
-                                    )}
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => setShowConfirmModal(false)}
-                                    className="w-full py-4 rounded-[1.25rem] border-2 border-brand-border text-brand-text-muted font-bold hover:bg-slate-50 hover:text-brand-text transition-all active:scale-[0.98]"
-                                >
-                                    Volver / Cancelar
-                                </button>
-                            </div>
                         </div>
                     </div>
                 </div>

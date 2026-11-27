@@ -52,13 +52,13 @@ export default function EventStepDrinks({
     return (
         <div className="max-w-4xl mx-auto flex flex-col items-center text-center animate-fade-in py-4 sm:py-8">
             {/* Tag / Step badge */}
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-black uppercase tracking-wider mb-4">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-extrabold uppercase tracking-wider mb-3">
                 <Wine className="w-3.5 h-3.5" />
-                <span>Paso 2 de 4 · Intensidad de Barra</span>
+                <span>Paso 2 de 5 · Intensidad de Barra</span>
             </div>
 
             {/* Title & Subtitle */}
-            <h2 className="text-3xl sm:text-4xl md:text-5xl font-black text-brand-text tracking-tight mb-3">
+            <h2 className="text-3xl sm:text-4xl font-extrabold text-brand-text tracking-tight mb-2.5">
                 ¿Cuántos cócteles por persona?
             </h2>
             <p className="text-brand-text-muted text-sm sm:text-base max-w-xl mx-auto mb-8 sm:mb-10 leading-relaxed font-medium">

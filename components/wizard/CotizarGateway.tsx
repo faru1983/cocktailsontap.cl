@@ -61,7 +61,7 @@ export default function CotizarGateway({ cocktails, eventTypes, comunas, regions
                     
                     <h4 className="text-2xl font-black text-white mb-3 text-center drop-shadow-md">Servicio de Eventos</h4>
                     <p className="text-zinc-300 text-[0.95rem] text-center leading-relaxed flex-1 mb-8 drop-shadow-sm font-medium">
-                        Arriendo de dispensadores, cristalería, hielo y decoraciones. Ideal para matrimonios, cumpleaños corporativos y fiestas grandes.
+                        Arriendo de dispensadores, vasos y copas a elección, hielo y decoraciones. Ideal para matrimonios, cumpleaños, eventos corporativos y celebraciones.
                     </p>
 
                     <div className="w-full flex items-center justify-between text-primary font-bold text-[0.95rem] bg-white/10 backdrop-blur-md px-5 py-3.5 rounded-xl group-hover:bg-primary group-hover:text-white transition-all duration-300 border border-white/5 shadow-inner">

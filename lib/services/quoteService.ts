@@ -136,6 +136,7 @@ export const QuoteService = {
                 guests: state.consumption.guests,
                 drinks_per_person: state.consumption.drinksPerPerson,
                 dispenser: state.dispenser,
+                glassware_type: state.serviceType === 'direct' ? null : (state.eventData.glasswareType || null),
 
                 total_normal_price: data.totalNormalPrice,
                 total_offer_price: data.totalOfferPrice,

@@ -16,6 +16,7 @@ import { createServerClient } from '@/lib/supabaseServer';
 import { SettingsService } from './settingsService';
 import { isChilePrefixOnly, normalizePhoneE164 } from '@/lib/phone';
 import { sumQuotePayments, getQuoteBalance } from '@/lib/directSaleFulfillment';
+import { formatGlasswareLabel } from '@/lib/glassware';
 
 function resolveContactEmail(raw?: string | null): string | undefined {
     const v = (raw || '').trim().toLowerCase();
@@ -174,6 +175,8 @@ export const GoogleSyncService = {
             const itemsText = quote.quote_items?.map((item) => formatQuoteItemCalendarLine(item)).join('\n') || 'Sin productos';
 
             const dispenserLabel = quote.dispenser === 'muro' ? 'Muro' : 'Portátil';
+            const glasswareLabel = formatGlasswareLabel(quote.glassware_type) || 'Por definir';
+            const glasswareLine = quote.glassware_type ? `Vasos: ${glasswareLabel}\n` : '';
             
             const commentsText = quote.comments ? `Comentarios: ${quote.comments}\n` : '';
 
@@ -216,6 +219,7 @@ export const GoogleSyncService = {
                 comuna: comunaStr || '',
                 address: streetAddress,
                 total_liters: quote.total_liters || '0',
+                glassware_label: glasswareLabel,
             };
 
             const isDirectSale = options?.isDirectSaleOverride ?? 
@@ -232,11 +236,23 @@ export const GoogleSyncService = {
                 console.log(`GoogleSyncService [${quote.id}] - Sincronizando como ${isDirectSale ? 'VENTA DIRECTA' : 'EVENTO'} en calendario: ${targetCalendarId}`);
             }
             
-            const sharedDescription = await SettingsService.getResolvedValue(
+            let sharedDescription = await SettingsService.getResolvedValue(
                 isDirectSale ? 'calendar_direct_sale_description_template' : 'calendar_event_description_template', 
                 variables,
-                `${commentsText}Celular: ${quote.client_phone || ''}\nVer Cotización: ${link}\n\nPRODUCTOS:\n${itemsText}\nTransporte: ${formatClp(quote.shipping_cost || 0)}\nInstalación (${dispenserLabel}): ${formatClp(quote.installation_cost || 0)}\nTotal: ${formatClp(quote.total_price || 0)}\n${paymentsSummary}`
+                `${commentsText}${glasswareLine}Celular: ${quote.client_phone || ''}\nVer Cotización: ${link}\n\nPRODUCTOS:\n${itemsText}\nTransporte: ${formatClp(quote.shipping_cost || 0)}\nInstalación (${dispenserLabel}): ${formatClp(quote.installation_cost || 0)}\nTotal: ${formatClp(quote.total_price || 0)}\n${paymentsSummary}`
             );
+
+            // Asegurar visibilidad de vasos en eventos aunque el template de site_settings no tenga {{glassware_label}}
+            if (!isDirectSale && quote.glassware_type && !sharedDescription.includes(glasswareLabel)) {
+                if (sharedDescription.includes('\nPRODUCTOS:')) {
+                    sharedDescription = sharedDescription.replace(
+                        '\nPRODUCTOS:',
+                        `\nVasos: ${glasswareLabel}\n\nPRODUCTOS:`
+                    );
+                } else {
+                    sharedDescription = `Vasos: ${glasswareLabel}\n${sharedDescription}`;
+                }
+            }
 
             // Determine if times are provided, else fallback to ALL DAY events.
             const hasStartTime = quote.start_time && quote.start_time !== '--:--';

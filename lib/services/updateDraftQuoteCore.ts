@@ -336,6 +336,12 @@ export async function updateDraftQuoteCore(formData: unknown): Promise<UpdateDra
         const nextComments =
             data.comments !== undefined ? data.comments?.trim() || null : quote.comments;
 
+        const nextGlasswareType = isDirectSale
+            ? null
+            : data.glassware_type !== undefined
+              ? data.glassware_type || null
+              : quote.glassware_type ?? null;
+
         // 3. Recalcular totales en servidor (Zero Trust)
         const summary = calculateSummaryData(
             {
@@ -456,6 +462,7 @@ export async function updateDraftQuoteCore(formData: unknown): Promise<UpdateDra
                 pickup_time: nextPickupTime,
                 comments: nextComments,
                 dispenser: effectiveDispenser,
+                glassware_type: nextGlasswareType,
                 total_normal_price: summary.totalNormalPrice,
                 total_offer_price: summary.totalOfferPrice,
                 shipping_cost: effectiveShippingCost,
@@ -569,6 +576,7 @@ export async function updateDraftQuoteCore(formData: unknown): Promise<UpdateDra
         }
 
         revalidatePath(`/cotizar/${data.token}`);
+        revalidatePath(`/cotizar/${data.token}/reservar`);
         revalidatePath(`/admin/quotes/${quote.id}`);
 
         return {

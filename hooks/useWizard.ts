@@ -23,6 +23,7 @@ const INITIAL_STATE: WizardState = {
         startTime: '',
         pickupDate: '',
         pickupTime: '',
+        glasswareType: '',
     },
     consumption: {
         guests: 0,
@@ -167,12 +168,17 @@ export function useWizard(cocktails: CocktailForWizard[], comunas: Comuna[], cat
         });
     }, []);
 
-    const goToStep = useCallback((step: number) => {
+    const goToStep = useCallback((step: number, opts?: { mode?: 'cotizacion' | 'reserva' | null }) => {
         setState((prev) => ({ ...prev, step }));
         
         // Actualizar URL
         const params = new URLSearchParams(searchParams.toString());
         params.set('step', step.toString());
+        if (opts?.mode) {
+            params.set('mode', opts.mode);
+        } else {
+            params.delete('mode');
+        }
         router.push(`${pathname}?${params.toString()}`, { scroll: false });
         
         window.scrollTo({ top: 0, behavior: 'smooth' });

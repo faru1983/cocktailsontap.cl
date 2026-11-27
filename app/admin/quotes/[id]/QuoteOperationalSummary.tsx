@@ -31,6 +31,7 @@ import PhoneInput from '@/components/ui/PhoneInput';
 import type { Comuna, Product, QuoteItem, Region, Quote } from '@/lib/types';
 import { DEFAULT_REGION_CODE } from '@/lib/types';
 import { resolveDispatchTrackingUrl } from '@/lib/directSaleFulfillment';
+import { formatGlasswareLabel } from '@/lib/glassware';
 import { useState, type ReactNode } from 'react';
 
 const formatCLP = (n: number) =>
@@ -505,6 +506,7 @@ export default function QuoteOperationalSummary({
         event_types?: { name?: string } | null;
         event_type_other?: string | null;
         dispenser?: string | null;
+        glassware_type?: string | null;
         service_type?: string | null;
         total_liters?: number | null;
         dispatch_estimated_date?: string | null;
@@ -806,6 +808,22 @@ export default function QuoteOperationalSummary({
                                                 />
                                             )}
                                         </EditField>
+                                        <EditField label="Vasos">
+                                            <select
+                                                value={String(editInfo.glassware_type || '')}
+                                                onChange={(e) =>
+                                                    setEditInfo((p) => ({
+                                                        ...p,
+                                                        glassware_type: e.target.value || null,
+                                                    }))
+                                                }
+                                                style={inputStyle}
+                                            >
+                                                <option value="">Por definir</option>
+                                                <option value="reusable">Vasos y Copas Reutilizables (en préstamo)</option>
+                                                <option value="disposable_pet">Vasos PET 360 ml (desechables)</option>
+                                            </select>
+                                        </EditField>
                                         <EditField label="Invitados">
                                             <input
                                                 type="number"
@@ -873,6 +891,7 @@ export default function QuoteOperationalSummary({
                                         </Field>
                                         <Field label="Temática">{formatTheme(q)}</Field>
                                         <Field label="Invitados">{q.guests ?? '—'}</Field>
+                                        <Field label="Vasos">{formatGlasswareLabel(q.glassware_type) || 'Por definir'}</Field>
                                     </>
                                 )}
                                 {isDirectSale && <Field label="Formato">{dispenserLabel(q)}</Field>}

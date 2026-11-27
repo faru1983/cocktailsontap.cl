@@ -5,6 +5,7 @@ import { formatPhoneDisplay } from '@/lib/phone';
 import { SITE_URL, LOGO_URL, CONTACT_EMAIL, WHATSAPP_URL } from '@/lib/config';
 import type { Quote, QuoteItem } from '@/lib/types';
 import { formatQuoteAddress } from '@/lib/geo';
+import { formatGlasswareLabel } from '@/lib/glassware';
 
 export const brandColor = '#E2A049';
 export const brandDark  = '#1a1a2e';
@@ -231,6 +232,7 @@ export const ReservationInfoSection: React.FC<{ quote: Quote, isDirect?: boolean
               <Row label="Fecha de entrega" value={eventDate} />
             )}
             {!directMode && quote.pickup_date && <Row label="Retiro" value={`${new Date(quote.pickup_date + 'T12:00:00').toLocaleDateString('es-CL', { day: '2-digit', month: 'long', year: 'numeric' })}${quote.pickup_time ? ` • ${quote.pickup_time}` : ''}`} />}
+            {!directMode && quote.glassware_type && <Row label="Vasos" value={formatGlasswareLabel(quote.glassware_type)} />}
           </tbody>
         </table>
       </Section>

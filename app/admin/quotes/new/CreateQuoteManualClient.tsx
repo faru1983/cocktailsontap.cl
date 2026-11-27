@@ -124,7 +124,8 @@ export default function CreateQuoteManualClient({ allProducts, comunas, regions,
         date: '', 
         startTime: '',
         pickupDate: '',
-        pickupTime: ''
+        pickupTime: '',
+        glasswareType: '' as '' | 'reusable' | 'disposable_pet',
     });
 
     const [consumption, setConsumption] = useState({
@@ -687,6 +688,18 @@ export default function CreateQuoteManualClient({ allProducts, comunas, regions,
                                             </div>
                                         )}
                                     </div>
+
+                                    <Field label="Vasos y Copas (incluido)" className="md:col-span-2">
+                                        <select
+                                            value={eventData.glasswareType}
+                                            onChange={e => setEventData(d => ({ ...d, glasswareType: e.target.value as '' | 'reusable' | 'disposable_pet' }))}
+                                            className="admin-input"
+                                        >
+                                            <option value="">Por definir (lo elige el cliente al reservar)</option>
+                                            <option value="reusable">Vasos y Copas Reutilizables (en préstamo · 450/480 ml)</option>
+                                            <option value="disposable_pet">Vasos PET 360 ml (desechables · sin devolución)</option>
+                                        </select>
+                                    </Field>
                                 </div>
                             </SectionBox>
                         </>

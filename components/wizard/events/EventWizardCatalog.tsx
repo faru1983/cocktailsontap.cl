@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useRef, useMemo } from 'react';
-import { ShoppingCart } from 'lucide-react';
+import { Wine } from 'lucide-react';
 import type { useWizard } from '@/hooks/useWizard';
 import { calculateLiveQuoterSuggestion, isEventBarrelCompatibleWithDispenser, isEventBarrelSizeLabelCompatible } from '@/lib/wizardLogic';
 import type { Product, CocktailForWizard, ICart } from '@/lib/types';
@@ -107,10 +107,18 @@ export default function EventWizardCatalog({ wizard, cocktails, categories, onOp
 
     return (
         <div className="flex flex-col pb-32">
-            {/* Header Title */}
-            <div className="mb-8 text-center md:text-left">
-                <p className="text-primary font-black tracking-widest uppercase text-sm mb-2">Paso 4 de 4 · Catálogo</p>
-                <h2 className="text-3xl md:text-4xl font-black text-brand-text">Selecciona tus Cócteles</h2>
+            {/* Header Title — estilo unificado con Pasos 1-3 */}
+            <div className="mb-8 text-center">
+                <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-extrabold uppercase tracking-wider mb-3">
+                    <Wine className="w-3.5 h-3.5" />
+                    <span>Paso 4 de 5 · Catálogo</span>
+                </div>
+                <h2 className="text-3xl sm:text-4xl font-extrabold text-brand-text tracking-tight mb-2">
+                    Selecciona tus Cócteles
+                </h2>
+                <p className="text-sm sm:text-base text-brand-text-muted max-w-xl mx-auto font-medium">
+                    Elige las variedades y tamaños que quieras incluir en tu barra.
+                </p>
             </div>
 
             {/* Rendimientos Aproximados */}
@@ -210,8 +218,8 @@ export default function EventWizardCatalog({ wizard, cocktails, categories, onOp
                                         onClick={onOpenCheckout}
                                         className="group relative shrink-0 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 sm:gap-2 sm:px-6 sm:py-3 rounded-xl bg-primary text-white font-black text-[0.9rem] sm:text-[1.05rem] transition-all hover:bg-primary-dark shadow-[0_4px_15px_rgba(226,160,73,0.3)] hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
                                     >
-                                        <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5 transition-transform group-hover:scale-110" />
-                                        <span>Cotizar</span>
+                                        <Wine className="w-4 h-4 sm:w-5 sm:h-5 transition-transform group-hover:scale-110" />
+                                        <span>Continuar</span>
                                         {totalItems > 0 && (
                                             <span className="absolute -top-2 -right-2 bg-brand-text text-white rounded-full min-w-[22px] h-[22px] px-1.5 flex items-center justify-center text-[0.7rem] font-extrabold border-2 border-white shadow-sm">
                                                 {totalItems}

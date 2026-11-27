@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useWizard } from '@/hooks/useWizard';
 import { AlertCircle, ArrowLeft, RotateCcw } from 'lucide-react';
 import type { CocktailForWizard, EventType, Comuna, Region } from '@/lib/types';
@@ -15,6 +15,8 @@ import EventStepDrinks from './EventStepDrinks';
 import EventStepProposal from './EventStepProposal';
 import EventWizardCatalog from './EventWizardCatalog';
 import EventWizardCheckoutModal from './EventWizardCheckoutModal';
+import EventStepQuickQuote from './EventStepQuickQuote';
+import EventWizardReserveFlow from './EventWizardReserveFlow';
 import EventWizardSuccess from './EventWizardSuccess';
 import { getClientMetaAttribution } from '@/lib/attribution';
 
@@ -29,8 +31,16 @@ interface Props {
 
 type SendStatus = 'idle' | 'saving' | 'saved' | 'error';
 
-export default function EventWizardShell({ cocktails, eventTypes, comunas, regions, categories, initialServiceType }: Props) {
+export default function EventWizardShell({
+    cocktails,
+    eventTypes,
+    comunas,
+    regions,
+    categories,
+    initialServiceType,
+}: Props) {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const wizard = useWizard(cocktails, comunas, categories, initialServiceType);
     const { state, updateConsumption, updateDispenser, goToStep } = wizard;
 
@@ -46,13 +56,15 @@ export default function EventWizardShell({ cocktails, eventTypes, comunas, regio
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [categories]);
 
-    // Flujo de 4 pasos:
+    // Flujo de 5 pasos sincronizados con URL (?step=1..5 y ?step=5&mode=cotizacion|reserva):
     // 1: Invitados
     // 2: Tragos p/p
     // 3: Propuesta Sugerida + Formato Dispensador
     // 4: Catálogo de Cócteles
-    const currentStep = Math.min(4, Math.max(1, state.step));
-    const progress = (currentStep / 4) * 100;
+    // 5: Datos finales (Cotización o Reserva paso a paso)
+    const currentStep = Math.min(5, Math.max(1, state.step));
+    const urlMode = searchParams.get('mode') === 'reserva' ? 'reserva' : 'cotizacion';
+    const progress = (currentStep / 5) * 100;
 
     useEffect(() => {
         setValidationError('');
@@ -61,15 +73,23 @@ export default function EventWizardShell({ cocktails, eventTypes, comunas, regio
             setSaveError('');
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [currentStep, state.selections, isModalOpen]);
+    }, [currentStep, urlMode, state.selections, isModalOpen]);
 
-    // Litros sugeridos para estimación
+    // Protección: si alguien entra a step=5 sin selecciones, devolver al catálogo (step 4)
+    useEffect(() => {
+        if (currentStep === 5 && state.selections.length === 0 && state.consumption.guests > 0) {
+            goToStep(4);
+        }
+    }, [currentStep, state.selections.length, state.consumption.guests, goToStep]);
+
     const suggestedLiters = useMemo(() => {
-        const res = calculateLiveQuoterSuggestion(state.consumption.guests, state.consumption.drinksPerPerson);
+        const res = calculateLiveQuoterSuggestion(
+            state.consumption.guests,
+            state.consumption.drinksPerPerson
+        );
         return res.recommendedLiters;
     }, [state.consumption.guests, state.consumption.drinksPerPerson]);
 
-    // Handlers de avance de pasos
     const handleNextFromGuests = (guestsOverride?: number) => {
         const guests = guestsOverride !== undefined ? guestsOverride : state.consumption.guests;
         if (guests < 1) {
@@ -85,7 +105,8 @@ export default function EventWizardShell({ cocktails, eventTypes, comunas, regio
     };
 
     const handleNextFromDrinks = (drinksOverride?: number) => {
-        const drinks = drinksOverride !== undefined ? drinksOverride : state.consumption.drinksPerPerson;
+        const drinks =
+            drinksOverride !== undefined ? drinksOverride : state.consumption.drinksPerPerson;
         if (drinks < 1) {
             setValidationError('Indica la cantidad de cócteles por persona.');
             window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -116,8 +137,7 @@ export default function EventWizardShell({ cocktails, eventTypes, comunas, regio
         setIsModalOpen(true);
     };
 
-    const handleCotizar = async ({ confirmNow }: { confirmNow: boolean }) => {
-        // Valida campos de contacto, fecha del evento y temática
+    const handleSubmitEvent = async (confirmNow: boolean) => {
         const resultVal = wizard.validateStep(6);
         if (!resultVal.valid) {
             setValidationError(resultVal.message ?? '');
@@ -192,7 +212,7 @@ export default function EventWizardShell({ cocktails, eventTypes, comunas, regio
                 <button
                     type="button"
                     onClick={handleBackStep}
-                    className="group inline-flex items-center gap-2.5 text-brand-text-muted no-underline font-semibold text-xs sm:text-[0.9rem] transition-all hover:text-primary bg-transparent border-none p-0 cursor-pointer"
+                    className="group inline-flex items-center gap-2.5 text-brand-text-muted no-underline font-semibold text-xs sm:text-sm transition-all hover:text-primary bg-transparent border-none p-0 cursor-pointer"
                 >
                     <div className="p-2 sm:p-2.5 rounded-full bg-white border border-brand-border group-hover:border-primary/30 group-hover:bg-primary/5 transition-all shadow-sm group-hover:shadow-md">
                         <ArrowLeft className="w-4 h-4 text-brand-text-muted group-hover:text-primary transition-transform group-hover:-translate-x-0.5" />
@@ -202,6 +222,7 @@ export default function EventWizardShell({ cocktails, eventTypes, comunas, regio
                         {currentStep === 2 && 'Cambiar invitados'}
                         {currentStep === 3 && 'Cambiar tragos p/p'}
                         {currentStep === 4 && 'Volver a propuesta'}
+                        {currentStep === 5 && 'Volver al catálogo'}
                     </span>
                 </button>
 
@@ -217,11 +238,11 @@ export default function EventWizardShell({ cocktails, eventTypes, comunas, regio
                 )}
             </div>
 
-            {/* Progress Bar Dinámica */}
+            {/* Progress Bar Dinámica (5 pasos) */}
             <div className="w-full max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 mb-6">
                 <div className="bg-brand-border h-2 w-full rounded-full overflow-hidden shadow-inner">
-                    <div 
-                        className="h-full bg-gradient-to-r from-primary via-[#f4a261] to-primary transition-all duration-700 ease-in-out relative origin-left" 
+                    <div
+                        className="h-full bg-gradient-to-r from-primary via-[#f4a261] to-primary transition-all duration-700 ease-in-out relative origin-left"
                         style={{ width: `${progress}%` }}
                     >
                         <div className="absolute inset-0 bg-white/20 animate-pulse" />
@@ -263,6 +284,32 @@ export default function EventWizardShell({ cocktails, eventTypes, comunas, regio
                             clientEmail={state.contact.email}
                             onReset={handleReset}
                             confirmed={quoteStatus === 'confirmed'}
+                        />
+                    ) : currentStep === 5 && urlMode === 'cotizacion' ? (
+                        <EventStepQuickQuote
+                            wizard={wizard}
+                            comunas={comunas}
+                            regions={regions}
+                            eventTypes={eventTypes}
+                            onOpenBarSummary={() => setIsModalOpen(true)}
+                            onSwitchToReserve={() => goToStep(5, { mode: 'reserva' })}
+                            onBackToCatalog={() => goToStep(4)}
+                            onSubmitQuote={() => void handleSubmitEvent(false)}
+                            sendStatus={sendStatus}
+                            saveError={saveError || validationError}
+                        />
+                    ) : currentStep === 5 && urlMode === 'reserva' ? (
+                        <EventWizardReserveFlow
+                            wizard={wizard}
+                            comunas={comunas}
+                            regions={regions}
+                            eventTypes={eventTypes}
+                            onOpenBarSummary={() => setIsModalOpen(true)}
+                            onSwitchToQuote={() => goToStep(5, { mode: 'cotizacion' })}
+                            onBackToCatalog={() => goToStep(4)}
+                            onSubmitReserve={() => void handleSubmitEvent(true)}
+                            sendStatus={sendStatus}
+                            saveError={saveError || validationError}
                         />
                     ) : (
                         <>
@@ -310,17 +357,21 @@ export default function EventWizardShell({ cocktails, eventTypes, comunas, regio
                 </div>
             </div>
 
-            {/* Checkout Modal Overlay */}
+            {/* Modal limpio de Resumen de Barra (sin formularios) */}
             {isModalOpen && sendStatus !== 'saved' && (
-                <EventWizardCheckoutModal 
-                    wizard={wizard} 
+                <EventWizardCheckoutModal
+                    wizard={wizard}
                     comunas={comunas}
                     regions={regions}
-                    eventTypes={eventTypes}
-                    onClose={() => setIsModalOpen(false)} 
-                    onConfirm={handleCotizar}
-                    sendStatus={sendStatus}
-                    saveError={saveError || validationError}
+                    onClose={() => setIsModalOpen(false)}
+                    onChooseQuote={() => {
+                        setIsModalOpen(false);
+                        goToStep(5, { mode: 'cotizacion' });
+                    }}
+                    onChooseReserve={() => {
+                        setIsModalOpen(false);
+                        goToStep(5, { mode: 'reserva' });
+                    }}
                 />
             )}
         </div>

@@ -13,6 +13,7 @@ export interface QuoteSummaryReservationData {
     startTime: string;
     formattedPickupDate?: string;
     pickupTime?: string;
+    glasswareLabel?: string | null;
     comments?: string;
     deliveryEstimateLabel?: string | null;
 }
@@ -79,6 +80,12 @@ export default function QuoteSummaryReservation({ data }: Props) {
                         <div className="flex items-start gap-2">
                             <span className="font-bold text-brand-text-muted min-w-[85px]">Retiro:</span>
                             <span className="font-medium text-brand-text leading-tight">{data.formattedPickupDate} {data.pickupTime && ` · (${data.pickupTime})`}</span>
+                        </div>
+                    )}
+                    {data.glasswareLabel && (
+                        <div className="flex items-start gap-2">
+                            <span className="font-bold text-brand-text-muted min-w-[85px]">Vasos:</span>
+                            <span className="font-medium text-brand-text leading-tight">{data.glasswareLabel}</span>
                         </div>
                     )}
                 </div>

@@ -2,8 +2,10 @@ import { z } from 'zod';
 import { OptionalPhoneSchema, RequiredPhoneSchema } from '@/lib/phone';
 import type { BlueExpressHomeRates, BlueExpressTransitTimes } from './blueExpress';
 import type { ShippingMethodsSettings } from './shippingMethods';
+import type { GlasswareType } from './glassware';
 
 export { OptionalPhoneSchema, RequiredPhoneSchema };
+export type { GlasswareType };
 
 export interface MeasurementUnit {
     id: string;
@@ -181,6 +183,7 @@ export interface WizardState {
         startTime: string;
         pickupDate: string;
         pickupTime: string;
+        glasswareType?: GlasswareType | '';
     };
     consumption: {
         guests: number;
@@ -304,6 +307,9 @@ export interface Quote {
     // Dispensador
     dispenser: 'portatil' | 'muro' | 'desechable';
 
+    // Modalidad de vasos (solo eventos)
+    glassware_type?: GlasswareType | null;
+
     // Precios
     total_normal_price: number;
     total_offer_price: number;
@@ -369,6 +375,7 @@ export const CreateQuoteSchema = z
                     startTime: z.string().nullable().optional().or(z.literal('')),
                     pickupDate: z.string().nullable().optional().or(z.literal('')),
                     pickupTime: z.string().nullable().optional().or(z.literal('')),
+                    glasswareType: z.enum(['reusable', 'disposable_pet']).nullable().optional().or(z.literal('')),
                 }),
                 consumption: z.object({
                     guests: z.number().nullable().optional().or(z.number().min(0)),
@@ -482,6 +489,7 @@ export const ConfirmQuoteSchema = z.object({
     pickup_time: z.string().nullable(),
     comments: z.string().nullable(),
     dispenser: z.enum(['portatil', 'muro', 'desechable']),
+    glassware_type: z.enum(['reusable', 'disposable_pet']).nullable().optional(),
     items: z
         .array(
             z.object({
@@ -526,6 +534,7 @@ export const UpdateDraftQuoteSchema = z.object({
     pickup_time: z.string().max(30).nullable().optional(),
     comments: z.string().max(2000).nullable().optional(),
     dispenser: z.enum(['portatil', 'muro', 'desechable']),
+    glassware_type: z.enum(['reusable', 'disposable_pet']).nullable().optional(),
     items: z
         .array(
             z.object({
@@ -570,6 +579,7 @@ export const UpdateQuoteAdminSchema = z
         drinks_per_person: z.coerce.number().min(0).optional(),
         comments: z.string().max(2000).nullable().optional(),
         dispenser: z.enum(['portatil', 'muro', 'desechable']).nullable().optional(),
+        glassware_type: z.enum(['reusable', 'disposable_pet']).nullable().optional().or(z.literal('').transform(() => null)),
     })
     .strip();
 

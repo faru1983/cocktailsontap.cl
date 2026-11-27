@@ -33,7 +33,7 @@ export default async function QuoteTokenPage({ params, searchParams }: Props) {
     const db = createServerClient();
 
     const PUBLIC_QUOTE_SELECT = `
-        id, token, status, service_type, dispenser, source,
+        id, token, status, service_type, dispenser, glassware_type, source,
         client_name, client_lastname, client_email, client_phone, client_address,
         region_name, comuna_name, comuna_other,
         event_date, start_time, pickup_date, pickup_time,

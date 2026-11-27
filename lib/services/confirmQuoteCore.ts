@@ -90,7 +90,7 @@ export async function confirmQuoteCore(
 
         const catalogLines = data.items
             .filter((i) => Boolean(i.product_id))
-            .map((i) => ({ product_id: i.product_id!, size: i.size, quantity: i.quantity }));
+            .map((i) => ({ product_id: i.product_id!, size: i.size, quantity: i.quantity, variant: i.variant ?? null }));
         const customLines = data.items.filter((i) => !i.product_id);
 
         const existingItems = ((quote as any).quote_items as QuoteItem[]) || [];
@@ -254,6 +254,7 @@ export async function confirmQuoteCore(
                     : data.pickup_time || EVENT_DEFAULT_NEXT_DAY_PICKUP_TIME,
             comments: data.comments,
             dispenser: data.dispenser,
+            glassware_type: isDirectSale ? null : (data.glassware_type ?? quote.glassware_type ?? null),
             total_price: total,
             total_liters: summary.totalLiters,
             total_normal_price: summary.totalNormalPrice,
@@ -394,6 +395,7 @@ export async function confirmQuoteCore(
             client_phone: normalizedPhone,
             region_name: resolvedRegionName,
             status: 'confirmed',
+            glassware_type: isDirectSale ? null : (data.glassware_type ?? quote.glassware_type ?? null),
             quote_items: resolvedItems,
             total_price: total,
             total_liters: summary.totalLiters,
@@ -486,6 +488,7 @@ export async function confirmQuoteCore(
             }
 
             revalidatePath(`/cotizar/${quoteToSync.token}`);
+            revalidatePath(`/cotizar/${quoteToSync.token}/reservar`);
 
             if (!skipWhatsapp) {
                 try {
